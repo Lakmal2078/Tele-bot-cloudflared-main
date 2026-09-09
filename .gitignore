@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.yarn/
+
+# Build & Output directories
+dist/
+build/
+.output/
+.mf/
+.wrangler/
+
+# Environment variables & Local secrets
+.env
+.env.local
+.env.*.local
+*.pem
+
+# Cloudflare / Wrangler local data
+.dev.vars
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+*.log
+
+# Sharp / Image processing cache
+.cache/
+
+# Ignore Bun lockfile to force Cloudflare to use npm
+bun.lock
+bun.lockb
+

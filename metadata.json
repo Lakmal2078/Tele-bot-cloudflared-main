@@ -1,0 +1,6 @@
+{
+  "name": "XBet Telegram Bot",
+  "description": "Telegram bot for cash deposits, withdrawals, and account management with admin controls, D1 database support, Cloudflare R2 audit logs, and scheduled 30-day log cleanup",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
