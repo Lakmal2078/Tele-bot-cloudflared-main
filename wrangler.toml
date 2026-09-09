@@ -1,34 +1,35 @@
 name = "xbet-telegram-bot"
-main = "src/worker.ts"
+main = "src/index.ts"
 compatibility_date = "2026-09-09"
 compatibility_flags = ["nodejs_compat"]
 
+# ─── Plain text variables (non-sensitive) ───
 [vars]
-ADMIN_CHANNEL_ID = "7990858914"
-ADMIN_IDS = "8658733173"
-BANK_DETAILS = """
-BOC (Walasmulla): 95645895 (VGS Lakmal)
-PEOPLE'S BANK: 120200380030196 (VGS Lakmal)
-SAMPATH BANK: 105456146706 (NKE Oshadhi)
-LOLC BANK: 01210012722 (VGS Lakmal)
-iPay Mobile 1: 0740452530 (VGS Lakmal)
-iPay Mobile 2: 0703346455 (VGS Lakmal)"""
 BOT_MODE = "webhook"
 CHANNEL_URL = "https://t.me"
 CHANNEL_USERNAME = "@fastxbetcash_bot"
 DEPOSIT_INSTRUCTIONS = "Deposit to the following account"
-EZCASH_NUMBER = "0765865387"
-FRIMI_NUMBER = "0765865387"
 MAX_TRANSACTION_LKR = "500000"
-MCASH_NUMBER = "0765865387"
 MIN_TRANSACTION_LKR = "1000"
-R2_ACCOUNT_ID = "5e881675f6e48904761848cfbf3b44b8"
 R2_BUCKET_NAME = "chat-media"
-R2_PUBLIC_DOMAIN = "https://pub-c0f249aeb2ec4b02a4b248b4d91d5616"
 USE_POLLING = "false"
-WHATSAPP_NUMBER = "94776763093"
 XBET_LINK = "https://reffpa.com"
 XBET_PROMO_CODE = "VGSL"
+
+# ─── Required secrets (set via: npx wrangler secret put <NAME>) ───
+# පහත values ටික wrangler.toml එකේ දාන්න එපා — වෙනම secret විදියට set කරන්න:
+#
+#   npx wrangler secret put BOT_TOKEN
+#   npx wrangler secret put WEBHOOK_SECRET
+#   npx wrangler secret put ADMIN_CHANNEL_ID
+#   npx wrangler secret put ADMIN_IDS
+#   npx wrangler secret put BANK_DETAILS
+#   npx wrangler secret put WHATSAPP_NUMBER
+#   npx wrangler secret put EZCASH_NUMBER
+#   npx wrangler secret put FRIMI_NUMBER
+#   npx wrangler secret put MCASH_NUMBER
+#   npx wrangler secret put R2_ACCOUNT_ID
+#   npx wrangler secret put R2_PUBLIC_DOMAIN
 
 [[d1_databases]]
 binding = "DB"
