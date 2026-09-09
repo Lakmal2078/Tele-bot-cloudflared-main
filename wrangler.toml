@@ -1,6 +1,7 @@
 name = "xbet-telegram-bot"
-main = "src/index.ts"
+main = "src/worker.ts"
 compatibility_date = "2026-09-09"
+compatibility_flags = ["nodejs_compat"]
 
 [vars]
 ADMIN_CHANNEL_ID = "7990858914"
@@ -12,7 +13,7 @@ SAMPATH BANK: 105456146706 (NKE Oshadhi)
 LOLC BANK: 01210012722 (VGS Lakmal)
 iPay Mobile 1: 0740452530 (VGS Lakmal)
 iPay Mobile 2: 0703346455 (VGS Lakmal)"""
-BOT_MODE = "production"
+BOT_MODE = "webhook"
 CHANNEL_URL = "https://t.me"
 CHANNEL_USERNAME = "@fastxbetcash_bot"
 DEPOSIT_INSTRUCTIONS = "Deposit to the following account"
@@ -24,13 +25,19 @@ MIN_TRANSACTION_LKR = "1000"
 R2_ACCOUNT_ID = "5e881675f6e48904761848cfbf3b44b8"
 R2_BUCKET_NAME = "chat-media"
 R2_PUBLIC_DOMAIN = "https://pub-c0f249aeb2ec4b02a4b248b4d91d5616"
-USE_POLLING = "true"
+USE_POLLING = "false"
 WHATSAPP_NUMBER = "94776763093"
 XBET_LINK = "https://reffpa.com"
 XBET_PROMO_CODE = "VGSL"
 
 [[d1_databases]]
-binding = "fastxbetcash_bot_db"
+binding = "DB"
 database_name = "fastxbetcash_bot-db"
 database_id = "7a821498-be68-4a0f-a630-e9334238c1fe"
 
+[[r2_buckets]]
+binding = "CHAT_MEDIA"
+bucket_name = "chat-media"
+
+[triggers]
+crons = ["0 2 * * *"]

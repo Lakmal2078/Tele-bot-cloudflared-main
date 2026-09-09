@@ -118,44 +118,25 @@ if (env.BOT_TOKEN && env.BOT_TOKEN.trim() !== "") {
 }
 
 
-// Cloudflare Workers සඳහා වන ප්‍රධාන Export Handler එක
-export default {
-  // 1. Webhook සහ Health Check (HTTP Requests) සඳහා Fetch Handler එක
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    const url = new URL(request.url);
-    
-    // Health Check සඳහා (කලින් තිබූ http.createServer එක වෙනුවට)
-    if (url.pathname === "/health" || url.pathname === "/api/health") {
-      if (request.method === "HEAD") {
-        return new Response(null, { status: 200 });
-      }
-      return new Response(JSON.stringify({ status: "ok" }), {
-        status: 200,
-        headers: { 
-          "Content-Type": "application/json",
-          "X-Content-Type-Options": "nosniff"
-        }
-      });
+const server = http.createServer(async (req, res) => {
+  const method = (req.method || "GET").toUpperCase();
+  const url = (req.url || "/").split("?")[0];
+
+  if (url === "/health" || url === "/api/health") {
+    if (method === "HEAD") {
+      res.writeHead(200);
+      res.end();
+      return;
     }
-
-    // ඔබේ අනෙකුත් Bot Webhook හැසිරවීම් (Handle Webhook Logic) මෙතැනින් ලබා දෙන්න
-    // උදාහරණ: return handleTelegramWebhook(request, env, ctx);
-    return new Response("Bot is running", { status: 200 });
-  },
-
-  // 2. දිනපතා ලොග් ක්ලීන්අප් එක ස්වයංක්‍රීයව සිදුකිරීම සඳහා Scheduled Handler එක
-  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    console.log("[Scheduler] Running scheduled 30-day R2 log cleanup via Cloudflare Cron...");
-    
-    // පසුබිමෙන් (Background) cleanup වැඩේ සිදුවන තෙක් Worker එක ක්‍රියාත්මක කර තැබීමට ctx.waitUntil භාවිතා කරයි
-    ctx.waitUntil(
-      cleanupOldR2Logs(env, 30)
-        .then(() => console.log("[Scheduler] Daily R2 cleanup completed successfully."))
-        .catch((err) => console.error("[Scheduler] Daily R2 cleanup failed:", err))
-    );
+    res.writeHead(200, {
+      "Content-Type": "application/json",
+      "X-Content-Type-Options": "nosniff",
+    });
+    res.end(JSON.stringify({ status: "ok" }));
+    return;
   }
-};
 
+  if (method === "GET" || method === "HEAD") {
     if (url === "/api/cleanup/logs/status") {
       const last = getLastCleanupResult();
       res.writeHead(200, { "Content-Type": "application/json" });
@@ -502,5 +483,3 @@ export default {
 server.listen(PORT, HOST, () => {
   console.log(`[XBet Bot Server] Running on http://${HOST}:${PORT}`);
 });
-
-export default server;
