@@ -7,6 +7,7 @@ import type { Env } from "./types";
 
 let botInstance: ReturnType<typeof createBot> | null = null;
 let cachedToken: string | null = null;
+let webhookHandler: ((request: Request) => Promise<Response>) | null = null;
 
 export default {
   async fetch(request: Request, env: Env, ctx?: any): Promise<Response> {
@@ -76,19 +77,30 @@ export default {
         });
       }
 
-      // Re-create bot if token changed or not initialized
+      const incomingSecret = request.headers.get("X-Telegram-Bot-Api-Secret-Token") || "";
+      const expectedSecret = (env.WEBHOOK_SECRET || "").trim();
+      // Reject only when Telegram DID send a secret and it does not match.
+      // If setWebhook was called without secret_token, Telegram sends no header —
+      // enforcing WEBHOOK_SECRET in that case 401s every update and the bot never replies.
+      if (expectedSecret && incomingSecret && incomingSecret !== expectedSecret) {
+        return new Response("unauthorized", { status: 401 });
+      }
+
       if (!botInstance || cachedToken !== env.BOT_TOKEN) {
         botInstance = createBot(env);
         cachedToken = env.BOT_TOKEN;
+        webhookHandler = null;
       }
 
-      const handler = webhookCallback(botInstance, "cloudflare-mod", {
-        secretToken: env.WEBHOOK_SECRET || undefined,
-      });
+      if (!webhookHandler) {
+        webhookHandler = webhookCallback(botInstance, "cloudflare-mod", {
+          timeoutMilliseconds: 25000,
+        }) as (request: Request) => Promise<Response>;
+      }
 
       try {
         return await executionContextStorage.run(ctx, async () => {
-          return await handler(request);
+          return await webhookHandler!(request);
         });
       } catch (err) {
         console.error("[Worker Webhook Error]:", err);
