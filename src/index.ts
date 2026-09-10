@@ -483,3 +483,17 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, HOST, () => {
   console.log(`[XBet Bot Server] Running on http://${HOST}:${PORT}`);
 });
+
+// ඔබගේ Bot Setup සහ Router Imports මෙහි තිබිය යුතුය
+
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    // Webhook හෝ Bot Requests Handle කරන Logic එක
+    return handleRequest(request, env, ctx);
+  },
+  
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    // Cron Jobs සදහා සකස් කළ Logic එක
+  }
+};
+
