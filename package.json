@@ -12,6 +12,8 @@
     "pm2:logs": "pm2 logs xbet-bot",
     "pm2:status": "pm2 status",
     "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "deploy:cf": "bash deploy.sh"
   },
   "dependencies": {
@@ -24,6 +26,7 @@
     "esbuild": "^0.28.2",
     "tsx": "^4.23.13",
     "typescript": "^5.8.0",
+    "vitest": "^3.2.4",
     "wrangler": "^4.15.2"
   },
   "allowScripts": {

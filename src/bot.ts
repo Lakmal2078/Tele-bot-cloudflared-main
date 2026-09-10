@@ -8,6 +8,7 @@ import { escapeMarkdown, escapeCode } from "./utils";
 import { logTransactionAudit, logBotError } from "./logger";
 import { cleanupOldR2Logs } from "./logCleanup";
 import * as fraud from "./fraud";
+import { RateLimiter } from "./rateLimit";
 
 export const executionContextStorage = new AsyncLocalStorage<{
   waitUntil?: (promise: Promise<unknown>) => void;
@@ -370,6 +371,17 @@ function getPaymentMethodInstructions(method: PaymentMethod, env: Env, lang: Lan
 export function createBot(env: Env) {
   const bot = new Bot<MyContext>(env.BOT_TOKEN);
   const adminIds = parseAdminIds(env.ADMIN_IDS || "");
+
+  // 🛡️ Global & per-user rate limiting — runs BEFORE every handler.
+  // Admins listed in ADMIN_IDS are exempt; deposits/withdrawals keep their own
+  // stricter DB-backed limits in fraud.ts on top of this.
+  const rateLimiter = new RateLimiter({
+    windowMs: 60_000,
+    maxPerUser: 20,
+    maxGlobal: 300,
+    exemptUserIds: [...adminIds],
+  });
+  bot.use(rateLimiter.middleware());
 
   // Attach env and waitUntil to context
   bot.use(async (ctx, next) => {

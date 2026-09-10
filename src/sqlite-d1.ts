@@ -1,6 +1,6 @@
 import type { D1Database, D1PreparedStatement } from "./types";
 
-export function createD1Database(): D1Database {
+export function createD1Database(_dbPath?: string): D1Database {
   return {
     prepare(query: string): D1PreparedStatement {
       return {
