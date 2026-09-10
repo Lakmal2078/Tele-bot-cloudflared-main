@@ -7,6 +7,7 @@ import { backupReceiptToR2, R2FileMetadata } from "./r2";
 import { escapeMarkdown, escapeCode } from "./utils";
 import { logTransactionAudit, logBotError } from "./logger";
 import { cleanupOldR2Logs } from "./logCleanup";
+import * as fraud from "./fraud";
 
 export const executionContextStorage = new AsyncLocalStorage<{
   waitUntil?: (promise: Promise<unknown>) => void;
@@ -841,7 +842,8 @@ export function createBot(env: Env) {
     photoFileId?: string | null,
     r2Url?: string | null,
     isConfirmation = false,
-    r2Meta?: R2FileMetadata | null
+    r2Meta?: R2FileMetadata | null,
+    fraudFlags?: string[]
   ) {
     const timeColombo = new Date().toLocaleString("si-LK", { timeZone: "Asia/Colombo" });
     const r2Line = r2Meta
@@ -854,8 +856,11 @@ export function createBot(env: Env) {
       ? `📸 *NEW DEPOSIT CONFIRMATION SLIP #${requestId}*`
       : `🔔 *NEW DEPOSIT REQUEST #${requestId}*`;
 
+    const fraudBanner = fraud.formatFraudBanner(fraudFlags || []);
+
     const alert =
       `${header}\n\n` +
+      (fraudBanner ? `${fraudBanner}\n` : "") +
       `👤 *User:* ${escapeMarkdown(userInfo.first_name || "User")} (@${escapeMarkdown(userInfo.username || "none")})\n` +
       `🆔 *User ID:* \`${userInfo.id}\`\n` +
       `💳 *Method:* *${escapeMarkdown(methodName)}*\n` +
@@ -1008,6 +1013,42 @@ export function createBot(env: Env) {
       parse_mode: "Markdown",
       reply_markup: kb,
     });
+  });
+
+  // ========== /auditlog command (Admin Only) — permanent admin action trail ==========
+  bot.command(["auditlog", "auditlogs"], async (ctx) => {
+    const user = ctx.from;
+    if (!user) return;
+    await db.clearUserState(env.DB, user.id);
+    const lang = await getUserLang(env.DB, user.id);
+    if (!adminIds.has(user.id)) {
+      await ctx.reply("🔒 මෙම විධානය භාවිත කළ හැක්කේ Bot Admin වරුන්ට පමණි (Admin access required).", {
+        reply_markup: mainMenu(user.id, adminIds, lang),
+      });
+      return;
+    }
+
+    const actions = await db.getRecentAdminActions(env.DB, 15);
+    if (actions.length === 0) {
+      await ctx.reply("📋 Admin action log එකේ දැනට records නැහැ.");
+      return;
+    }
+
+    const lines = actions.map((a) => {
+      const amt = a.amount != null ? `LKR ${(a.amount / 100).toLocaleString()}` : "-";
+      const icon = a.action.endsWith("APPROVED") ? "✅" : "❌";
+      return (
+        `${icon} *${escapeMarkdown(a.action)}* — ${a.target_type} #${a.target_id}\n` +
+        `   👤 Admin: @${escapeMarkdown(a.admin_username || String(a.admin_id))} | 💰 ${amt}\n` +
+        `   🕒 ${escapeMarkdown(a.created_at)}`
+      );
+    });
+
+    const text = [`📋 *ADMIN AUDIT TRAIL* (Last ${actions.length})`, "━━━━━━━━━━━━━━━━━━━━━━━━━", ...lines].join(
+      "\n"
+    );
+
+    await ctx.reply(text, { parse_mode: "Markdown" });
   });
 
   // ========== /id, /myid, /whoami command ==========
@@ -1175,6 +1216,15 @@ export function createBot(env: Env) {
           const { photo, playerId, method = "BANK", isConfirmationWorkflow = false } = state.data;
           const methodName = getMethodDisplayName(method, lang);
 
+          // 🛡️ Rate limit: block rapid repeated deposit submissions from the same user
+          const depRateCheck = await fraud.checkRateLimit(env.DB, user.id, "deposits");
+          if (!depRateCheck.allowed) {
+            await ctx.reply(depRateCheck.blockMessage || "Rate limit exceeded.", {
+              reply_markup: mainMenu(user.id, adminIds, lang),
+            });
+            return;
+          }
+
           try {
             const requestId = await db.addDeposit(
               env.DB,
@@ -1187,6 +1237,9 @@ export function createBot(env: Env) {
               null
             );
             await db.clearUserState(env.DB, user.id);
+
+            // 🛡️ Fraud checks: duplicate receipt & shared player ID (non-blocking, flagged for admin review)
+            const depFraud = await fraud.checkDepositFraud(env.DB, user.id, playerId, photo || null);
 
             // Audit log transaction creation to Cloudflare R2
             logTransactionAudit(
@@ -1201,7 +1254,7 @@ export function createBot(env: Env) {
                 amount,
                 method,
                 status: "PENDING",
-                details: { photoFileId: photo, isConfirmationWorkflow },
+                details: { photoFileId: photo, isConfirmationWorkflow, fraudFlags: depFraud.flags },
               },
               ctx.waitUntil
             );
@@ -1244,7 +1297,8 @@ export function createBot(env: Env) {
               photo,
               r2Url,
               Boolean(isConfirmationWorkflow),
-              r2Meta
+              r2Meta,
+              depFraud.flags
             );
 
             if (isConfirmationWorkflow) {
@@ -1743,6 +1797,21 @@ export function createBot(env: Env) {
         ctx.waitUntil
       );
 
+      // 🛡️ Permanent admin audit trail (durable, never auto-deleted unlike the 30-day R2 logs)
+      ctx.waitUntil(
+        db.logAdminAction(
+          env.DB,
+          user.id,
+          user.username || user.first_name || String(user.id),
+          `DEPOSIT_${status}`,
+          "DEPOSIT",
+          id,
+          deposit.user_id,
+          Number(deposit.amount),
+          { playerId: deposit.player_id, method: deposit.payment_method }
+        )
+      );
+
       try {
         if (ctx.callbackQuery.message?.photo) {
           await ctx.editMessageCaption({ caption: updatedText });
@@ -1844,6 +1913,21 @@ export function createBot(env: Env) {
           },
         },
         ctx.waitUntil
+      );
+
+      // 🛡️ Permanent admin audit trail (durable, never auto-deleted unlike the 30-day R2 logs)
+      ctx.waitUntil(
+        db.logAdminAction(
+          env.DB,
+          user.id,
+          user.username || user.first_name || String(user.id),
+          `WITHDRAWAL_${status}`,
+          "WITHDRAWAL",
+          id,
+          withdrawal.user_id,
+          Number(withdrawal.amount),
+          { playerId: withdrawal.player_id, method: withdrawal.payment_method }
+        )
       );
 
       try {
@@ -2274,6 +2358,15 @@ export function createBot(env: Env) {
       const { photo, playerId, method = "BANK", isConfirmationWorkflow = false } = state.data;
       const methodName = getMethodDisplayName(method, lang);
 
+      // 🛡️ Rate limit: block rapid repeated deposit submissions from the same user
+      const depRateCheck2 = await fraud.checkRateLimit(env.DB, user.id, "deposits");
+      if (!depRateCheck2.allowed) {
+        await ctx.reply(depRateCheck2.blockMessage || "Rate limit exceeded.", {
+          reply_markup: mainMenu(user.id, adminIds, lang),
+        });
+        return;
+      }
+
       try {
         const requestId = await db.addDeposit(
           env.DB,
@@ -2286,6 +2379,9 @@ export function createBot(env: Env) {
           null
         );
         await db.clearUserState(env.DB, user.id);
+
+        // 🛡️ Fraud checks: duplicate receipt & shared player ID (non-blocking, flagged for admin review)
+        const depFraud2 = await fraud.checkDepositFraud(env.DB, user.id, playerId, photo || null);
 
         // Audit log transaction creation to Cloudflare R2
         logTransactionAudit(
@@ -2300,7 +2396,7 @@ export function createBot(env: Env) {
             amount,
             method,
             status: "PENDING",
-            details: { photoFileId: photo, isConfirmationWorkflow },
+            details: { photoFileId: photo, isConfirmationWorkflow, fraudFlags: depFraud2.flags },
           },
           ctx.waitUntil
         );
@@ -2343,7 +2439,8 @@ export function createBot(env: Env) {
           photo,
           r2Url,
           Boolean(isConfirmationWorkflow),
-          r2Meta
+          r2Meta,
+          depFraud2.flags
         );
 
         if (isConfirmationWorkflow) {
@@ -2493,6 +2590,15 @@ export function createBot(env: Env) {
       const { playerId, amount, method = "BANK", destinationAccount = "N/A" } = state.data;
       const methodName = getMethodDisplayName(method, lang);
 
+      // 🛡️ Rate limit: block rapid repeated withdrawal submissions from the same user
+      const wdRateCheck = await fraud.checkRateLimit(env.DB, user.id, "withdrawals");
+      if (!wdRateCheck.allowed) {
+        await ctx.reply(wdRateCheck.blockMessage || "Rate limit exceeded.", {
+          reply_markup: mainMenu(user.id, adminIds, lang),
+        });
+        return;
+      }
+
       try {
         const requestId = await db.addWithdrawal(
           env.DB,
@@ -2505,6 +2611,9 @@ export function createBot(env: Env) {
           destinationAccount
         );
         await db.clearUserState(env.DB, user.id);
+
+        // 🛡️ Fraud check: player ID already used by another Telegram account (non-blocking)
+        const wdFraud = await fraud.checkWithdrawalFraud(env.DB, user.id, playerId);
 
         // Audit log withdrawal creation to Cloudflare R2
         logTransactionAudit(
@@ -2519,12 +2628,14 @@ export function createBot(env: Env) {
             amount,
             method,
             status: "PENDING",
-            details: { destinationAccount },
+            details: { destinationAccount, fraudFlags: wdFraud.flags },
           },
           ctx.waitUntil
         );
+        const fraudBanner = fraud.formatFraudBanner(wdFraud.flags);
         const alert =
           `🔔 *NEW WITHDRAWAL REQUEST #${requestId}*\n\n` +
+          (fraudBanner ? `${fraudBanner}\n` : "") +
           `👤 *User:* ${escapeMarkdown(user.first_name || "User")} (@${escapeMarkdown(user.username || "none")})\n` +
           `🆔 *User ID:* \`${user.id}\`\n` +
           `💳 *Method:* *${escapeMarkdown(methodName)}*\n` +
@@ -2698,79 +2809,4 @@ function formatAdminStats(stats: SystemStats): string {
     `• පොරොත්තු ඉල්ලීම් (Pending): *${stats.pendingWithdrawals.toLocaleString()}*\n` +
     `• ප්‍රතික්ෂේප වූ ගණන (Rejected): *${stats.rejectedWithdrawalsCount.toLocaleString()}*\n\n` +
     `📈 *ශුද්ධ ලැබීම (Net Cash Flow):*\n` +
-    `• *LKR ${netApprovedVolume >= 0 ? "+" : ""}${netApprovedVolume.toLocaleString()}*\n` +
-    `━━━━━━━━━━━━━━━━━━━━━━\n` +
-    `_📅 උත්පාදනය කළ වේලාව: ${new Date().toLocaleString("si-LK", { timeZone: "Asia/Colombo" })}_`
-  );
-}
-
-async function renderReferralDashboard(ctx: MyContext, userId: number, editMessage = false) {
-  let botUsername = "fastxbetcash_bot";
-  try {
-    const me = await ctx.api.getMe();
-    if (me.username) botUsername = me.username;
-  } catch (e) {
-    console.error("Failed to get bot info", e);
-  }
-
-  const lang = await getUserLang(ctx.env.DB, userId);
-  const refLink = `https://t.me/${botUsername}?start=ref${userId}`;
-  const summary = await db.getUserReferralSummary(ctx.env.DB, userId);
-  const referrals = await db.getUserReferrals(ctx.env.DB, userId);
-
-  let friendsList = "";
-  if (referrals.length === 0) {
-    friendsList = lang === "en"
-      ? "_No friends have joined via your link yet._"
-      : lang === "ta"
-      ? "_உங்கள் இணைப்பு மூலம் இதுவரை எந்த நண்பரும் இணையவில்லை._"
-      : "_තවමත් කිසිදු යහළුවෙකු ඔබගේ link එකෙන් සම්බන්ධ වී නොමැත._";
-  } else {
-    friendsList = referrals
-      .slice(0, 10)
-      .map((r, i) => {
-        const safeName = escapeMarkdown(r.first_name || r.username || `User ${r.referred_id}`);
-        const handle = r.username ? ` (@${escapeMarkdown(r.username)})` : "";
-        const status =
-          r.total_deposited > 0
-            ? `✅ Active (LKR ${Number(r.total_deposited).toLocaleString()})`
-            : `⏳ Registered`;
-        const date = r.created_at ? r.created_at.slice(0, 10) : "";
-        return `${i + 1}. *${safeName}*${handle}\n   └ ${status} • \`${date}\``;
-      })
-      .join("\n");
-  }
-
-  const shareText = encodeURIComponent(
-    `1XBet Cashier Bot හරහා ක්ෂණිකව Deposit & Withdrawal කරන්න! මෙතැනින් එක්වන්න:\n${refLink}`
-  );
-  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${shareText}`;
-
-  const text =
-    `🔄 *REFERRAL DASHBOARD*\n` +
-    `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-    `🔗 *Referral Link:*\n` +
-    `\`${refLink}\`\n\n` +
-    `📊 *Live Stats:*\n` +
-    `• Total Referrals: *${summary.totalReferrals.toLocaleString()}*\n` +
-    `• Active Depositors: *${summary.activeReferrals.toLocaleString()}*\n` +
-    `• Referral Deposit Volume: *LKR ${summary.totalVolume.toLocaleString()}*\n\n` +
-    `👥 *Recent Referrals:*\n` +
-    `${friendsList}\n` +
-    `━━━━━━━━━━━━━━━━━━━━━━\n` +
-    `_Share this link via Telegram or social media!_`;
-
-  const kb = new InlineKeyboard()
-    .url("📤 Share on Telegram", shareUrl)
-    .row()
-    .text("🔄 Refresh", "ref_refresh")
-    .text("⬅️ Back to Menu", "back");
-
-  if (editMessage) {
-    try {
-      await ctx.editMessageText(text, { parse_mode: "Markdown", reply_markup: kb });
-      return;
-    } catch {}
-  }
-  await ctx.reply(text, { parse_mode: "Markdown", reply_markup: kb });
-}
+    `• *L

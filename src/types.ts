@@ -112,6 +112,20 @@ export interface SystemStats {
   todayWithdrawalsVolume: number;
 }
 
+/** Permanent audit-trail record of an admin approve/reject decision (see admin_actions table). */
+export interface AdminActionRow {
+  id: number;
+  admin_id: number;
+  admin_username: string | null;
+  action: string; // e.g. 'DEPOSIT_APPROVED', 'WITHDRAWAL_REJECTED'
+  target_type: "DEPOSIT" | "WITHDRAWAL";
+  target_id: number;
+  target_user_id: number | null;
+  amount: number | null; // LKR major units after conversion from cents
+  details: string | null; // JSON string
+  created_at: string;
+}
+
 export interface ReferralItem {
   referred_id: number;
   username: string | null;
@@ -120,3 +134,4 @@ export interface ReferralItem {
   deposit_count: number;
   total_deposited: number;
 }
+

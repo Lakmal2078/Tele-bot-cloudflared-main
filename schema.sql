@@ -63,6 +63,21 @@ CREATE TABLE IF NOT EXISTS user_state (
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
+-- Admin Actions Audit Trail
+-- Permanent record of every approve/reject decision, separate from the 30-day R2 log retention.
+CREATE TABLE IF NOT EXISTS admin_actions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  admin_id INTEGER NOT NULL,
+  admin_username TEXT,
+  action TEXT NOT NULL,           -- e.g. 'DEPOSIT_APPROVED', 'WITHDRAWAL_REJECTED'
+  target_type TEXT NOT NULL CHECK(target_type IN ('DEPOSIT', 'WITHDRAWAL')),
+  target_id INTEGER NOT NULL,
+  target_user_id INTEGER,
+  amount INTEGER,                 -- LKR cents, snapshot for quick reference
+  details TEXT,                   -- JSON string (fraud flags present at time of decision, etc.)
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_deposits_status ON deposits(status);
 CREATE INDEX IF NOT EXISTS idx_withdrawals_status ON withdrawals(status);
@@ -71,3 +86,14 @@ CREATE INDEX IF NOT EXISTS idx_withdrawals_user ON withdrawals(user_id);
 CREATE INDEX IF NOT EXISTS idx_deposits_deleted ON deposits(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_withdrawals_deleted ON withdrawals(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_user_state_updated ON user_state(updated_at);
+-- Fraud-prevention lookups: duplicate receipts & shared player IDs
+CREATE INDEX IF NOT EXISTS idx_deposits_photo ON deposits(photo_file_id);
+CREATE INDEX IF NOT EXISTS idx_deposits_player ON deposits(player_id);
+CREATE INDEX IF NOT EXISTS idx_withdrawals_player ON withdrawals(player_id);
+CREATE INDEX IF NOT EXISTS idx_deposits_created ON deposits(created_at);
+CREATE INDEX IF NOT EXISTS idx_withdrawals_created ON withdrawals(created_at);
+-- Admin audit trail lookups
+CREATE INDEX IF NOT EXISTS idx_admin_actions_admin ON admin_actions(admin_id);
+CREATE INDEX IF NOT EXISTS idx_admin_actions_target ON admin_actions(target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_admin_actions_created ON admin_actions(created_at);
+

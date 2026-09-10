@@ -1,4 +1,4 @@
-import type { Env, DepositRow, WithdrawalRow, D1Database, SystemStats, ReferralItem } from "./types";
+import type { Env, DepositRow, WithdrawalRow, D1Database, SystemStats, ReferralItem, AdminActionRow } from "./types";
 
 /** Convert LKR major units (e.g. 1500.50) to integer cents. Avoids floating-point drift. */
 export function toCents(amountLkr: number): number {
@@ -451,3 +451,116 @@ export async function getAllUserIds(db: D1Database) {
   const result = await db.prepare(`SELECT user_id FROM users`).all<{ user_id: number }>();
   return result.results.map((r) => r.user_id);
 }
+
+/* ============================================================
+ * 🛡️ Security & Fraud Prevention
+ * ============================================================ */
+
+/**
+ * Count how many deposit/withdrawal requests a user has submitted within the
+ * last `windowMinutes`. Used to rate-limit repeated submissions from the same user.
+ */
+export async function countRecentSubmissions(
+  db: D1Database,
+  userId: number,
+  table: "deposits" | "withdrawals",
+  windowMinutes: number = 10
+): Promise<number> {
+  const row = await db
+    .prepare(
+      `SELECT COUNT(*) as c FROM ${table} WHERE user_id = ? AND deleted_at IS NULL AND created_at >= datetime('now', ?)`
+    )
+    .bind(userId, `-${windowMinutes} minutes`)
+    .first<{ c: number }>();
+  return row?.c ?? 0;
+}
+
+/**
+ * Find prior deposits (submitted by a *different* Telegram user) that reused the exact
+ * same Telegram photo file_id. A strong signal of a reused / recycled receipt screenshot.
+ */
+export async function findDuplicateReceipt(
+  db: D1Database,
+  photoFileId: string,
+  excludeUserId: number
+): Promise<DepositRow[]> {
+  if (!photoFileId) return [];
+  const res = await db
+    .prepare(
+      `SELECT id, user_id, username, player_id, amount, payment_method, photo_file_id, r2_url, status, created_at
+       FROM deposits
+       WHERE photo_file_id = ? AND user_id != ? AND deleted_at IS NULL
+       ORDER BY created_at DESC LIMIT 5`
+    )
+    .bind(photoFileId, excludeUserId)
+    .all<any>();
+  return (res.results || []).map((r) => mapDepositRow(r)!);
+}
+
+/**
+ * Check whether a Player ID has previously been used by a *different* Telegram user
+ * (across both deposits and withdrawals). Flags possibly shared/stolen player accounts.
+ */
+export async function getPlayerIdOwners(
+  db: D1Database,
+  playerId: string,
+  excludeUserId: number
+): Promise<number[]> {
+  const [depRes, wdRes] = await Promise.all([
+    db
+      .prepare(`SELECT DISTINCT user_id FROM deposits WHERE player_id = ? AND user_id != ? AND deleted_at IS NULL`)
+      .bind(playerId, excludeUserId)
+      .all<{ user_id: number }>(),
+    db
+      .prepare(`SELECT DISTINCT user_id FROM withdrawals WHERE player_id = ? AND user_id != ? AND deleted_at IS NULL`)
+      .bind(playerId, excludeUserId)
+      .all<{ user_id: number }>(),
+  ]);
+  const ids = new Set<number>();
+  (depRes.results || []).forEach((r) => ids.add(r.user_id));
+  (wdRes.results || []).forEach((r) => ids.add(r.user_id));
+  return Array.from(ids);
+}
+
+/**
+ * Permanently record an admin approve/reject decision. Unlike the R2 audit logs
+ * (30-day retention), rows here are never auto-deleted — a durable compliance trail.
+ */
+export async function logAdminAction(
+  db: D1Database,
+  adminId: number,
+  adminUsername: string | null,
+  action: string,
+  targetType: "DEPOSIT" | "WITHDRAWAL",
+  targetId: number,
+  targetUserId: number | null,
+  amountLkr: number | null,
+  details: Record<string, any> = {}
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO admin_actions (admin_id, admin_username, action, target_type, target_id, target_user_id, amount, details)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(
+      adminId,
+      adminUsername,
+      action,
+      targetType,
+      targetId,
+      targetUserId,
+      amountLkr != null ? toCents(amountLkr) : null,
+      JSON.stringify(details || {})
+    )
+    .run();
+}
+
+/** Fetch the most recent admin approve/reject actions (for the /auditlog command). */
+export async function getRecentAdminActions(db: D1Database, limit: number = 20): Promise<AdminActionRow[]> {
+  const res = await db
+    .prepare(`SELECT * FROM admin_actions ORDER BY created_at DESC, id DESC LIMIT ?`)
+    .bind(limit)
+    .all<AdminActionRow>();
+  return res.results || [];
+}
+
