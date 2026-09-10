@@ -45,3 +45,10 @@ logs/
 bun.lock
 bun.lockb
 
+# SQLite & Local Databases
+*.db
+*.sqlite
+*.sqlite3
+data/*.db
+backup*.sql
+
