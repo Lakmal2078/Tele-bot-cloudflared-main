@@ -2809,4 +2809,79 @@ function formatAdminStats(stats: SystemStats): string {
     `• පොරොත්තු ඉල්ලීම් (Pending): *${stats.pendingWithdrawals.toLocaleString()}*\n` +
     `• ප්‍රතික්ෂේප වූ ගණන (Rejected): *${stats.rejectedWithdrawalsCount.toLocaleString()}*\n\n` +
     `📈 *ශුද්ධ ලැබීම (Net Cash Flow):*\n` +
-    `• *L
+    `• *LKR ${netApprovedVolume >= 0 ? "+" : ""}${netApprovedVolume.toLocaleString()}*\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `_📅 උත්පාදනය කළ වේලාව: ${new Date().toLocaleString("si-LK", { timeZone: "Asia/Colombo" })}_`
+  );
+}
+
+async function renderReferralDashboard(ctx: MyContext, userId: number, editMessage = false) {
+  let botUsername = "fastxbetcash_bot";
+  try {
+    const me = await ctx.api.getMe();
+    if (me.username) botUsername = me.username;
+  } catch (e) {
+    console.error("Failed to get bot info", e);
+  }
+
+  const lang = await getUserLang(ctx.env.DB, userId);
+  const refLink = `https://t.me/${botUsername}?start=ref${userId}`;
+  const summary = await db.getUserReferralSummary(ctx.env.DB, userId);
+  const referrals = await db.getUserReferrals(ctx.env.DB, userId);
+
+  let friendsList = "";
+  if (referrals.length === 0) {
+    friendsList = lang === "en"
+      ? "_No friends have joined via your link yet._"
+      : lang === "ta"
+      ? "_உங்கள் இணைப்பு மூலம் இதுவரை எந்த நண்பரும் இணையவில்லை._"
+      : "_තවමත් කිසිදු යහළුවෙකු ඔබගේ link එකෙන් සම්බන්ධ වී නොමැත._";
+  } else {
+    friendsList = referrals
+      .slice(0, 10)
+      .map((r, i) => {
+        const safeName = escapeMarkdown(r.first_name || r.username || `User ${r.referred_id}`);
+        const handle = r.username ? ` (@${escapeMarkdown(r.username)})` : "";
+        const status =
+          r.total_deposited > 0
+            ? `✅ Active (LKR ${Number(r.total_deposited).toLocaleString()})`
+            : `⏳ Registered`;
+        const date = r.created_at ? r.created_at.slice(0, 10) : "";
+        return `${i + 1}. *${safeName}*${handle}\n   └ ${status} • \`${date}\``;
+      })
+      .join("\n");
+  }
+
+  const shareText = encodeURIComponent(
+    `1XBet Cashier Bot හරහා ක්ෂණිකව Deposit & Withdrawal කරන්න! මෙතැනින් එක්වන්න:\n${refLink}`
+  );
+  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${shareText}`;
+
+  const text =
+    `🔄 *REFERRAL DASHBOARD*\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `🔗 *Referral Link:*\n` +
+    `\`${refLink}\`\n\n` +
+    `📊 *Live Stats:*\n` +
+    `• Total Referrals: *${summary.totalReferrals.toLocaleString()}*\n` +
+    `• Active Depositors: *${summary.activeReferrals.toLocaleString()}*\n` +
+    `• Referral Deposit Volume: *LKR ${summary.totalVolume.toLocaleString()}*\n\n` +
+    `👥 *Recent Referrals:*\n` +
+    `${friendsList}\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `_Share this link via Telegram or social media!_`;
+
+  const kb = new InlineKeyboard()
+    .url("📤 Share on Telegram", shareUrl)
+    .row()
+    .text("🔄 Refresh", "ref_refresh")
+    .text("⬅️ Back to Menu", "back");
+
+  if (editMessage) {
+    try {
+      await ctx.editMessageText(text, { parse_mode: "Markdown", reply_markup: kb });
+      return;
+    } catch {}
+  }
+  await ctx.reply(text, { parse_mode: "Markdown", reply_markup: kb });
+}
