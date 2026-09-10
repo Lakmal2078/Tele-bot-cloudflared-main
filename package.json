@@ -24,10 +24,11 @@
     "esbuild": "^0.28.2",
     "tsx": "^4.23.13",
     "typescript": "^5.8.0",
-    "wrangler": "^4.130.0"
+    "wrangler": "^4.15.2"
   },
   "allowScripts": {
     "esbuild": true,
-    "workerd@1.20260908.1": true
+    "sharp@0.33.5": true,
+    "workerd@1.20260910.1": true
   }
 }
