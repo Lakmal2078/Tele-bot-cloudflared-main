@@ -1,5 +1,5 @@
 name = "xbet-telegram-bot"
-main = "src/index.ts"
+main = "src/worker.ts"
 compatibility_date = "2026-09-09"
 compatibility_flags = ["nodejs_compat"]
 
@@ -42,3 +42,4 @@ bucket_name = "chat-media"
 
 [triggers]
 crons = ["0 2 * * *"]
+
