@@ -119,8 +119,8 @@ done
 success "Required project files are present."
 
 # Ensure the expected Cloudflare Worker entrypoint is configured.
-if ! grep -Eq '^main[[:space:]]*=[[:space:]]*["'"']src/worker\.ts["'"']' wrangler.toml; then
-  die "wrangler.toml must use main = \"src/worker.ts\" for this deployment script."
+if ! grep -Eq '^main[[:space:]]*=[[:space:]]*"src/worker\.ts"[[:space:]]*$' wrangler.toml; then
+  die 'wrangler.toml must use main = "src/worker.ts" for this deployment script.'
 fi
 
 if ! grep -Eq '^name[[:space:]]*=' wrangler.toml; then
@@ -131,9 +131,9 @@ if ! grep -Eq '^\[\[d1_databases\]\]' wrangler.toml; then
   die "wrangler.toml does not define a D1 database binding."
 fi
 
-DB_NAME="$(sed -n 's/^[[:space:]]*database_name[[:space:]]*=[[:space:]]*["'"']\([^"'"']*\)["'"'].*/\1/p' wrangler.toml | head -n 1)"
-DB_ID="$(sed -n 's/^[[:space:]]*database_id[[:space:]]*=[[:space:]]*["'"']\([^"'"']*\)["'"'].*/\1/p' wrangler.toml | head -n 1)"
-DB_BINDING="$(sed -n 's/^[[:space:]]*binding[[:space:]]*=[[:space:]]*["'"']\([^"'"']*\)["'"'].*/\1/p' wrangler.toml | head -n 1)"
+DB_NAME="$(sed -n 's/^[[:space:]]*database_name[[:space:]]*=[[:space:]]*"\([^"]*\)"[[:space:]]*$/\1/p' wrangler.toml | head -n 1)"
+DB_ID="$(sed -n 's/^[[:space:]]*database_id[[:space:]]*=[[:space:]]*"\([^"]*\)"[[:space:]]*$/\1/p' wrangler.toml | head -n 1)"
+DB_BINDING="$(sed -n 's/^[[:space:]]*binding[[:space:]]*=[[:space:]]*"\([^"]*\)"[[:space:]]*$/\1/p' wrangler.toml | head -n 1)"
 
 [[ -n "${DB_NAME}" ]] || die "Could not read database_name from wrangler.toml."
 [[ -n "${DB_ID}" ]] || die "Could not read database_id from wrangler.toml."
@@ -142,7 +142,6 @@ DB_BINDING="$(sed -n 's/^[[:space:]]*binding[[:space:]]*=[[:space:]]*["'"']\([^"
 success "D1 database: ${DB_NAME}"
 success "D1 binding: ${DB_BINDING}"
 
-# Never deploy known local secret files.
 if [[ -f ".env" ]]; then
   warn ".env exists locally. Its values will not be read or uploaded by this script."
 fi
@@ -197,9 +196,8 @@ else
   success "Test suite passed."
 fi
 
-# NOTE: npm run build targets the separate Node/PM2 deployment entrypoint
-# (src/index.ts). Cloudflare Wrangler bundles src/worker.ts directly, so this
-# production Worker deployment intentionally does not run that Node build.
+# Cloudflare Wrangler bundles src/worker.ts directly. The separate npm build
+# targets src/index.ts for the Node/PM2 deployment and is intentionally omitted.
 
 # ------------------------------------------------------------------------------
 # 5. Cloudflare authentication
@@ -210,22 +208,14 @@ info "Checking Wrangler authentication..."
 "${WRANGLER_CMD[@]}" whoami >/dev/null
 success "Wrangler authentication is valid."
 
-# ------------------------------------------------------------------------------
-# Production confirmation
-# ------------------------------------------------------------------------------
 if [[ "${CI:-false}" != "true" && "${CI:-0}" != "1" ]]; then
   echo ""
   echo -e "${YELLOW}${BOLD}Production deployment target:${NC} ${CYAN}${DB_NAME}${NC}"
   echo -e "${YELLOW}This will update the remote D1 database and deploy the Worker.${NC}"
   read -r -p "Continue with production deployment? [y/N] " CONFIRM
   case "${CONFIRM}" in
-    y|Y|yes|YES)
-      success "Production deployment confirmed."
-      ;;
-    *)
-      warn "Deployment cancelled by user."
-      exit 0
-      ;;
+    y|Y|yes|YES) success "Production deployment confirmed." ;;
+    *) warn "Deployment cancelled by user."; exit 0 ;;
   esac
 else
   info "CI/non-interactive mode detected; skipping confirmation prompt."
@@ -257,8 +247,6 @@ info "Running: npx wrangler deploy"
 
 success "Cloudflare Worker deployment completed."
 
-# Prefer an explicitly supplied URL. Otherwise, extract a workers.dev URL from
-# Wrangler output. Custom domains can be supplied with WORKER_URL.
 if [[ -z "${WORKER_URL:-}" ]]; then
   WORKER_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.workers\.dev' "${DEPLOY_OUTPUT}" | tail -n 1 || true)"
 fi
@@ -270,25 +258,21 @@ step "8/8 — Running post-deployment health check"
 
 if [[ "${SKIP_HEALTHCHECK:-0}" == "1" ]]; then
   warn "SKIP_HEALTHCHECK=1 — skipping /health verification."
+elif [[ -z "${WORKER_URL:-}" ]]; then
+  warn "Could not determine the deployed Worker URL automatically."
+  warn "Set WORKER_URL manually to enable the health check, for example:"
+  echo "  WORKER_URL=https://your-worker.workers.dev bash deploy.sh"
+elif ! command -v curl >/dev/null 2>&1; then
+  warn "curl is not installed; skipping health check."
 else
-  if [[ -z "${WORKER_URL:-}" ]]; then
-    warn "Could not determine the deployed Worker URL automatically."
-    warn "Set WORKER_URL manually to enable the health check, for example:"
-    echo "  WORKER_URL=https://your-worker.workers.dev bash deploy.sh"
-  elif ! command -v curl >/dev/null 2>&1; then
-    warn "curl is not installed; skipping health check."
-  else
-    HEALTH_URL="${WORKER_URL%/}/health"
-    info "Checking ${HEALTH_URL}"
-    HEALTH_RESPONSE="$(curl --fail --silent --show-error --max-time 20 "${HEALTH_URL}")" || {
-      die "Post-deployment health check failed: ${HEALTH_URL}"
-    }
+  HEALTH_URL="${WORKER_URL%/}/health"
+  info "Checking ${HEALTH_URL}"
+  HEALTH_RESPONSE="$(curl --fail --silent --show-error --max-time 20 "${HEALTH_URL}")" || die "Post-deployment health check failed: ${HEALTH_URL}"
 
-    if grep -q '"status":"ok"' <<<"${HEALTH_RESPONSE}" || grep -q '"status": "ok"' <<<"${HEALTH_RESPONSE}"; then
-      success "Worker health check passed."
-    else
-      die "Health endpoint responded, but status was not OK: ${HEALTH_RESPONSE}"
-    fi
+  if grep -q '"status":"ok"' <<<"${HEALTH_RESPONSE}" || grep -q '"status": "ok"' <<<"${HEALTH_RESPONSE}"; then
+    success "Worker health check passed."
+  else
+    die "Health endpoint responded, but status was not OK: ${HEALTH_RESPONSE}"
   fi
 fi
 
@@ -300,7 +284,7 @@ DURATION=$((END_TIME - START_TIME))
 
 echo ""
 echo -e "${GREEN}${BOLD}===============================================================${NC}"
-echo -e "${GREEN}${BOLD}🎉 Production deployment completed successfully${NC}"
+echo -e "${GREEN}${BOLD}Production deployment completed successfully${NC}"
 echo -e "${GREEN}${BOLD}===============================================================${NC}"
 echo ""
 echo -e "${BOLD}Deployment summary:${NC}"
