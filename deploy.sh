@@ -7,8 +7,8 @@
 #   2. Validate repository/configuration
 #   3. Install locked dependencies
 #   4. Run TypeScript + unit-test quality gates
-#   5. Verify Cloudflare authentication and D1 configuration
-#   6. Apply idempotent D1 schema
+#   5. Verify Cloudflare authentication
+#   6. Apply pending versioned D1 migrations
 #   7. Deploy the Worker
 #   8. Run a post-deployment /health check
 #
@@ -18,7 +18,7 @@
 #   - Cloudflare secrets are managed separately and are never printed here.
 #
 # Notes:
-#   - This script deploys the Cloudflare Worker defined by wrangler.toml.
+#   - Database changes live in migrations/*.sql and are immutable after release.
 #   - The separate deploy-proot.sh remains responsible for Termux/proot + PM2.
 #
 # Usage:
@@ -30,10 +30,10 @@
 #   ALLOW_DIRTY=1       Allow deployment with uncommitted local changes.
 #   SKIP_TESTS=1        Skip the test suite (not recommended for production).
 #   SKIP_LINT=1         Skip TypeScript type-checking (not recommended).
-#   SKIP_MIGRATION=1    Skip D1 schema execution (not recommended).
+#   SKIP_MIGRATION=1    Skip pending D1 migrations (not recommended).
 #   SKIP_HEALTHCHECK=1  Skip the post-deployment health check.
 #   WORKER_URL=...      Explicit URL for the post-deployment health check.
-#   CI=true              Non-interactive mode; skips the confirmation prompt.
+#   CI=true             Non-interactive mode; skips the confirmation prompt.
 # ==============================================================================
 
 set -Eeuo pipefail
@@ -104,7 +104,6 @@ REQUIRED_FILES=(
   "package.json"
   "package-lock.json"
   "wrangler.toml"
-  "schema.sql"
   "src/worker.ts"
 )
 
@@ -112,7 +111,14 @@ for file in "${REQUIRED_FILES[@]}"; do
   [[ -f "${file}" ]] || die "Required file not found: ${file}"
 done
 
-success "Required project files are present."
+[[ -d "migrations" ]] || die "migrations/ directory is required for production D1 deployments."
+
+MIGRATION_COUNT="$(find migrations -maxdepth 1 -type f -name '*.sql' | wc -l | tr -d ' ')"
+(( MIGRATION_COUNT > 0 )) || die "No D1 migration files found in migrations/."
+
+if ! find migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | grep -Eq '^[0-9]+_[a-z0-9][a-z0-9_-]*\.sql$'; then
+  die "Migration filenames must follow <number>_<description>.sql."
+fi
 
 if ! grep -Eq '^main[[:space:]]*=[[:space:]]*"src/worker\.ts"[[:space:]]*$' wrangler.toml; then
   die 'wrangler.toml must use main = "src/worker.ts" for this deployment script.'
@@ -136,6 +142,11 @@ DB_BINDING="$(sed -n 's/^[[:space:]]*binding[[:space:]]*=[[:space:]]*"\([^"]*\)"
 
 success "D1 database: ${DB_NAME}"
 success "D1 binding: ${DB_BINDING}"
+success "Versioned D1 migrations: ${MIGRATION_COUNT}"
+
+if [[ -f "schema.sql" ]]; then
+  warn "Legacy schema.sql is still present. It is no longer used by production deployment."
+fi
 
 if [[ -f ".env" ]]; then
   warn ".env exists locally. Its values will not be read or uploaded by this script."
@@ -157,7 +168,6 @@ fi
 
 step "3/8 — Installing locked dependencies"
 
-[[ -f "package-lock.json" ]] || die "package-lock.json is required for a reproducible production deployment."
 npm ci
 success "Dependencies installed with npm ci."
 
@@ -199,7 +209,7 @@ success "Wrangler authentication is valid."
 if [[ "${CI:-false}" != "true" && "${CI:-0}" != "1" ]]; then
   echo ""
   echo -e "${YELLOW}${BOLD}Production deployment target:${NC} ${CYAN}${DB_NAME}${NC}"
-  echo -e "${YELLOW}This will update the remote D1 database and deploy the Worker.${NC}"
+  echo -e "${YELLOW}This will apply pending D1 migrations and deploy the Worker.${NC}"
   read -r -p "Continue with production deployment? [y/N] " CONFIRM
   case "${CONFIRM}" in
     y|Y|yes|YES) success "Production deployment confirmed." ;;
@@ -209,14 +219,16 @@ else
   info "CI/non-interactive mode detected; skipping confirmation prompt."
 fi
 
-step "6/8 — Applying D1 database schema"
+step "6/8 — Applying pending versioned D1 migrations"
 
 if [[ "${SKIP_MIGRATION:-0}" == "1" ]]; then
-  warn "SKIP_MIGRATION=1 — skipping remote D1 schema execution."
+  warn "SKIP_MIGRATION=1 — skipping pending D1 migrations."
 else
-  info "Executing idempotent schema.sql against remote D1 database: ${DB_NAME}"
-  "${WRANGLER_CMD[@]}" d1 execute "${DB_NAME}" --remote --file=schema.sql --yes
-  success "D1 schema applied successfully."
+  info "Checking remote D1 migration state: ${DB_NAME}"
+  "${WRANGLER_CMD[@]}" d1 migrations list "${DB_NAME}" --remote
+  info "Applying pending migrations to remote D1 database: ${DB_NAME}"
+  "${WRANGLER_CMD[@]}" d1 migrations apply "${DB_NAME}" --remote --yes
+  success "Pending D1 migrations applied successfully."
 fi
 
 step "7/8 — Deploying Cloudflare Worker"
@@ -265,6 +277,7 @@ echo ""
 echo -e "${BOLD}Deployment summary:${NC}"
 echo -e "  Worker      : ${CYAN}xbet-telegram-bot${NC}"
 echo -e "  D1 database : ${CYAN}${DB_NAME}${NC}"
+echo -e "  Migrations  : ${CYAN}${MIGRATION_COUNT} versioned files${NC}"
 echo -e "  Duration    : ${CYAN}${DURATION}s${NC}"
 
 if [[ -n "${WORKER_URL:-}" ]]; then
