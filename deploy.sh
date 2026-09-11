@@ -39,6 +39,7 @@ if $IS_CI; then
   [[ "${SKIP_TESTS:-0}" != "1" ]] || die "SKIP_TESTS is forbidden in CI."
   [[ "${SKIP_MIGRATION:-0}" != "1" ]] || die "SKIP_MIGRATION is forbidden in CI."
   [[ "${SKIP_HEALTHCHECK:-0}" != "1" ]] || die "SKIP_HEALTHCHECK is forbidden in CI."
+  [[ "${ALLOW_BREAKING_MIGRATIONS:-0}" != "1" ]] || die "ALLOW_BREAKING_MIGRATIONS is forbidden in CI."
   [[ -n "${CLOUDFLARE_API_TOKEN:-}" ]] || die "CLOUDFLARE_API_TOKEN is required in CI."
 fi
 
