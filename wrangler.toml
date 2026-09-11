@@ -2,6 +2,7 @@ name = "xbet-telegram-bot"
 main = "src/worker.ts"
 compatibility_date = "2026-09-09"
 compatibility_flags = ["nodejs_compat"]
+workers_dev = true
 
 # ─── Plain text variables (non-sensitive) ───
 [vars]
@@ -16,20 +17,21 @@ USE_POLLING = "false"
 XBET_LINK = "https://reffpa.com"
 XBET_PROMO_CODE = "VGSL"
 
-# ─── Required secrets (set via: npx wrangler secret put <NAME>) ───
-# පහත values ටික wrangler.toml එකේ දාන්න එපා — වෙනම secret විදියට set කරන්න:
+# ─── Required secrets (set via CI/CD or Wrangler) ───
+# Never store secret values in this file.
 #
-#   npx wrangler secret put BOT_TOKEN
-#   npx wrangler secret put WEBHOOK_SECRET
-#   npx wrangler secret put ADMIN_CHANNEL_ID
-#   npx wrangler secret put ADMIN_IDS
-#   npx wrangler secret put BANK_DETAILS
-#   npx wrangler secret put WHATSAPP_NUMBER
-#   npx wrangler secret put EZCASH_NUMBER
-#   npx wrangler secret put FRIMI_NUMBER
-#   npx wrangler secret put MCASH_NUMBER
-#   npx wrangler secret put R2_ACCOUNT_ID
-#   npx wrangler secret put R2_PUBLIC_DOMAIN
+# Required:
+#   BOT_TOKEN
+#   WEBHOOK_SECRET
+#   ADMIN_CHANNEL_ID
+#   ADMIN_IDS
+#   BANK_DETAILS
+#   WHATSAPP_NUMBER
+#   EZCASH_NUMBER
+#   FRIMI_NUMBER
+#   MCASH_NUMBER
+#   R2_ACCOUNT_ID
+#   R2_PUBLIC_DOMAIN
 
 [[d1_databases]]
 binding = "DB"
@@ -42,4 +44,3 @@ bucket_name = "chat-media"
 
 [triggers]
 crons = ["0 2 * * *"]
-
