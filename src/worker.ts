@@ -10,6 +10,59 @@ let botInstance: ReturnType<typeof createBot> | null = null;
 let cachedToken: string | null = null;
 let webhookHandler: ((request: Request) => Promise<Response>) | null = null;
 
+const publicCommands = [
+  { command: "start", description: "Start the bot" },
+  { command: "menu", description: "Open the main menu" },
+  { command: "deposit", description: "Start a cash deposit" },
+  { command: "confirm_deposit", description: "Confirm a deposit" },
+  { command: "withdraw", description: "Start a cash withdrawal" },
+  { command: "register", description: "Open 1xBet registration" },
+  { command: "referrals", description: "Open referral dashboard" },
+  { command: "history", description: "View transaction history" },
+  { command: "id", description: "View your Telegram ID" },
+  { command: "language", description: "Change language" },
+  { command: "help", description: "Open help and support" },
+  { command: "cancel", description: "Cancel current operation" },
+];
+
+const sinhalaCommands = [
+  { command: "start", description: "Bot එක ආරම්භ කරන්න" },
+  { command: "menu", description: "ප්‍රධාන මෙනුව විවෘත කරන්න" },
+  { command: "deposit", description: "මුදල් තැන්පතුවක් ආරම්භ කරන්න" },
+  { command: "confirm_deposit", description: "තැන්පතුව තහවුරු කරන්න" },
+  { command: "withdraw", description: "මුදල් ලබාගැනීම ආරම්භ කරන්න" },
+  { command: "register", description: "1xBet ලියාපදිංචිය විවෘත කරන්න" },
+  { command: "referrals", description: "Referral Dashboard විවෘත කරන්න" },
+  { command: "history", description: "ගනුදෙනු ඉතිහාසය බලන්න" },
+  { command: "id", description: "ඔබේ Telegram ID බලන්න" },
+  { command: "language", description: "භාෂාව වෙනස් කරන්න" },
+  { command: "help", description: "උදව් සහ Support විවෘත කරන්න" },
+  { command: "cancel", description: "දැනට ඇති ක්‍රියාව අවලංගු කරන්න" },
+];
+
+const tamilCommands = [
+  { command: "start", description: "போட்டை தொடங்கவும்" },
+  { command: "menu", description: "முதன்மை மெனுவைத் திறக்கவும்" },
+  { command: "deposit", description: "பண வைப்பு தொடங்கவும்" },
+  { command: "confirm_deposit", description: "வைப்பை உறுதிப்படுத்தவும்" },
+  { command: "withdraw", description: "பணம் பெறும் செயல்முறையை தொடங்கவும்" },
+  { command: "register", description: "1xBet பதிவு திறக்கவும்" },
+  { command: "referrals", description: "Referral Dashboard திறக்கவும்" },
+  { command: "history", description: "பரிவர்த்தனை வரலாற்றைப் பார்க்கவும்" },
+  { command: "id", description: "உங்கள் Telegram ID பார்க்கவும்" },
+  { command: "language", description: "மொழியை மாற்றவும்" },
+  { command: "help", description: "உதவி மற்றும் Support திறக்கவும்" },
+  { command: "cancel", description: "தற்போதைய செயல்முறையை ரத்து செய்யவும்" },
+];
+
+async function registerBotCommands(bot: ReturnType<typeof createBot>): Promise<void> {
+  await Promise.all([
+    bot.api.setMyCommands(publicCommands),
+    bot.api.setMyCommands(sinhalaCommands, { language_code: "si" }),
+    bot.api.setMyCommands(tamilCommands, { language_code: "ta" }),
+  ]);
+}
+
 function json(data: unknown, status = 200, extraHeaders: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(data), {
     status,
@@ -83,6 +136,13 @@ export default {
         botInstance = createBot(env);
         cachedToken = env.BOT_TOKEN;
         webhookHandler = null;
+
+        // Register Telegram's slash-command menu once per Worker isolate/token. This is
+        // intentionally best-effort and runs in waitUntil so webhook latency is unaffected.
+        const commandRegistration = registerBotCommands(botInstance).catch((err) => {
+          console.error("[Telegram Commands] Registration failed:", err);
+        });
+        if (ctx?.waitUntil) ctx.waitUntil(commandRegistration);
       }
 
       if (!webhookHandler) {
