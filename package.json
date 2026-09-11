@@ -14,7 +14,10 @@
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "deploy:cf": "bash deploy.sh"
+    "check": "npm run lint && npm test",
+    "deploy:cf": "bash deploy.sh",
+    "deploy:cf:ci": "CI=true bash deploy.sh",
+    "deploy:cf:dry": "CI=true SKIP_MIGRATION=1 SKIP_HEALTHCHECK=1 bash deploy.sh"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1127.0",
