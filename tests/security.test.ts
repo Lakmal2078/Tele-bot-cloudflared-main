@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   adminAttemptAllowed,
+  adminAttemptAllowedNode,
   recordAdminFailure,
+  recordAdminFailureNode,
   securityHeaders,
   webhookRequestAllowed,
   SECURITY_LIMITS,
@@ -44,7 +46,7 @@ describe("webhook security", () => {
 });
 
 describe("admin abuse protection", () => {
-  it("blocks repeated failures within the window", () => {
+  it("blocks repeated failures within the Worker window", () => {
     const request = new Request("https://example.test/admin", {
       headers: { "CF-Connecting-IP": "198.51.100.10" },
     });
@@ -57,6 +59,19 @@ describe("admin abuse protection", () => {
 
     expect(adminAttemptAllowed(request, now)).toBe(false);
     expect(adminAttemptAllowed(request, now + SECURITY_LIMITS.ADMIN_FAILURE_WINDOW_MS + 1)).toBe(true);
+  });
+
+  it("applies the same limit to Node request headers", () => {
+    const headers = { "cf-connecting-ip": "203.0.113.20" };
+    const now = 2_000_000;
+
+    for (let i = 0; i < SECURITY_LIMITS.ADMIN_FAILURE_LIMIT; i += 1) {
+      expect(adminAttemptAllowedNode(headers, now)).toBe(true);
+      recordAdminFailureNode(headers, now);
+    }
+
+    expect(adminAttemptAllowedNode(headers, now)).toBe(false);
+    expect(adminAttemptAllowedNode(headers, now + SECURITY_LIMITS.ADMIN_FAILURE_WINDOW_MS + 1)).toBe(true);
   });
 });
 
