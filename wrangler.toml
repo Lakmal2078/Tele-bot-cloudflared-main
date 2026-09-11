@@ -17,6 +17,15 @@ USE_POLLING = "false"
 XBET_LINK = "https://reffpa.com"
 XBET_PROMO_CODE = "VGSL"
 
+# Automated Free Tips — Sri Lanka time (UTC+05:30)
+# 08:00 = 02:30 UTC, 12:00 = 06:30 UTC, 18:00 = 12:30 UTC.
+TIPS_CHANNEL_URL = "https://t.me/your_channel"
+TIPS_SPORTS = "soccer_epl,soccer_uefa_champs_league,basketball_nba,tennis_atp"
+TIPS_ODDS_REGIONS = "uk,eu"
+TIPS_MIN_ODDS = "1.40"
+TIPS_MAX_ODDS = "2.50"
+TIPS_HOURS_AHEAD = "48"
+
 # ─── Required secrets (set via CI/CD or Wrangler) ───
 # Never store secret values in this file.
 #
@@ -32,6 +41,10 @@ XBET_PROMO_CODE = "VGSL"
 #   MCASH_NUMBER
 #   R2_ACCOUNT_ID
 #   R2_PUBLIC_DOMAIN
+#   ODDS_API_KEY
+#
+# TIPS_CHANNEL_ID is intentionally a non-secret [vars] value in deployment environments.
+# Set it to the target channel username (@channel) or numeric chat id (-100...).
 
 [[d1_databases]]
 binding = "DB"
@@ -43,4 +56,5 @@ binding = "CHAT_MEDIA"
 bucket_name = "chat-media"
 
 [triggers]
-crons = ["0 2 * * *"]
+# 02:00 UTC = legacy R2 cleanup; 02:30/06:30/12:30 UTC = 08:00/12:00/18:00 SL free tips.
+crons = ["0 2 * * *", "30 2 * * *", "30 6 * * *", "30 12 * * *"]
