@@ -4,6 +4,7 @@ import { logBotError } from "./logger";
 import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
 import { runScheduledTip } from "./tips";
 import { assertValidEnv, isAuthorizedAdminRequest, unauthorizedResponse } from "./config";
+import { adminAttemptAllowed, recordAdminFailure, securityHeaders, webhookRequestAllowed } from "./security";
 import type { Env } from "./types";
 
 let botInstance: ReturnType<typeof createBot> | null = null;
@@ -68,10 +69,17 @@ function json(data: unknown, status = 200, extraHeaders: Record<string, string> 
     status,
     headers: {
       "Content-Type": "application/json",
-      "Cache-Control": "no-store",
+      ...securityHeaders(),
       ...extraHeaders,
     },
   });
+}
+
+function adminAuthorized(request: Request, env: Env): boolean {
+  if (!adminAttemptAllowed(request)) return false;
+  const authorized = isAuthorizedAdminRequest(request, env);
+  if (!authorized) recordAdminFailure(request);
+  return authorized;
 }
 
 export default {
@@ -86,7 +94,7 @@ export default {
 
     // All operational/diagnostic endpoints are private and use a dedicated admin API secret.
     if (url.pathname === "/api/cleanup/logs/status") {
-      if (!isAuthorizedAdminRequest(request, env)) return unauthorizedResponse();
+      if (!adminAuthorized(request, env)) return unauthorizedResponse();
       const last = getLastCleanupResult();
       return json({
         status: "ok",
@@ -97,7 +105,7 @@ export default {
     }
 
     if (url.pathname === "/api/cleanup/logs" && request.method === "POST") {
-      if (!isAuthorizedAdminRequest(request, env)) return unauthorizedResponse();
+      if (!adminAuthorized(request, env)) return unauthorizedResponse();
 
       let days = 30;
       try {
@@ -123,13 +131,17 @@ export default {
     }
 
     if (request.method === "POST") {
+      if (!webhookRequestAllowed(request)) {
+        return new Response("bad request", { status: 400, headers: securityHeaders() });
+      }
+
       const incomingSecret = request.headers.get("X-Telegram-Bot-Api-Secret-Token") || "";
       const expectedSecret = env.WEBHOOK_SECRET.trim();
 
       // Telegram webhook authentication is fail-closed: missing, empty, or incorrect
       // secrets are all rejected. This prevents accidental public webhook exposure.
       if (!incomingSecret || incomingSecret !== expectedSecret) {
-        return new Response("unauthorized", { status: 401, headers: { "Cache-Control": "no-store" } });
+        return new Response("unauthorized", { status: 401, headers: securityHeaders() });
       }
 
       if (!botInstance || cachedToken !== env.BOT_TOKEN) {
@@ -171,7 +183,7 @@ export default {
 
     return new Response(
       `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Telegram Bot</title></head><body><h2>Telegram Bot</h2><p>Worker is online.</p></body></html>`,
-      { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } }
+      { headers: { "Content-Type": "text/html; charset=utf-8", ...securityHeaders() } }
     );
   },
 
