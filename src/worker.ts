@@ -2,76 +2,81 @@ import { webhookCallback } from "grammy";
 import { createBot, executionContextStorage } from "./bot";
 import { logBotError } from "./logger";
 import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
-import { hasR2Binding, hasS3Credentials } from "./storage";
 import { runScheduledTip } from "./tips";
+import { assertValidEnv, isAuthorizedAdminRequest, unauthorizedResponse } from "./config";
 import type { Env } from "./types";
 
 let botInstance: ReturnType<typeof createBot> | null = null;
 let cachedToken: string | null = null;
 let webhookHandler: ((request: Request) => Promise<Response>) | null = null;
 
+function json(data: unknown, status = 200, extraHeaders: Record<string, string> = {}): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+      ...extraHeaders,
+    },
+  });
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx?: any): Promise<Response> {
     const url = new URL(request.url);
 
+    // Public liveness only. Never expose configuration, secret presence, storage state,
+    // admin IDs, database state, or tip configuration from an unauthenticated endpoint.
     if (url.pathname === "/health" || url.pathname === "/api/health") {
-      return new Response(
-        JSON.stringify({
-          status: "ok",
-          runtime: "cloudflare-workers",
-          botConfigured: Boolean(env.BOT_TOKEN),
-          databaseBound: Boolean(env.DB),
-          storage: hasR2Binding(env) ? "r2-binding" : hasS3Credentials(env) ? "r2-s3-api" : "none",
-          webhookSecretSet: Boolean(env.WEBHOOK_SECRET),
-          tipsConfigured: Boolean(env.TIPS_CHANNEL_ID && env.ODDS_API_KEY),
-          time: new Date().toISOString(),
-        }),
-        { headers: { "Content-Type": "application/json" } }
-      );
+      return json({ status: "ok", service: "telegram-bot" });
     }
 
+    // All operational/diagnostic endpoints are private and use a dedicated admin API secret.
     if (url.pathname === "/api/cleanup/logs/status") {
+      if (!isAuthorizedAdminRequest(request, env)) return unauthorizedResponse();
       const last = getLastCleanupResult();
-      return new Response(
-        JSON.stringify({
-          status: "ok",
-          retentionPolicyDays: 30,
-          schedule: "Daily at 02:00 UTC (Cloudflare Cron)",
-          lastCleanup: last,
-        }),
-        { headers: { "Content-Type": "application/json" } }
-      );
+      return json({
+        status: "ok",
+        retentionPolicyDays: 30,
+        schedule: "Daily at 02:00 UTC (Cloudflare Cron)",
+        lastCleanup: last,
+      });
     }
 
     if (url.pathname === "/api/cleanup/logs" && request.method === "POST") {
+      if (!isAuthorizedAdminRequest(request, env)) return unauthorizedResponse();
+
       let days = 30;
       try {
         const body = (await request.json().catch(() => ({}))) as { retentionDays?: number };
-        if (body?.retentionDays && body.retentionDays > 0) days = body.retentionDays;
+        if (body?.retentionDays && body.retentionDays > 0 && body.retentionDays <= 3650) {
+          days = Math.floor(body.retentionDays);
+        }
       } catch {}
 
       const cleanupPromise = cleanupOldR2Logs(env, days);
       if (ctx?.waitUntil) ctx.waitUntil(cleanupPromise);
       const result = await cleanupPromise;
 
-      return new Response(JSON.stringify(result), {
-        status: result.success ? 200 : 500,
-        headers: { "Content-Type": "application/json" },
-      });
+      return json(result, result.success ? 200 : 500);
+    }
+
+    // Fail closed before accepting any webhook traffic.
+    try {
+      assertValidEnv(env, "Cloudflare Worker");
+    } catch (err) {
+      console.error("[Worker Config Error]", err instanceof Error ? err.message : String(err));
+      return json({ ok: false, error: "Service configuration error" }, 503);
     }
 
     if (request.method === "POST") {
-      if (!env.BOT_TOKEN) {
-        return new Response(JSON.stringify({ ok: false, error: "BOT_TOKEN not configured" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-
       const incomingSecret = request.headers.get("X-Telegram-Bot-Api-Secret-Token") || "";
-      const expectedSecret = (env.WEBHOOK_SECRET || "").trim();
-      if (expectedSecret && incomingSecret && incomingSecret !== expectedSecret) {
-        return new Response("unauthorized", { status: 401 });
+      const expectedSecret = env.WEBHOOK_SECRET.trim();
+
+      // Telegram webhook authentication is fail-closed: missing, empty, or incorrect
+      // secrets are all rejected. This prevents accidental public webhook exposure.
+      if (!incomingSecret || incomingSecret !== expectedSecret) {
+        return new Response("unauthorized", { status: 401, headers: { "Cache-Control": "no-store" } });
       }
 
       if (!botInstance || cachedToken !== env.BOT_TOKEN) {
@@ -100,45 +105,21 @@ export default {
           },
           ctx?.waitUntil?.bind(ctx)
         );
-        return new Response(JSON.stringify({ ok: true }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        return json({ ok: true });
       }
     }
 
     return new Response(
-      `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>XBet Telegram Bot - Cloudflare Worker</title>
-  <style>
-    body { font-family: -apple-system, sans-serif; background: #0f172a; color: #f8fafc; padding: 2rem; text-align: center; }
-    .card { max-width: 500px; margin: 2rem auto; background: #1e293b; padding: 2rem; border-radius: 12px; border: 1px solid #334155; }
-    .status { color: #4ade80; font-weight: bold; }
-    code { background: #0f172a; padding: 2px 6px; border-radius: 4px; color: #38bdf8; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h2>🇱🇰 XBet Telegram Cashier Bot</h2>
-    <p>Worker Status: <span class="status">ONLINE (Edge)</span></p>
-    <p>Database: <code>Cloudflare D1 (Serverless)</code></p>
-    <p style="margin-top: 1.5rem; font-size: 0.9rem; color: #94a3b8;">Send POST requests with Telegram Webhook payloads to this URL.</p>
-  </div>
-</body>
-</html>`,
-      { headers: { "Content-Type": "text/html; charset=utf-8" } }
+      `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Telegram Bot</title></head><body><h2>Telegram Bot</h2><p>Worker is online.</p></body></html>`,
+      { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } }
     );
   },
 
-  /**
-   * Cloudflare Cron Trigger handler.
-   * 02:30 / 06:30 / 12:30 UTC are 08:00 / 12:00 / 18:00 in Sri Lanka (UTC+05:30).
-   * The legacy 02:00 UTC R2 cleanup remains handled on any non-tip cron only when configured separately.
-   */
   async scheduled(event: any, env: Env, ctx: any): Promise<void> {
+    // Cron executions are internal Cloudflare events, but configuration is still
+    // validated so a broken deployment fails loudly instead of running partially.
+    assertValidEnv(env, "Cloudflare Worker cron");
+
     const cron = String(event?.cron || "");
     console.log(`[Worker Cron] Scheduled event at ${new Date().toISOString()}: ${cron || "unknown"}`);
 
@@ -152,7 +133,6 @@ export default {
       );
     }
 
-    // Keep daily R2 retention cleanup at 02:00 UTC without interfering with tip slots.
     if (cron === "0 2 * * *") {
       tasks.push(
         cleanupOldR2Logs(env, 30)
