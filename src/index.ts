@@ -7,6 +7,7 @@ import { getStats } from "./db";
 import { logBotError } from "./logger";
 import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
 import { assertValidEnv } from "./config";
+import { adminAttemptAllowedNode, recordAdminFailureNode } from "./security";
 import type { Env } from "./types";
 
 try {
@@ -54,7 +55,6 @@ const env: Env = {
   FRIMI_NUMBER: process.env.FRIMI_NUMBER || "",
 };
 
-// Fail closed. The process must not run a partially configured financial bot.
 assertValidEnv(env, "Node runtime");
 
 const usePolling =
@@ -86,7 +86,6 @@ if (usePolling) {
     });
 } else {
   webhookHandler = webhookCallback(bot, "http", {
-    // Grammy rejects requests without the exact Telegram secret token.
     secretToken: env.WEBHOOK_SECRET,
   });
 }
@@ -106,6 +105,13 @@ function isAuthorizedAdminRequest(req: http.IncomingMessage): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+function adminAuthorized(req: http.IncomingMessage): boolean {
+  if (!adminAttemptAllowedNode(req.headers)) return false;
+  const authorized = isAuthorizedAdminRequest(req);
+  if (!authorized) recordAdminFailureNode(req.headers);
+  return authorized;
+}
+
 function writeJson(res: http.ServerResponse, body: unknown, status = 200): void {
   res.writeHead(status, {
     "Content-Type": "application/json",
@@ -119,7 +125,6 @@ const server = http.createServer(async (req, res) => {
   const method = (req.method || "GET").toUpperCase();
   const url = (req.url || "/").split("?")[0];
 
-  // Public liveness endpoint contains no operational/configuration data.
   if (url === "/health" || url === "/api/health") {
     if (method === "HEAD") {
       res.writeHead(200, { "Cache-Control": "no-store" });
@@ -130,9 +135,8 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // All operational diagnostics are private.
   if (url === "/api/cleanup/logs/status" && (method === "GET" || method === "HEAD")) {
-    if (!isAuthorizedAdminRequest(req)) {
+    if (!adminAuthorized(req)) {
       writeJson(res, { ok: false, error: "Unauthorized" }, 401);
       return;
     }
@@ -151,9 +155,8 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Authenticated admin diagnostics. Sensitive identifiers and secrets are intentionally omitted.
   if (url === "/api/admin/status" && (method === "GET" || method === "HEAD")) {
-    if (!isAuthorizedAdminRequest(req)) {
+    if (!adminAuthorized(req)) {
       writeJson(res, { ok: false, error: "Unauthorized" }, 401);
       return;
     }
@@ -173,7 +176,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (url === "/api/cleanup/logs" && method === "POST") {
-    if (!isAuthorizedAdminRequest(req)) {
+    if (!adminAuthorized(req)) {
       writeJson(res, { ok: false, error: "Unauthorized" }, 401);
       return;
     }
@@ -205,7 +208,6 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // In polling mode POSTs are not webhook updates.
   if (method === "POST" && usePolling) {
     writeJson(res, { ok: true, mode: "polling" });
     return;
