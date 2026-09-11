@@ -12,14 +12,19 @@
 #   7. Deploy the Worker
 #   8. Run a post-deployment /health check
 #
+# CI/CD:
+#   - GitHub Actions can run this script with CI=true.
+#   - CI deployments require CLOUDFLARE_API_TOKEN.
+#   - Cloudflare secrets are managed separately and are never printed here.
+#
 # Notes:
 #   - This script deploys the Cloudflare Worker defined by wrangler.toml.
 #   - The separate deploy-proot.sh remains responsible for Termux/proot + PM2.
-#   - Cloudflare secrets are NEVER read or printed by this script.
 #
 # Usage:
 #   bash deploy.sh
 #   npm run deploy:cf
+#   npm run deploy:cf:ci
 #
 # Optional environment variables:
 #   ALLOW_DIRTY=1       Allow deployment with uncommitted local changes.
@@ -33,9 +38,6 @@
 
 set -Eeuo pipefail
 
-# ------------------------------------------------------------------------------
-# Terminal helpers
-# ------------------------------------------------------------------------------
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
@@ -74,9 +76,6 @@ on_error() {
 }
 trap 'on_error $LINENO' ERR
 
-# ------------------------------------------------------------------------------
-# 1. Resolve project root
-# ------------------------------------------------------------------------------
 step "1/8 — Resolving project root and prerequisites"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -99,9 +98,6 @@ fi
 success "Node.js ${NODE_VERSION}"
 success "npm ${NPM_VERSION}"
 
-# ------------------------------------------------------------------------------
-# 2. Validate repository and configuration
-# ------------------------------------------------------------------------------
 step "2/8 — Validating repository and Cloudflare configuration"
 
 REQUIRED_FILES=(
@@ -118,7 +114,6 @@ done
 
 success "Required project files are present."
 
-# Ensure the expected Cloudflare Worker entrypoint is configured.
 if ! grep -Eq '^main[[:space:]]*=[[:space:]]*"src/worker\.ts"[[:space:]]*$' wrangler.toml; then
   die 'wrangler.toml must use main = "src/worker.ts" for this deployment script.'
 fi
@@ -160,24 +155,14 @@ if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/n
   fi
 fi
 
-# ------------------------------------------------------------------------------
-# 3. Install exact dependencies
-# ------------------------------------------------------------------------------
 step "3/8 — Installing locked dependencies"
 
-if [[ -f "package-lock.json" ]]; then
-  npm ci
-else
-  die "package-lock.json is required for a reproducible production deployment."
-fi
-
+[[ -f "package-lock.json" ]] || die "package-lock.json is required for a reproducible production deployment."
+npm ci
 success "Dependencies installed with npm ci."
 
 WRANGLER_CMD=(npx --no-install wrangler)
 
-# ------------------------------------------------------------------------------
-# 4. Quality gates
-# ------------------------------------------------------------------------------
 step "4/8 — Running production quality gates"
 
 if [[ "${SKIP_LINT:-0}" == "1" ]]; then
@@ -199,12 +184,15 @@ fi
 # Cloudflare Wrangler bundles src/worker.ts directly. The separate npm build
 # targets src/index.ts for the Node/PM2 deployment and is intentionally omitted.
 
-# ------------------------------------------------------------------------------
-# 5. Cloudflare authentication
-# ------------------------------------------------------------------------------
 step "5/8 — Verifying Cloudflare authentication"
 
-info "Checking Wrangler authentication..."
+if [[ "${CI:-false}" == "true" || "${CI:-0}" == "1" ]]; then
+  [[ -n "${CLOUDFLARE_API_TOKEN:-}" ]] || die "CLOUDFLARE_API_TOKEN is required for CI deployments. Add it as a GitHub Actions secret."
+  info "CI mode detected; using non-interactive Cloudflare authentication."
+else
+  info "Checking Wrangler authentication..."
+fi
+
 "${WRANGLER_CMD[@]}" whoami >/dev/null
 success "Wrangler authentication is valid."
 
@@ -221,9 +209,6 @@ else
   info "CI/non-interactive mode detected; skipping confirmation prompt."
 fi
 
-# ------------------------------------------------------------------------------
-# 6. D1 migration
-# ------------------------------------------------------------------------------
 step "6/8 — Applying D1 database schema"
 
 if [[ "${SKIP_MIGRATION:-0}" == "1" ]]; then
@@ -234,9 +219,6 @@ else
   success "D1 schema applied successfully."
 fi
 
-# ------------------------------------------------------------------------------
-# 7. Cloudflare Worker deployment
-# ------------------------------------------------------------------------------
 step "7/8 — Deploying Cloudflare Worker"
 
 TMP_DIR="$(mktemp -d)"
@@ -244,16 +226,12 @@ DEPLOY_OUTPUT="${TMP_DIR}/wrangler-deploy.log"
 
 info "Running: npx wrangler deploy"
 "${WRANGLER_CMD[@]}" deploy 2>&1 | tee "${DEPLOY_OUTPUT}"
-
 success "Cloudflare Worker deployment completed."
 
 if [[ -z "${WORKER_URL:-}" ]]; then
   WORKER_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.workers\.dev' "${DEPLOY_OUTPUT}" | tail -n 1 || true)"
 fi
 
-# ------------------------------------------------------------------------------
-# 8. Post-deployment health check
-# ------------------------------------------------------------------------------
 step "8/8 — Running post-deployment health check"
 
 if [[ "${SKIP_HEALTHCHECK:-0}" == "1" ]]; then
@@ -276,9 +254,6 @@ else
   fi
 fi
 
-# ------------------------------------------------------------------------------
-# Final report
-# ------------------------------------------------------------------------------
 END_TIME=$(date +%s)
 DURATION=$((END_TIME - START_TIME))
 
