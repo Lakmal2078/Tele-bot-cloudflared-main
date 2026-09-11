@@ -1,310 +1,126 @@
 #!/usr/bin/env bash
-# ==============================================================================
-# XBet Telegram Bot — Cloudflare Worker Production Deployment
-# ==============================================================================
-# Production deployment pipeline:
-#   1. Resolve project root and validate prerequisites
-#   2. Validate repository/configuration
-#   3. Install locked dependencies
-#   4. Run TypeScript + unit-test quality gates
-#   5. Verify Cloudflare authentication
-#   6. Apply pending versioned D1 migrations
-#   7. Deploy the Worker
-#   8. Run a post-deployment /health check
+# XBet Telegram Bot — production Cloudflare deployment
 #
-# CI/CD:
-#   - GitHub Actions can run this script with CI=true.
-#   - CI deployments require CLOUDFLARE_API_TOKEN.
-#   - Cloudflare secrets are managed separately and are never printed here.
-#
-# Notes:
-#   - Database changes live in migrations/*.sql and are immutable after release.
-#   - The separate deploy-proot.sh remains responsible for Termux/proot + PM2.
-#
-# Usage:
-#   bash deploy.sh
-#   npm run deploy:cf
-#   npm run deploy:cf:ci
-#
-# Optional environment variables:
-#   ALLOW_DIRTY=1       Allow deployment with uncommitted local changes.
-#   SKIP_TESTS=1        Skip the test suite (not recommended for production).
-#   SKIP_LINT=1         Skip TypeScript type-checking (not recommended).
-#   SKIP_MIGRATION=1    Skip pending D1 migrations (not recommended).
-#   SKIP_HEALTHCHECK=1  Skip the post-deployment health check.
-#   WORKER_URL=...      Explicit URL for the post-deployment health check.
-#   CI=true             Non-interactive mode; skips the confirmation prompt.
-# ==============================================================================
+# Safety contract:
+# - CI is the single production deployment path (see .github/workflows/ci-cd.yml).
+# - Wrangler is pinned by package.json/package-lock.json; never use `latest`.
+# - D1 migrations are validated before application and must be backward-compatible.
+# - In CI, quality gates and migrations cannot be skipped.
+# - Migrations are applied before Worker deployment so the deployed code never
+#   depends on a schema that has not been applied. Breaking migrations are blocked.
 
 set -Eeuo pipefail
 
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m'
-
-info()    { echo -e "${BLUE}[INFO]${NC} $*"; }
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
+info() { echo -e "${BLUE}[INFO]${NC} $*"; }
 success() { echo -e "${GREEN}[ OK ]${NC} $*"; }
-warn()    { echo -e "${YELLOW}[WARN]${NC} $*"; }
-error()   { echo -e "${RED}[ERROR]${NC} $*" >&2; }
-die()     { error "$*"; exit 1; }
-step()    { echo -e "\n${CYAN}${BOLD}==> $*${NC}"; }
+warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
+die() { echo -e "${RED}[ERROR]${NC} $*" >&2; exit 1; }
 
-START_TIME=$(date +%s)
-TMP_DIR=""
-DEPLOY_OUTPUT=""
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT"
 
-cleanup() {
-  if [[ -n "${TMP_DIR}" && -d "${TMP_DIR}" ]]; then
-    rm -rf "${TMP_DIR}"
-  fi
-}
-trap cleanup EXIT
+CI_MODE="${CI:-false}"
+IS_CI=false
+if [[ "$CI_MODE" == "true" || "$CI_MODE" == "1" ]]; then IS_CI=true; fi
 
-on_error() {
-  local exit_code=$?
-  local line_no=${1:-unknown}
-  error "Deployment stopped at line ${line_no} (exit code ${exit_code})."
-  if [[ -n "${DEPLOY_OUTPUT}" && -f "${DEPLOY_OUTPUT}" ]]; then
-    warn "Last Wrangler output:"
-    tail -n 30 "${DEPLOY_OUTPUT}" >&2 || true
-  fi
-  exit "${exit_code}"
-}
-trap 'on_error $LINENO' ERR
+command -v node >/dev/null 2>&1 || die "Node.js is required."
+command -v npm >/dev/null 2>&1 || die "npm is required."
+NODE_MAJOR="$(node -p 'Number(process.versions.node.split(".")[0])')"
+(( NODE_MAJOR >= 22 )) || die "Node.js 22+ is required; found $(node -v)."
 
-step "1/8 — Resolving project root and prerequisites"
-
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-cd "${SCRIPT_DIR}"
-
-success "Project root: ${SCRIPT_DIR}"
-
-command -v node >/dev/null 2>&1 || die "Node.js is not installed. Install Node.js 18+ before deploying."
-command -v npm  >/dev/null 2>&1 || die "npm is not installed. Install npm before deploying."
-command -v git  >/dev/null 2>&1 || warn "git is not installed; repository-state checks will be skipped."
-
-NODE_VERSION="$(node -v)"
-NPM_VERSION="$(npm -v)"
-NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
-
-if (( NODE_MAJOR < 18 )); then
-  die "Node.js ${NODE_VERSION} is too old. Node.js 18+ is required."
-fi
-
-success "Node.js ${NODE_VERSION}"
-success "npm ${NPM_VERSION}"
-
-step "2/8 — Validating repository and Cloudflare configuration"
-
-REQUIRED_FILES=(
-  "package.json"
-  "package-lock.json"
-  "wrangler.toml"
-  "src/worker.ts"
-)
-
-for file in "${REQUIRED_FILES[@]}"; do
-  [[ -f "${file}" ]] || die "Required file not found: ${file}"
+for file in package.json package-lock.json wrangler.toml src/worker.ts scripts/validate-migrations.mjs; do
+  [[ -f "$file" ]] || die "Required file missing: $file"
 done
 
-[[ -d "migrations" ]] || die "migrations/ directory is required for production D1 deployments."
-
-MIGRATION_FILES="$(find migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort)"
-MIGRATION_COUNT="$(printf '%s\n' "${MIGRATION_FILES}" | sed '/^$/d' | wc -l | tr -d ' ')"
-(( MIGRATION_COUNT > 0 )) || die "No D1 migration files found in migrations/."
-
-if ! printf '%s\n' "${MIGRATION_FILES}" | grep -Eq '^[0-9]+_[a-z0-9][a-z0-9_-]*\.sql$'; then
-  die "Migration filenames must follow <number>_<description>.sql."
+# Production CI must never bypass safety gates.
+if $IS_CI; then
+  [[ "${SKIP_LINT:-0}" != "1" ]] || die "SKIP_LINT is forbidden in CI."
+  [[ "${SKIP_TESTS:-0}" != "1" ]] || die "SKIP_TESTS is forbidden in CI."
+  [[ "${SKIP_MIGRATION:-0}" != "1" ]] || die "SKIP_MIGRATION is forbidden in CI."
+  [[ "${SKIP_HEALTHCHECK:-0}" != "1" ]] || die "SKIP_HEALTHCHECK is forbidden in CI."
+  [[ -n "${CLOUDFLARE_API_TOKEN:-}" ]] || die "CLOUDFLARE_API_TOKEN is required in CI."
 fi
 
-if [[ "$(printf '%s\n' "${MIGRATION_FILES}" | sed -E 's/^([0-9]+)_.*/\1/' | sort | uniq -d)" != "" ]]; then
-  die "Duplicate D1 migration numbers detected. Each migration number must be unique."
-fi
+# Verify that the checked-in lockfile and package manifest resolve the exact
+# Wrangler version used by this deployment.
+EXPECTED_WRANGLER="$(node -p 'require("./package.json").devDependencies.wrangler')"
+[[ "$EXPECTED_WRANGLER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "Wrangler must be pinned to an exact semver version; found: $EXPECTED_WRANGLER"
+LOCK_WRANGLER="$(node -p 'require("./package-lock.json").packages["node_modules/wrangler"].version')"
+[[ "$LOCK_WRANGLER" == "$EXPECTED_WRANGLER" ]] || die "package-lock.json Wrangler version ($LOCK_WRANGLER) does not match package.json ($EXPECTED_WRANGLER)."
 
-if ! grep -Eq '^main[[:space:]]*=[[:space:]]*"src/worker\.ts"[[:space:]]*$' wrangler.toml; then
-  die 'wrangler.toml must use main = "src/worker.ts" for this deployment script.'
-fi
+[[ -d migrations ]] || die "migrations/ directory is required."
+MIGRATION_COUNT="$(find migrations -maxdepth 1 -type f -name '*.sql' | wc -l | tr -d ' ')"
+(( MIGRATION_COUNT > 0 )) || die "No D1 migrations found."
 
-if ! grep -Eq '^name[[:space:]]*=' wrangler.toml; then
-  die "wrangler.toml does not define a Worker name."
-fi
+info "Installing locked dependencies..."
+npm ci
 
-if ! grep -Eq '^\[\[d1_databases\]\]' wrangler.toml; then
-  die "wrangler.toml does not define a D1 database binding."
-fi
-
-DB_NAME="$(sed -n 's/^[[:space:]]*database_name[[:space:]]*=[[:space:]]*"\([^"]*\)"[[:space:]]*$/\1/p' wrangler.toml | head -n 1)"
-DB_ID="$(sed -n 's/^[[:space:]]*database_id[[:space:]]*=[[:space:]]*"\([^"]*\)"[[:space:]]*$/\1/p' wrangler.toml | head -n 1)"
-DB_BINDING="$(sed -n 's/^[[:space:]]*binding[[:space:]]*=[[:space:]]*"\([^"]*\)"[[:space:]]*$/\1/p' wrangler.toml | head -n 1)"
-
-[[ -n "${DB_NAME}" ]] || die "Could not read database_name from wrangler.toml."
-[[ -n "${DB_ID}" ]] || die "Could not read database_id from wrangler.toml."
-[[ -n "${DB_BINDING}" ]] || die "Could not read D1 binding from wrangler.toml."
-
-success "D1 database: ${DB_NAME}"
-success "D1 binding: ${DB_BINDING}"
-success "Versioned D1 migrations: ${MIGRATION_COUNT}"
-
-if [[ -f "schema.sql" ]]; then
-  warn "Legacy schema.sql is still present. It is no longer used by production deployment."
-fi
-
-if [[ -f ".env" ]]; then
-  warn ".env exists locally. Its values will not be read or uploaded by this script."
-fi
+info "Validating D1 migrations..."
+npm run validate:migrations
 
 if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  if git ls-files --error-unmatch .env >/dev/null 2>&1; then
-    die ".env is tracked by git. Remove it from version control before production deployment."
-  fi
-
-  if [[ "${ALLOW_DIRTY:-0}" != "1" ]]; then
-    if [[ -n "$(git status --porcelain)" ]]; then
-      die "Working tree has uncommitted changes. Commit/stash them first, or use ALLOW_DIRTY=1."
-    fi
-  else
-    warn "ALLOW_DIRTY=1 — deploying despite local uncommitted changes."
+  git ls-files --error-unmatch .env >/dev/null 2>&1 && die ".env is tracked by Git."
+  if ! $IS_CI && [[ "${ALLOW_DIRTY:-0}" != "1" && -n "$(git status --porcelain)" ]]; then
+    die "Working tree is dirty. Commit/stash changes or use ALLOW_DIRTY=1 for a local deployment."
   fi
 fi
 
-step "3/8 — Installing locked dependencies"
-
-npm ci
-success "Dependencies installed with npm ci."
+info "Running TypeScript checks..."
+npm run lint
+info "Running tests..."
+npm test
 
 WRANGLER_CMD=(npx --no-install wrangler)
+info "Verifying pinned Wrangler: $EXPECTED_WRANGLER"
+ACTUAL_WRANGLER="$(${WRANGLER_CMD[@]} --version | head -n 1 | tr -d '\r')"
+grep -q "${EXPECTED_WRANGLER}" <<< "$ACTUAL_WRANGLER" || die "Unexpected Wrangler version: $ACTUAL_WRANGLER"
 
-step "4/8 — Running production quality gates"
-
-if [[ "${SKIP_LINT:-0}" == "1" ]]; then
-  warn "SKIP_LINT=1 — skipping TypeScript type-check."
-else
-  info "Running npm run lint..."
-  npm run lint
-  success "TypeScript type-check passed."
-fi
-
-if [[ "${SKIP_TESTS:-0}" == "1" ]]; then
-  warn "SKIP_TESTS=1 — skipping tests."
-else
-  info "Running npm test..."
-  npm test
-  success "Test suite passed."
-fi
-
-# Cloudflare Wrangler bundles src/worker.ts directly. The separate npm build
-# targets src/index.ts for the Node/PM2 deployment and is intentionally omitted.
-
-step "5/8 — Verifying Cloudflare authentication"
-
-if [[ "${CI:-false}" == "true" || "${CI:-0}" == "1" ]]; then
-  [[ -n "${CLOUDFLARE_API_TOKEN:-}" ]] || die "CLOUDFLARE_API_TOKEN is required for CI deployments. Add it as a GitHub Actions secret."
-  info "CI mode detected; using non-interactive Cloudflare authentication."
-else
-  info "Checking Wrangler authentication..."
-fi
-
+info "Verifying Cloudflare authentication..."
 "${WRANGLER_CMD[@]}" whoami >/dev/null
-success "Wrangler authentication is valid."
+success "Cloudflare authentication verified."
 
-if [[ "${CI:-false}" != "true" && "${CI:-0}" != "1" ]]; then
-  echo ""
-  echo -e "${YELLOW}${BOLD}Production deployment target:${NC} ${CYAN}${DB_NAME}${NC}"
-  echo -e "${YELLOW}This will apply pending D1 migrations and deploy the Worker.${NC}"
-  read -r -p "Continue with production deployment? [y/N] " CONFIRM
-  case "${CONFIRM}" in
-    y|Y|yes|YES) success "Production deployment confirmed." ;;
-    *) warn "Deployment cancelled by user."; exit 0 ;;
-  esac
-else
-  info "CI/non-interactive mode detected; skipping confirmation prompt."
+DB_NAME="$(sed -n 's/^[[:space:]]*database_name[[:space:]]*=[[:space:]]*"\([^"]*\)"[[:space:]]*$/\1/p' wrangler.toml | head -n 1)"
+[[ -n "$DB_NAME" ]] || die "Could not determine D1 database_name from wrangler.toml."
+
+if ! $IS_CI; then
+  echo "Production target: $DB_NAME"
+  read -r -p "Apply pending D1 migrations and deploy? [y/N] " confirm
+  case "$confirm" in y|Y|yes|YES) ;; *) warn "Deployment cancelled."; exit 0 ;; esac
 fi
 
-step "6/8 — Applying pending versioned D1 migrations"
-
+# Migration ordering: schema changes are applied first, but the validator blocks
+# destructive operations so the currently deployed Worker remains compatible.
 if [[ "${SKIP_MIGRATION:-0}" == "1" ]]; then
-  warn "SKIP_MIGRATION=1 — skipping pending D1 migrations."
+  warn "SKIP_MIGRATION=1 — migration step skipped (local/manual only)."
 else
-  info "Checking remote D1 migration state: ${DB_NAME}"
-  "${WRANGLER_CMD[@]}" d1 migrations list "${DB_NAME}" --remote
-  info "Applying pending migrations to remote D1 database: ${DB_NAME}"
-  # Wrangler 4.131+ skips the confirmation prompt automatically when it detects
-  # a non-interactive CI environment. There is no --yes flag for this command.
-  "${WRANGLER_CMD[@]}" d1 migrations apply "${DB_NAME}" --remote
-  success "Pending D1 migrations applied successfully."
+  info "Checking remote D1 migration state..."
+  "${WRANGLER_CMD[@]}" d1 migrations list "$DB_NAME" --remote
+  info "Applying pending D1 migrations..."
+  "${WRANGLER_CMD[@]}" d1 migrations apply "$DB_NAME" --remote
+  success "D1 migrations applied."
 fi
-
-step "7/8 — Deploying Cloudflare Worker"
 
 TMP_DIR="$(mktemp -d)"
-DEPLOY_OUTPUT="${TMP_DIR}/wrangler-deploy.log"
+trap 'rm -rf "$TMP_DIR"' EXIT
+DEPLOY_LOG="$TMP_DIR/deploy.log"
 
-info "Running: npx wrangler deploy"
-"${WRANGLER_CMD[@]}" deploy 2>&1 | tee "${DEPLOY_OUTPUT}"
-success "Cloudflare Worker deployment completed."
+info "Deploying Worker with pinned Wrangler..."
+"${WRANGLER_CMD[@]}" deploy 2>&1 | tee "$DEPLOY_LOG"
+success "Worker deployment completed."
 
-if [[ -z "${WORKER_URL:-}" ]]; then
-  WORKER_URL="$(grep -Eo 'https://[A-Za-z0-9._-]+\.workers\.dev' "${DEPLOY_OUTPUT}" | tail -n 1 || true)"
-fi
-
-step "8/8 — Running post-deployment health check"
+WORKER_URL="${WORKER_URL:-$(grep -Eo 'https://[A-Za-z0-9._-]+\.workers\.dev' "$DEPLOY_LOG" | tail -n 1 || true)}"
 
 if [[ "${SKIP_HEALTHCHECK:-0}" == "1" ]]; then
-  warn "SKIP_HEALTHCHECK=1 — skipping /health verification."
-elif [[ -z "${WORKER_URL:-}" ]]; then
-  warn "Could not determine the deployed Worker URL automatically."
-  warn "Set WORKER_URL manually to enable the health check, for example:"
-  echo "  WORKER_URL=https://your-worker.workers.dev bash deploy.sh"
+  warn "SKIP_HEALTHCHECK=1 — health check skipped (local/manual only)."
+elif [[ -z "$WORKER_URL" ]]; then
+  warn "Worker URL could not be detected; set WORKER_URL for a post-deploy health check."
 elif ! command -v curl >/dev/null 2>&1; then
-  warn "curl is not installed; skipping health check."
+  die "curl is required for the production post-deployment health check."
 else
-  HEALTH_URL="${WORKER_URL%/}/health"
-  info "Checking ${HEALTH_URL}"
-  HEALTH_RESPONSE="$(curl --fail --silent --show-error --max-time 20 "${HEALTH_URL}")" || die "Post-deployment health check failed: ${HEALTH_URL}"
-
-  if grep -q '"status":"ok"' <<<"${HEALTH_RESPONSE}" || grep -q '"status": "ok"' <<<"${HEALTH_RESPONSE}"; then
-    success "Worker health check passed."
-  else
-    die "Health endpoint responded, but status was not OK: ${HEALTH_RESPONSE}"
-  fi
+  HEALTH_RESPONSE="$(curl --fail --silent --show-error --max-time 20 "${WORKER_URL%/}/health")" || die "Post-deployment health check failed."
+  grep -qE '"status"[[:space:]]*:[[:space:]]*"ok"' <<< "$HEALTH_RESPONSE" || die "Health endpoint did not report status=ok."
+  success "Post-deployment health check passed."
 fi
 
-END_TIME=$(date +%s)
-DURATION=$((END_TIME - START_TIME))
-
-echo ""
-echo -e "${GREEN}${BOLD}===============================================================${NC}"
-echo -e "${GREEN}${BOLD}Production deployment completed successfully${NC}"
-echo -e "${GREEN}${BOLD}===============================================================${NC}"
-echo ""
-echo -e "${BOLD}Deployment summary:${NC}"
-echo -e "  Worker      : ${CYAN}xbet-telegram-bot${NC}"
-echo -e "  D1 database : ${CYAN}${DB_NAME}${NC}"
-echo -e "  Migrations  : ${CYAN}${MIGRATION_COUNT} versioned files${NC}"
-echo -e "  Duration    : ${CYAN}${DURATION}s${NC}"
-
-if [[ -n "${WORKER_URL:-}" ]]; then
-  echo -e "  Worker URL  : ${CYAN}${WORKER_URL}${NC}"
-fi
-
-echo ""
-echo -e "${BOLD}Required production secrets (managed separately):${NC}"
-echo "  npx wrangler secret put BOT_TOKEN"
-echo "  npx wrangler secret put WEBHOOK_SECRET"
-echo "  npx wrangler secret put ADMIN_CHANNEL_ID"
-echo "  npx wrangler secret put ADMIN_IDS"
-echo "  npx wrangler secret put BANK_DETAILS"
-echo "  npx wrangler secret put WHATSAPP_NUMBER"
-echo "  npx wrangler secret put EZCASH_NUMBER"
-echo "  npx wrangler secret put FRIMI_NUMBER"
-echo "  npx wrangler secret put MCASH_NUMBER"
-echo "  npx wrangler secret put R2_ACCOUNT_ID"
-echo "  npx wrangler secret put R2_PUBLIC_DOMAIN"
-echo ""
-echo -e "${BOLD}Telegram webhook:${NC} configure it after confirming BOT_TOKEN and WEBHOOK_SECRET."
-echo -e "${YELLOW}Do not put any secret values into wrangler.toml, deploy.sh, or Git.${NC}"
-echo ""
+echo "Deployment completed: Worker=xbet-telegram-bot D1=$DB_NAME migrations=$MIGRATION_COUNT"
