@@ -6,22 +6,22 @@ workers_dev = true
 
 # ─── Plain text variables (non-sensitive) ───
 [vars]
-BOT_MODE = "webhook"
-CHANNEL_URL = "https://t.me"
-CHANNEL_USERNAME = "@fastxbetcash_bot"
+BOT_MODE = "production"
+CHANNEL_URL = "https://t.me/fast_1xbetcash"
+CHANNEL_USERNAME = "@fast_1xbetcash"
 DEPOSIT_INSTRUCTIONS = "Deposit to the following account"
 MAX_TRANSACTION_LKR = "500000"
 MIN_TRANSACTION_LKR = "1000"
 R2_BUCKET_NAME = "chat-media"
 USE_POLLING = "false"
-XBET_LINK = "https://reffpa.com"
+XBET_LINK = "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622"
 XBET_PROMO_CODE = "VGSL"
 
 # Automated Free Tips — Sri Lanka time (UTC+05:30)
 # 08:00 = 02:30 UTC, 12:00 = 06:30 UTC, 18:00 = 12:30 UTC.
 # IMPORTANT: replace these two empty values with your real Telegram channel.
-TIPS_CHANNEL_ID = ""
-TIPS_CHANNEL_URL = ""
+TIPS_CHANNEL_ID = "-1004459297347"
+TIPS_CHANNEL_URL = "https://t.me/fast_1xbetcash"
 TIPS_SPORTS = "soccer_epl,soccer_uefa_champs_league,basketball_nba,tennis_atp"
 TIPS_ODDS_REGIONS = "uk,eu"
 TIPS_MIN_ODDS = "1.40"
@@ -43,6 +43,8 @@ TIPS_HOURS_AHEAD = "48"
 #   MCASH_NUMBER
 #   R2_ACCOUNT_ID
 #   R2_PUBLIC_DOMAIN
+#   R2_ACCESS_KEY_ID
+#   R2_SECRET_ACCESS_KEY
 #   ODDS_API_KEY
 #
 # TIPS_CHANNEL_ID is a non-secret [vars] value. Set it to @channel or -100... .
@@ -59,3 +61,4 @@ bucket_name = "chat-media"
 [triggers]
 # 02:00 UTC = legacy R2 cleanup; 02:30/06:30/12:30 UTC = 08:00/12:00/18:00 SL free tips.
 crons = ["0 2 * * *", "30 2 * * *", "30 6 * * *", "30 12 * * *"]
+
