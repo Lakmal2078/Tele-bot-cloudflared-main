@@ -113,11 +113,16 @@ done
 
 [[ -d "migrations" ]] || die "migrations/ directory is required for production D1 deployments."
 
-MIGRATION_COUNT="$(find migrations -maxdepth 1 -type f -name '*.sql' | wc -l | tr -d ' ')"
+MIGRATION_FILES="$(find migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort)"
+MIGRATION_COUNT="$(printf '%s\n' "${MIGRATION_FILES}" | sed '/^$/d' | wc -l | tr -d ' ')"
 (( MIGRATION_COUNT > 0 )) || die "No D1 migration files found in migrations/."
 
-if ! find migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | grep -Eq '^[0-9]+_[a-z0-9][a-z0-9_-]*\.sql$'; then
+if ! printf '%s\n' "${MIGRATION_FILES}" | grep -Eq '^[0-9]+_[a-z0-9][a-z0-9_-]*\.sql$'; then
   die "Migration filenames must follow <number>_<description>.sql."
+fi
+
+if [[ "$(printf '%s\n' "${MIGRATION_FILES}" | sed -E 's/^([0-9]+)_.*/\1/' | sort | uniq -d)" != "" ]]; then
+  die "Duplicate D1 migration numbers detected. Each migration number must be unique."
 fi
 
 if ! grep -Eq '^main[[:space:]]*=[[:space:]]*"src/worker\.ts"[[:space:]]*$' wrangler.toml; then
@@ -227,7 +232,9 @@ else
   info "Checking remote D1 migration state: ${DB_NAME}"
   "${WRANGLER_CMD[@]}" d1 migrations list "${DB_NAME}" --remote
   info "Applying pending migrations to remote D1 database: ${DB_NAME}"
-  "${WRANGLER_CMD[@]}" d1 migrations apply "${DB_NAME}" --remote --yes
+  # Wrangler 4.131+ skips the confirmation prompt automatically when it detects
+  # a non-interactive CI environment. There is no --yes flag for this command.
+  "${WRANGLER_CMD[@]}" d1 migrations apply "${DB_NAME}" --remote
   success "Pending D1 migrations applied successfully."
 fi
 
