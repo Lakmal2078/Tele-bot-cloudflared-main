@@ -86,15 +86,14 @@ export default {
   async fetch(request: Request, env: Env, ctx?: any): Promise<Response> {
     const url = new URL(request.url);
 
-    // Public liveness only. Never expose configuration, secret presence, storage state,
-    // admin IDs, database state, or tip configuration from an unauthenticated endpoint.
     if (url.pathname === "/health" || url.pathname === "/api/health") {
       return json({ status: "ok", service: "telegram-bot" });
     }
 
-    // All operational/diagnostic endpoints are private and use a dedicated admin API secret.
     if (url.pathname === "/api/cleanup/logs/status") {
+      if (request.method !== "GET" && request.method !== "HEAD") return json({ ok: false, error: "Method Not Allowed" }, 405);
       if (!adminAuthorized(request, env)) return unauthorizedResponse();
+      if (request.method === "HEAD") return new Response(null, { status: 200, headers: securityHeaders() });
       const last = getLastCleanupResult();
       return json({
         status: "ok",
@@ -102,6 +101,13 @@ export default {
         schedule: "Daily at 02:00 UTC (Cloudflare Cron)",
         lastCleanup: last,
       });
+    }
+
+    if (url.pathname === "/api/admin/status") {
+      if (request.method !== "GET" && request.method !== "HEAD") return json({ ok: false, error: "Method Not Allowed" }, 405);
+      if (!adminAuthorized(request, env)) return unauthorizedResponse();
+      if (request.method === "HEAD") return new Response(null, { status: 200, headers: securityHeaders() });
+      return json({ status: "ok", runtime: "cloudflare-worker", service: "telegram-bot" });
     }
 
     if (url.pathname === "/api/cleanup/logs" && request.method === "POST") {
@@ -118,11 +124,9 @@ export default {
       const cleanupPromise = cleanupOldR2Logs(env, days);
       if (ctx?.waitUntil) ctx.waitUntil(cleanupPromise);
       const result = await cleanupPromise;
-
       return json(result, result.success ? 200 : 500);
     }
 
-    // Fail closed before accepting any webhook traffic.
     try {
       assertValidEnv(env, "Cloudflare Worker");
     } catch (err) {
@@ -137,9 +141,6 @@ export default {
 
       const incomingSecret = request.headers.get("X-Telegram-Bot-Api-Secret-Token") || "";
       const expectedSecret = env.WEBHOOK_SECRET.trim();
-
-      // Telegram webhook authentication is fail-closed: missing, empty, or incorrect
-      // secrets are all rejected. This prevents accidental public webhook exposure.
       if (!incomingSecret || incomingSecret !== expectedSecret) {
         return new Response("unauthorized", { status: 401, headers: securityHeaders() });
       }
@@ -148,9 +149,6 @@ export default {
         botInstance = createBot(env);
         cachedToken = env.BOT_TOKEN;
         webhookHandler = null;
-
-        // Register Telegram's slash-command menu once per Worker isolate/token. This is
-        // intentionally best-effort and runs in waitUntil so webhook latency is unaffected.
         const commandRegistration = registerBotCommands(botInstance).catch((err) => {
           console.error("[Telegram Commands] Registration failed:", err);
         });
@@ -188,15 +186,12 @@ export default {
   },
 
   async scheduled(event: any, env: Env, ctx: any): Promise<void> {
-    // Cron executions are internal Cloudflare events, but configuration is still
-    // validated so a broken deployment fails loudly instead of running partially.
     assertValidEnv(env, "Cloudflare Worker cron");
 
     const cron = String(event?.cron || "");
     console.log(`[Worker Cron] Scheduled event at ${new Date().toISOString()}: ${cron || "unknown"}`);
 
     const tasks: Promise<unknown>[] = [];
-
     if (["30 2 * * *", "30 6 * * *", "30 12 * * *"].includes(cron)) {
       tasks.push(
         runScheduledTip(env, cron)
