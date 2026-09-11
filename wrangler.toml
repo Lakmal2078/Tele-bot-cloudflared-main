@@ -7,8 +7,8 @@ workers_dev = true
 # ─── Plain text variables (non-sensitive) ───
 [vars]
 BOT_MODE = "production"
-CHANNEL_URL = "https://t.me/fast_1xbetcash"
-CHANNEL_USERNAME = "@fast_1xbetcash"
+CHANNEL_URL = "https://t.me/fast_xbet_official_tips"
+CHANNEL_USERNAME = "@fast_xbet_official_tips"
 DEPOSIT_INSTRUCTIONS = "Deposit to the following account"
 MAX_TRANSACTION_LKR = "500000"
 MIN_TRANSACTION_LKR = "1000"
@@ -20,8 +20,8 @@ XBET_PROMO_CODE = "VGSL"
 # Automated Free Tips — Sri Lanka time (UTC+05:30)
 # 08:00 = 02:30 UTC, 12:00 = 06:30 UTC, 18:00 = 12:30 UTC.
 # IMPORTANT: replace these two empty values with your real Telegram channel.
-TIPS_CHANNEL_ID = "-1004459297347"
-TIPS_CHANNEL_URL = "https://t.me/fast_1xbetcash"
+TIPS_CHANNEL_ID = "-1004336999467"
+TIPS_CHANNEL_URL = "https://t.me/fast_xbet_official_tips"
 TIPS_SPORTS = "soccer_epl,soccer_uefa_champs_league,basketball_nba,tennis_atp"
 TIPS_ODDS_REGIONS = "uk,eu"
 TIPS_MIN_ODDS = "1.40"
