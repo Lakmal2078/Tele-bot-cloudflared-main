@@ -7,60 +7,121 @@
 [![Telegram Bot API](https://img.shields.io/badge/Telegram-Bot%20API-0088cc?logo=telegram)](https://core.telegram.org/bots/api)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
-> Production-oriented Telegram cashier and transaction-management bot built with TypeScript, grammY, Cloudflare Workers, D1, and R2.
+> Production-oriented Telegram cashier, transaction-management, referral, and free-tips bot built with TypeScript, grammY, Cloudflare Workers, D1, R2, and GitHub Actions.
 
-The project supports deposit and withdrawal workflows, multilingual user interactions, referral tracking, administrative controls, receipt storage, scheduled cleanup, automated quality checks, and Cloudflare deployment.
+This repository is designed around a production deployment workflow with versioned database migrations, authenticated administrative APIs, Telegram webhook protection, transaction integrity controls, duplicate-submission protection, scheduled free tips, automated tests, and deployment health checks.
 
-> **Important:** This repository contains application code and deployment configuration. Never commit Telegram bot tokens, payment credentials, Cloudflare API tokens, private keys, or other secrets.
+> **Security:** Never commit Telegram bot tokens, API keys, payment credentials, Cloudflare credentials, private keys, or other secrets to Git.
 
 ---
 
-## ✨ Highlights
+## ✨ Features
 
-- 💳 Deposit and withdrawal workflows
-- 🧾 Receipt upload and storage through Cloudflare R2
+### Telegram bot
+
+- 💳 Deposit workflow with receipt submission
+- 💸 Withdrawal workflow
+- 🧾 Receipt/media backup through Cloudflare R2
 - 🌐 Sinhala, English, and Tamil user flows
-- 👮 Admin-only controls and transaction moderation
-- 📊 Transaction and user analytics
-- 🔗 Referral tracking
-- ☁️ Cloudflare Workers deployment
-- 🗄️ Cloudflare D1 database with **versioned migrations**
-- ⏱️ Scheduled maintenance through Worker Cron Triggers
-- 🤖 GitHub Actions CI/CD
-- 📱 Optional Termux/Android + PM2 deployment path
-- 🩺 `/health` and `/api/health` health endpoints
+- 🔗 Referral tracking and referral dashboard
+- 📜 Transaction history
+- 👮 Admin-only transaction moderation
+- 🛡️ Callback authorization and transaction-state protection
+- 🚫 Duplicate receipt and duplicate pending-withdrawal protection
+- ⏱️ User and transaction abuse/rate-limit protection
+- `/start`, `/menu`, `/deposit`, `/confirm_deposit`, `/withdraw`, `/register`, `/referrals`, `/history`, `/language`, `/help`, `/id`, `/cancel`
+
+### Automated free tips
+
+- 🤖 Automated sports tips powered by The Odds API
+- ⚽ EPL and UEFA Champions League
+- 🏀 NBA
+- 🎾 ATP tennis
+- 🎯 Configurable odds range and forecast window
+- 🕐 Scheduled publishing at **08:00, 12:00, and 18:00 Sri Lanka time**
+- 🔁 Retry/backoff handling for temporary Odds API failures
+- 🔒 Lease-based scheduled-tip claiming to prevent concurrent cron workers from publishing the same slot
+- 🧹 Recovery of stale `PROCESSING` tip jobs after lease expiry
+
+### Production/security
+
+- 🔐 Fail-closed Telegram webhook secret validation
+- 🔐 Authenticated administrative API endpoints
+- 🧱 Per-isolate admin authentication throttling
+- 🧱 Webhook request method, content-type, and body-size validation
+- 🛡️ Security response headers
+- 🗄️ D1 financial audit trail and status-change triggers
+- 🔒 Atomic conditional transaction status transitions
+- 🚫 Database-level duplicate submission guards
+- 📦 Versioned, forward-only migrations
+- 🧪 Migration validation and regression tests
+- 🚀 Single GitHub Actions production deployment path
+- ❤️ Post-deployment health check
 
 ---
 
 ## 🏗️ Architecture
 
 ```text
-Telegram Users
-      │
-      ▼
-Telegram Bot API
-      │
-      ▼
-Cloudflare Worker (src/worker.ts)
-      │
-      ├── grammY bot logic
-      ├── D1 ───────────────► users / transactions / referrals / state
-      ├── R2 ───────────────► receipts / media / logs
-      └── Cron Trigger ─────► scheduled cleanup
+                         ┌──────────────────────┐
+                         │     Telegram Users   │
+                         └──────────┬───────────┘
+                                    │
+                                    ▼
+                         ┌──────────────────────┐
+                         │    Telegram Bot API  │
+                         └──────────┬───────────┘
+                                    │ Webhook
+                                    ▼
+                    ┌──────────────────────────────┐
+                    │ Cloudflare Worker             │
+                    │ src/worker.ts                 │
+                    │                              │
+                    │ grammY + security + routing  │
+                    └──────┬───────────┬───────────┘
+                           │           │
+                 ┌─────────┘           └──────────┐
+                 ▼                                ▼
+        ┌─────────────────┐              ┌─────────────────┐
+        │ Cloudflare D1   │              │ Cloudflare R2   │
+        │ users           │              │ receipts/media  │
+        │ transactions    │              │ logs            │
+        │ referrals       │              └─────────────────┘
+        │ financial audit │
+        │ tip jobs        │
+        └────────┬────────┘
+                 │
+                 ▼
+        ┌─────────────────┐
+        │ Worker Cron     │
+        │ free tips       │
+        │ cleanup         │
+        └─────────────────┘
 
-GitHub
-  │
-  └── Actions ──► quality gates ──► deploy.sh ──► Cloudflare
+ GitHub main
+      │
+      ▼
+ GitHub Actions
+      │
+      ├── npm ci
+      ├── lint
+      ├── tests
+      ├── migration validation
+      ├── deploy.sh
+      └── health check
+             │
+             ▼
+      Cloudflare Workers
 ```
 
 ### Runtime modes
 
-| Mode | Entry point | Purpose |
+| Runtime | Entry point | Purpose |
 |---|---|---|
-| Cloudflare Workers | `src/worker.ts` | Production webhook deployment |
-| Node.js / PM2 | `src/index.ts` → `dist/server.cjs` | Termux, VPS, or other Node.js environments |
+| Cloudflare Workers | `src/worker.ts` | Primary production webhook deployment |
+| Node.js / PM2 | `src/index.ts` → `dist/server.cjs` | VPS, Termux, Android, or Node runtime |
 
-The Cloudflare Worker is deployed directly from `src/worker.ts`. The Node.js build is a separate PM2 deployment path.
+The application keeps the Cloudflare Worker as the primary production path while retaining a Node.js/PM2 runtime for supported environments.
 
 ---
 
@@ -70,22 +131,46 @@ The Cloudflare Worker is deployed directly from `src/worker.ts`. The Node.js bui
 .
 ├── .github/
 │   └── workflows/
-│       └── ci-cd.yml
+│       └── ci-cd.yml                 # Single CI/CD production path
+├── docs/
+│   ├── security-phase1.md
+│   ├── deployment-safety-phase2.md
+│   ├── phase3-financial-integrity.md
+│   ├── security-phase4.md
+│   └── phase4-cloudflare-edge-protection.md
 ├── migrations/
 │   ├── 0001_initial_schema.sql
+│   ├── 0002_*.sql                    # Existing schema evolution
+│   ├── 0003_financial_integrity.sql
+│   ├── 0004_abuse_protection.sql
 │   └── README.md
+├── scripts/
+│   └── validate-migrations.mjs
 ├── src/
-│   ├── worker.ts          # Cloudflare Worker entry point
-│   └── index.ts           # Node.js / PM2 entry point
-├── deploy.sh              # Production Cloudflare deployment
-├── deploy-proot.sh        # Termux/proot deployment
+│   ├── bot.ts                         # Telegram bot handlers
+│   ├── config.ts                      # Environment/config validation
+│   ├── db.ts                          # D1 data access
+│   ├── fraud.ts                       # Abuse/fraud checks
+│   ├── i18n.ts                        # Localisation
+│   ├── index.ts                       # Node.js runtime
+│   ├── logger.ts                      # Audit/application logging
+│   ├── rateLimit.ts                   # Rate limiting
+│   ├── r2.ts                          # R2 media operations
+│   ├── security.ts                    # Request/admin security controls
+│   ├── tips.ts                        # Automated free-tip service
+│   ├── types.ts                       # Shared types
+│   ├── utils.ts                       # Shared utilities
+│   └── worker.ts                      # Cloudflare Worker entry point
+├── deploy.sh                          # Production Cloudflare deployment
+├── deploy-proot.sh                    # Termux/proot deployment path
 ├── package.json
+├── package-lock.json
 ├── wrangler.toml
 ├── tsconfig.json
 └── README.md
 ```
 
-> The old root-level `schema.sql` is intentionally no longer used. Database changes are managed through `migrations/`.
+> Database schema is managed through `migrations/`. Do not introduce a separate production schema source that bypasses migration history.
 
 ---
 
@@ -93,12 +178,12 @@ The Cloudflare Worker is deployed directly from `src/worker.ts`. The Node.js bui
 
 ### Requirements
 
-- Node.js 22+
+- Node.js **22+**
 - npm
 - Git
-- A Telegram bot created with [@BotFather](https://t.me/BotFather)
-- For Cloudflare deployment: a Cloudflare account with Workers, D1, and R2 configured
-- For Termux deployment: Android + Termux + `proot-distro`
+- Telegram bot created through [@BotFather](https://t.me/BotFather)
+- Cloudflare account for Worker/D1/R2 deployment
+- Wrangler **4.131.0** through the pinned project dependency
 
 Install dependencies:
 
@@ -106,29 +191,89 @@ Install dependencies:
 npm ci
 ```
 
-Run quality checks:
+Run the full local quality check:
 
 ```bash
 npm run check
 ```
 
-Run tests only:
+Run tests:
 
 ```bash
 npm test
 ```
 
-Run the TypeScript type-check:
+Run TypeScript validation:
 
 ```bash
 npm run lint
 ```
 
+Validate migration filenames and destructive SQL rules:
+
+```bash
+npm run validate:migrations
+```
+
 ---
 
-## ☁️ Cloudflare Workers Deployment
+## 🔐 Configuration & Secrets
 
-Cloudflare is the primary production deployment path.
+Application configuration is validated centrally by `src/config.ts`.
+
+### Required production secrets
+
+The Cloudflare Worker currently requires the following secrets when the automated tips feature is enabled:
+
+```text
+BOT_TOKEN
+ADMIN_IDS
+WEBHOOK_SECRET
+ADMIN_API_SECRET
+ODDS_API_KEY
+```
+
+Configure them with Wrangler:
+
+```bash
+npx wrangler secret put BOT_TOKEN
+npx wrangler secret put ADMIN_IDS
+npx wrangler secret put WEBHOOK_SECRET
+npx wrangler secret put ADMIN_API_SECRET
+npx wrangler secret put ODDS_API_KEY
+```
+
+For `ADMIN_API_SECRET`, use a long random value. Example generator:
+
+```bash
+openssl rand -base64 32
+```
+
+Never put real secret values in:
+
+- `README.md`
+- `.env.example`
+- `wrangler.toml`
+- source code
+- GitHub issues or pull requests
+- commit messages
+- public logs
+
+### Local Node.js environment
+
+For local Node.js/PM2 development:
+
+```bash
+cp .env.example .env
+```
+
+Then fill in the required local values. `.env` must never be committed.
+
+---
+
+## ☁️ Cloudflare Deployment
+
+Cloudflare Workers is the primary production deployment target.
 
 ### 1. Authenticate Wrangler
 
@@ -136,190 +281,276 @@ Cloudflare is the primary production deployment path.
 npx wrangler login
 ```
 
-### 2. Verify configuration
+### 2. Verify resources
 
-The Worker and D1/R2 bindings are defined in `wrangler.toml`.
-
-Current production resources include:
+The current deployment configuration uses:
 
 - Worker: `xbet-telegram-bot`
-- D1: `fastxbetcash_bot-db`
 - D1 binding: `DB`
 - R2 binding: `CHAT_MEDIA`
+- versioned migrations in `migrations/`
 
-Do not put secret values into `wrangler.toml`.
+Review `wrangler.toml` before deployment.
 
-### 3. Configure secrets
-
-Set the secrets required by the application using Wrangler or your CI/CD secret store. Example:
-
-```bash
-npx wrangler secret put BOT_TOKEN
-npx wrangler secret put WEBHOOK_SECRET
-npx wrangler secret put ADMIN_CHANNEL_ID
-npx wrangler secret put ADMIN_IDS
-npx wrangler secret put BANK_DETAILS
-npx wrangler secret put WHATSAPP_NUMBER
-npx wrangler secret put EZCASH_NUMBER
-npx wrangler secret put FRIMI_NUMBER
-npx wrangler secret put MCASH_NUMBER
-npx wrangler secret put R2_ACCOUNT_ID
-npx wrangler secret put R2_PUBLIC_DOMAIN
-```
-
-Never paste real secret values into this README, source code, issues, pull requests, or commit messages.
-
-### 4. Apply database migrations
-
-Database schema is managed by versioned files in `migrations/`.
-
-Inspect migration state:
+### 3. Validate locally
 
 ```bash
-npx wrangler d1 migrations list fastxbetcash_bot-db --remote
+npm ci
+npm run lint
+npm test
+npm run validate:migrations
+bash -n deploy.sh
 ```
 
-Apply pending migrations deliberately:
+### 4. Deploy
 
-```bash
-npx wrangler d1 migrations apply fastxbetcash_bot-db --remote
-```
-
-Read [`migrations/README.md`](migrations/README.md) before applying migrations to an existing production database. The initial migration is a baseline and must not be blindly applied to an already-populated database without confirming migration history.
-
-### 5. Deploy the Worker
-
-Recommended production command:
+Recommended local production command:
 
 ```bash
 npm run deploy:cf
 ```
 
-The deployment script validates the repository, checks the migration directory, applies versioned D1 migrations, deploys the Worker, and performs a health check.
+The deployment script performs repository and environment checks, validates migrations, runs quality gates, applies remote D1 migrations, deploys with the pinned Wrangler version, and performs a post-deployment health check.
 
-For CI/CD:
+### CI deployment
 
-```bash
-npm run deploy:cf:ci
+Production deployments from `main` are handled by the single workflow:
+
+```text
+.github/workflows/ci-cd.yml
 ```
 
-Emergency/manual migration bypass is available as:
+You normally do **not** need to run `wrangler deploy` manually after pushing to `main`.
 
 ```bash
-SKIP_MIGRATION=1 npm run deploy:cf
+git push origin main
 ```
 
-Use the bypass only when you deliberately understand the database state and deployment risk.
+Then GitHub Actions runs the production pipeline.
+
+> **Important:** CI deliberately refuses migration/health-check bypass flags. Do not weaken those protections to make a deployment pass.
 
 ---
 
 ## 🔄 GitHub Actions CI/CD
 
-The repository includes `.github/workflows/ci-cd.yml`.
+There is intentionally **one** production workflow:
 
-On pull requests and pushes to `main`, the quality job runs:
+```text
+.github/workflows/ci-cd.yml
+```
+
+The quality gate performs:
 
 ```text
 npm ci
-  ↓
+   ↓
 npm run lint
-  ↓
+   ↓
 npm test
-  ↓
+   ↓
+npm run validate:migrations
+   ↓
 bash -n deploy.sh
 ```
 
-A push to `main` that passes the quality gates proceeds to the production deployment job.
+For a push to `main`, a successful quality job is followed by the production deployment job.
 
 ### Required GitHub Actions secrets
-
-Configure these repository/environment secrets in GitHub:
 
 ```text
 CLOUDFLARE_API_TOKEN
 CLOUDFLARE_ACCOUNT_ID
 ```
 
-The Cloudflare API token should follow the principle of least privilege and should only have the permissions required for the deployment workflow.
+The Cloudflare API token should follow least-privilege principles.
 
-For production repositories, protect the `production` GitHub environment with appropriate reviewers and deployment rules.
+The workflow uses a production concurrency group so multiple production deployments are not allowed to race each other.
 
 ---
 
-## 🗄️ Database & Migrations
+## 🗄️ Database & Migration Policy
 
-D1 schema changes are **forward-only and versioned**.
+D1 schema changes are **versioned and forward-only**.
 
-### Migration naming
-
-```text
-migrations/
-├── 0001_initial_schema.sql
-├── 0002_add_example_index.sql
-└── 0003_add_example_column.sql
-```
-
-Use the format:
+Current migration history includes:
 
 ```text
-<number>_<description>.sql
+0001_initial_schema.sql
+0002_*.sql
+0003_financial_integrity.sql
+0004_abuse_protection.sql
 ```
 
-### Migration rules
+### Rules
 
 1. Never edit an already-applied production migration.
 2. Never delete an already-applied production migration.
 3. Add a new migration for every schema change.
-4. Review destructive SQL carefully before deployment.
-5. Prefer forward-fix migrations instead of destructive rollback migrations.
-6. Check remote migration history before changing production data structures.
+4. Migration numbers must be unique and sequentially ordered.
+5. Destructive SQL is blocked by the migration validator by default.
+6. Prefer expand/contract changes for breaking schema evolution.
+7. Review production migration state before deployment.
 
-Local workflow:
+Validate migrations:
 
 ```bash
-npx wrangler d1 migrations list fastxbetcash_bot-db --local
-npx wrangler d1 migrations apply fastxbetcash_bot-db --local
+npm run validate:migrations
 ```
 
-Production workflow:
+Inspect remote migration state:
 
 ```bash
 npx wrangler d1 migrations list fastxbetcash_bot-db --remote
+```
+
+Apply pending migrations manually only when deliberately operating outside the automated deployment flow:
+
+```bash
 npx wrangler d1 migrations apply fastxbetcash_bot-db --remote
 ```
 
-See [`migrations/README.md`](migrations/README.md) for the complete migration policy.
+See [`migrations/README.md`](migrations/README.md) and the Phase 2 deployment-safety documentation for the complete policy.
 
 ---
 
-## 🔐 Configuration & Secrets
+## 💰 Financial Integrity
 
-Non-sensitive production configuration is defined in `wrangler.toml`.
+The bot does not maintain a fake local wallet balance. Deposit and withdrawal records represent transaction requests and their lifecycle state.
 
-Sensitive values must be stored as Cloudflare Worker secrets or GitHub Actions secrets.
+### Atomic status transitions
 
-### Important configuration categories
+Financial status changes use conditional database updates such as:
 
-| Category | Examples | Storage |
-|---|---|---|
-| Telegram | `BOT_TOKEN` | Secret |
-| Admin access | `ADMIN_IDS`, `ADMIN_CHANNEL_ID` | Secret |
-| Payment details | `BANK_DETAILS`, wallet numbers | Secret |
-| Webhook security | `WEBHOOK_SECRET` | Secret |
-| R2 credentials | `R2_ACCOUNT_ID`, R2 access values | Secret |
-| Public runtime values | channel URL, transaction limits | `wrangler.toml` / vars |
-
-### Local `.env`
-
-For Node.js/PM2 deployments, create a local `.env` file from the repository's environment template if available.
-
-```bash
-cp .env.example .env
+```sql
+UPDATE transactions
+SET status = 'APPROVED'
+WHERE id = ?
+  AND status = 'PENDING'
+  AND deleted_at IS NULL;
 ```
 
-Never commit `.env`.
+This ensures that only one concurrent state transition can win for the same pending transaction.
 
-If `.env.example` is not present, create the variables required by the application based on the source configuration and deployment environment. Keep all real credentials out of Git.
+### Audit trail
+
+Migration `0003_financial_integrity.sql` adds a `financial_audit` table and database triggers for important deposit/withdrawal lifecycle events.
+
+The audit layer records events such as:
+
+- `CREATED`
+- `STATUS_CHANGED`
+- `SOFT_DELETED`
+
+### Duplicate submission protection
+
+Migration `0004_abuse_protection.sql` adds database-level guards for:
+
+- the same active receipt being submitted by a different user
+- the same pending withdrawal being submitted again with the same key transaction fields
+
+These are authoritative database protections, not only UI checks.
+
+---
+
+## 🤖 Automated Free Tips
+
+The automated tips system is implemented in `src/tips.ts` and runs from Worker Cron Triggers.
+
+### Schedule
+
+Sri Lanka time (UTC+05:30):
+
+| Local time | UTC cron |
+|---|---|
+| 08:00 | `30 2 * * *` |
+| 12:00 | `30 6 * * *` |
+| 18:00 | `30 12 * * *` |
+
+The public tips channel is configured through:
+
+```text
+TIPS_CHANNEL_ID
+TIPS_CHANNEL_URL
+```
+
+### Selection controls
+
+The current production configuration uses:
+
+- Sports: EPL, UEFA Champions League, NBA, ATP tennis
+- Regions: UK and EU
+- Minimum odds: `1.40`
+- Maximum odds: `2.50`
+- Forecast window: up to `48` hours ahead
+
+### Retry and concurrency safety
+
+The tip scheduler uses:
+
+- unique scheduled slots
+- lease tokens
+- lease expiry timestamps
+- attempt counters
+- guarded post/update operations
+- bounded retries with backoff for temporary Odds API errors
+
+This makes scheduled jobs duplicate-resistant and recoverable when a Worker invocation fails.
+
+> No design using separate D1 and Telegram API operations can mathematically guarantee exactly-once external delivery. The implementation therefore uses lease/idempotency controls to provide strong duplicate resistance while remaining recoverable.
+
+---
+
+## 🛡️ Security Model
+
+### Telegram webhook
+
+Webhook requests are protected by:
+
+- POST-only enforcement
+- JSON content-type validation
+- maximum request body size
+- `X-Telegram-Bot-Api-Secret-Token` verification
+- fail-closed secret handling
+- security response headers
+
+### Administrative APIs
+
+Sensitive endpoints require `ADMIN_API_SECRET` authentication.
+
+Examples include:
+
+```text
+/api/admin/status
+/api/cleanup/logs/status
+/api/cleanup/logs
+```
+
+Public health endpoints intentionally expose only liveness information:
+
+```text
+/health
+/api/health
+```
+
+### Abuse protection
+
+The application includes:
+
+- Telegram/user rate limiting
+- deposit/withdrawal fraud checks
+- admin authentication throttling
+- callback authorization
+- atomic transaction transitions
+- database-level duplicate guards
+
+The in-process rate limiter is defense-in-depth only. For internet-facing production traffic, Cloudflare WAF/Rate Limiting should also be configured.
+
+See:
+
+- [`docs/security-phase1.md`](docs/security-phase1.md)
+- [`docs/security-phase4.md`](docs/security-phase4.md)
+- [`docs/phase4-cloudflare-edge-protection.md`](docs/phase4-cloudflare-edge-protection.md)
 
 ---
 
@@ -329,103 +560,61 @@ If `.env.example` is not present, create the variables required by the applicati
 
 | Command | Purpose |
 |---|---|
-| `/start` | Start the bot and open the main flow |
+| `/start` | Start the bot |
 | `/menu` | Open the main menu |
-| `/deposit` | Start a deposit workflow |
-| `/confirm_deposit` | Submit a deposit receipt for confirmation |
-| `/withdraw` | Start a withdrawal workflow |
-| `/register` | Open the registration flow |
-| `/referrals` / `/myreferrals` | View referral information |
-| `/history` / `/transactions` | View transaction history |
-| `/language` / `/lang` | Change language |
-| `/help` / `/support` / `/faq` | Open help and support |
-| `/id` / `/myid` / `/whoami` | View Telegram ID and role |
+| `/deposit` | Start a cash deposit |
+| `/confirm_deposit` | Confirm a deposit with receipt information |
+| `/withdraw` | Start a cash withdrawal |
+| `/register` | Open 1xBet registration flow |
+| `/referrals` | Referral dashboard |
+| `/history` | Transaction history |
+| `/id` | Show Telegram ID |
+| `/language` | Change language |
+| `/help` | Help and support |
 | `/cancel` | Cancel the current operation |
+
+Additional aliases may exist for compatibility. The bot's registered command menu is the source of truth.
 
 ### Admin commands
 
-| Command | Purpose |
-|---|---|
-| `/admin` / `/panel` | Open the admin panel |
-| `/stats` | View operational statistics |
-| `/cleanuplogs` / `/cleanup` | Trigger log/media cleanup |
-
-> Command availability can change as application logic evolves. Treat the bot implementation as the source of truth.
-
----
-
-## 📱 Termux / Android Deployment
-
-A separate PM2 deployment path is available for Termux/proot environments.
-
-### 1. Install Termux dependencies
-
-```bash
-pkg update -y
-pkg install -y proot-distro git curl
-proot-distro install ubuntu
-```
-
-### 2. Enter Ubuntu
-
-```bash
-proot-distro login ubuntu
-```
-
-### 3. Clone and deploy
-
-```bash
-git clone https://github.com/Lakmal2078/Tele-bot-cloudflared-main.git xbet-bot
-cd xbet-bot
-chmod +x deploy-proot.sh
-bash deploy-proot.sh
-```
-
-The deployment script is responsible for installing the required Node.js/PM2 tooling, installing dependencies, building the Node.js bundle, and starting the bot process where supported.
-
-Useful PM2 commands:
-
-```bash
-npm run pm2:status
-npm run pm2:logs
-npm run pm2:restart
-npm run pm2:stop
-```
-
-For 24/7 Android operation, keep Termux protected from aggressive battery optimization and use the platform's recommended background-execution settings.
+Administrative operations are restricted to configured admin IDs and are not intended to be exposed as a public command menu.
 
 ---
 
 ## 🩺 Health Checks
 
-The Worker exposes health endpoints for deployment verification:
+The Worker exposes:
 
 ```text
 /health
 /api/health
 ```
 
-A healthy response reports an `ok` status.
+A healthy response is intentionally minimal:
 
-After deployment, verify the public Worker endpoint, for example:
+```json
+{"status":"ok","service":"telegram-bot"}
+```
+
+After deployment:
 
 ```bash
 curl -i https://<your-worker-domain>/health
 ```
 
-Do not assume a deployment is healthy until the health check succeeds.
+A successful deployment should be verified with the health endpoint and, where appropriate, Telegram webhook status.
 
 ---
 
-## 🧪 Development & Quality
+## 🧪 Tests & Quality
 
-### Development
+### Full check
 
 ```bash
-npm run dev
+npm run check
 ```
 
-### Type checking
+### TypeScript
 
 ```bash
 npm run lint
@@ -437,140 +626,182 @@ npm run lint
 npm test
 ```
 
-### Full local check
+### Migration validation
 
 ```bash
-npm run check
+npm run validate:migrations
 ```
 
-### Production Node.js build
+### Deployment script syntax
 
 ```bash
-npm run build
-npm start
+bash -n deploy.sh
 ```
 
-The Node.js build is intended for the PM2/VPS/Termux path. Cloudflare Worker deployment uses `src/worker.ts` through Wrangler.
+The repository contains focused regression tests for security, financial integrity, automated tips, and abuse-protection safeguards.
+
+Some security tests intentionally use source-level regression assertions for large Telegram callback flows; these complement, rather than replace, real integration testing.
 
 ---
 
-## 🛡️ Security Guidelines
+## 📱 Termux / Android / PM2
 
-- Never commit secrets or credentials.
-- Never expose `BOT_TOKEN` in logs or error messages.
-- Keep Cloudflare API tokens least-privileged.
-- Protect the GitHub `production` environment.
-- Review every database migration before production deployment.
-- Do not modify applied production migrations.
-- Validate user input and transaction amounts server-side.
-- Restrict admin operations to configured admin IDs.
-- Keep dependencies updated and review security advisories.
-- Treat receipt/media objects as potentially sensitive user data.
-- Use HTTPS for production endpoints and webhook traffic.
+A Node.js/PM2 deployment path is available for supported Termux/proot/VPS environments.
 
-If you discover a security issue, do not publish credentials or exploit details in a public issue. Contact the repository maintainer privately.
+Example:
+
+```bash
+pkg update -y
+pkg install -y proot-distro git curl
+proot-distro install ubuntu
+proot-distro login ubuntu
+
+git clone https://github.com/Lakmal2078/Tele-bot-cloudflared-main.git xbet-bot
+cd xbet-bot
+chmod +x deploy-proot.sh
+bash deploy-proot.sh
+```
+
+Useful PM2 commands:
+
+```bash
+npm run pm2:status
+npm run pm2:logs
+npm run pm2:restart
+npm run pm2:stop
+```
+
+For long-running Android deployments, configure Termux/background execution according to the device's power-management behavior.
 
 ---
 
 ## 🚨 Troubleshooting
 
-### Deployment fails before migration
+### CI fails during quality checks
 
-Check:
+Run locally:
 
 ```bash
+npm ci
 npm run lint
 npm test
+npm run validate:migrations
 bash -n deploy.sh
-npx wrangler whoami
 ```
 
-Then inspect the migration state:
+### Migration validation fails
 
-```bash
-npx wrangler d1 migrations list fastxbetcash_bot-db --remote
-```
+Read the migration validator output and inspect the migration file. Do not bypass destructive-migration protection casually.
 
-### Migration history does not match the database
-
-Stop automatic schema changes and verify the actual production database state first. Do not blindly re-run the baseline migration against an existing database.
-
-### Worker deploys but health check fails
+### Worker deployment succeeds but health check fails
 
 Check:
 
-1. Worker deployment status in Cloudflare.
-2. Worker logs.
-3. D1 and R2 bindings.
-4. Required secrets.
-5. Telegram webhook configuration.
-6. `/health` response.
+1. Cloudflare Worker deployment
+2. Worker logs
+3. D1 binding
+4. R2 binding
+5. required secrets
+6. `/health` response
+7. Telegram webhook configuration
 
-### Bot receives no webhook updates
+### Bot does not receive webhook updates
 
-Confirm the webhook URL:
+Inspect Telegram webhook state:
 
 ```bash
 curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo"
 ```
 
-Set or replace it only after confirming the correct Worker URL:
+Set a webhook only after confirming the correct Worker URL and secret configuration.
 
-```bash
-curl -F "url=https://<your-worker-domain>/" \
-  "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook"
-```
+Never publish a real bot token in shell history, logs, screenshots, issues, or chat messages.
 
-Never commit the real bot token into a command history that may be shared publicly.
+### Free tip was not published
+
+Check:
+
+1. Worker Cron Trigger schedule
+2. The Odds API quota and response status
+3. `ODDS_API_KEY`
+4. configured sports/regions
+5. odds range `1.40–2.50`
+6. available matches in the next 48 hours
+7. Worker logs
+8. duplicate/lease state in `tip_posts`
 
 ---
 
-## 📦 Release & Deployment Policy
-
-Recommended production flow:
+## 📦 Production Release Flow
 
 ```text
 Feature branch
-     ↓
+      ↓
 Pull Request
-     ↓
+      ↓
 CI quality gates
-     ↓
-Migration review (when applicable)
-     ↓
+      ↓
+Migration review (if applicable)
+      ↓
 Merge to main
-     ↓
+      ↓
 Production deployment
-     ↓
+      ↓
+D1 migration application
+      ↓
+Worker deployment
+      ↓
 Health check
-     ↓
+      ↓
 Post-deployment verification
 ```
 
-Database migrations should be reviewed separately from application-only changes because database changes can be persistent and difficult to reverse.
+For database failures, prefer a carefully reviewed forward-fix migration instead of assuming a production database can safely be rolled back.
 
-For a failed application deployment, prefer rolling back the Worker application version where possible. For a failed database change, use a carefully reviewed forward-fix migration rather than assuming the database can safely be rolled back.
+For application-only failures, roll back the Worker application version where appropriate.
 
 ---
 
 ## 🤝 Contributing
 
-1. Create a feature branch.
-2. Make a focused change.
-3. Add or update tests where appropriate.
-4. If the database changes, add a new migration.
-5. Run:
+1. Create a focused feature branch.
+2. Make the smallest safe change.
+3. Add or update tests.
+4. Add a new migration for database changes.
+5. Never modify an already-applied production migration.
+6. Run:
 
 ```bash
 npm run check
+npm run validate:migrations
 bash -n deploy.sh
 ```
 
-6. Open a pull request.
-7. Wait for CI to pass.
-8. Review production-impacting changes carefully before merging.
+7. Open a pull request.
+8. Wait for CI.
+9. Review production/security impact before merging.
 
-Do not commit generated build output, local databases, `.env` files, or secrets.
+Do not commit:
+
+- `.env`
+- credentials
+- API keys
+- generated build output
+- local databases
+- private certificates/keys
+
+---
+
+## 📚 Documentation
+
+| Document | Purpose |
+|---|---|
+| [`migrations/README.md`](migrations/README.md) | Database migration policy |
+| [`docs/security-phase1.md`](docs/security-phase1.md) | Core security hardening |
+| [`docs/deployment-safety-phase2.md`](docs/deployment-safety-phase2.md) | CI/CD and deployment safety |
+| [`docs/phase3-financial-integrity.md`](docs/phase3-financial-integrity.md) | Financial integrity and tip reliability |
+| [`docs/security-phase4.md`](docs/security-phase4.md) | Telegram abuse and transaction protection |
+| [`docs/phase4-cloudflare-edge-protection.md`](docs/phase4-cloudflare-edge-protection.md) | Cloudflare edge protection runbook |
 
 ---
 
@@ -584,11 +815,4 @@ This project is licensed under the MIT License. See [`LICENSE`](LICENSE).
 
 **Lakmal2078**
 
-Repository: [Lakmal2078/Tele-bot-cloudflared-main](https://github.com/Lakmal2078/Tele-bot-cloudflared-main)
-
----
-
-<p align="center">
-  <strong>🇱🇰 Built for reliable Telegram-based operations</strong><br>
-  TypeScript · grammY · Cloudflare Workers · D1 · R2 · GitHub Actions
-</p>
+Repository: https://github.com/Lakmal2078/Tele-bot-cloudflared-main
