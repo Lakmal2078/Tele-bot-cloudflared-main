@@ -3,6 +3,7 @@ import { createBot, executionContextStorage } from "./bot";
 import { logBotError } from "./logger";
 import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
 import { hasR2Binding, hasS3Credentials } from "./storage";
+import { runScheduledTip } from "./tips";
 import type { Env } from "./types";
 
 let botInstance: ReturnType<typeof createBot> | null = null;
@@ -13,7 +14,6 @@ export default {
   async fetch(request: Request, env: Env, ctx?: any): Promise<Response> {
     const url = new URL(request.url);
 
-    // Health check endpoint
     if (url.pathname === "/health" || url.pathname === "/api/health") {
       return new Response(
         JSON.stringify({
@@ -23,15 +23,13 @@ export default {
           databaseBound: Boolean(env.DB),
           storage: hasR2Binding(env) ? "r2-binding" : hasS3Credentials(env) ? "r2-s3-api" : "none",
           webhookSecretSet: Boolean(env.WEBHOOK_SECRET),
+          tipsConfigured: Boolean(env.TIPS_CHANNEL_ID && env.ODDS_API_KEY),
           time: new Date().toISOString(),
         }),
-        {
-          headers: { "Content-Type": "application/json" },
-        }
+        { headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // R2 Log retention status and trigger endpoints
     if (url.pathname === "/api/cleanup/logs/status") {
       const last = getLastCleanupResult();
       return new Response(
@@ -41,9 +39,7 @@ export default {
           schedule: "Daily at 02:00 UTC (Cloudflare Cron)",
           lastCleanup: last,
         }),
-        {
-          headers: { "Content-Type": "application/json" },
-        }
+        { headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -51,15 +47,11 @@ export default {
       let days = 30;
       try {
         const body = (await request.json().catch(() => ({}))) as { retentionDays?: number };
-        if (body?.retentionDays && body.retentionDays > 0) {
-          days = body.retentionDays;
-        }
+        if (body?.retentionDays && body.retentionDays > 0) days = body.retentionDays;
       } catch {}
 
       const cleanupPromise = cleanupOldR2Logs(env, days);
-      if (ctx?.waitUntil) {
-        ctx.waitUntil(cleanupPromise);
-      }
+      if (ctx?.waitUntil) ctx.waitUntil(cleanupPromise);
       const result = await cleanupPromise;
 
       return new Response(JSON.stringify(result), {
@@ -68,7 +60,6 @@ export default {
       });
     }
 
-    // Telegram webhook handler
     if (request.method === "POST") {
       if (!env.BOT_TOKEN) {
         return new Response(JSON.stringify({ ok: false, error: "BOT_TOKEN not configured" }), {
@@ -79,9 +70,6 @@ export default {
 
       const incomingSecret = request.headers.get("X-Telegram-Bot-Api-Secret-Token") || "";
       const expectedSecret = (env.WEBHOOK_SECRET || "").trim();
-      // Reject only when Telegram DID send a secret and it does not match.
-      // If setWebhook was called without secret_token, Telegram sends no header —
-      // enforcing WEBHOOK_SECRET in that case 401s every update and the bot never replies.
       if (expectedSecret && incomingSecret && incomingSecret !== expectedSecret) {
         return new Response("unauthorized", { status: 401 });
       }
@@ -99,9 +87,7 @@ export default {
       }
 
       try {
-        return await executionContextStorage.run(ctx, async () => {
-          return await webhookHandler!(request);
-        });
+        return await executionContextStorage.run(ctx, async () => await webhookHandler!(request));
       } catch (err) {
         console.error("[Worker Webhook Error]:", err);
         logBotError(
@@ -110,9 +96,7 @@ export default {
             source: "WorkerWebhookFetch",
             message: err instanceof Error ? err.message : String(err),
             stack: err instanceof Error ? err.stack : undefined,
-            context: {
-              flow: "worker_webhook_fetch",
-            },
+            context: { flow: "worker_webhook_fetch" },
           },
           ctx?.waitUntil?.bind(ctx)
         );
@@ -123,7 +107,6 @@ export default {
       }
     }
 
-    // Friendly landing/status page for GET requests
     return new Response(
       `<!DOCTYPE html>
 <html>
@@ -142,46 +125,55 @@ export default {
     <h2>🇱🇰 XBet Telegram Cashier Bot</h2>
     <p>Worker Status: <span class="status">ONLINE (Edge)</span></p>
     <p>Database: <code>Cloudflare D1 (Serverless)</code></p>
-    <p style="margin-top: 1.5rem; font-size: 0.9rem; color: #94a3b8;">
-      Send POST requests with Telegram Webhook payloads to this URL.
-    </p>
+    <p style="margin-top: 1.5rem; font-size: 0.9rem; color: #94a3b8;">Send POST requests with Telegram Webhook payloads to this URL.</p>
   </div>
 </body>
 </html>`,
-      {
-        headers: { "Content-Type": "text/html; charset=utf-8" },
-      }
+      { headers: { "Content-Type": "text/html; charset=utf-8" } }
     );
   },
 
   /**
-   * Cloudflare Workers Cron Trigger handler.
-   * Invoked automatically based on `[triggers] crons = ["0 2 * * *"]` in wrangler.toml
-   * to delete logs older than 30 days from Cloudflare R2.
+   * Cloudflare Cron Trigger handler.
+   * 02:30 / 06:30 / 12:30 UTC are 08:00 / 12:00 / 18:00 in Sri Lanka (UTC+05:30).
+   * The legacy 02:00 UTC R2 cleanup remains handled on any non-tip cron only when configured separately.
    */
   async scheduled(event: any, env: Env, ctx: any): Promise<void> {
-    console.log(
-      `[Worker Cron] Scheduled event triggered at ${new Date().toISOString()}: ${
-        event?.cron || "daily retention cleanup"
-      }`
-    );
+    const cron = String(event?.cron || "");
+    console.log(`[Worker Cron] Scheduled event at ${new Date().toISOString()}: ${cron || "unknown"}`);
 
-    const task = cleanupOldR2Logs(env, 30)
-      .then((res) => {
-        console.log(
-          `[Worker Cron] R2 Log cleanup finished: Scanned=${res.totalScanned}, Deleted=${res.totalDeleted}, Freed=${(
-            res.bytesFreed / 1024
-          ).toFixed(2)} KB, Duration=${res.durationMs}ms`
-        );
-      })
-      .catch((err) => {
-        console.error("[Worker Cron] Error executing scheduled R2 log cleanup:", err);
-      });
+    const tasks: Promise<unknown>[] = [];
 
-    if (ctx?.waitUntil) {
-      ctx.waitUntil(task);
-    } else {
-      await task;
+    if (["30 2 * * *", "30 6 * * *", "30 12 * * *"].includes(cron)) {
+      tasks.push(
+        runScheduledTip(env, cron)
+          .then((result) => console.log(`[Worker Cron] Free tip ${result.status} for ${result.slot} Sri Lanka time`))
+          .catch((err) => console.error("[Worker Cron] Free tip publishing failed:", err))
+      );
     }
+
+    // Keep daily R2 retention cleanup at 02:00 UTC without interfering with tip slots.
+    if (cron === "0 2 * * *") {
+      tasks.push(
+        cleanupOldR2Logs(env, 30)
+          .then((res) => {
+            console.log(
+              `[Worker Cron] R2 cleanup: scanned=${res.totalScanned}, deleted=${res.totalDeleted}, freed=${(
+                res.bytesFreed / 1024
+              ).toFixed(2)}KB, duration=${res.durationMs}ms`
+            );
+          })
+          .catch((err) => console.error("[Worker Cron] R2 cleanup failed:", err))
+      );
+    }
+
+    if (tasks.length === 0) {
+      console.warn(`[Worker Cron] No scheduled task mapped to cron: ${cron}`);
+      return;
+    }
+
+    const task = Promise.all(tasks).then(() => undefined);
+    if (ctx?.waitUntil) ctx.waitUntil(task);
+    else await task;
   },
 };
