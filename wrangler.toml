@@ -19,7 +19,6 @@ XBET_PROMO_CODE = "VGSL"
 
 # Automated Free Tips — Sri Lanka time (UTC+05:30)
 # 08:00 = 02:30 UTC, 12:00 = 06:30 UTC, 18:00 = 12:30 UTC.
-# IMPORTANT: replace these two empty values with your real Telegram channel.
 TIPS_CHANNEL_ID = "-1004336999467"
 TIPS_CHANNEL_URL = "https://t.me/fast_xbet_official_tips"
 TIPS_SPORTS = "soccer_epl,soccer_uefa_champs_league,basketball_nba,tennis_atp"
@@ -28,26 +27,10 @@ TIPS_MIN_ODDS = "1.40"
 TIPS_MAX_ODDS = "2.50"
 TIPS_HOURS_AHEAD = "48"
 
-# ─── Required secrets (set via CI/CD or Wrangler) ───
-# Never store secret values in this file.
-#
-# Required:
-#   BOT_TOKEN
-#   WEBHOOK_SECRET
-#   ADMIN_CHANNEL_ID
-#   ADMIN_IDS
-#   BANK_DETAILS
-#   WHATSAPP_NUMBER
-#   EZCASH_NUMBER
-#   FRIMI_NUMBER
-#   MCASH_NUMBER
-#   R2_ACCOUNT_ID
-#   R2_PUBLIC_DOMAIN
-#   R2_ACCESS_KEY_ID
-#   R2_SECRET_ACCESS_KEY
-#   ODDS_API_KEY
-#
-# TIPS_CHANNEL_ID is a non-secret [vars] value. Set it to @channel or -100... .
+# ─── Required secrets ───
+# Values must be created with `wrangler secret put`; never commit them here.
+[secrets]
+required = ["BOT_TOKEN", "ADMIN_IDS", "WEBHOOK_SECRET", "ADMIN_API_SECRET", "ODDS_API_KEY"]
 
 [[d1_databases]]
 binding = "DB"
@@ -61,4 +44,3 @@ bucket_name = "chat-media"
 [triggers]
 # 02:00 UTC = legacy R2 cleanup; 02:30/06:30/12:30 UTC = 08:00/12:00/18:00 SL free tips.
 crons = ["0 2 * * *", "30 2 * * *", "30 6 * * *", "30 12 * * *"]
-
