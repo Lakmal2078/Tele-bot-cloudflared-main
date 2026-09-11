@@ -10,7 +10,13 @@ Database changes are managed as ordered, versioned Cloudflare D1 migrations.
 - Keep migrations forward-only and safe to apply in CI/CD.
 - Use `wrangler d1 migrations apply` for production changes.
 
-## Initial migration
+## Migrations
+
+- `0001_initial_schema.sql` — baseline users, deposit, withdrawal, referral, state and admin-audit schema.
+- `0002_tip_posts.sql` — scheduled free-tip publishing records and slot idempotency.
+- `0003_financial_integrity.sql` — durable D1 financial audit triggers plus scheduled-tip lease/recovery fields.
+
+## Existing production databases
 
 `0001_initial_schema.sql` is the baseline schema migrated from the legacy root `schema.sql`.
 
