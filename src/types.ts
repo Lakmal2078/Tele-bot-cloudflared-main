@@ -41,6 +41,19 @@ export interface Env {
   WEBHOOK_SECRET: string;
   CHANNEL_USERNAME: string;
   CHANNEL_URL: string;
+  /** Dedicated channel for automated free tips. Use @username or numeric -100... chat id. */
+  TIPS_CHANNEL_ID?: string;
+  /** Public channel URL shown on tip posts and join buttons. */
+  TIPS_CHANNEL_URL?: string;
+  /** The Odds API secret; set with `wrangler secret put ODDS_API_KEY`. */
+  ODDS_API_KEY?: string;
+  /** Comma-separated The Odds API sport keys, tried in order until a suitable event is found. */
+  TIPS_SPORTS?: string;
+  /** Comma-separated bookmaker regions, e.g. uk,eu. */
+  TIPS_ODDS_REGIONS?: string;
+  TIPS_MIN_ODDS?: string;
+  TIPS_MAX_ODDS?: string;
+  TIPS_HOURS_AHEAD?: string;
   XBET_LINK: string;
   XBET_PROMO_CODE: string;
   MIN_TRANSACTION_LKR: string;
@@ -134,4 +147,3 @@ export interface ReferralItem {
   deposit_count: number;
   total_deposited: number;
 }
-
