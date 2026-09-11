@@ -60,7 +60,6 @@ export function validateEnv(env: Partial<Env>): string[] {
     errors.push("MIN_TRANSACTION_LKR must not exceed MAX_TRANSACTION_LKR");
   }
 
-  // If automated tips are enabled, all of their required inputs must be present.
   const tipsEnabled = nonEmpty(env.TIPS_CHANNEL_ID) || nonEmpty(env.ODDS_API_KEY);
   if (tipsEnabled) {
     for (const name of ["TIPS_CHANNEL_ID", "ODDS_API_KEY", "TIPS_SPORTS", "TIPS_ODDS_REGIONS"] as const) {
@@ -116,6 +115,11 @@ export function unauthorizedResponse(): Response {
     headers: {
       "Content-Type": "application/json",
       "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "Referrer-Policy": "no-referrer",
+      "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+      "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
       "WWW-Authenticate": "Bearer",
     },
   });
