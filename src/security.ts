@@ -36,32 +36,29 @@ export function webhookRequestAllowed(request: Request): boolean {
 }
 
 function clientKey(request: Request): string {
-  // Cloudflare supplies CF-Connecting-IP at the edge. Fall back to a shared key for
-  // local/Node runtimes where that header is unavailable.
   return request.headers.get("CF-Connecting-IP")?.trim() || "unknown-client";
 }
 
-/**
- * Lightweight per-isolate protection against repeated invalid admin credentials.
- * This is deliberately defense-in-depth; production should also use Cloudflare
- * WAF/Rate Limiting for a distributed limit across Worker isolates.
- */
-export function adminAttemptAllowed(request: Request, now = Date.now()): boolean {
-  const key = clientKey(request);
-  const bucket = adminFailures.get(key);
+function normalizeNodeHeader(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[0]?.trim() || "";
+  return value?.trim() || "";
+}
 
+function clientKeyFromNodeHeaders(headers: Record<string, string | string[] | undefined>): string {
+  return normalizeNodeHeader(headers["cf-connecting-ip"]) || "unknown-client";
+}
+
+function adminAttemptAllowedForKey(key: string, now: number): boolean {
+  const bucket = adminFailures.get(key);
   if (!bucket || bucket.resetAt <= now) {
     adminFailures.set(key, { count: 0, resetAt: now + ADMIN_FAILURE_WINDOW_MS });
     return true;
   }
-
   return bucket.count < ADMIN_FAILURE_LIMIT;
 }
 
-export function recordAdminFailure(request: Request, now = Date.now()): void {
-  const key = clientKey(request);
+function recordAdminFailureForKey(key: string, now: number): void {
   const bucket = adminFailures.get(key);
-
   if (!bucket || bucket.resetAt <= now) {
     adminFailures.set(key, { count: 1, resetAt: now + ADMIN_FAILURE_WINDOW_MS });
   } else {
@@ -73,6 +70,34 @@ export function recordAdminFailure(request: Request, now = Date.now()): void {
       if (entry.resetAt <= now) adminFailures.delete(entryKey);
     }
   }
+}
+
+/**
+ * Lightweight per-isolate protection against repeated invalid admin credentials.
+ * This is defense-in-depth; production should also use Cloudflare WAF/Rate Limiting
+ * for a distributed limit across Worker isolates.
+ */
+export function adminAttemptAllowed(request: Request, now = Date.now()): boolean {
+  return adminAttemptAllowedForKey(clientKey(request), now);
+}
+
+export function recordAdminFailure(request: Request, now = Date.now()): void {
+  recordAdminFailureForKey(clientKey(request), now);
+}
+
+/** Node.js runtime parity for the same admin credential throttle. */
+export function adminAttemptAllowedNode(
+  headers: Record<string, string | string[] | undefined>,
+  now = Date.now()
+): boolean {
+  return adminAttemptAllowedForKey(clientKeyFromNodeHeaders(headers), now);
+}
+
+export function recordAdminFailureNode(
+  headers: Record<string, string | string[] | undefined>,
+  now = Date.now()
+): void {
+  recordAdminFailureForKey(clientKeyFromNodeHeaders(headers), now);
 }
 
 export const SECURITY_LIMITS = {
