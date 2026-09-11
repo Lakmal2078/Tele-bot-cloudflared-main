@@ -36,9 +36,10 @@ export interface Env {
   /** Optional bucket name label when only the binding is available. */
   R2_BUCKET_NAME_BINDING?: string;
   BOT_TOKEN: string;
-  ADMIN_IDS: string;          // comma-separated
+  ADMIN_IDS: string;          // comma-separated Telegram numeric IDs
   ADMIN_CHANNEL_ID?: string;  // Admin / Audit log channel (e.g. -100xxx or @channel)
-  WEBHOOK_SECRET: string;
+  WEBHOOK_SECRET: string;     // Telegram webhook secret token
+  ADMIN_API_SECRET: string;   // Dedicated secret for private operational endpoints
   CHANNEL_USERNAME: string;
   CHANNEL_URL: string;
   /** Dedicated channel for automated free tips. Use @username or numeric -100... chat id. */
