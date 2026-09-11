@@ -10,8 +10,9 @@ on:
 permissions:
   contents: read
 
+# Exactly one production deployment path. Never cancel an in-flight production deploy.
 concurrency:
-  group: cloudflare-production-${{ github.ref }}
+  group: production-deploy
   cancel-in-progress: false
 
 jobs:
@@ -38,6 +39,9 @@ jobs:
 
       - name: Unit tests
         run: npm test
+
+      - name: Validate migrations
+        run: npm run validate:migrations
 
       - name: Validate deployment script
         run: bash -n deploy.sh
