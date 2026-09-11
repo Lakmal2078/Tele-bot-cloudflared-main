@@ -19,7 +19,9 @@ XBET_PROMO_CODE = "VGSL"
 
 # Automated Free Tips — Sri Lanka time (UTC+05:30)
 # 08:00 = 02:30 UTC, 12:00 = 06:30 UTC, 18:00 = 12:30 UTC.
-TIPS_CHANNEL_URL = "https://t.me/your_channel"
+# IMPORTANT: replace these two empty values with your real Telegram channel.
+TIPS_CHANNEL_ID = ""
+TIPS_CHANNEL_URL = ""
 TIPS_SPORTS = "soccer_epl,soccer_uefa_champs_league,basketball_nba,tennis_atp"
 TIPS_ODDS_REGIONS = "uk,eu"
 TIPS_MIN_ODDS = "1.40"
@@ -43,8 +45,7 @@ TIPS_HOURS_AHEAD = "48"
 #   R2_PUBLIC_DOMAIN
 #   ODDS_API_KEY
 #
-# TIPS_CHANNEL_ID is intentionally a non-secret [vars] value in deployment environments.
-# Set it to the target channel username (@channel) or numeric chat id (-100...).
+# TIPS_CHANNEL_ID is a non-secret [vars] value. Set it to @channel or -100... .
 
 [[d1_databases]]
 binding = "DB"
