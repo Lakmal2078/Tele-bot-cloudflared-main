@@ -15,6 +15,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "npm run lint && npm test",
+    "validate:migrations": "node scripts/validate-migrations.mjs",
     "deploy:cf": "bash deploy.sh",
     "deploy:cf:ci": "CI=true bash deploy.sh",
     "deploy:cf:dry": "CI=true SKIP_MIGRATION=1 SKIP_HEALTHCHECK=1 bash deploy.sh"
@@ -30,7 +31,7 @@
     "tsx": "^4.23.13",
     "typescript": "^5.8.0",
     "vitest": "^5.0.0",
-    "wrangler": "^4.15.2"
+    "wrangler": "4.131.0"
   },
   "allowScripts": {
     "esbuild": true,
