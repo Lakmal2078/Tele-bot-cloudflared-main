@@ -5,6 +5,7 @@ import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
 import { runScheduledTip } from "./tips";
 import { assertValidEnv, isAuthorizedAdminRequest, unauthorizedResponse } from "./config";
 import { adminAttemptAllowed, recordAdminFailure, securityHeaders, webhookRequestAllowed } from "./security";
+import { renderLandingPage } from "./landingPage";
 import type { Env } from "./types";
 
 let botInstance: ReturnType<typeof createBot> | null = null;
@@ -180,7 +181,7 @@ export default {
     }
 
     return new Response(
-      `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Telegram Bot</title></head><body><h2>Telegram Bot</h2><p>Worker is online.</p></body></html>`,
+      renderLandingPage(env, request),
       { headers: { "Content-Type": "text/html; charset=utf-8", ...securityHeaders() } }
     );
   },
