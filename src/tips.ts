@@ -179,6 +179,41 @@ function formatTip(candidate: TipCandidate, slot: string, joinUrl?: string): str
   ].join("\n");
 }
 
+function formatFallbackTip(slot: string, joinUrl?: string): string {
+  const joinLine = joinUrl
+    ? `\n\n<a href="${escapeHtml(joinUrl)}">📣 Join our channel for the next free tip</a>`
+    : "";
+  return [
+    "⚽ <b>FREE TIPS UPDATE</b>",
+    `🕐 ${escapeHtml(slot)} Sri Lanka time`,
+    "━━━━━━━━━━━━━━━━━━",
+    "ℹ️ No qualifying match was found for this time slot.",
+    "✅ We do not publish forced or low-confidence picks.",
+    "📢 Please follow the channel for the next update.",
+    "",
+    "⚠️ Bet responsibly and only what you can afford to lose.",
+    joinLine,
+  ].join("\n");
+}
+
+async function postTelegramMessage(env: Env, message: string): Promise<number | null> {
+  const response = await fetch(`https://api.telegram.org/bot${encodeURIComponent(env.BOT_TOKEN)}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: env.TIPS_CHANNEL_ID,
+      text: message,
+      parse_mode: "HTML",
+      disable_web_page_preview: true,
+    }),
+  });
+  const telegram = (await response.json()) as { ok: boolean; description?: string; result?: { message_id?: number } };
+  if (!response.ok || !telegram.ok) {
+    throw new Error(`Telegram send failed: ${telegram.description || response.status}`);
+  }
+  return telegram.result?.message_id ?? null;
+}
+
 async function claimTipSlot(env: Env, scheduledKey: string, slot: string): Promise<{ claimed: boolean; id: number; leaseToken: string }> {
   const leaseToken = crypto.randomUUID();
 
@@ -227,16 +262,30 @@ export async function runScheduledTip(env: Env, cron: string): Promise<{ status:
   }
 
   try {
-    const candidate = await fetchCandidate(env);
     const joinUrl = env.TIPS_CHANNEL_URL || (env.TIPS_CHANNEL_ID.startsWith("@") ? `https://t.me/${env.TIPS_CHANNEL_ID.slice(1)}` : undefined);
+    let candidate: TipCandidate;
+    try {
+      candidate = await fetchCandidate(env);
+    } catch (candidateError) {
+      const reason = candidateError instanceof Error ? candidateError.message : String(candidateError);
+      const fallbackMessage = formatFallbackTip(slot, joinUrl);
+      const messageId = await postTelegramMessage(env, fallbackMessage);
+      const fallbackUpdated = await env.DB.prepare(
+        `UPDATE tip_posts
+            SET status='POSTED', market='fallback', selection='NO_QUALIFYING_TIP', message_id=?, posted_at=datetime('now'),
+                updated_at=datetime('now'), lease_token=NULL, lease_expires_at=NULL, error=NULL
+          WHERE scheduled_key=? AND lease_token=?`
+      ).bind(messageId, scheduledKey, claim.leaseToken).run();
+      const fallbackChanges = fallbackUpdated.meta?.changes ?? (fallbackUpdated.success ? 1 : 0);
+      if (fallbackChanges === 0) {
+        console.error(`[Tips] Fallback message sent but lease ownership was lost for ${scheduledKey}`);
+        return { status: "sent_unconfirmed", slot };
+      }
+      console.warn(`[Tips] Published fallback for ${scheduledKey}: ${reason}`);
+      return { status: "fallback_posted", slot };
+    }
     const message = formatTip(candidate, slot, joinUrl);
-    const response = await fetch(`https://api.telegram.org/bot${encodeURIComponent(env.BOT_TOKEN)}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: env.TIPS_CHANNEL_ID, text: message, parse_mode: "HTML", disable_web_page_preview: true }),
-    });
-    const telegram = (await response.json()) as { ok: boolean; description?: string; result?: { message_id?: number } };
-    if (!response.ok || !telegram.ok) throw new Error(`Telegram send failed: ${telegram.description || response.status}`);
+    const messageId = await postTelegramMessage(env, message);
 
     const updated = await env.DB.prepare(
       `UPDATE tip_posts
@@ -247,7 +296,7 @@ export async function runScheduledTip(env: Env, cron: string): Promise<{ status:
     ).bind(
       candidate.event.id, candidate.event.sport_key, candidate.event.sport_title, candidate.event.home_team,
       candidate.event.away_team, candidate.event.commence_time, candidate.market, candidate.selection,
-      candidate.averageOdds, telegram.result?.message_id ?? null, scheduledKey, claim.leaseToken
+      candidate.averageOdds, messageId, scheduledKey, claim.leaseToken
     ).run();
 
     const changes = updated.meta?.changes ?? (updated.success ? 1 : 0);

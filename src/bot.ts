@@ -1866,16 +1866,18 @@ export function createBot(env: Env) {
       try {
         const latest = await db.getLatestTipPost(env.DB);
         const error = latest.error || "None";
+        const displayStatus = latest.market === "fallback" ? "POSTED (FALLBACK UPDATE)" : latest.status;
         const result =
           `🧾 FREE TIPS STATUS\n` +
           `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-          `Status: ${latest.status}\n` +
+          `Status: ${displayStatus}\n` +
           `Slot: ${latest.slot_time} (Sri Lanka)\n` +
           `Scheduled key: ${latest.scheduled_key}\n` +
           `Attempts: ${latest.attempt_count}\n` +
           `Lease expires: ${latest.lease_expires_at || "—"}\n` +
           `Last updated: ${latest.updated_at}\n` +
           `Message ID: ${latest.message_id ?? "—"}\n` +
+          `Selection: ${latest.selection || "—"}\n` +
           `Last failure reason: ${error}` +
           (latest.status === "PROCESSING" ? "\n\nℹ️ The scheduler is still processing this slot. If the lease expires, the next scheduled run can retry it." : "");
         try {
