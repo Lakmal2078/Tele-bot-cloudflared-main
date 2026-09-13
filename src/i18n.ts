@@ -62,6 +62,7 @@ export const PAYMENT_METHOD_NAMES: Record<PaymentMethod, { si: string; en: strin
 export const translations = {
   si: {
     welcome: (name: string) => `👋 ආයුබෝවන් ${name}! පහත menu එකෙන් ඔබට අවශ්‍ය සේවාව තෝරන්න.`,
+    welcomeBanner: (name: string) => `🎉 *FastCash Bot වෙත සාදරයෙන් පිළිගනිමු, ${name}!*\n\nඔබගේ Telegram assistant එක දැන් සූදානම්. මෙතැනින් ඔබට:\n• 💰 Cash Deposit සහ Withdrawal ඉල්ලීම් යොමු කළ හැක\n• 📜 ගනුදෙනු ඉතිහාසය සහ Referral Dashboard බලන්න හැක\n• 🎯 1XBet Registration සහ support ලබාගන්න හැක\n• 🌐 සිංහල, English සහ தமிழ் භාෂා භාවිත කළ හැක\n\n📢 නව updates සහ announcements සඳහා අපගේ Official Channel එකට join වන්න.`,
     chooseLanguage: "🌐 කරුණාකර ඔබගේ භාෂාව තෝරන්න / Please choose your language / உங்கள் மொழியைத் தேர்ந்தெடுக்கவும்:",
     languageChanged: "✅ භාෂාව සිංහල ලෙස වෙනස් කරන ලදී.",
     cancelBtn: "❌ Cancel (අවලංගු කරන්න)",
@@ -252,6 +253,7 @@ export const translations = {
 
   en: {
     welcome: (name: string) => `👋 Welcome ${name}! Please choose a service from the menu below:`,
+    welcomeBanner: (name: string) => `🎉 *Welcome to FastCash Bot, ${name}!*\n\nYour Telegram assistant is ready. Here you can:\n• 💰 Submit cash deposit and withdrawal requests\n• 📜 View transaction history and your referral dashboard\n• 🎯 Access 1XBet registration and support\n• 🌐 Use Sinhala, English, or Tamil\n\n📢 Join our Official Channel for new updates and announcements.`,
     chooseLanguage: "🌐 Please select your preferred language / භාෂාව තෝරන්න / மொழியைத் தேர்ந்தெடுக்கவும்:",
     languageChanged: "✅ Language successfully changed to English.",
     cancelBtn: "❌ Cancel",
@@ -442,6 +444,7 @@ export const translations = {
 
   ta: {
     welcome: (name: string) => `👋 வணக்கம் ${name}! கீழேயுள்ள மெனுவிலிருந்து உங்கள் சேவையைத் தேர்ந்தெடுக்கவும்:`,
+    welcomeBanner: (name: string) => `🎉 *FastCash Bot-க்கு வரவேற்கிறோம், ${name}!*\n\nஉங்கள் Telegram assistant இப்போது தயாராக உள்ளது. இங்கே நீங்கள்:\n• 💰 Cash Deposit மற்றும் Withdrawal கோரிக்கைகளை அனுப்பலாம்\n• 📜 பரிவர்த்தனை வரலாறு மற்றும் Referral Dashboard பார்க்கலாம்\n• 🎯 1XBet பதிவு மற்றும் support பெறலாம்\n• 🌐 சிங்களம், English அல்லது தமிழ் பயன்படுத்தலாம்\n\n📢 புதிய updates மற்றும் announcements க்காக எங்கள் Official Channel-ல் இணையுங்கள்.`,
     chooseLanguage: "🌐 உங்கள் மொழியைத் தேர்ந்தெடுக்கவும் / Choose language / භාෂාව තෝරන්න:",
     languageChanged: "✅ மொழி வெற்றிகரமாக தமிழ் என மாற்றப்பட்டது.",
     cancelBtn: "❌ Cancel (ரத்துசெய்)",

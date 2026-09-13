@@ -549,7 +549,7 @@ export function createBot(env: Env) {
 
     await db.clearUserState(env.DB, user.id);
 
-    await ctx.reply(dict.welcome(escapeMarkdown(user.first_name || "Member")), {
+    await ctx.reply(dict.welcomeBanner(escapeMarkdown(user.first_name || "Member")), {
       reply_markup: mainMenu(user.id, adminIds, lang),
     });
   });
@@ -578,7 +578,7 @@ export function createBot(env: Env) {
     await db.saveUser(env.DB, user.id, user.username || null, user.first_name || null, null, lang);
     await db.clearUserState(env.DB, user.id);
 
-    await ctx.reply(dict.welcome(escapeMarkdown(user.first_name || "Member")), {
+    await ctx.reply(dict.welcomeBanner(escapeMarkdown(user.first_name || "Member")), {
       reply_markup: mainMenu(user.id, adminIds, lang),
     });
   });
