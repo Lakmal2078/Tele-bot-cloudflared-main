@@ -15,7 +15,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "npm run lint && npm test",
-    "validate:migrations": "node scripts/validate-migrations.mjs",
+    "validate:migrations": "node validate-migrations.mjs",
     "deploy:cf": "bash deploy.sh",
     "deploy:cf:ci": "CI=true bash deploy.sh",
     "deploy:cf:dry": "CI=true SKIP_MIGRATION=1 SKIP_HEALTHCHECK=1 bash deploy.sh"
