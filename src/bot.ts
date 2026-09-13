@@ -44,6 +44,8 @@ function parseAdminIds(raw: string): Set<number> {
   );
 }
 
+let mainMenuChannelUrl = "";
+
 function cancelKeyboard(lang: Language = "si") {
   const dict = t(lang);
   return new InlineKeyboard().text(dict.cancelBtn, "cancel_flow");
@@ -371,6 +373,7 @@ function getPaymentMethodInstructions(method: PaymentMethod, env: Env, lang: Lan
 export function createBot(env: Env) {
   const bot = new Bot<MyContext>(env.BOT_TOKEN);
   const adminIds = parseAdminIds(env.ADMIN_IDS || "");
+  mainMenuChannelUrl = env.CHANNEL_URL?.trim() || "";
 
   // 🛡️ Global & per-user rate limiting — runs BEFORE every handler.
   // Admins listed in ADMIN_IDS are exempt; deposits/withdrawals keep their own
@@ -2898,6 +2901,10 @@ function mainMenu(userId: number, adminIds: Set<number>, lang: Language = "si") 
     .row()
     .text("🆔 My ID", "id_info")
     .text("📣 Share Bot", "share_bot");
+
+  if (mainMenuChannelUrl.startsWith("http")) {
+    kb.row().url("📢 Official Channel", mainMenuChannelUrl);
+  }
 
   if (adminIds.has(userId)) {
     kb.row().text("🧑‍💼 Admin Panel", "admin_panel");
