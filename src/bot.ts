@@ -945,6 +945,8 @@ export function createBot(env: Env) {
       .row()
       .text("📣 Post to Official Channel", "admin_channel_post")
       .row()
+      .text("🧾 Free Tips Status", "admin_tips_status")
+      .row()
       .text("🧹 Cleanup R2 Logs (>30d)", "admin_clean_logs")
       .row()
       .text("⬅️ Back", "back");
@@ -1715,6 +1717,8 @@ export function createBot(env: Env) {
         .row()
         .text("📣 Post to Official Channel", "admin_channel_post")
         .row()
+        .text("🧾 Free Tips Status", "admin_tips_status")
+        .row()
         .text("🧹 Cleanup R2 Logs (>30d)", "admin_clean_logs")
         .row()
         .text("⬅️ Back", "back");
@@ -1850,6 +1854,33 @@ export function createBot(env: Env) {
       await ctx.reply("📣 Official Channel එකට යැවීමට text post එක එවන්න. Cancel කිරීමට /cancel ඔබන්න.", {
         reply_markup: cancelKeyboard(lang),
       });
+      return;
+    }
+
+    if (data === "admin_tips_status") {
+      if (!adminIds.has(user.id)) return;
+      const kb = new InlineKeyboard()
+        .text("🔄 Refresh", "admin_tips_status")
+        .row()
+        .text("⬅️ Back to Admin Panel", "admin_panel");
+      try {
+        const latest = await db.getLatestTipPost(env.DB);
+        const error = latest.error || "None";
+        const result =
+          `🧾 FREE TIPS STATUS\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `Status: ${latest.status}\n` +
+          `Slot: ${latest.slot_time} (Sri Lanka)\n` +
+          `Scheduled key: ${latest.scheduled_key}\n` +
+          `Attempts: ${latest.attempt_count}\n` +
+          `Last updated: ${latest.updated_at}\n` +
+          `Message ID: ${latest.message_id ?? "—"}\n` +
+          `Last failure reason: ${error}`;
+        await ctx.editMessageText(result, { reply_markup: kb });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        await ctx.reply(`🧾 FREE TIPS STATUS\n\n⚠️ ${message}`, { reply_markup: kb });
+      }
       return;
     }
 

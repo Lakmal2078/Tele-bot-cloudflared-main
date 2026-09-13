@@ -118,6 +118,37 @@ export async function cleanupStaleUserStates(db: D1Database, maxAgeHours: number
   return result.meta?.changes ?? 0;
 }
 
+export async function getLatestTipPost(db: D1Database): Promise<{
+  id: number;
+  scheduled_key: string;
+  slot_time: string;
+  status: string;
+  error: string | null;
+  message_id: number | null;
+  attempt_count: number;
+  updated_at: string;
+  posted_at: string | null;
+}> {
+  const row = await db
+    .prepare(
+      `SELECT id, scheduled_key, slot_time, status, error, message_id, attempt_count, updated_at, posted_at
+       FROM tip_posts ORDER BY id DESC LIMIT 1`
+    )
+    .first<{
+      id: number;
+      scheduled_key: string;
+      slot_time: string;
+      status: string;
+      error: string | null;
+      message_id: number | null;
+      attempt_count: number;
+      updated_at: string;
+      posted_at: string | null;
+    }>();
+  if (!row) throw new Error("No free tips execution records found.");
+  return row;
+}
+
 /**
  * Atomically insert a deposit and clear the user's multi-step state.
  * Uses D1 batch when available so the two operations succeed or fail together.
@@ -563,4 +594,3 @@ export async function getRecentAdminActions(db: D1Database, limit: number = 20):
     .all<AdminActionRow>();
   return res.results || [];
 }
-
