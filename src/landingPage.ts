@@ -6,225 +6,24 @@ const BOT_URL = "https://t.me/fast_1xbetcash_bot";
 function escapeAttribute(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
+function escapeText(value: string): string { return escapeAttribute(value); }
 
 export function renderLandingPage(env: Env, request: Request): string {
-  const supportUrl = env.CHANNEL_URL?.trim() || BOT_URL;
-  const supportLabel = env.CHANNEL_USERNAME?.trim() ? `@${env.CHANNEL_USERNAME.trim().replace(/^@/, "")}` : "Support channel";
-  const colo = String((request as Request & { cf?: { colo?: string } }).cf?.colo || "EDGE");
-  const safeSupportUrl = escapeAttribute(supportUrl);
-  const safeSupportLabel = escapeAttribute(supportLabel);
-  const safeColo = escapeAttribute(colo);
-
-  return `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#07111f">
-  <meta name="description" content="Fast, secure Telegram assistance powered by Cloudflare Workers at the edge.">
-  <title>FastCash Bot — Your Telegram Assistant</title>
-  <style>
-    :root {
-      color-scheme: dark;
-      --bg: #07111f;
-      --bg-soft: #0b1728;
-      --card: rgba(15, 31, 52, .72);
-      --card-strong: rgba(18, 39, 65, .9);
-      --line: rgba(158, 189, 224, .16);
-      --text: #f6f9ff;
-      --muted: #9cafc7;
-      --cyan: #51d8ff;
-      --blue: #4d7cff;
-      --green: #66e3a5;
-      --shadow: 0 24px 80px rgba(0, 0, 0, .34);
-      --ease: cubic-bezier(.23, 1, .32, 1);
-    }
-
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-    body {
-      margin: 0;
-      min-width: 320px;
-      background:
-        radial-gradient(circle at 13% 8%, rgba(77, 124, 255, .20), transparent 28rem),
-        radial-gradient(circle at 88% 28%, rgba(81, 216, 255, .12), transparent 24rem),
-        linear-gradient(145deg, var(--bg), #09192c 55%, #07111f);
-      color: var(--text);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      line-height: 1.5;
-      overflow-x: hidden;
-    }
-
-    body::before {
-      position: fixed;
-      inset: 0;
-      z-index: -1;
-      pointer-events: none;
-      content: "";
-      opacity: .3;
-      background-image: linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
-      background-size: 48px 48px;
-      mask-image: linear-gradient(to bottom, black, transparent 75%);
-    }
-
-    a { color: inherit; text-decoration: none; }
-    .shell { width: min(1120px, calc(100% - 40px)); margin: 0 auto; }
-    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 26px 0; }
-    .brand { display: inline-flex; align-items: center; gap: 12px; font-weight: 750; letter-spacing: -.02em; }
-    .brand-mark {
-      display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid rgba(81,216,255,.28); border-radius: 14px;
-      background: linear-gradient(145deg, rgba(81,216,255,.24), rgba(77,124,255,.16)); box-shadow: 0 0 28px rgba(81,216,255,.14);
-    }
-    .brand-mark svg { width: 23px; height: 23px; fill: none; stroke: var(--cyan); stroke-width: 1.8; }
-    .brand small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; font-weight: 550; letter-spacing: .05em; text-transform: uppercase; }
-    .status { display: inline-flex; align-items: center; gap: 8px; padding: 9px 13px; border: 1px solid rgba(102,227,165,.24); border-radius: 999px; background: rgba(102,227,165,.08); color: #bff7da; font-size: 12px; font-weight: 700; }
-    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(102,227,165,.12), 0 0 16px rgba(102,227,165,.8); }
-
-    .hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(330px, .95fr); align-items: center; gap: 70px; min-height: 570px; padding: 62px 0 84px; }
-    .eyebrow { display: inline-flex; align-items: center; gap: 9px; margin-bottom: 20px; color: var(--cyan); font-size: 12px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
-    .eyebrow::before { width: 26px; height: 1px; background: var(--cyan); content: ""; }
-    h1 { max-width: 680px; margin: 0; font-size: clamp(3.1rem, 7vw, 6rem); line-height: .96; letter-spacing: -.075em; }
-    h1 span { color: transparent; background: linear-gradient(100deg, #fff 14%, var(--cyan) 62%, #85a5ff 100%); -webkit-background-clip: text; background-clip: text; }
-    .hero-copy { max-width: 580px; margin: 26px 0 32px; color: var(--muted); font-size: clamp(1rem, 2vw, 1.18rem); }
-    .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
-    .button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 52px; padding: 0 21px; border: 1px solid transparent; border-radius: 14px; font-size: 14px; font-weight: 800; transition: transform 180ms var(--ease), box-shadow 180ms var(--ease), border-color 180ms var(--ease), background 180ms var(--ease); }
-    .button:hover { transform: translateY(-3px); }
-    .button:active { transform: scale(.97); }
-    .button-primary { color: #07111f; background: linear-gradient(115deg, #6be5ff, #7194ff); box-shadow: 0 14px 34px rgba(81,216,255,.2); }
-    .button-primary:hover { box-shadow: 0 18px 44px rgba(81,216,255,.34); }
-    .button-secondary { border-color: var(--line); color: var(--muted); background: rgba(255,255,255,.035); }
-    .button-secondary:hover { border-color: rgba(81,216,255,.38); color: var(--text); background: rgba(81,216,255,.08); }
-
-    .hero-visual { position: relative; }
-    .glow { position: absolute; inset: 11% 8%; border-radius: 50%; background: rgba(77,124,255,.28); filter: blur(65px); }
-    .terminal { position: relative; padding: 22px; border: 1px solid var(--line); border-radius: 24px; background: linear-gradient(145deg, rgba(22, 46, 77, .78), rgba(8, 20, 35, .78)); box-shadow: var(--shadow); backdrop-filter: blur(18px); }
-    .terminal-head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 19px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 11px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
-    .terminal-lights { display: flex; gap: 6px; }
-    .terminal-lights i { width: 8px; height: 8px; border-radius: 50%; background: #ff6b81; }
-    .terminal-lights i:nth-child(2) { background: #ffd166; }
-    .terminal-lights i:nth-child(3) { background: var(--green); }
-    .pulse-card { display: grid; grid-template-columns: 56px 1fr; align-items: center; gap: 15px; margin: 22px 0; padding: 16px; border-radius: 16px; background: rgba(102,227,165,.08); }
-    .pulse-icon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 17px; background: rgba(102,227,165,.14); color: var(--green); }
-    .pulse-icon svg { width: 27px; height: 27px; fill: none; stroke: currentColor; stroke-width: 1.8; }
-    .pulse-card strong { display: block; font-size: 16px; }
-    .pulse-card span { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
-    .code-line { display: flex; justify-content: space-between; gap: 20px; padding: 12px 0; color: var(--muted); font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
-    .code-line b { color: var(--cyan); font-weight: 600; }
-    .code-line strong { color: var(--text); font-weight: 600; }
-
-    .section { padding: 34px 0 90px; }
-    .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 26px; }
-    .section-heading h2 { margin: 0; font-size: clamp(1.7rem, 4vw, 2.25rem); letter-spacing: -.05em; }
-    .section-heading p { max-width: 430px; margin: 0; color: var(--muted); font-size: 14px; text-align: right; }
-    .feature-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-    .feature { min-height: 188px; padding: 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); backdrop-filter: blur(12px); transition: transform 180ms var(--ease), border-color 180ms var(--ease), background 180ms var(--ease); }
-    .feature:hover { transform: translateY(-5px); border-color: rgba(81,216,255,.35); background: var(--card-strong); }
-    .feature-icon { display: grid; place-items: center; width: 38px; height: 38px; margin-bottom: 20px; border-radius: 12px; color: var(--cyan); background: rgba(81,216,255,.11); }
-    .feature-icon svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; }
-    .feature h3 { margin: 0 0 8px; font-size: 15px; }
-    .feature p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
-
-    .status-panel { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; padding: 28px; border: 1px solid rgba(81,216,255,.2); border-radius: 22px; background: linear-gradient(120deg, rgba(81,216,255,.09), rgba(77,124,255,.08)); }
-    .status-panel h2 { margin: 0 0 7px; font-size: 22px; letter-spacing: -.04em; }
-    .status-panel p { max-width: 500px; margin: 0; color: var(--muted); font-size: 14px; }
-    .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-    .metric { padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: rgba(7,17,31,.3); }
-    .metric span { display: block; margin-bottom: 7px; color: var(--muted); font-size: 11px; }
-    .metric strong { display: block; font-size: 15px; }
-    .about-grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: 14px; }
-    .about-card { padding: 28px; border: 1px solid var(--line); border-radius: 20px; background: var(--card); }
-    .about-card h2 { margin: 0 0 12px; font-size: clamp(1.7rem, 4vw, 2.25rem); letter-spacing: -.05em; }
-    .about-card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.75; }
-    .service-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 0; padding: 0; list-style: none; }
-    .service-list li { display: flex; align-items: flex-start; gap: 9px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; color: var(--muted); font-size: 13px; }
-    .service-list li::before { content: "✓"; color: var(--green); font-weight: 800; }
-    .about-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
-    .about-meta span { padding: 7px 10px; border: 1px solid rgba(81,216,255,.2); border-radius: 999px; color: var(--cyan); background: rgba(81,216,255,.07); font-size: 11px; font-weight: 750; }
-    footer { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 0 0 30px; color: var(--muted); font-size: 12px; }
-    .footer-links { display: flex; flex-wrap: wrap; gap: 18px; }
-    .footer-links a { transition: color 180ms ease; }
-    .footer-links a:hover { color: var(--cyan); }
-    @media (max-width: 900px) { .hero { grid-template-columns: 1fr; gap: 35px; padding-top: 35px; } .hero-visual { max-width: 620px; } .feature-grid { grid-template-columns: repeat(2, 1fr); } .about-grid, .status-panel { grid-template-columns: 1fr; } .section-heading { align-items: start; flex-direction: column; } .section-heading p { text-align: left; } }
-    @media (max-width: 560px) { .shell { width: min(100% - 28px, 1120px); } .topbar { padding: 18px 0; } .brand small { display: none; } .status { padding: 8px 10px; font-size: 10px; } .hero { min-height: auto; padding: 50px 0 70px; } h1 { font-size: clamp(2.9rem, 15vw, 4.5rem); } .actions, .button { width: 100%; } .feature-grid, .service-list, .metrics { grid-template-columns: 1fr; } .about-card, .status-panel { padding: 20px; } footer { align-items: flex-start; flex-direction: column; } }
-    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
-  </style>
-</head>
-<body>
-  <header class="shell topbar">
-    <a class="brand" href="${BOT_URL}" aria-label="Open FastCash Bot in Telegram">
-      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m20.5 4.3-3.1 15.1c-.2 1.1-.8 1.4-1.7.9l-4.7-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.8 8.8-8c.4-.3-.1-.5-.6-.2L5.3 13.2.7 11.8c-1-.3-1-1 .2-1.5L18.8 3c.9-.3 1.9.2 1.7 1.3Z"/></svg></span>
-      <span>FastCash Bot<small>Telegram assistant</small></span>
-    </a>
-    <div class="status"><span class="status-dot"></span> Webhook status: active</div>
-  </header>
-
-  <main>
-    <section class="shell hero">
-      <div>
-        <div class="eyebrow">Built for the edge</div>
-        <h1>Your ultimate <span>Telegram assistant.</span></h1>
-        <p class="hero-copy">Fast, secure, and always ready when you are. FastCash Bot runs on Cloudflare Workers for responsive help from the nearest edge location.</p>
-        <div class="actions">
-          <a class="button button-primary" href="${BOT_URL}" target="_blank" rel="noopener noreferrer">Open in Telegram <span aria-hidden="true">↗</span></a>
-          <a class="button button-secondary" href="#status">View live status</a>
-        </div>
-      </div>
-      <div class="hero-visual" aria-label="Bot operational status preview">
-        <div class="glow"></div>
-        <div class="terminal">
-          <div class="terminal-head"><span>fastcash / system</span><span class="terminal-lights"><i></i><i></i><i></i></span></div>
-          <div class="pulse-card"><div class="pulse-icon"><svg viewBox="0 0 24 24"><path d="M4 12h3l2-6 4 12 2-6h5"/></svg></div><div><strong>Everything is online</strong><span>Cloudflare edge connection is healthy</span></div></div>
-          <div class="code-line"><span><b>›</b> webhook</span><strong>active</strong></div>
-          <div class="code-line"><span><b>›</b> response</span><strong>&lt; 50 ms</strong></div>
-          <div class="code-line"><span><b>›</b> location</span><strong>${safeColo} edge</strong></div>
-          <div class="code-line"><span><b>›</b> uptime</span><strong>24 / 7</strong></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="shell section" aria-labelledby="features-title">
-      <div class="section-heading"><h2 id="features-title">Made to move at your pace.</h2><p>Reliable infrastructure and a simple Telegram-first experience, without the usual waiting.</p></div>
-      <div class="feature-grid">
-        <article class="feature"><div class="feature-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg></div><h3>Always available</h3><p>Designed for 24/7 access, so your assistant is ready whenever you need it.</p></article>
-        <article class="feature"><div class="feature-icon"><svg viewBox="0 0 24 24"><path d="m13 2-8 12h6l-1 8 8-12h-6l1-8Z"/></svg></div><h3>Cloudflare speed</h3><p>Requests are handled close to you through Cloudflare’s global edge network.</p></article>
-        <article class="feature"><div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.5 2.9 8.5 7 10 4.1-1.5 7-5.5 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg></div><h3>Secure by design</h3><p>Protected webhook routes and production-minded security controls keep the service dependable.</p></article>
-        <article class="feature"><div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M4 19V5m0 14h16"/><path d="m7 15 3-4 3 2 5-6"/></svg></div><h3>Clear workflows</h3><p>Get to the right action quickly with focused flows and helpful bot commands.</p></article>
-      </div>
-    </section>
-
-    <section class="shell section" id="about" aria-labelledby="about-title">
-      <div class="about-grid">
-        <article class="about-card">
-          <div class="eyebrow">About FastCash Bot</div>
-          <h2 id="about-title">A simple, trusted way to manage your Telegram journey.</h2>
-          <p>FastCash Bot is a Telegram-first assistant built to make everyday account and support actions easier. From guided deposits and withdrawals to referrals, history, and help, everything is organized in one familiar chat experience.</p>
-          <div class="about-meta"><span>English</span><span>සිංහල</span><span>தமிழ்</span><span>Telegram-first</span></div>
-        </article>
-        <article class="about-card">
-          <div class="eyebrow">What we offer</div>
-          <ul class="service-list">
-            <li>Guided deposit and withdrawal workflows</li>
-            <li>Receipt submission and transaction updates</li>
-            <li>Referral dashboard and account history</li>
-            <li>Automated sports tips and scheduled updates</li>
-            <li>Multilingual menus and helpful commands</li>
-            <li>Direct help through Telegram support</li>
-          </ul>
-        </article>
-      </div>
-    </section>
-
-    <section class="shell section" id="status" aria-labelledby="status-title">
-      <div class="status-panel">
-        <div><h2 id="status-title">Live edge status</h2><p>The landing page and bot webhook are served from Cloudflare’s distributed network, helping keep response times low and availability high.</p></div>
-        <div class="metrics"><div class="metric"><span>Webhook</span><strong><span class="status-dot" style="display:inline-block;margin-right:6px"></span>Online</strong></div><div class="metric"><span>Response target</span><strong>&lt; 50 ms</strong></div><div class="metric"><span>Edge location</span><strong>${safeColo}</strong></div></div>
-      </div>
-    </section>
-  </main>
-
-  <footer class="shell"><span>© 2026 FastCash Bot. Built on Cloudflare Workers.</span><nav class="footer-links" aria-label="Footer links"><a href="${GITHUB_URL}" target="_blank" rel="noopener noreferrer">GitHub</a><a href="${safeSupportUrl}" target="_blank" rel="noopener noreferrer">${safeSupportLabel}</a><a href="${BOT_URL}" target="_blank" rel="noopener noreferrer">Telegram</a></nav></footer>
-</body>
-</html>`;
+  const channelUrl = env.CHANNEL_URL?.trim() || "https://t.me/fast_xbet_official_tips";
+  const channelUsername = env.CHANNEL_USERNAME?.trim() || "@fast_xbet_official_tips";
+  const xbetLink = env.XBET_LINK?.trim() || "#";
+  const promo = env.XBET_PROMO_CODE?.trim() || "VGSL";
+  const colo = escapeText(String((request as Request & { cf?: { colo?: string } }).cf?.colo || "EDGE"));
+  const bot = escapeAttribute(BOT_URL);
+  const channel = escapeAttribute(channelUrl);
+  const xbet = escapeAttribute(xbetLink);
+  const channelName = escapeText(channelUsername);
+  const code = escapeText(promo);
+  return `<!doctype html><html lang="si"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Fast xBet Cash 🇱🇰 — Free Betting Tips & Cash Agent</title><meta name="description" content="ශ්‍රී ලංකාවේ වේගවත් Free Betting Tips & Cash Agent සේවාව. Telegram හරහා deposit, withdraw, සහ ස්වයංක්‍රීය betting tips ලබාගන්න."><style>
+:root{--bg:#0a0e17;--bg2:#111827;--card:#1a2235;--accent:#00e676;--accent2:#00b0ff;--gold:#ffd700;--text:#e8eef7;--muted:#8a9bb4;--line:#ffffff12;--radius:16px}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:'Noto Sans Sinhala','Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.6}a{color:inherit;text-decoration:none}.navbar{position:sticky;top:0;z-index:5;background:#0a0e17dd;backdrop-filter:blur(12px);border-bottom:1px solid var(--line);padding:12px 20px;display:flex;align-items:center;justify-content:space-between}.logo{font-size:1.3rem;font-weight:800}.logo span{color:var(--accent)}.nav-links{display:flex;gap:20px;align-items:center}.nav-links a{color:var(--muted);font-size:.9rem}.langs{display:flex;gap:5px}.langs button{border:1px solid var(--line);background:#ffffff08;color:var(--muted);border-radius:999px;padding:5px 9px;cursor:pointer}.langs button.active{background:var(--accent);color:#000}.hero{text-align:center;padding:60px 20px 40px;background:radial-gradient(ellipse at 50% 0,#00e6761f,transparent 60%),radial-gradient(ellipse at 80% 20%,#00b0ff14,transparent 50%)}.hero-badge{display:inline-block;background:#00e6761a;border:1px solid #00e6764d;color:var(--accent);padding:6px 16px;border-radius:999px;font-size:.8rem;font-weight:600;margin-bottom:20px}.hero h1{font-size:clamp(2.3rem,7vw,4rem);margin:0 0 12px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;color:transparent}.hero p{color:var(--muted);font-size:1.1rem;max-width:560px;margin:0 auto 28px}.hero-buttons{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}.btn{display:inline-block;padding:14px 32px;border-radius:999px;font-weight:700;font-size:1rem;border:0;transition:transform .15s,box-shadow .2s}.btn:hover{transform:translateY(-2px)}.btn-primary{background:linear-gradient(135deg,var(--accent),#00c853);color:#000;box-shadow:0 4px 24px #00e6764d}.btn-secondary{background:#ffffff0f;color:var(--text);border:1px solid #ffffff1f}.stats{display:flex;justify-content:center;gap:40px;padding:20px 20px 40px;flex-wrap:wrap}.stat{text-align:center}.stat-num{font-size:2rem;font-weight:800;color:var(--accent)}.stat-label{color:var(--muted);font-size:.85rem}.section{padding:50px 20px;max-width:950px;margin:auto}.section-title{text-align:center;font-size:1.8rem;margin:0 0 8px}.section-sub{text-align:center;color:var(--muted);margin:0 auto 36px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px}.card{background:var(--card);border-radius:var(--radius);padding:28px 24px;border:1px solid var(--line);transition:transform .2s,border-color .2s}.card:hover{transform:translateY(-4px);border-color:#00e67633}.card-icon{font-size:2.2rem}.card h3{font-size:1.15rem;margin:12px 0 8px}.card p{color:var(--muted);font-size:.92rem}.tips-schedule,.pay-grid{display:flex;justify-content:center;gap:16px;flex-wrap:wrap;margin-top:24px}.tip-time,.pay-item{background:var(--card);border-radius:12px;padding:16px 24px;text-align:center;border:1px solid #00b0ff26;min-width:120px}.tip-time-icon{font-size:1.5rem}.tip-time-val{font-size:1.3rem;font-weight:800;color:var(--accent2)}.tip-time-label{font-size:.8rem;color:var(--muted)}.promo-box{background:linear-gradient(135deg,#ffd70014,#00e6760d);border:1px solid #ffd70033;border-radius:var(--radius);padding:36px;text-align:center;max-width:600px;margin:auto}.promo-code{display:inline-block;font-size:2rem;font-weight:800;letter-spacing:4px;background:var(--gold);color:#000;padding:8px 28px;border-radius:10px;margin:16px 0;cursor:pointer;user-select:all}.cta{text-align:center;padding:60px 20px;background:radial-gradient(ellipse at center,#00e67614,transparent 70%)}.footer{text-align:center;padding:30px 20px;border-top:1px solid var(--line);color:var(--muted);font-size:.85rem}.footer a{color:var(--accent2)}.disclaimer{margin:12px auto 0;font-size:.75rem;color:#687386;max-width:650px}@media(max-width:600px){.nav-links>a{display:none}.navbar{gap:10px}.section{padding:42px 16px}.stats{gap:22px}}
+</style></head><body><nav class="navbar"><div class="logo">⚡ Fast<span>xBet</span> Cash</div><div class="nav-links"><a href="#features" data-t="featuresNav">විශේෂාංග</a><a href="#tips">Free Tips</a><a href="#promo">Promo Code</a><a href="#payments">Payments</a><div class="langs"><button data-lang="si" class="active">සිං</button><button data-lang="en">EN</button><button data-lang="ta">த</button></div></div></nav><section class="hero"><div class="hero-badge" data-t="badge">🇱🇰 ශ්‍රී ලංකාවේ Free Betting Tips & Cash Agent</div><h1>Fast xBet Cash</h1><p data-t="hero">ස්වයංක්‍රීය Free Betting Tips, වේගවත් Deposit & Withdraw සේවාව — සියල්ල Telegram හරහා, ඔබේ දුරකථනයෙන්.</p><div class="hero-buttons"><a href="${bot}" class="btn btn-primary" target="_blank" rel="noopener" data-t="start">🚀 Bot එක පටන් ගන්න</a><a href="${channel}" class="btn btn-secondary" target="_blank" rel="noopener" data-t="channel">📢 Telegram Channel</a></div></section><div class="stats"><div class="stat"><div class="stat-num">3×</div><div class="stat-label" data-t="daily">දිනකට Tips</div></div><div class="stat"><div class="stat-num">24/7</div><div class="stat-label" data-t="service">සේවාව</div></div><div class="stat"><div class="stat-num">⚡</div><div class="stat-label" data-t="fast">වේගවත්</div></div><div class="stat"><div class="stat-num">🔒</div><div class="stat-label" data-t="secure">ආරක්ෂිත</div></div></div><section class="section" id="features"><h2 class="section-title" data-t="featuresTitle">විශේෂාංග</h2><p class="section-sub" data-t="featuresSub">අපගේ Bot එක ඔබට ලබා දෙන සියලු සේවාවන්</p><div class="grid"><article class="card"><div class="card-icon">⚽</div><h3>Free Betting Tips</h3><p>EPL, Champions League, NBA, ATP Tennis — විශ්ලේෂණය කළ tips දිනකට 3 වරයි.</p></article><article class="card"><div class="card-icon">💰</div><h3>Deposit & Withdraw</h3><p>Rs. 1,000 සිට Rs. 500,000 දක්වා — වේගවත් හා ආරක්ෂිත ගනුදෙනු.</p></article><article class="card"><div class="card-icon">📸</div><h3>Receipt Upload</h3><p>Payment receipt screenshot එකක් එවීමෙන් deposit එක තහවුරු කරගන්න.</p></article><article class="card"><div class="card-icon">🎫</div><h3>User Dashboard & Support</h3><p>Transaction status, support tickets, referrals සහ account details එක තැනකින් බලන්න.</p></article><article class="card"><div class="card-icon">🔔</div><h3>Auto Notifications</h3><p>නව tips, transaction updates සහ වැදගත් දැන්වීම් ස්වයංක්‍රීයව ලබාගන්න.</p></article><article class="card"><div class="card-icon">🛡️</div><h3>Responsible Gaming</h3><p>18+ පමණි. Limits, self-exclusion සහ promotional opt-out support සමඟ වගකීමෙන් භාවිතා කරන්න.</p></article></div></section><section class="section" id="tips"><h2 class="section-title">Free Betting Tips වේලාවන්</h2><p class="section-sub">ශ්‍රී ලංකා කාලය අනුව Official Channel එකට tips</p><div class="tips-schedule"><div class="tip-time"><div class="tip-time-icon">🌅</div><div class="tip-time-val">08:00</div><div class="tip-time-label">උදය</div></div><div class="tip-time"><div class="tip-time-icon">☀️</div><div class="tip-time-val">12:00</div><div class="tip-time-label">දවල්</div></div><div class="tip-time"><div class="tip-time-icon">🌆</div><div class="tip-time-val">18:00</div><div class="tip-time-label">සවස</div></div></div><div style="text-align:center;margin-top:24px"><a href="${channel}" class="btn btn-secondary" target="_blank" rel="noopener">📢 Channel එකට එකතු වන්න</a></div></section><section class="section" id="promo"><h2 class="section-title">🎁 විශේෂ Promo Code</h2><p class="section-sub">xBet හි register වීමේදී මෙම code එක භාවිතා කරන්න</p><div class="promo-box"><p style="color:var(--muted)">ඔබේ Promo Code</p><div class="promo-code" id="promoCode">${code}</div><p style="color:var(--muted);font-size:.85rem" id="copyMsg">ක්ලික් කර copy කරගන්න</p><a href="${xbet}" class="btn btn-primary" target="_blank" rel="noopener" style="margin-top:16px">🎲 xBet හි Register වන්න</a></div></section><section class="section" id="payments"><h2 class="section-title">💳 ගෙවීමේ ක්‍රම</h2><p class="section-sub">Deposit & Withdraw සඳහා පහත ක්‍රම භාවිතා කළ හැක</p><div class="pay-grid"><div class="pay-item">💬 WhatsApp</div><div class="pay-item">💵 eZ Cash</div><div class="pay-item">🏦 Bank</div><div class="pay-item">📱 mCash</div></div></section><section class="cta"><h2>දැන්ම පටන් ගන්න! 🚀</h2><p>Telegram Bot එක හරහා සියලු සේවාවන් ලබාගන්න — වේගවත්, ආරක්ෂිත, පහසු.</p><a href="${bot}" class="btn btn-primary" target="_blank" rel="noopener">🤖 Bot එක ආරම්භ කරන්න</a></section><footer class="footer"><p>⚡ <strong>Fast xBet Cash</strong> — 🇱🇰 Telegram Tips & Cash Agent</p><p>Telegram: <a href="${channel}" target="_blank" rel="noopener">${channelName}</a> · Edge: ${colo}</p><p class="disclaimer">⚠️ මෙම සේවාව 18+ පුද්ගලයන් සඳහා පමණි. ඔට්ටු ඇල්ලීම අවදානම් සහිතය; වගකීමෙන් භාවිතා කරන්න. කිසිදු ජයග්‍රහණයක් සහතික නොවේ.</p></footer><script>
+const translations={en:{featuresNav:'Features',badge:'🇱🇰 Free Betting Tips & Cash Agent',hero:'Automated free betting tips and fast deposit & withdrawal — all through Telegram.',start:'🚀 Start the Bot',channel:'📢 Telegram Channel',daily:'Tips per day',service:'Service',fast:'Fast',secure:'Secure',featuresTitle:'Features',featuresSub:'Everything our bot offers you'},ta:{featuresNav:'அம்சங்கள்',badge:'🇱🇰 Free Betting Tips & Cash Agent',hero:'தானியங்கி இலவச betting tips, வேகமான deposit & withdraw — அனைத்தும் Telegram மூலம்.',start:'🚀 Bot தொடங்கவும்',channel:'📢 Telegram Channel',daily:'ஒரு நாளின் Tips',service:'சேவை',fast:'வேகம்',secure:'பாதுகாப்பு',featuresTitle:'அம்சங்கள்',featuresSub:'எங்கள் Bot வழங்கும் சேவைகள்'},si:{featuresNav:'විශේෂාංග',badge:'🇱🇰 ශ්‍රී ලංකාවේ Free Betting Tips & Cash Agent',hero:'ස්වයංක්‍රීය Free Betting Tips, වේගවත් Deposit & Withdraw සේවාව — සියල්ල Telegram හරහා, ඔබේ දුරකථනයෙන්.',start:'🚀 Bot එක පටන් ගන්න',channel:'📢 Telegram Channel',daily:'දිනකට Tips',service:'සේවාව',fast:'වේගවත්',secure:'ආරක්ෂිත',featuresTitle:'විශේෂාංග',featuresSub:'අපගේ Bot එක ඔබට ලබා දෙන සියලු සේවාවන්'}};
+function setLang(lang){const d=translations[lang]||translations.si;document.documentElement.lang=lang;document.querySelectorAll('[data-t]').forEach(e=>{if(d[e.dataset.t])e.textContent=d[e.dataset.t]});document.querySelectorAll('[data-lang]').forEach(e=>e.classList.toggle('active',e.dataset.lang===lang));try{localStorage.setItem('fastcash-lang',lang)}catch{}}document.querySelectorAll('[data-lang]').forEach(e=>e.addEventListener('click',()=>setLang(e.dataset.lang)));setLang((()=>{try{return localStorage.getItem('fastcash-lang')||'si'}catch{return'si'}})());document.getElementById('promoCode').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(document.getElementById('promoCode').textContent);document.getElementById('copyMsg').textContent='✅ Promo code එක copy කරගත්තා!'}catch{}});
+</script></body></html>`;
 }
-
 export { GITHUB_URL, BOT_URL };

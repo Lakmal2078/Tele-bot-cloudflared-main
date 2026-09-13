@@ -600,3 +600,92 @@ export async function getRecentAdminActions(db: D1Database, limit: number = 20):
     .all<AdminActionRow>();
   return res.results || [];
 }
+
+
+/* ============================================================
+ * Operations dashboard, support, scheduling, and safety
+ * ============================================================ */
+
+export async function getOperationsDashboard(db: D1Database) {
+  const stats = await getStats(db);
+  const [tips, tickets, alerts, channel] = await Promise.all([
+    db.prepare(`SELECT status, COUNT(*) as count, MAX(posted_at) as last_posted_at FROM tip_posts GROUP BY status`).all<any>(),
+    db.prepare(`SELECT status, COUNT(*) as count FROM support_tickets GROUP BY status`).all<any>(),
+    db.prepare(`SELECT id, alert_type, severity, message, created_at FROM operational_alerts WHERE acknowledged_at IS NULL ORDER BY created_at DESC LIMIT 20`).all<any>(),
+    db.prepare(`SELECT id, title, scheduled_for, status, created_at FROM channel_schedule ORDER BY scheduled_for DESC LIMIT 20`).all<any>(),
+  ]);
+  return {
+    stats,
+    tips: tips.results || [],
+    tickets: tickets.results || [],
+    alerts: alerts.results || [],
+    channelSchedule: channel.results || [],
+  };
+}
+
+export async function createSupportTicket(
+  db: D1Database,
+  userId: number,
+  subject: string,
+  category: "GENERAL" | "DEPOSIT" | "WITHDRAWAL" | "ACCOUNT" | "SAFETY",
+  message: string,
+): Promise<number> {
+  const row = await db.prepare(
+    `INSERT INTO support_tickets (user_id, subject, category, message) VALUES (?, ?, ?, ?) RETURNING id`
+  ).bind(userId, subject.trim().slice(0, 120), category, message.trim().slice(0, 4000)).first<{ id: number }>();
+  return Number(row?.id || 0);
+}
+
+export async function getSupportTickets(db: D1Database, status?: "OPEN" | "PENDING" | "CLOSED") {
+  const query = status
+    ? `SELECT * FROM support_tickets WHERE status = ? ORDER BY updated_at DESC LIMIT 100`
+    : `SELECT * FROM support_tickets ORDER BY updated_at DESC LIMIT 100`;
+  const result = status ? await db.prepare(query).bind(status).all<any>() : await db.prepare(query).all<any>();
+  return result.results || [];
+}
+
+export async function updateSupportTicket(
+  db: D1Database,
+  id: number,
+  status: "OPEN" | "PENDING" | "CLOSED",
+  adminReply: string | null,
+  adminId: number,
+) {
+  const result = await db.prepare(
+    `UPDATE support_tickets SET status = ?, admin_reply = ?, assigned_admin_id = ?, updated_at = datetime('now') WHERE id = ?`
+  ).bind(status, adminReply?.trim().slice(0, 4000) || null, adminId, id).run();
+  return Boolean(result.success && (result.meta?.changes ?? 1) > 0);
+}
+
+export async function createScheduledChannelPost(db: D1Database, input: {
+  title: string; body: string; mediaUrl?: string | null; ctaText?: string | null; ctaUrl?: string | null;
+  language?: "all" | "si" | "en" | "ta"; scheduledFor: string; createdBy: number;
+}) {
+  const row = await db.prepare(
+    `INSERT INTO channel_schedule (title, body, media_url, cta_text, cta_url, language, scheduled_for, status, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'SCHEDULED', ?) RETURNING id`
+  ).bind(input.title.trim().slice(0, 160), input.body.trim().slice(0, 4000), input.mediaUrl || null, input.ctaText || null,
+    input.ctaUrl || null, input.language || "all", input.scheduledFor, input.createdBy).first<{ id: number }>();
+  return Number(row?.id || 0);
+}
+
+export async function getSafetyPreferences(db: D1Database, userId: number) {
+  return db.prepare(`SELECT * FROM user_safety_preferences WHERE user_id = ?`).bind(userId).first<any>();
+}
+
+export async function upsertSafetyPreferences(db: D1Database, userId: number, input: {
+  ageConfirmed?: boolean; promotionalMessages?: boolean; selfExcluded?: boolean; depositLimitLkr?: number | null;
+}) {
+  await db.prepare(
+    `INSERT INTO user_safety_preferences (user_id, age_confirmed, promotional_messages, self_excluded, deposit_limit_lkr)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(user_id) DO UPDATE SET age_confirmed=excluded.age_confirmed,
+       promotional_messages=excluded.promotional_messages, self_excluded=excluded.self_excluded,
+       deposit_limit_lkr=excluded.deposit_limit_lkr, updated_at=datetime('now')`
+  ).bind(userId, input.ageConfirmed ? 1 : 0, input.promotionalMessages === false ? 0 : 1,
+    input.selfExcluded ? 1 : 0, input.depositLimitLkr ?? null).run();
+}
+
+export async function createOperationalAlert(db: D1Database, alertType: string, severity: "INFO" | "WARNING" | "CRITICAL", message: string) {
+  await db.prepare(`INSERT INTO operational_alerts (alert_type, severity, message) VALUES (?, ?, ?)`).bind(alertType, severity, message.slice(0, 1000)).run();
+}

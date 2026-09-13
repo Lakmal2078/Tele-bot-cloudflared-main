@@ -7,6 +7,7 @@ import { assertValidEnv, isAuthorizedAdminRequest, unauthorizedResponse } from "
 import { adminAttemptAllowed, landingPageSecurityHeaders, recordAdminFailure, securityHeaders, webhookRequestAllowed } from "./security";
 import { renderLandingPage } from "./landingPage";
 import type { Env } from "./types";
+import * as db from "./db";
 
 let botInstance: ReturnType<typeof createBot> | null = null;
 let cachedToken: string | null = null;
@@ -21,6 +22,9 @@ const publicCommands = [
   { command: "register", description: "Open 1xBet registration" },
   { command: "referrals", description: "Open referral dashboard" },
   { command: "history", description: "View transaction history" },
+  { command: "dashboard", description: "Open your user dashboard" },
+  { command: "ticket", description: "Create a support ticket" },
+  { command: "safety", description: "Responsible gaming settings" },
   { command: "id", description: "View your Telegram ID" },
   { command: "language", description: "Change language" },
   { command: "help", description: "Open help and support" },
@@ -36,6 +40,9 @@ const sinhalaCommands = [
   { command: "register", description: "1xBet ලියාපදිංචිය විවෘත කරන්න" },
   { command: "referrals", description: "Referral Dashboard විවෘත කරන්න" },
   { command: "history", description: "ගනුදෙනු ඉතිහාසය බලන්න" },
+  { command: "dashboard", description: "ඔබේ Dashboard එක බලන්න" },
+  { command: "ticket", description: "Support ticket එකක් සාදන්න" },
+  { command: "safety", description: "වගකීම් සහගත ක්‍රීඩා" },
   { command: "id", description: "ඔබේ Telegram ID බලන්න" },
   { command: "language", description: "භාෂාව වෙනස් කරන්න" },
   { command: "help", description: "උදව් සහ Support විවෘත කරන්න" },
@@ -51,6 +58,9 @@ const tamilCommands = [
   { command: "register", description: "1xBet பதிவு திறக்கவும்" },
   { command: "referrals", description: "Referral Dashboard திறக்கவும்" },
   { command: "history", description: "பரிவர்த்தனை வரலாற்றைப் பார்க்கவும்" },
+  { command: "dashboard", description: "உங்கள் Dashboard பார்க்கவும்" },
+  { command: "ticket", description: "Support ticket உருவாக்கவும்" },
+  { command: "safety", description: "பொறுப்பான விளையாட்டு" },
   { command: "id", description: "உங்கள் Telegram ID பார்க்கவும்" },
   { command: "language", description: "மொழியை மாற்றவும்" },
   { command: "help", description: "உதவி மற்றும் Support திறக்கவும்" },
@@ -109,6 +119,56 @@ export default {
       if (!adminAuthorized(request, env)) return unauthorizedResponse();
       if (request.method === "HEAD") return new Response(null, { status: 200, headers: securityHeaders() });
       return json({ status: "ok", runtime: "cloudflare-worker", service: "telegram-bot" });
+    }
+
+    if (url.pathname === "/api/admin/dashboard") {
+      if (request.method !== "GET" && request.method !== "HEAD") return json({ ok: false, error: "Method Not Allowed" }, 405);
+      if (!adminAuthorized(request, env)) return unauthorizedResponse();
+      if (request.method === "HEAD") return new Response(null, { status: 200, headers: securityHeaders() });
+      try {
+        return json({ ok: true, ...(await db.getOperationsDashboard(env.DB)) });
+      } catch (error) {
+        console.error("[Admin Dashboard] query failed", error);
+        return json({ ok: false, error: "Dashboard data unavailable" }, 503);
+      }
+    }
+
+    if (url.pathname === "/api/admin/tickets") {
+      if (!adminAuthorized(request, env)) return unauthorizedResponse();
+      if (request.method === "GET") {
+        const status = url.searchParams.get("status") as "OPEN" | "PENDING" | "CLOSED" | null;
+        return json({ ok: true, tickets: await db.getSupportTickets(env.DB, status || undefined) });
+      }
+      if (request.method === "PATCH") {
+        const body = await request.json().catch(() => ({})) as { id?: number; status?: "OPEN" | "PENDING" | "CLOSED"; reply?: string; adminId?: number };
+        if (!body.id || !body.status || !body.adminId) return json({ ok: false, error: "id, status and adminId are required" }, 400);
+        const updated = await db.updateSupportTicket(env.DB, body.id, body.status, body.reply || null, body.adminId);
+        return json({ ok: updated }, updated ? 200 : 404);
+      }
+      return json({ ok: false, error: "Method Not Allowed" }, 405);
+    }
+
+    if (url.pathname === "/api/admin/schedule") {
+      if (!adminAuthorized(request, env)) return unauthorizedResponse();
+      if (request.method !== "POST") return json({ ok: false, error: "Method Not Allowed" }, 405);
+      const body = await request.json().catch(() => ({})) as {
+        title?: string; body?: string; mediaUrl?: string; ctaText?: string; ctaUrl?: string;
+        language?: "all" | "si" | "en" | "ta"; scheduledFor?: string; createdBy?: number;
+      };
+      if (!body.title || !body.body || !body.scheduledFor || !body.createdBy) {
+        return json({ ok: false, error: "title, body, scheduledFor and createdBy are required" }, 400);
+      }
+      const id = await db.createScheduledChannelPost(env.DB, {
+        title: body.title,
+        body: body.body,
+        mediaUrl: body.mediaUrl,
+        ctaText: body.ctaText,
+        ctaUrl: body.ctaUrl,
+        language: body.language,
+        scheduledFor: body.scheduledFor,
+        createdBy: body.createdBy,
+      });
+      return json({ ok: true, id }, 201);
     }
 
     if (url.pathname === "/api/cleanup/logs" && request.method === "POST") {

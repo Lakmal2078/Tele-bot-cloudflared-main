@@ -777,6 +777,50 @@ export function createBot(env: Env) {
     });
   });
 
+  // ========== User dashboard / support / responsible gaming ==========
+  bot.command(["dashboard", "account"], async (ctx) => {
+    const user = ctx.from;
+    if (!user) return;
+    await db.clearUserState(env.DB, user.id);
+    const lang = await getUserLang(env.DB, user.id);
+    const profile = await db.getUser(env.DB, user.id);
+    const history = await db.getUserHistory(env.DB, user.id);
+    const safety = await db.getSafetyPreferences(env.DB, user.id);
+    const pending = [...history.deposits, ...history.withdrawals].filter((row: any) => row.status === "PENDING").length;
+    const text = lang === "en"
+      ? `📊 *MY DASHBOARD*\n\n👤 Telegram ID: \`${user.id}\`\n🌐 Language: ${lang.toUpperCase()}\n⏳ Pending requests: ${pending}\n📥 Deposits: ${history.deposits.length}\n📤 Withdrawals: ${history.withdrawals.length}\n🛡️ Promotions: ${safety?.promotional_messages === 0 ? "OFF" : "ON"}`
+      : lang === "ta"
+      ? `📊 *என் டாஷ்போர்டு*\n\n👤 Telegram ID: \`${user.id}\`\n🌐 மொழி: ${lang.toUpperCase()}\n⏳ நிலுவை கோரிக்கைகள்: ${pending}\n📥 வைப்பு: ${history.deposits.length}\n📤 பணம் பெறுதல்: ${history.withdrawals.length}`
+      : `📊 *මගේ Dashboard*\n\n👤 Telegram ID: \`${user.id}\`\n🌐 භාෂාව: ${lang.toUpperCase()}\n⏳ Pending requests: ${pending}\n📥 Deposits: ${history.deposits.length}\n📤 Withdrawals: ${history.withdrawals.length}\n🛡️ Promotions: ${safety?.promotional_messages === 0 ? "OFF" : "ON"}`;
+    await ctx.reply(text, { parse_mode: "Markdown", reply_markup: mainMenu(user.id, adminIds, lang) });
+  });
+
+  bot.command("ticket", async (ctx) => {
+    const user = ctx.from;
+    if (!user) return;
+    const raw = String(ctx.match || "").trim();
+    const [subject, ...messageParts] = raw.split("|");
+    if (!subject?.trim() || !messageParts.join("|").trim()) {
+      await ctx.reply("🎫 Ticket format: /ticket Subject | Your message\n\nExample: /ticket Deposit pending | Please check request #123");
+      return;
+    }
+    const id = await db.createSupportTicket(env.DB, user.id, subject, "GENERAL", messageParts.join("|"));
+    await ctx.reply(`🎫 Support ticket #${id} created.\nStatus: OPEN\n\nAdmin team will reply here through support.`);
+  });
+
+  bot.command("safety", async (ctx) => {
+    const user = ctx.from;
+    if (!user) return;
+    const lang = await getUserLang(env.DB, user.id);
+    await db.upsertSafetyPreferences(env.DB, user.id, { ageConfirmed: true });
+    const text = lang === "en"
+      ? "🛡️ *RESPONSIBLE GAMING*\n\n18+ only. Bet only what you can afford to lose. No outcome is guaranteed. Set personal limits, take breaks, and contact support if betting stops being fun. Use /ticket for a self-exclusion request."
+      : lang === "ta"
+      ? "🛡️ *பொறுப்பான விளையாட்டு*\n\n18+ மட்டும். இழக்க முடியும் அளவுக்கு மட்டும் பயன்படுத்துங்கள். எந்த முடிவும் உறுதி இல்லை. வரம்புகளை அமைத்து இடைவெளி எடுக்கவும். Self-exclusion க்கு /ticket பயன்படுத்தவும்."
+      : "🛡️ *වගකීම් සහගත ක්‍රීඩා*\n\n18+ පමණි. ඔබට අහිමි විය හැකි මුදල පමණක් භාවිතා කරන්න. කිසිදු ප්‍රතිඵලයක් සහතික නොවේ. ඔබේ සීමා තබා විවේක ගන්න. Self-exclusion ඉල්ලීමකට /ticket භාවිතා කරන්න.";
+    await ctx.reply(text, { parse_mode: "Markdown", reply_markup: mainMenu(user.id, adminIds, lang) });
+  });
+
   async function notifyR2ScreenshotUploadToAdminChannel(
     ctx: MyContext,
     userInfo: { id: number; username?: string | null; first_name?: string | null },
@@ -1452,6 +1496,25 @@ export function createBot(env: Env) {
     // Referral Dashboard
     if (data === "referral" || data === "ref_refresh") {
       await renderReferralDashboard(ctx, user.id, true);
+      return;
+    }
+
+    if (data === "user_dashboard") {
+      const history = await db.getUserHistory(env.DB, user.id);
+      const safety = await db.getSafetyPreferences(env.DB, user.id);
+      const pending = [...history.deposits, ...history.withdrawals].filter((row: any) => row.status === "PENDING").length;
+      const text = `📊 *MY DASHBOARD*\n━━━━━━━━━━━━━━━━━━━━\n⏳ Pending requests: *${pending}*\n📥 Deposits: *${history.deposits.length}*\n📤 Withdrawals: *${history.withdrawals.length}*\n🛡️ Promotions: *${safety?.promotional_messages === 0 ? "OFF" : "ON"}*`;
+      await ctx.editMessageText(text, { parse_mode: "Markdown", reply_markup: new InlineKeyboard().text("📜 Transaction history", "history").row().text("🎫 Create ticket", "support_ticket_help").row().text("⬅️ Back", "back") });
+      return;
+    }
+
+    if (data === "support_ticket_help") {
+      await ctx.editMessageText("🎫 *SUPPORT TICKETS*\n\nTo create a ticket, send:\n`/ticket Subject | Your message`\n\nCategories include deposit, withdrawal, account, and safety issues. Every ticket receives a unique ID and status.", { parse_mode: "Markdown", reply_markup: new InlineKeyboard().text("⬅️ Back", "back") });
+      return;
+    }
+
+    if (data === "safety_info") {
+      await ctx.editMessageText("🛡️ *RESPONSIBLE GAMING*\n\n18+ only. Bet responsibly, never chase losses, and remember that tips do not guarantee outcomes. Set limits and take breaks. For self-exclusion or promotional opt-out, create a support ticket with `/ticket Safety request | ...`.", { parse_mode: "Markdown", reply_markup: new InlineKeyboard().text("🎫 Open safety ticket", "support_ticket_help").row().text("⬅️ Back", "back") });
       return;
     }
 
@@ -2989,6 +3052,11 @@ function mainMenu(userId: number, adminIds: Set<number>, lang: Language = "si") 
     .row()
     .text(dict.btnLanguage, "choose_lang")
     .text(dict.btnHelp, "help")
+    .row()
+    .text("📊 Dashboard", "user_dashboard")
+    .text("🎫 Support Ticket", "support_ticket_help")
+    .row()
+    .text("🛡️ Responsible Gaming", "safety_info")
     .row()
     .text("🆔 My ID", "id_info")
     .text("📣 Share Bot", "share_bot");
