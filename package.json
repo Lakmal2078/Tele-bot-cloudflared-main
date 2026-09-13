@@ -18,7 +18,7 @@
     "validate:migrations": "node validate-migrations.mjs",
     "deploy:cf": "bash deploy.sh",
     "deploy:cf:ci": "CI=true bash deploy.sh",
-    "deploy:cf:dry": "CI=true SKIP_MIGRATION=1 SKIP_HEALTHCHECK=1 bash deploy.sh"
+    "deploy:cf:dry": "SKIP_MIGRATION=1 SKIP_HEALTHCHECK=1 ALLOW_DIRTY=1 bash deploy.sh"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1127.0",
