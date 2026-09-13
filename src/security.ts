@@ -22,6 +22,14 @@ export function securityHeaders(): Record<string, string> {
   };
 }
 
+/** HTML-only headers; the landing page intentionally embeds its CSS inline. */
+export function landingPageSecurityHeaders(): Record<string, string> {
+  return {
+    ...securityHeaders(),
+    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",
+  };
+}
+
 export function webhookRequestAllowed(request: Request): boolean {
   if (request.method !== "POST") return false;
 

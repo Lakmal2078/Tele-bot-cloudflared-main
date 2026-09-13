@@ -4,7 +4,7 @@ import { logBotError } from "./logger";
 import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
 import { runScheduledTip } from "./tips";
 import { assertValidEnv, isAuthorizedAdminRequest, unauthorizedResponse } from "./config";
-import { adminAttemptAllowed, recordAdminFailure, securityHeaders, webhookRequestAllowed } from "./security";
+import { adminAttemptAllowed, landingPageSecurityHeaders, recordAdminFailure, securityHeaders, webhookRequestAllowed } from "./security";
 import { renderLandingPage } from "./landingPage";
 import type { Env } from "./types";
 
@@ -182,7 +182,7 @@ export default {
 
     return new Response(
       renderLandingPage(env, request),
-      { headers: { "Content-Type": "text/html; charset=utf-8", ...securityHeaders() } }
+      { headers: { "Content-Type": "text/html; charset=utf-8", ...landingPageSecurityHeaders() } }
     );
   },
 
