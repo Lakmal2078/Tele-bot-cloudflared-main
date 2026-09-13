@@ -126,12 +126,13 @@ export async function getLatestTipPost(db: D1Database): Promise<{
   error: string | null;
   message_id: number | null;
   attempt_count: number;
+  lease_expires_at: string | null;
   updated_at: string;
   posted_at: string | null;
 }> {
   const row = await db
     .prepare(
-      `SELECT id, scheduled_key, slot_time, status, error, message_id, attempt_count, updated_at, posted_at
+      `SELECT id, scheduled_key, slot_time, status, error, message_id, attempt_count, lease_expires_at, updated_at, posted_at
        FROM tip_posts ORDER BY id DESC LIMIT 1`
     )
     .first<{
@@ -142,6 +143,7 @@ export async function getLatestTipPost(db: D1Database): Promise<{
       error: string | null;
       message_id: number | null;
       attempt_count: number;
+      lease_expires_at: string | null;
       updated_at: string;
       posted_at: string | null;
     }>();

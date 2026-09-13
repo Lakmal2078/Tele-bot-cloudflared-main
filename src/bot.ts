@@ -1873,10 +1873,20 @@ export function createBot(env: Env) {
           `Slot: ${latest.slot_time} (Sri Lanka)\n` +
           `Scheduled key: ${latest.scheduled_key}\n` +
           `Attempts: ${latest.attempt_count}\n` +
+          `Lease expires: ${latest.lease_expires_at || "—"}\n` +
           `Last updated: ${latest.updated_at}\n` +
           `Message ID: ${latest.message_id ?? "—"}\n` +
-          `Last failure reason: ${error}`;
-        await ctx.editMessageText(result, { reply_markup: kb });
+          `Last failure reason: ${error}` +
+          (latest.status === "PROCESSING" ? "\n\nℹ️ The scheduler is still processing this slot. If the lease expires, the next scheduled run can retry it." : "");
+        try {
+          await ctx.editMessageText(result, { reply_markup: kb });
+        } catch (editError: any) {
+          if (String(editError?.description || editError?.message || "").includes("message is not modified")) {
+            await ctx.answerCallbackQuery({ text: "Free Tips status is already up to date." });
+          } else {
+            throw editError;
+          }
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         await ctx.reply(`🧾 FREE TIPS STATUS\n\n⚠️ ${message}`, { reply_markup: kb });
