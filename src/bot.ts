@@ -943,6 +943,8 @@ export function createBot(env: Env) {
       .row()
       .text("📢 Broadcast", "admin_broadcast")
       .row()
+      .text("📣 Post to Official Channel", "admin_channel_post")
+      .row()
       .text("🧹 Cleanup R2 Logs (>30d)", "admin_clean_logs")
       .row()
       .text("⬅️ Back", "back");
@@ -1711,6 +1713,8 @@ export function createBot(env: Env) {
         .row()
         .text("📢 Broadcast", "admin_broadcast")
         .row()
+        .text("📣 Post to Official Channel", "admin_channel_post")
+        .row()
         .text("🧹 Cleanup R2 Logs (>30d)", "admin_clean_logs")
         .row()
         .text("⬅️ Back", "back");
@@ -1830,6 +1834,20 @@ export function createBot(env: Env) {
       if (!adminIds.has(user.id)) return;
       await db.setUserState(env.DB, user.id, "await_broadcast");
       await ctx.reply("📢 Broadcast message එක එවන්න (text only). Cancel කිරීමට /cancel ඔබන්න.", {
+        reply_markup: cancelKeyboard(lang),
+      });
+      return;
+    }
+
+    if (data === "admin_channel_post") {
+      if (!adminIds.has(user.id)) return;
+      const channelTarget = (env.CHANNEL_USERNAME || "").trim();
+      if (!channelTarget || (!channelTarget.startsWith("@") && !channelTarget.startsWith("-100"))) {
+        await ctx.reply("⚠️ Official Channel target එක configure කර නැත. CHANNEL_USERNAME එක පරීක්ෂා කරන්න.");
+        return;
+      }
+      await db.setUserState(env.DB, user.id, "await_channel_post");
+      await ctx.reply("📣 Official Channel එකට යැවීමට text post එක එවන්න. Cancel කිරීමට /cancel ඔබන්න.", {
         reply_markup: cancelKeyboard(lang),
       });
       return;
@@ -2293,6 +2311,36 @@ export function createBot(env: Env) {
 
       // 7. General inquiry or greeting -> show Automated FAQ & Support Menu
       await showFaqMenu(ctx, lang, false);
+      return;
+    }
+
+    if (state.state === "await_channel_post" && ctx.message.text) {
+      if (!adminIds.has(user.id)) return;
+      const channelTarget = (env.CHANNEL_USERNAME || "").trim();
+      const channelPost = ctx.message.text.trim();
+      await db.clearUserState(env.DB, user.id);
+      if (!channelPost) {
+        await ctx.reply("⚠️ හිස් post එකක් Official Channel එකට යැවිය නොහැක.", {
+          reply_markup: mainMenu(user.id, adminIds, lang),
+        });
+        return;
+      }
+
+      try {
+        const posted = await ctx.api.sendMessage(channelTarget, channelPost, {
+          link_preview_options: { is_disabled: true },
+        });
+        await ctx.reply(
+          `✅ Official Channel post එක සාර්ථකව යවන ලදී.\n\n🆔 Message ID: ${posted.message_id}`,
+          { reply_markup: mainMenu(user.id, adminIds, lang) }
+        );
+      } catch (err: any) {
+        console.error("[Official Channel Post] Failed:", err);
+        await ctx.reply(
+          `❌ Official Channel post එක යැවීමට නොහැකි විය.\n\n${err?.description || err?.message || "Telegram API error"}`,
+          { reply_markup: mainMenu(user.id, adminIds, lang) }
+        );
+      }
       return;
     }
 
