@@ -131,12 +131,21 @@ export function renderLandingPage(env: Env, request: Request): string {
     .metric { padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: rgba(7,17,31,.3); }
     .metric span { display: block; margin-bottom: 7px; color: var(--muted); font-size: 11px; }
     .metric strong { display: block; font-size: 15px; }
+    .about-grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: 14px; }
+    .about-card { padding: 28px; border: 1px solid var(--line); border-radius: 20px; background: var(--card); }
+    .about-card h2 { margin: 0 0 12px; font-size: clamp(1.7rem, 4vw, 2.25rem); letter-spacing: -.05em; }
+    .about-card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.75; }
+    .service-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 0; padding: 0; list-style: none; }
+    .service-list li { display: flex; align-items: flex-start; gap: 9px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; color: var(--muted); font-size: 13px; }
+    .service-list li::before { content: "✓"; color: var(--green); font-weight: 800; }
+    .about-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+    .about-meta span { padding: 7px 10px; border: 1px solid rgba(81,216,255,.2); border-radius: 999px; color: var(--cyan); background: rgba(81,216,255,.07); font-size: 11px; font-weight: 750; }
     footer { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 0 0 30px; color: var(--muted); font-size: 12px; }
     .footer-links { display: flex; flex-wrap: wrap; gap: 18px; }
     .footer-links a { transition: color 180ms ease; }
     .footer-links a:hover { color: var(--cyan); }
-    @media (max-width: 900px) { .hero { grid-template-columns: 1fr; gap: 35px; padding-top: 35px; } .hero-visual { max-width: 620px; } .feature-grid { grid-template-columns: repeat(2, 1fr); } .status-panel { grid-template-columns: 1fr; } .section-heading { align-items: start; flex-direction: column; } .section-heading p { text-align: left; } }
-    @media (max-width: 560px) { .shell { width: min(100% - 28px, 1120px); } .topbar { padding: 18px 0; } .brand small { display: none; } .status { padding: 8px 10px; font-size: 10px; } .hero { min-height: auto; padding: 50px 0 70px; } h1 { font-size: clamp(2.9rem, 15vw, 4.5rem); } .actions, .button { width: 100%; } .feature-grid, .metrics { grid-template-columns: 1fr; } .status-panel { padding: 20px; } footer { align-items: flex-start; flex-direction: column; } }
+    @media (max-width: 900px) { .hero { grid-template-columns: 1fr; gap: 35px; padding-top: 35px; } .hero-visual { max-width: 620px; } .feature-grid { grid-template-columns: repeat(2, 1fr); } .about-grid, .status-panel { grid-template-columns: 1fr; } .section-heading { align-items: start; flex-direction: column; } .section-heading p { text-align: left; } }
+    @media (max-width: 560px) { .shell { width: min(100% - 28px, 1120px); } .topbar { padding: 18px 0; } .brand small { display: none; } .status { padding: 8px 10px; font-size: 10px; } .hero { min-height: auto; padding: 50px 0 70px; } h1 { font-size: clamp(2.9rem, 15vw, 4.5rem); } .actions, .button { width: 100%; } .feature-grid, .service-list, .metrics { grid-template-columns: 1fr; } .about-card, .status-panel { padding: 20px; } footer { align-items: flex-start; flex-direction: column; } }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
   </style>
 </head>
@@ -180,6 +189,28 @@ export function renderLandingPage(env: Env, request: Request): string {
         <article class="feature"><div class="feature-icon"><svg viewBox="0 0 24 24"><path d="m13 2-8 12h6l-1 8 8-12h-6l1-8Z"/></svg></div><h3>Cloudflare speed</h3><p>Requests are handled close to you through Cloudflare’s global edge network.</p></article>
         <article class="feature"><div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.5 2.9 8.5 7 10 4.1-1.5 7-5.5 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg></div><h3>Secure by design</h3><p>Protected webhook routes and production-minded security controls keep the service dependable.</p></article>
         <article class="feature"><div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M4 19V5m0 14h16"/><path d="m7 15 3-4 3 2 5-6"/></svg></div><h3>Clear workflows</h3><p>Get to the right action quickly with focused flows and helpful bot commands.</p></article>
+      </div>
+    </section>
+
+    <section class="shell section" id="about" aria-labelledby="about-title">
+      <div class="about-grid">
+        <article class="about-card">
+          <div class="eyebrow">About FastCash Bot</div>
+          <h2 id="about-title">A simple, trusted way to manage your Telegram journey.</h2>
+          <p>FastCash Bot is a Telegram-first assistant built to make everyday account and support actions easier. From guided deposits and withdrawals to referrals, history, and help, everything is organized in one familiar chat experience.</p>
+          <div class="about-meta"><span>English</span><span>සිංහල</span><span>தமிழ்</span><span>Telegram-first</span></div>
+        </article>
+        <article class="about-card">
+          <div class="eyebrow">What we offer</div>
+          <ul class="service-list">
+            <li>Guided deposit and withdrawal workflows</li>
+            <li>Receipt submission and transaction updates</li>
+            <li>Referral dashboard and account history</li>
+            <li>Automated sports tips and scheduled updates</li>
+            <li>Multilingual menus and helpful commands</li>
+            <li>Direct help through Telegram support</li>
+          </ul>
+        </article>
       </div>
     </section>
 
