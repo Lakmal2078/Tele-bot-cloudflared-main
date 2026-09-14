@@ -29,7 +29,7 @@ This repository is designed around a production deployment workflow with version
 - 🛡️ Callback authorization and transaction-state protection
 - 🚫 Duplicate receipt and duplicate pending-withdrawal protection
 - ⏱️ User and transaction abuse/rate-limit protection
-- `/start`, `/menu`, `/deposit`, `/confirm_deposit`, `/withdraw`, `/register`, `/referrals`, `/history`, `/language`, `/help`, `/id`, `/cancel`
+- `/start`, `/menu`, `/deposit`, `/confirm_deposit`, `/withdraw`, `/register`, `/referrals`, `/history`, `/dashboard`, `/ticket`, `/safety`, `/language`, `/help`, `/id`, `/cancel`
 
 ### Automated free tips
 
@@ -57,6 +57,7 @@ This repository is designed around a production deployment workflow with version
 - 🧪 Migration validation and regression tests
 - 🚀 Single GitHub Actions production deployment path
 - ❤️ Post-deployment health check
+- 🌐 Public marketing landing page (`src/landingPage.ts`) served as the fallback route, with Sinhala/English/Tamil switching
 
 ---
 
@@ -136,16 +137,16 @@ The application keeps the Cloudflare Worker as the primary production path while
 │   ├── security-phase1.md
 │   ├── deployment-safety-phase2.md
 │   ├── phase3-financial-integrity.md
+│   ├── free-tips.md
 │   ├── security-phase4.md
 │   └── phase4-cloudflare-edge-protection.md
 ├── migrations/
 │   ├── 0001_initial_schema.sql
-│   ├── 0002_*.sql                    # Existing schema evolution
+│   ├── 0002_tip_posts.sql
 │   ├── 0003_financial_integrity.sql
 │   ├── 0004_abuse_protection.sql
+│   ├── 0005_operations_dashboard.sql
 │   └── README.md
-├── scripts/
-│   └── validate-migrations.mjs
 ├── src/
 │   ├── bot.ts                         # Telegram bot handlers
 │   ├── config.ts                      # Environment/config validation
@@ -153,16 +154,26 @@ The application keeps the Cloudflare Worker as the primary production path while
 │   ├── fraud.ts                       # Abuse/fraud checks
 │   ├── i18n.ts                        # Localisation
 │   ├── index.ts                       # Node.js runtime
+│   ├── landingPage.ts                 # HTML landing page served by the Worker
 │   ├── logger.ts                      # Audit/application logging
 │   ├── rateLimit.ts                   # Rate limiting
 │   ├── r2.ts                          # R2 media operations
 │   ├── security.ts                    # Request/admin security controls
+│   ├── sqlite-d1.ts                   # D1-compatible SQLite shim for Node.js
+│   ├── storage.ts                     # Storage abstraction (R2/local)
 │   ├── tips.ts                        # Automated free-tip service
 │   ├── types.ts                       # Shared types
 │   ├── utils.ts                       # Shared utilities
 │   └── worker.ts                      # Cloudflare Worker entry point
+├── tests/                             # Vitest regression tests
 ├── deploy.sh                          # Production Cloudflare deployment
 ├── deploy-proot.sh                    # Termux/proot deployment path
+├── setup-termux.sh                    # Termux environment setup
+├── validate-migrations.mjs            # Migration filename/SQL safety validator
+├── metadata.json
+├── .env.example                       # Local Node.js environment template
+├── .gitignore
+├── LICENSE
 ├── package.json
 ├── package-lock.json
 ├── wrangler.toml
@@ -223,7 +234,7 @@ Application configuration is validated centrally by `src/config.ts`.
 
 ### Required production secrets
 
-The Cloudflare Worker currently requires the following secrets when the automated tips feature is enabled:
+`wrangler.toml` declares these as required Worker secrets (see `[secrets].required`):
 
 ```text
 BOT_TOKEN
@@ -233,7 +244,11 @@ ADMIN_API_SECRET
 ODDS_API_KEY
 ```
 
-Configure them with Wrangler:
+`BOT_TOKEN`, `ADMIN_IDS`, `WEBHOOK_SECRET`, and `ADMIN_API_SECRET` are always required. `ODDS_API_KEY` is only functionally required once automated tips are enabled (i.e. once `TIPS_CHANNEL_ID` is also set), but `src/config.ts` fails closed if it is missing while tips are active.
+
+The automated tips feature also depends on `TIPS_CHANNEL_ID`, `TIPS_SPORTS`, and `TIPS_ODDS_REGIONS`. These are configured as plain (non-secret) `[vars]` in `wrangler.toml`, not via `wrangler secret put`.
+
+Configure the secrets with Wrangler:
 
 ```bash
 npx wrangler secret put BOT_TOKEN
@@ -377,9 +392,10 @@ Current migration history includes:
 
 ```text
 0001_initial_schema.sql
-0002_*.sql
+0002_tip_posts.sql
 0003_financial_integrity.sql
 0004_abuse_protection.sql
+0005_operations_dashboard.sql
 ```
 
 ### Rules
@@ -518,10 +534,13 @@ Webhook requests are protected by:
 
 Sensitive endpoints require `ADMIN_API_SECRET` authentication.
 
-Examples include:
+These include:
 
 ```text
 /api/admin/status
+/api/admin/dashboard
+/api/admin/tickets
+/api/admin/schedule
 /api/cleanup/logs/status
 /api/cleanup/logs
 ```
@@ -568,6 +587,9 @@ See:
 | `/register` | Open 1xBet registration flow |
 | `/referrals` | Referral dashboard |
 | `/history` | Transaction history |
+| `/dashboard` | Open your user dashboard |
+| `/ticket` | Create a support ticket |
+| `/safety` | Responsible gaming settings |
 | `/id` | Show Telegram ID |
 | `/language` | Change language |
 | `/help` | Help and support |
@@ -800,6 +822,7 @@ Do not commit:
 | [`docs/security-phase1.md`](docs/security-phase1.md) | Core security hardening |
 | [`docs/deployment-safety-phase2.md`](docs/deployment-safety-phase2.md) | CI/CD and deployment safety |
 | [`docs/phase3-financial-integrity.md`](docs/phase3-financial-integrity.md) | Financial integrity and tip reliability |
+| [`docs/free-tips.md`](docs/free-tips.md) | Automated free-tips feature reference |
 | [`docs/security-phase4.md`](docs/security-phase4.md) | Telegram abuse and transaction protection |
 | [`docs/phase4-cloudflare-edge-protection.md`](docs/phase4-cloudflare-edge-protection.md) | Cloudflare edge protection runbook |
 
