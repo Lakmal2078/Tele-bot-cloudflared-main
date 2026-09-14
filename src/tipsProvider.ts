@@ -102,7 +102,7 @@ export async function checkTipsProvider(env: Env): Promise<TipsProviderStatus> {
           group,
           title: sport.title || sport.key,
           description: sport.description || "",
-          active: sport.active !== false,
+          active: true,
         });
       }
     }
