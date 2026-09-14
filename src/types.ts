@@ -48,8 +48,10 @@ export interface Env {
   TIPS_CHANNEL_URL?: string;
   /** The Odds API secret; set with `wrangler secret put ODDS_API_KEY`. */
   ODDS_API_KEY?: string;
-  /** Comma-separated The Odds API sport keys, tried in order until a suitable event is found. */
+  /** Comma-separated The Odds API sport keys, tried in parallel. */
   TIPS_SPORTS?: string;
+  /** Number of best qualifying picks to publish per scheduled slot. */
+  TIPS_PER_SLOT?: string;
   /** Comma-separated bookmaker regions, e.g. uk,eu. */
   TIPS_ODDS_REGIONS?: string;
   TIPS_MIN_ODDS?: string;
@@ -88,7 +90,7 @@ export interface DepositRow {
   user_id: number;
   username: string | null;
   player_id: string;
-  amount: number;  // LKR (major units) after conversion from cents
+  amount: number;
   payment_method: string;
   photo_file_id: string | null;
   r2_url: string | null;
@@ -102,7 +104,7 @@ export interface WithdrawalRow {
   user_id: number;
   username: string | null;
   player_id: string;
-  amount: number;  // LKR (major units) after conversion from cents
+  amount: number;
   payment_method: string;
   destination_account: string | null;
   security_code: string | null;
@@ -126,17 +128,17 @@ export interface SystemStats {
   todayWithdrawalsVolume: number;
 }
 
-/** Permanent audit-trail record of an admin approve/reject decision (see admin_actions table). */
+/** Permanent audit-trail record of an admin approve/reject decision. */
 export interface AdminActionRow {
   id: number;
   admin_id: number;
   admin_username: string | null;
-  action: string; // e.g. 'DEPOSIT_APPROVED', 'WITHDRAWAL_REJECTED'
+  action: string;
   target_type: "DEPOSIT" | "WITHDRAWAL";
   target_id: number;
   target_user_id: number | null;
-  amount: number | null; // LKR major units after conversion from cents
-  details: string | null; // JSON string
+  amount: number | null;
+  details: string | null;
   created_at: string;
 }
 
