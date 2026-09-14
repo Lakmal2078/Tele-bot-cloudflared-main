@@ -34,7 +34,7 @@
  */
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join, basename, dirname } from "node:path";
+import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -81,8 +81,10 @@ function findMigrationsDir() {
 
 // ── Destructive statement detection ───────────────────────────────────────
 // Patterns are matched per SQL statement (case-insensitive), with comments
-// stripped first. Full-table DELETE/UPDATE are flagged only when no WHERE
-// clause exists in the statement.
+// stripped first. Full-table DELETE/UPDATE are flagged only when an actual
+// top-level DELETE/UPDATE statement has no WHERE clause. SQL trigger clauses
+// such as `AFTER UPDATE OF status` are not data-update statements and must
+// not be reported as full-table backfills.
 const BREAKING_PATTERNS = [
   { pattern: /\bDROP\s+TABLE\b/i, label: "DROP TABLE" },
   { pattern: /\bDROP\s+COLUMN\b/i, label: "DROP COLUMN" },
@@ -114,6 +116,14 @@ function hasWhereClause(statement) {
   return /\bWHERE\b/i.test(statement);
 }
 
+function isTopLevelUpdate(statement) {
+  return /^UPDATE\s+/i.test(statement.trim());
+}
+
+function isTopLevelDelete(statement) {
+  return /^DELETE\s+FROM\s+/i.test(statement.trim());
+}
+
 function validateStatement(statement, file, errors, warnings) {
   for (const { pattern, label } of BREAKING_PATTERNS) {
     if (pattern.test(statement)) {
@@ -123,14 +133,14 @@ function validateStatement(statement, file, errors, warnings) {
   }
 
   // Full-table DELETE without WHERE — data loss risk, always an error.
-  if (/\bDELETE\s+FROM\b/i.test(statement) && !hasWhereClause(statement)) {
+  if (isTopLevelDelete(statement) && !hasWhereClause(statement)) {
     errors.push(`${file}: full-table DELETE without WHERE clause`);
   }
 
-  // Full-table UPDATE without WHERE — common for backfills (e.g. setting a
-  // newly added column to a default value). Not schema-breaking and does not
-  // break deployed code, so it is a warning, not an error.
-  if (/\bUPDATE\b/i.test(statement) && !hasWhereClause(statement)) {
+  // Only a real top-level UPDATE statement is considered a backfill.
+  // Clauses such as `AFTER UPDATE OF status` inside CREATE TRIGGER statements
+  // are schema definitions, not full-table updates.
+  if (isTopLevelUpdate(statement) && !hasWhereClause(statement)) {
     warnings.push(`${file}: full-table UPDATE without WHERE clause (backfill?)`);
   }
 }
@@ -145,7 +155,7 @@ try {
     .filter((f) => f.endsWith(".sql"))
     .sort();
 } catch {
-  console.error(`[ERROR] migrations directory not found: ${migrationsDir}`);
+  console.error(`[ERROR] migrations directory not found: ${migrationsDir}/`);
   process.exit(1);
 }
 
