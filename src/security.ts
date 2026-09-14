@@ -22,11 +22,24 @@ export function securityHeaders(): Record<string, string> {
   };
 }
 
-/** HTML-only headers; the landing page intentionally embeds its CSS inline. */
+/**
+ * HTML-only headers; the landing page intentionally embeds its CSS/JS inline
+ * (no external script host, so 'unsafe-inline' script-src is required for the
+ * language switcher / promo-copy button to run at all) and loads the Sinhala
+ * webfont + a data-URI favicon from a tightly scoped allowlist.
+ */
 export function landingPageSecurityHeaders(): Record<string, string> {
   return {
     ...securityHeaders(),
-    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",
+    "Content-Security-Policy":
+      "default-src 'none'; " +
+      "script-src 'unsafe-inline'; " +
+      "style-src 'unsafe-inline' https://fonts.googleapis.com; " +
+      "font-src https://fonts.gstatic.com; " +
+      "img-src data:; " +
+      "base-uri 'none'; " +
+      "form-action 'none'; " +
+      "frame-ancestors 'none'",
   };
 }
 
