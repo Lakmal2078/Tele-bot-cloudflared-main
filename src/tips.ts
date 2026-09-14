@@ -219,7 +219,7 @@ async function claimTipSlot(env: Env, scheduledKey: string, slot: string): Promi
 
   // INSERT OR IGNORE is critical: overlapping cron invocations must never turn the
   // unique-key conflict into a failure that marks another invocation's row FAILED.
-  await env.DB.prepare(
+  const insertResult = await env.DB.prepare(
     `INSERT OR IGNORE INTO tip_posts
       (scheduled_key, slot_time, status, lease_token, lease_expires_at, attempt_count, created_at, updated_at)
      VALUES (?, ?, 'PROCESSING', ?, datetime('now', '+${TIP_LEASE_MINUTES} minutes'), 1, datetime('now'), datetime('now'))`
@@ -233,10 +233,16 @@ async function claimTipSlot(env: Env, scheduledKey: string, slot: string): Promi
   if (!row) throw new Error("Tip slot record could not be created or loaded");
   if (row.status === "POSTED") return { claimed: false, id: row.id, leaseToken };
 
+  // ★ FIX: If we just created this row, we own the lease — proceed immediately.
+  const insertChanges = insertResult.meta?.changes ?? 0;
+  if (insertChanges > 0) return { claimed: true, id: row.id, leaseToken };
+
+  // Existing row — check if the lease is still active.
   if (row.status === "PROCESSING" && row.lease_expires_at && row.lease_expires_at > new Date().toISOString().replace("T", " ").slice(0, 19)) {
     return { claimed: false, id: row.id, leaseToken };
   }
 
+  // Lease expired or status is FAILED — reclaim.
   const result = await env.DB.prepare(
     `UPDATE tip_posts
         SET status='PROCESSING', lease_token=?, lease_expires_at=datetime('now', '+${TIP_LEASE_MINUTES} minutes'),
@@ -249,73 +255,68 @@ async function claimTipSlot(env: Env, scheduledKey: string, slot: string): Promi
   return { claimed: changes > 0, id: row.id, leaseToken };
 }
 
-export async function runScheduledTip(env: Env, cron: string): Promise<{ status: string; slot: string }> {
-  if (!SLOT_CRONS.has(cron)) return { status: "ignored", slot: "" };
-  if (!env.TIPS_CHANNEL_ID) throw new Error("TIPS_CHANNEL_ID is not configured");
+async function markTipPosted(env: Env, id: number, selection: string, odds: number, telegramMessageId: number | null): Promise<void> {
+  await env.DB.prepare(
+    `UPDATE tip_posts
+        SET status='POSTED', selection=?, odds=?, telegram_message_id=?, posted_at=datetime('now'),
+            error=NULL, lease_token=NULL, lease_expires_at=NULL, updated_at=datetime('now')
+      WHERE id=?`
+  ).bind(selection, odds, telegramMessageId, id).run();
+}
 
-  const slot = slotForCron(cron)!;
+async function markTipFailed(env: Env, id: number, error: string): Promise<void> {
+  await env.DB.prepare(
+    `UPDATE tip_posts
+        SET status='FAILED', error=?, lease_token=NULL, lease_expires_at=NULL, updated_at=datetime('now')
+      WHERE id=? AND status <> 'POSTED'`
+  ).bind(error, id).run();
+}
+
+export async function runScheduledTip(env: Env, cron: string): Promise<void> {
+  const slot = slotForCron(cron);
+  if (!slot) return; // Not a tip cron — let other scheduled logic handle it.
+
   const scheduledKey = `${sriLankaDate()}:${slot}`;
-  const claim = await claimTipSlot(env, scheduledKey, slot);
-  if (!claim.claimed) {
-    const row = await env.DB.prepare(`SELECT status FROM tip_posts WHERE id = ?`).bind(claim.id).first<{ status: string }>();
-    return { status: row?.status === "POSTED" ? "already_posted" : "processing", slot };
+
+  let claim: { claimed: boolean; id: number; leaseToken: string };
+  try {
+    claim = await claimTipSlot(env, scheduledKey, slot);
+  } catch (error) {
+    console.error(`[Tips] claimTipSlot failed for ${scheduledKey}:`, error instanceof Error ? error.message : error);
+    return;
   }
+
+  if (!claim.claimed) {
+    console.log(`[Tips] Slot ${scheduledKey} already claimed or posted — skipping.`);
+    return;
+  }
+
+  const joinUrl = env.TIPS_CHANNEL_URL || undefined;
 
   try {
-    const joinUrl = env.TIPS_CHANNEL_URL || (env.TIPS_CHANNEL_ID.startsWith("@") ? `https://t.me/${env.TIPS_CHANNEL_ID.slice(1)}` : undefined);
-    let candidate: TipCandidate;
+    let message: string;
+    let selection = "";
+    let odds = 0;
+
     try {
-      candidate = await fetchCandidate(env);
-    } catch (candidateError) {
-      const reason = candidateError instanceof Error ? candidateError.message : String(candidateError);
-      const fallbackMessage = formatFallbackTip(slot, joinUrl);
-      const messageId = await postTelegramMessage(env, fallbackMessage);
-      const fallbackUpdated = await env.DB.prepare(
-        `UPDATE tip_posts
-            SET status='POSTED', market='fallback', selection='NO_QUALIFYING_TIP', message_id=?, posted_at=datetime('now'),
-                updated_at=datetime('now'), lease_token=NULL, lease_expires_at=NULL, error=NULL
-          WHERE scheduled_key=? AND lease_token=?`
-      ).bind(messageId, scheduledKey, claim.leaseToken).run();
-      const fallbackChanges = fallbackUpdated.meta?.changes ?? (fallbackUpdated.success ? 1 : 0);
-      if (fallbackChanges === 0) {
-        console.error(`[Tips] Fallback message sent but lease ownership was lost for ${scheduledKey}`);
-        return { status: "sent_unconfirmed", slot };
-      }
-      console.warn(`[Tips] Published fallback for ${scheduledKey}: ${reason}`);
-      return { status: "fallback_posted", slot };
-    }
-    const message = formatTip(candidate, slot, joinUrl);
-    const messageId = await postTelegramMessage(env, message);
-
-    const updated = await env.DB.prepare(
-      `UPDATE tip_posts
-          SET status='POSTED', event_id=?, sport_key=?, sport_title=?, home_team=?, away_team=?, commence_time=?,
-              market=?, selection=?, odds=?, message_id=?, posted_at=datetime('now'), updated_at=datetime('now'),
-              lease_token=NULL, lease_expires_at=NULL, error=NULL
-        WHERE scheduled_key=? AND lease_token=?`
-    ).bind(
-      candidate.event.id, candidate.event.sport_key, candidate.event.sport_title, candidate.event.home_team,
-      candidate.event.away_team, candidate.event.commence_time, candidate.market, candidate.selection,
-      candidate.averageOdds, messageId, scheduledKey, claim.leaseToken
-    ).run();
-
-    const changes = updated.meta?.changes ?? (updated.success ? 1 : 0);
-    if (changes === 0) {
-      // Do not overwrite another worker's ownership. The Telegram message was sent,
-      // so the slot is deliberately left for operational reconciliation instead of
-      // being marked FAILED and retried blindly.
-      console.error(`[Tips] Telegram send succeeded but lease ownership was lost for ${scheduledKey}`);
-      return { status: "sent_unconfirmed", slot };
+      const candidate = await fetchCandidate(env);
+      selection = candidate.selection;
+      odds = candidate.averageOdds;
+      message = formatTip(candidate, slot, joinUrl);
+    } catch (fetchError) {
+      console.warn(`[Tips] fetchCandidate failed for ${scheduledKey}:`, fetchError instanceof Error ? fetchError.message : fetchError);
+      message = formatFallbackTip(slot, joinUrl);
     }
 
-    return { status: "posted", slot };
+    const telegramMessageId = await postTelegramMessage(env, message);
+    await markTipPosted(env, claim.id, selection, odds, telegramMessageId);
+    console.log(`[Tips] Posted tip for ${scheduledKey} (msg ${telegramMessageId})`);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    await env.DB.prepare(
-      `UPDATE tip_posts
-          SET status='FAILED', error=?, updated_at=datetime('now'), lease_token=NULL, lease_expires_at=NULL
-        WHERE scheduled_key=? AND lease_token=?`
-    ).bind(message.slice(0, 1000), scheduledKey, claim.leaseToken).run();
-    throw error;
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`[Tips] runScheduledTip failed for ${scheduledKey}:`, errorMsg);
+    await markTipFailed(env, claim.id, errorMsg).catch((e) =>
+      console.error(`[Tips] markTipFailed also failed:`, e instanceof Error ? e.message : e)
+    );
   }
 }
+
