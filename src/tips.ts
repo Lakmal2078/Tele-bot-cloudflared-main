@@ -1,4 +1,4 @@
-import type { Env } from "./types";
+Import type { Env } from "./types";
 
 const ODDS_API_BASE = "https://api.the-odds-api.com/v4";
 const SLOT_CRONS = new Set(["30 2 * * *", "30 6 * * *", "30 12 * * *"]);
@@ -217,8 +217,6 @@ async function postTelegramMessage(env: Env, message: string): Promise<number | 
 async function claimTipSlot(env: Env, scheduledKey: string, slot: string): Promise<{ claimed: boolean; id: number; leaseToken: string }> {
   const leaseToken = crypto.randomUUID();
 
-  // INSERT OR IGNORE is critical: overlapping cron invocations must never turn the
-  // unique-key conflict into a failure that marks another invocation's row FAILED.
   const insertResult = await env.DB.prepare(
     `INSERT OR IGNORE INTO tip_posts
       (scheduled_key, slot_time, status, lease_token, lease_expires_at, attempt_count, created_at, updated_at)
@@ -233,16 +231,13 @@ async function claimTipSlot(env: Env, scheduledKey: string, slot: string): Promi
   if (!row) throw new Error("Tip slot record could not be created or loaded");
   if (row.status === "POSTED") return { claimed: false, id: row.id, leaseToken };
 
-  // ★ FIX: If we just created this row, we own the lease — proceed immediately.
   const insertChanges = insertResult.meta?.changes ?? 0;
   if (insertChanges > 0) return { claimed: true, id: row.id, leaseToken };
 
-  // Existing row — check if the lease is still active.
   if (row.status === "PROCESSING" && row.lease_expires_at && row.lease_expires_at > new Date().toISOString().replace("T", " ").slice(0, 19)) {
     return { claimed: false, id: row.id, leaseToken };
   }
 
-  // Lease expired or status is FAILED — reclaim.
   const result = await env.DB.prepare(
     `UPDATE tip_posts
         SET status='PROCESSING', lease_token=?, lease_expires_at=datetime('now', '+${TIP_LEASE_MINUTES} minutes'),
@@ -272,9 +267,9 @@ async function markTipFailed(env: Env, id: number, error: string): Promise<void>
   ).bind(error, id).run();
 }
 
-export async function runScheduledTip(env: Env, cron: string): Promise<void> {
+export async function runScheduledTip(env: Env, cron: string): Promise<{ status: string; slot: string }> {
   const slot = slotForCron(cron);
-  if (!slot) return; // Not a tip cron — let other scheduled logic handle it.
+  if (!slot) return { status: "skipped", slot: "" };
 
   const scheduledKey = `${sriLankaDate()}:${slot}`;
 
@@ -283,12 +278,12 @@ export async function runScheduledTip(env: Env, cron: string): Promise<void> {
     claim = await claimTipSlot(env, scheduledKey, slot);
   } catch (error) {
     console.error(`[Tips] claimTipSlot failed for ${scheduledKey}:`, error instanceof Error ? error.message : error);
-    return;
+    return { status: "claim_failed", slot };
   }
 
   if (!claim.claimed) {
     console.log(`[Tips] Slot ${scheduledKey} already claimed or posted — skipping.`);
-    return;
+    return { status: "already_claimed", slot };
   }
 
   const joinUrl = env.TIPS_CHANNEL_URL || undefined;
@@ -311,12 +306,14 @@ export async function runScheduledTip(env: Env, cron: string): Promise<void> {
     const telegramMessageId = await postTelegramMessage(env, message);
     await markTipPosted(env, claim.id, selection, odds, telegramMessageId);
     console.log(`[Tips] Posted tip for ${scheduledKey} (msg ${telegramMessageId})`);
+    return { status: "posted", slot };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error(`[Tips] runScheduledTip failed for ${scheduledKey}:`, errorMsg);
     await markTipFailed(env, claim.id, errorMsg).catch((e) =>
       console.error(`[Tips] markTipFailed also failed:`, e instanceof Error ? e.message : e)
     );
+    return { status: "failed", slot };
   }
 }
 
