@@ -3,17 +3,18 @@ import { timingSafeEqual } from "node:crypto";
 import { webhookCallback } from "grammy";
 import { createBot } from "./bot";
 import { createD1Database } from "./sqlite-d1";
-import { getStats } from "./db";
+import { getStats, getOperationsDashboard, getSupportTickets, updateSupportTicket, createScheduledChannelPost } from "./db";
 import { logBotError } from "./logger";
 import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
-import { assertValidEnv } from "./config";
-import { adminAttemptAllowedNode, recordAdminFailureNode } from "./security";
+import { validateEnv } from "./config";
+import { adminAttemptAllowedNode, recordAdminFailureNode, landingPageSecurityHeaders } from "./security";
+import { renderLandingPage } from "./landingPage";
 import type { Env } from "./types";
 
 try {
   if (typeof (process as any).loadEnvFile === "function") (process as any).loadEnvFile();
 } catch {
-  // .env is optional for the loader; strict validation below remains mandatory.
+  // .env is optional for the loader; validation below remains non-fatal for dev preview.
 }
 
 const PORT = 3000;
@@ -55,7 +56,11 @@ const env: Env = {
   FRIMI_NUMBER: process.env.FRIMI_NUMBER || "",
 };
 
-assertValidEnv(env, "Node runtime");
+const envErrors = validateEnv(env);
+if (envErrors.length > 0) {
+  console.warn(`[XBet Bot Server] Environment note:\n- ${envErrors.join("\n- ")}`);
+  console.warn("[XBet Bot Server] Running in preview showcase mode. Provide credentials in environment settings to enable live bot polling.");
+}
 
 const usePolling =
   process.env.USE_POLLING === "true" ||
@@ -65,29 +70,37 @@ const usePolling =
 let bot: ReturnType<typeof createBot> | null = null;
 let webhookHandler: ((req: http.IncomingMessage, res: http.ServerResponse) => Promise<unknown>) | null = null;
 
-bot = createBot(env);
-if (usePolling) {
-  bot.api
-    .deleteWebhook({ drop_pending_updates: false })
-    .then(() => {
-      console.log("[Bot] Cleared existing webhook; Telegram updates will be received via Long Polling.");
-    })
-    .catch((err) => console.warn("[Bot] Notice deleting webhook:", err?.message || err))
-    .finally(() => {
-      if (!bot) return;
-      bot
-        .start({
-          drop_pending_updates: false,
-          onStart: (botInfo) => {
-            console.log(`[Bot] Long Polling started successfully as @${botInfo.username}`);
-          },
+if (env.BOT_TOKEN && env.BOT_TOKEN.trim().length > 0) {
+  try {
+    bot = createBot(env);
+    if (usePolling) {
+      bot.api
+        .deleteWebhook({ drop_pending_updates: false })
+        .then(() => {
+          console.log("[Bot] Cleared existing webhook; Telegram updates will be received via Long Polling.");
         })
-        .catch((err) => console.error("[Bot] Long Polling error:", err));
-    });
+        .catch((err) => console.warn("[Bot] Notice deleting webhook:", err?.message || err))
+        .finally(() => {
+          if (!bot) return;
+          bot
+            .start({
+              drop_pending_updates: false,
+              onStart: (botInfo) => {
+                console.log(`[Bot] Long Polling started successfully as @${botInfo.username}`);
+              },
+            })
+            .catch((err) => console.error("[Bot] Long Polling error:", err));
+        });
+    } else {
+      webhookHandler = webhookCallback(bot, "http", {
+        secretToken: env.WEBHOOK_SECRET,
+      });
+    }
+  } catch (err) {
+    console.error("[Bot] Could not initialize bot with provided token:", err);
+  }
 } else {
-  webhookHandler = webhookCallback(bot, "http", {
-    secretToken: env.WEBHOOK_SECRET,
-  });
+  console.log("[Bot] BOT_TOKEN not configured. Live Telegram bot polling is standby; Web showcase and APIs active.");
 }
 
 function isAuthorizedAdminRequest(req: http.IncomingMessage): boolean {
@@ -175,6 +188,96 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (url === "/api/admin/dashboard" && (method === "GET" || method === "HEAD")) {
+    if (!adminAuthorized(req)) {
+      writeJson(res, { ok: false, error: "Unauthorized" }, 401);
+      return;
+    }
+    if (method === "HEAD") {
+      res.writeHead(200, { "Cache-Control": "no-store" });
+      res.end();
+      return;
+    }
+    try {
+      const dashboard = await getOperationsDashboard(env.DB);
+      writeJson(res, { ok: true, ...dashboard });
+    } catch (error) {
+      console.error("[Admin Dashboard] query failed", error);
+      writeJson(res, { ok: false, error: "Dashboard data unavailable" }, 503);
+    }
+    return;
+  }
+
+  if (url === "/api/admin/tickets") {
+    if (!adminAuthorized(req)) {
+      writeJson(res, { ok: false, error: "Unauthorized" }, 401);
+      return;
+    }
+    if (method === "GET") {
+      const parsedUrl = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+      const status = parsedUrl.searchParams.get("status") as "OPEN" | "PENDING" | "CLOSED" | null;
+      const tickets = await getSupportTickets(env.DB, status || undefined);
+      writeJson(res, { ok: true, tickets });
+      return;
+    }
+    if (method === "PATCH") {
+      let body = "";
+      req.on("data", (chunk) => { body += chunk; });
+      req.on("end", async () => {
+        try {
+          const parsed = JSON.parse(body || "{}");
+          if (!parsed.id || !parsed.status || !parsed.adminId) {
+            writeJson(res, { ok: false, error: "id, status and adminId are required" }, 400);
+            return;
+          }
+          const updated = await updateSupportTicket(env.DB, parsed.id, parsed.status, parsed.reply || null, parsed.adminId);
+          writeJson(res, { ok: updated }, updated ? 200 : 404);
+        } catch {
+          writeJson(res, { ok: false, error: "Invalid JSON" }, 400);
+        }
+      });
+      return;
+    }
+    writeJson(res, { ok: false, error: "Method Not Allowed" }, 405);
+    return;
+  }
+
+  if (url === "/api/admin/schedule") {
+    if (!adminAuthorized(req)) {
+      writeJson(res, { ok: false, error: "Unauthorized" }, 401);
+      return;
+    }
+    if (method !== "POST") {
+      writeJson(res, { ok: false, error: "Method Not Allowed" }, 405);
+      return;
+    }
+    let body = "";
+    req.on("data", (chunk) => { body += chunk; });
+    req.on("end", async () => {
+      try {
+        const parsed = JSON.parse(body || "{}");
+        if (!parsed.title || !parsed.body || !parsed.scheduledFor || !parsed.createdBy) {
+          writeJson(res, { ok: false, error: "title, body, scheduledFor and createdBy are required" }, 400);
+          return;
+        }
+        const id = await createScheduledChannelPost(env.DB, {
+          title: parsed.title,
+          body: parsed.body,
+          mediaUrl: parsed.mediaUrl,
+          ctaText: parsed.ctaText,
+          ctaUrl: parsed.ctaUrl,
+          language: parsed.language,
+          scheduledFor: parsed.scheduledFor,
+          createdBy: parsed.createdBy,
+        });
+        writeJson(res, { ok: true, id }, 201);
+      } catch {
+        writeJson(res, { ok: false, error: "Invalid JSON" }, 400);
+      }
+    });
+    return;
+  }
+
   if (url === "/api/cleanup/logs" && method === "POST") {
     if (!adminAuthorized(req)) {
       writeJson(res, { ok: false, error: "Unauthorized" }, 401);
@@ -230,6 +333,28 @@ const server = http.createServer(async (req, res) => {
         context: { flow: "node_http_webhook" },
       });
       if (!res.writableEnded) writeJson(res, { ok: true });
+    }
+    return;
+  }
+
+  // HTML landing page for all web browsers and preview frames
+  if (method === "GET" || method === "HEAD") {
+    const host = req.headers.host || `localhost:${PORT}`;
+    const fullUrl = `http://${host}${req.url || "/"}`;
+    const webReq = new Request(fullUrl, {
+      method,
+      headers: req.headers as Record<string, string>,
+    });
+    const html = renderLandingPage(env, webReq);
+    const headers = landingPageSecurityHeaders();
+    res.writeHead(200, {
+      "Content-Type": "text/html; charset=utf-8",
+      ...headers,
+    });
+    if (method === "HEAD") {
+      res.end();
+    } else {
+      res.end(html);
     }
     return;
   }

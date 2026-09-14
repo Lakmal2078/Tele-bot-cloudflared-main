@@ -4,7 +4,7 @@ import type { Env, SystemStats } from "./types";
 import * as db from "./db";
 import { t, Language, PaymentMethod, PAYMENT_METHOD_NAMES } from "./i18n";
 import { backupReceiptToR2, R2FileMetadata } from "./r2";
-import { escapeMarkdown, escapeCode } from "./utils";
+import { escapeMarkdown, escapeCode, getTransactionLimits, validateTransactionAmount } from "./utils";
 import { logTransactionAudit, logBotError } from "./logger";
 import { cleanupOldR2Logs } from "./logCleanup";
 import * as fraud from "./fraud";
@@ -51,18 +51,32 @@ function cancelKeyboard(lang: Language = "si") {
   return new InlineKeyboard().text(dict.cancelBtn, "cancel_flow");
 }
 
-function quickAmountKeyboard(prefix: "dep_amt" | "wd_amt", lang: Language = "si") {
+function quickAmountKeyboard(
+  prefix: "dep_amt" | "wd_amt",
+  lang: Language = "si",
+  min = 1000,
+  max = 100000
+) {
   const dict = t(lang);
-  return new InlineKeyboard()
-    .text("1,000", `${prefix}:1000`)
-    .text("2,000", `${prefix}:2000`)
-    .text("5,000", `${prefix}:5000`)
-    .row()
-    .text("10,000", `${prefix}:10000`)
-    .text("25,000", `${prefix}:25000`)
-    .text("50,000", `${prefix}:50000`)
-    .row()
-    .text(dict.cancelBtn, "cancel_flow");
+  const presets = [1000, 2000, 5000, 10000, 25000, 50000];
+  const validPresets = presets.filter((amt) => amt >= min && amt <= max);
+
+  const kb = new InlineKeyboard();
+  let rowCount = 0;
+  for (let i = 0; i < validPresets.length; i++) {
+    const amt = validPresets[i];
+    kb.text(amt.toLocaleString(), `${prefix}:${amt}`);
+    rowCount++;
+    if (rowCount === 3 && i !== validPresets.length - 1) {
+      kb.row();
+      rowCount = 0;
+    }
+  }
+  if (validPresets.length > 0) {
+    kb.row();
+  }
+  kb.text(dict.cancelBtn, "cancel_flow");
+  return kb;
 }
 
 function languageKeyboard() {
@@ -1275,12 +1289,33 @@ export function createBot(env: Env) {
     if (data.startsWith("dep_amt:")) {
       const state = await db.getUserState(env.DB, user.id);
       if (state && (state.state === "deposit_amount" || state.state === "confirm_deposit_amount")) {
-        const amount = parseFloat(data.split(":")[1]);
-        const min = parseFloat(env.MIN_TRANSACTION_LKR);
-        const max = parseFloat(env.MAX_TRANSACTION_LKR);
-        if (amount >= min && amount <= max) {
-          const { photo, playerId, method = "BANK", isConfirmationWorkflow = false } = state.data;
-          const methodName = getMethodDisplayName(method, lang);
+        const rawAmount = data.split(":")[1];
+        const { min, max } = getTransactionLimits(env);
+        const validation = validateTransactionAmount(rawAmount, min, max);
+
+        if (!validation.valid) {
+          if (validation.error === "BELOW_MIN") {
+            await ctx.reply(dict.amountBelowMin(min), {
+              parse_mode: "Markdown",
+              reply_markup: cancelKeyboard(lang),
+            });
+          } else if (validation.error === "ABOVE_MAX") {
+            await ctx.reply(dict.amountAboveMax(max), {
+              parse_mode: "Markdown",
+              reply_markup: cancelKeyboard(lang),
+            });
+          } else {
+            await ctx.reply(dict.invalidAmount, {
+              parse_mode: "Markdown",
+              reply_markup: cancelKeyboard(lang),
+            });
+          }
+          return;
+        }
+
+        const amount = validation.amount;
+        const { photo, playerId, method = "BANK", isConfirmationWorkflow = false } = state.data;
+        const methodName = getMethodDisplayName(method, lang);
 
           // 🛡️ Rate limit: block rapid repeated deposit submissions from the same user
           const depRateCheck = await fraud.checkRateLimit(env.DB, user.id, "deposits");
@@ -1414,23 +1449,42 @@ export function createBot(env: Env) {
           return;
         }
       }
-    }
 
     // Quick Amount selection for Withdrawal
     if (data.startsWith("wd_amt:")) {
       const state = await db.getUserState(env.DB, user.id);
       if (state && state.state === "withdraw_amount") {
-        const amount = parseFloat(data.split(":")[1]);
-        const min = parseFloat(env.MIN_TRANSACTION_LKR);
-        const max = parseFloat(env.MAX_TRANSACTION_LKR);
-        if (amount >= min && amount <= max) {
-          await db.setUserState(env.DB, user.id, "withdraw_code", { ...state.data, amount });
-          await ctx.reply(dict.withdrawStepCode(amount), {
-            parse_mode: "Markdown",
-            reply_markup: cancelKeyboard(lang),
-          });
+        const rawAmount = data.split(":")[1];
+        const { min, max } = getTransactionLimits(env);
+        const validation = validateTransactionAmount(rawAmount, min, max);
+
+        if (!validation.valid) {
+          if (validation.error === "BELOW_MIN") {
+            await ctx.reply(dict.amountBelowMin(min), {
+              parse_mode: "Markdown",
+              reply_markup: cancelKeyboard(lang),
+            });
+          } else if (validation.error === "ABOVE_MAX") {
+            await ctx.reply(dict.amountAboveMax(max), {
+              parse_mode: "Markdown",
+              reply_markup: cancelKeyboard(lang),
+            });
+          } else {
+            await ctx.reply(dict.invalidAmount, {
+              parse_mode: "Markdown",
+              reply_markup: cancelKeyboard(lang),
+            });
+          }
           return;
         }
+
+        const amount = validation.amount;
+        await db.setUserState(env.DB, user.id, "withdraw_code", { ...state.data, amount });
+        await ctx.reply(dict.withdrawStepCode(amount), {
+          parse_mode: "Markdown",
+          reply_markup: cancelKeyboard(lang),
+        });
+        return;
       }
     }
 
@@ -1550,8 +1604,7 @@ export function createBot(env: Env) {
     }
 
     if (data === "faq:limits") {
-      const min = parseFloat(env.MIN_TRANSACTION_LKR || "1000");
-      const max = parseFloat(env.MAX_TRANSACTION_LKR || "100000");
+      const { min, max } = getTransactionLimits(env);
       const text = dict.faqAnsLimits(min, max);
       const kb = new InlineKeyboard()
         .text(dict.btnDeposit, "deposit")
@@ -1574,8 +1627,7 @@ export function createBot(env: Env) {
     }
 
     if (data === "faq:deposit") {
-      const min = parseFloat(env.MIN_TRANSACTION_LKR || "1000");
-      const max = parseFloat(env.MAX_TRANSACTION_LKR || "100000");
+      const { min, max } = getTransactionLimits(env);
       const text = dict.faqAnsDeposit(min, max);
       const kb = new InlineKeyboard()
         .text(dict.btnDeposit, "deposit")
@@ -2264,8 +2316,7 @@ export function createBot(env: Env) {
         return;
       }
 
-      const min = parseFloat(env.MIN_TRANSACTION_LKR || "1000");
-      const max = parseFloat(env.MAX_TRANSACTION_LKR || "100000");
+      const { min, max } = getTransactionLimits(env);
       const promo = escapeCode(env.XBET_PROMO_CODE || "VGSL");
       const link = env.XBET_LINK || "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622";
 
@@ -2582,11 +2633,10 @@ export function createBot(env: Env) {
           ? "confirm_deposit_amount"
           : "deposit_amount";
       await db.setUserState(env.DB, user.id, nextState, { ...state.data, playerId });
-      const min = parseFloat(env.MIN_TRANSACTION_LKR);
-      const max = parseFloat(env.MAX_TRANSACTION_LKR);
+      const { min, max } = getTransactionLimits(env);
       await ctx.reply(dict.depositStepAmount(playerId, min, max), {
         parse_mode: "Markdown",
-        reply_markup: quickAmountKeyboard("dep_amt", lang),
+        reply_markup: quickAmountKeyboard("dep_amt", lang, min, max),
       });
       return;
     }
@@ -2596,35 +2646,30 @@ export function createBot(env: Env) {
       (state.state === "deposit_amount" || state.state === "confirm_deposit_amount") &&
       ctx.message.text
     ) {
-      const textAmount = ctx.message.text.trim().replace(/,/g, "");
-      const isValidNumber = /^\d+(\.\d{1,2})?$/.test(textAmount);
-      const amount = parseFloat(textAmount);
-      const min = parseFloat(env.MIN_TRANSACTION_LKR);
-      const max = parseFloat(env.MAX_TRANSACTION_LKR);
+      const { min, max } = getTransactionLimits(env);
+      const validation = validateTransactionAmount(ctx.message.text, min, max);
 
-      if (!isValidNumber || isNaN(amount) || amount <= 0) {
-        await ctx.reply(dict.invalidAmount, {
-          parse_mode: "Markdown",
-          reply_markup: cancelKeyboard(lang),
-        });
+      if (!validation.valid) {
+        if (validation.error === "BELOW_MIN") {
+          await ctx.reply(dict.amountBelowMin(min), {
+            parse_mode: "Markdown",
+            reply_markup: cancelKeyboard(lang),
+          });
+        } else if (validation.error === "ABOVE_MAX") {
+          await ctx.reply(dict.amountAboveMax(max), {
+            parse_mode: "Markdown",
+            reply_markup: cancelKeyboard(lang),
+          });
+        } else {
+          await ctx.reply(dict.invalidAmount, {
+            parse_mode: "Markdown",
+            reply_markup: cancelKeyboard(lang),
+          });
+        }
         return;
       }
 
-      if (amount < min) {
-        await ctx.reply(dict.amountBelowMin(min), {
-          parse_mode: "Markdown",
-          reply_markup: cancelKeyboard(lang),
-        });
-        return;
-      }
-
-      if (amount > max) {
-        await ctx.reply(dict.amountAboveMax(max), {
-          parse_mode: "Markdown",
-          reply_markup: cancelKeyboard(lang),
-        });
-        return;
-      }
+      const amount = validation.amount;
 
       const { photo, playerId, method = "BANK", isConfirmationWorkflow = false } = state.data;
       const methodName = getMethodDisplayName(method, lang);
@@ -2798,46 +2843,40 @@ export function createBot(env: Env) {
         ...state.data,
         playerId,
       });
-      const min = parseFloat(env.MIN_TRANSACTION_LKR);
-      const max = parseFloat(env.MAX_TRANSACTION_LKR);
+      const { min, max } = getTransactionLimits(env);
       await ctx.reply(dict.withdrawStepAmount(playerId, min, max), {
         parse_mode: "Markdown",
-        reply_markup: quickAmountKeyboard("wd_amt", lang),
+        reply_markup: quickAmountKeyboard("wd_amt", lang, min, max),
       });
       return;
     }
 
     // Step 3: Withdraw Amount Validation
     if (state.state === "withdraw_amount" && ctx.message.text) {
-      const textAmount = ctx.message.text.trim().replace(/,/g, "");
-      const isValidNumber = /^\d+(\.\d{1,2})?$/.test(textAmount);
-      const amount = parseFloat(textAmount);
-      const min = parseFloat(env.MIN_TRANSACTION_LKR);
-      const max = parseFloat(env.MAX_TRANSACTION_LKR);
+      const { min, max } = getTransactionLimits(env);
+      const validation = validateTransactionAmount(ctx.message.text, min, max);
 
-      if (!isValidNumber || isNaN(amount) || amount <= 0) {
-        await ctx.reply(dict.invalidAmount, {
-          parse_mode: "Markdown",
-          reply_markup: cancelKeyboard(lang),
-        });
+      if (!validation.valid) {
+        if (validation.error === "BELOW_MIN") {
+          await ctx.reply(dict.amountBelowMin(min), {
+            parse_mode: "Markdown",
+            reply_markup: cancelKeyboard(lang),
+          });
+        } else if (validation.error === "ABOVE_MAX") {
+          await ctx.reply(dict.amountAboveMax(max), {
+            parse_mode: "Markdown",
+            reply_markup: cancelKeyboard(lang),
+          });
+        } else {
+          await ctx.reply(dict.invalidAmount, {
+            parse_mode: "Markdown",
+            reply_markup: cancelKeyboard(lang),
+          });
+        }
         return;
       }
 
-      if (amount < min) {
-        await ctx.reply(dict.amountBelowMin(min), {
-          parse_mode: "Markdown",
-          reply_markup: cancelKeyboard(lang),
-        });
-        return;
-      }
-
-      if (amount > max) {
-        await ctx.reply(dict.amountAboveMax(max), {
-          parse_mode: "Markdown",
-          reply_markup: cancelKeyboard(lang),
-        });
-        return;
-      }
+      const amount = validation.amount;
 
       await db.setUserState(env.DB, user.id, "withdraw_code", { ...state.data, amount });
       await ctx.reply(dict.withdrawStepCode(amount), {

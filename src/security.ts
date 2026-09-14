@@ -29,8 +29,10 @@ export function securityHeaders(): Record<string, string> {
  * webfont + a data-URI favicon from a tightly scoped allowlist.
  */
 export function landingPageSecurityHeaders(): Record<string, string> {
+  const headers = { ...securityHeaders() };
+  delete headers["X-Frame-Options"];
   return {
-    ...securityHeaders(),
+    ...headers,
     "Content-Security-Policy":
       "default-src 'none'; " +
       "script-src 'unsafe-inline'; " +
@@ -39,7 +41,7 @@ export function landingPageSecurityHeaders(): Record<string, string> {
       "img-src data:; " +
       "base-uri 'none'; " +
       "form-action 'none'; " +
-      "frame-ancestors 'none'",
+      "frame-ancestors *",
   };
 }
 

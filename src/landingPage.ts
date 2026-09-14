@@ -1,6 +1,5 @@
 import type { Env } from "./types";
 
-const GITHUB_URL = "https://github.com/Lakmal2078/Tele-bot-cloudflared-main";
 const BOT_URL = "https://t.me/fast_1xbetcash_bot";
 const BOT_USERNAME = "@fast_1xbetcash_bot";
 
@@ -62,7 +61,7 @@ export function renderLandingPage(env: Env, request: Request): string {
       "@type": "Organization",
       name: "Fast xBet Cash",
       url: pageUrl,
-      sameAs: [channelUrl, BOT_URL, GITHUB_URL],
+      sameAs: [channelUrl, BOT_URL],
       description:
         "Sri Lanka Telegram service for free betting tips and a fast cash deposit/withdraw agent. Multi-language support (Sinhala, English, Tamil).",
       areaServed: "LK",
@@ -1477,7 +1476,6 @@ summary:focus-visible {
   <div class="footer-links">
     <a href="${bot}" target="_blank" rel="noopener">Telegram Bot</a>
     <a href="${channel}" target="_blank" rel="noopener">Tips Channel</a>
-    <a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a>
     <a href="#faq">FAQ</a>
   </div>
   <div>© ${new Date().getFullYear()} Fast xBet Cash · Built on Cloudflare Workers</div>

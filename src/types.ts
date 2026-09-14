@@ -57,6 +57,7 @@ export interface Env {
   TIPS_MIN_ODDS?: string;
   TIPS_MAX_ODDS?: string;
   TIPS_HOURS_AHEAD?: string;
+  TIPS_MAX_FEEDS?: string;
   XBET_LINK: string;
   XBET_PROMO_CODE: string;
   MIN_TRANSACTION_LKR: string;
