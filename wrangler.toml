@@ -19,9 +19,14 @@ XBET_PROMO_CODE = "VGSL"
 
 # Automated Free Tips — Sri Lanka time (UTC+05:30)
 # 08:00 = 02:30 UTC, 12:00 = 06:30 UTC, 18:00 = 12:30 UTC.
+# Each slot publishes up to 3 best qualifying picks, preferring different sports.
 TIPS_CHANNEL_ID = "-1004336999467"
 TIPS_CHANNEL_URL = "https://t.me/fast_xbet_official_tips"
-TIPS_SPORTS = "soccer_epl,soccer_uefa_champs_league,basketball_nba,tennis_atp"
+TIPS_PER_SLOT = "3"
+# The Odds API currently provides broad coverage for cricket, soccer/football and basketball.
+# Table Tennis and Esports are intentionally not listed here until a provider with reliable
+# production coverage for those sports is connected; the engine is already sport-agnostic.
+TIPS_SPORTS = "soccer_epl,soccer_uefa_champs_league,basketball_nba,cricket_international_t20"
 TIPS_ODDS_REGIONS = "uk,eu"
 TIPS_MIN_ODDS = "1.40"
 TIPS_MAX_ODDS = "2.50"
