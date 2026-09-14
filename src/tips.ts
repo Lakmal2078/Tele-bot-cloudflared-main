@@ -5,6 +5,7 @@ const SLOT_CRONS = new Set(["30 2 * * *", "30 6 * * *", "30 12 * * *"]);
 const TIP_LEASE_MINUTES = 15;
 const ODDS_API_RETRIES = 2;
 const DEFAULT_TIPS_PER_SLOT = 3;
+const MAX_DISCOVERED_SPORTS_PER_GROUP = 3;
 
 interface OddsOutcome { name: string; price: number; }
 interface OddsMarket { key: string; outcomes: OddsOutcome[]; }
@@ -17,6 +18,13 @@ interface OddsEvent {
   home_team: string;
   away_team: string;
   bookmakers: OddsBookmaker[];
+}
+interface OddsSport {
+  key: string;
+  group?: string;
+  title?: string;
+  description?: string;
+  active?: boolean;
 }
 
 export interface TipCandidate {
@@ -120,8 +128,6 @@ export function chooseCandidates(events: OddsEvent[], minOdds: number, maxOdds: 
 
   candidates.sort((a, b) => candidateScore(b) - candidateScore(a) || b.bookmakerCount - a.bookmakerCount || a.averageOdds - b.averageOdds);
 
-  // Prefer different sports in the same post. If fewer than `limit` sports qualify,
-  // fill the remaining positions with the next-best unique events.
   const selected: TipCandidate[] = [];
   const usedSports = new Set<string>();
   const usedEvents = new Set<string>();
@@ -146,7 +152,6 @@ export function chooseCandidates(events: OddsEvent[], minOdds: number, maxOdds: 
   return selected;
 }
 
-/** Backwards-compatible single-candidate helper used by existing tests/callers. */
 export function chooseCandidate(events: OddsEvent[], minOdds: number, maxOdds: number): TipCandidate | null {
   return chooseCandidates(events, minOdds, maxOdds, 1)[0] || null;
 }
@@ -162,18 +167,11 @@ async function getJson<T>(url: URL, timeoutMs: number): Promise<T> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const response = await fetch(url, {
-        method: "GET",
-        headers: { Accept: "application/json" },
-        signal: controller.signal,
-      });
+      const response = await fetch(url, { method: "GET", headers: { Accept: "application/json" }, signal: controller.signal });
       const text = await response.text();
       if (response.ok) return JSON.parse(text) as T;
-
       const retryable = response.status === 429 || response.status >= 500;
-      if (!retryable || attempt === ODDS_API_RETRIES) {
-        throw new Error(`Odds API ${response.status}: ${text.slice(0, 300)}`);
-      }
+      if (!retryable || attempt === ODDS_API_RETRIES) throw new Error(`Odds API ${response.status}: ${text.slice(0, 300)}`);
       await new Promise((resolve) => setTimeout(resolve, retryDelayMs(attempt, response.headers.get("Retry-After"))));
     } finally {
       clearTimeout(timeout);
@@ -190,9 +188,7 @@ export function slotForCron(cron: string): "08:00" | "12:00" | "18:00" | null {
 }
 
 export function sriLankaDate(date = new Date()): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Colombo", year: "numeric", month: "2-digit", day: "2-digit",
-  }).formatToParts(date);
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Colombo", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
   const get = (type: string) => parts.find((part) => part.type === type)?.value || "00";
   return `${get("year")}-${get("month")}-${get("day")}`;
 }
@@ -202,10 +198,53 @@ function tipCount(env: Env): number {
   return Number.isInteger(parsed) && parsed >= 1 && parsed <= 5 ? parsed : DEFAULT_TIPS_PER_SLOT;
 }
 
+function sportMatchesGroup(sport: OddsSport, group: string): boolean {
+  const haystack = `${sport.key} ${sport.group || ""} ${sport.title || ""} ${sport.description || ""}`.toLowerCase();
+  if (group === "table_tennis") return haystack.includes("table tennis") || haystack.includes("table_tennis") || haystack.includes("table-tennis");
+  if (group === "esports") return haystack.includes("esport") || /(^|[._-])(cs2|csgo|dota2|valorant|lol)([._-]|$)/.test(haystack);
+  if (group === "cricket") return haystack.includes("cricket");
+  return false;
+}
+
+async function discoverSpecialSports(apiKey: string, requested: string[]): Promise<string[]> {
+  const autoGroups = requested.filter((value) => value.startsWith("auto:")).map((value) => value.slice(5).toLowerCase());
+  if (autoGroups.length === 0) return [];
+
+  const url = new URL(`${ODDS_API_BASE}/sports`);
+  url.searchParams.set("apiKey", apiKey);
+  const sports = await getJson<OddsSport[]>(url, 8000);
+  const discovered: string[] = [];
+
+  for (const group of autoGroups) {
+    let added = 0;
+    for (const sport of sports) {
+      if (!sport.key || sport.active === false || !sportMatchesGroup(sport, group)) continue;
+      if (!discovered.includes(sport.key)) discovered.push(sport.key);
+      added += 1;
+      if (added >= MAX_DISCOVERED_SPORTS_PER_GROUP) break;
+    }
+    console.log(`[Tips] Auto-discovery ${group}: ${added} active sport feed(s)`);
+  }
+
+  return discovered;
+}
+
 async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
   if (!env.ODDS_API_KEY) throw new Error("ODDS_API_KEY is not configured");
 
-  const sports = csv(env.TIPS_SPORTS, "soccer_epl,basketball_nba,cricket_international_t20");
+  const requested = csv(env.TIPS_SPORTS, "soccer_epl,basketball_nba,auto:cricket,auto:table_tennis,auto:esports");
+  const explicitSports = requested.filter((sport) => !sport.startsWith("auto:"));
+  let sports = [...explicitSports];
+
+  try {
+    sports.push(...await discoverSpecialSports(env.ODDS_API_KEY, requested));
+  } catch (error) {
+    console.warn("[Tips] Special-sport discovery failed:", error instanceof Error ? error.message : error);
+  }
+
+  sports = [...new Set(sports)].slice(0, 12);
+  if (sports.length === 0) throw new Error("No configured or discovered sport feeds are available");
+
   const regions = env.TIPS_ODDS_REGIONS || "uk,eu";
   const minOdds = Number(env.TIPS_MIN_ODDS || "1.40");
   const maxOdds = Number(env.TIPS_MAX_ODDS || "2.50");
@@ -225,7 +264,7 @@ async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
       const start = new Date(event.commence_time).getTime();
       return Number.isFinite(start) && start > now && start <= now + hoursAhead * 60 * 60 * 1000;
     });
-    return chooseCandidates(filtered, minOdds, maxOdds, sports.length);
+    return chooseCandidates(filtered, minOdds, maxOdds, tipCount(env));
   }));
 
   const candidates: TipCandidate[] = [];
@@ -236,44 +275,31 @@ async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
 
   const deduped = new Map<string, TipCandidate>();
   for (const candidate of candidates) {
-    const current = deduped.get(candidate.event.id);
-    if (!current || candidateScore(candidate) > candidateScore(current)) deduped.set(candidate.event.id, candidate);
+    const current = deduped.get(`${candidate.event.id}:${candidate.selection}`);
+    if (!current || candidateScore(candidate) > candidateScore(current)) deduped.set(`${candidate.event.id}:${candidate.selection}`, candidate);
   }
 
-  const uniqueCandidates = [...deduped.values()].sort((a, b) => candidateScore(b) - candidateScore(a));
-  return chooseCandidates(uniqueCandidates.map((candidate) => candidate.event), minOdds, maxOdds, tipCount(env));
+  return chooseCandidates([...deduped.values()].map((candidate) => candidate.event), minOdds, maxOdds, tipCount(env));
 }
 
 function formatKickoff(iso: string): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Colombo", dateStyle: "medium", timeStyle: "short",
-  }).format(new Date(iso));
+  return new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Colombo", dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 }
 
 function toPostedSummary(candidate: TipCandidate): PostedTipSummary {
   return {
-    eventId: candidate.event.id,
-    sportKey: candidate.event.sport_key,
-    sportTitle: candidate.event.sport_title,
-    homeTeam: candidate.event.home_team,
-    awayTeam: candidate.event.away_team,
-    commenceTime: candidate.event.commence_time,
-    selection: candidate.selection,
-    market: candidate.market,
-    odds: candidate.averageOdds,
-    bookmakerCount: candidate.bookmakerCount,
-    marketProbability: candidate.impliedProbability,
+    eventId: candidate.event.id, sportKey: candidate.event.sport_key, sportTitle: candidate.event.sport_title,
+    homeTeam: candidate.event.home_team, awayTeam: candidate.event.away_team, commenceTime: candidate.event.commence_time,
+    selection: candidate.selection, market: candidate.market, odds: candidate.averageOdds,
+    bookmakerCount: candidate.bookmakerCount, marketProbability: candidate.impliedProbability,
   };
 }
 
 function formatTipMessage(candidates: TipCandidate[], slot: string, joinUrl?: string): string {
   const lines = [
-    "🇱🇰 <b>FREE TIPS — SRI LANKA</b>",
-    `🕐 <b>${escapeHtml(slot)} Sri Lanka time</b>`,
-    `🎯 <b>${candidates.length} quality tip${candidates.length === 1 ? "" : "s"}</b>`,
-    "━━━━━━━━━━━━━━━━━━",
+    "🇱🇰 <b>FREE TIPS — SRI LANKA</b>", `🕐 <b>${escapeHtml(slot)} Sri Lanka time</b>`,
+    `🎯 <b>${candidates.length} quality tip${candidates.length === 1 ? "" : "s"}</b>`, "━━━━━━━━━━━━━━━━━━",
   ];
-
   candidates.forEach((candidate, index) => {
     lines.push(
       `${candidate.emoji} <b>TIP ${index + 1} — ${escapeHtml(candidate.event.sport_title)}</b>`,
@@ -287,26 +313,16 @@ function formatTipMessage(candidates: TipCandidate[], slot: string, joinUrl?: st
       "━━━━━━━━━━━━━━━━━━",
     );
   });
-
-  lines.push(
-    "ℹ️ Picks are ranked using bookmaker-market data. Market probability is not a guarantee or a prediction model.",
-    "⚠️ <b>Bet responsibly.</b> Never stake money you cannot afford to lose.",
-  );
-
+  lines.push("ℹ️ Picks are ranked using bookmaker-market data. Market probability is not a guarantee or a prediction model.", "⚠️ <b>Bet responsibly.</b> Never stake money you cannot afford to lose.");
   if (joinUrl) lines.push(`\n<a href="${escapeHtml(joinUrl)}">📣 Join our channel for more free tips</a>`);
   return lines.join("\n");
 }
 
 function formatFallbackTip(slot: string, joinUrl?: string): string {
   const lines = [
-    "🇱🇰 <b>FREE TIPS UPDATE</b>",
-    `🕐 <b>${escapeHtml(slot)} Sri Lanka time</b>`,
-    "━━━━━━━━━━━━━━━━━━",
-    "ℹ️ No qualifying matches were available for this slot.",
-    "✅ We do not publish forced or low-confidence picks.",
-    "📢 The next scheduled update will be published automatically.",
-    "",
-    "⚠️ Bet responsibly and only what you can afford to lose.",
+    "🇱🇰 <b>FREE TIPS UPDATE</b>", `🕐 <b>${escapeHtml(slot)} Sri Lanka time</b>`, "━━━━━━━━━━━━━━━━━━",
+    "ℹ️ No qualifying matches were available for this slot.", "✅ We do not publish forced or low-confidence picks.",
+    "📢 The next scheduled update will be published automatically.", "", "⚠️ Bet responsibly and only what you can afford to lose.",
   ];
   if (joinUrl) lines.push(`\n<a href="${escapeHtml(joinUrl)}">📣 Join our channel</a>`);
   return lines.join("\n");
@@ -314,54 +330,35 @@ function formatFallbackTip(slot: string, joinUrl?: string): string {
 
 async function postTelegramMessage(env: Env, message: string): Promise<number | null> {
   const response = await fetch(`https://api.telegram.org/bot${encodeURIComponent(env.BOT_TOKEN)}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: env.TIPS_CHANNEL_ID,
-      text: message,
-      parse_mode: "HTML",
-      disable_web_page_preview: true,
-    }),
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: env.TIPS_CHANNEL_ID, text: message, parse_mode: "HTML", disable_web_page_preview: true }),
   });
   const telegram = (await response.json()) as { ok: boolean; description?: string; result?: { message_id?: number } };
-  if (!response.ok || !telegram.ok) {
-    throw new Error(`Telegram send failed: ${telegram.description || response.status}`);
-  }
+  if (!response.ok || !telegram.ok) throw new Error(`Telegram send failed: ${telegram.description || response.status}`);
   return telegram.result?.message_id ?? null;
 }
 
 async function claimTipSlot(env: Env, scheduledKey: string, slot: string): Promise<{ claimed: boolean; id: number; leaseToken: string }> {
   const leaseToken = crypto.randomUUID();
-
   const insertResult = await env.DB.prepare(
     `INSERT OR IGNORE INTO tip_posts
       (scheduled_key, slot_time, status, lease_token, lease_expires_at, attempt_count, created_at, updated_at)
      VALUES (?, ?, 'PROCESSING', ?, datetime('now', '+${TIP_LEASE_MINUTES} minutes'), 1, datetime('now'), datetime('now'))`
   ).bind(scheduledKey, slot, leaseToken).run();
-
-  const row = await env.DB.prepare(
-    `SELECT id, status, lease_token, lease_expires_at
-     FROM tip_posts WHERE scheduled_key = ?`
-  ).bind(scheduledKey).first<{ id: number; status: string; lease_token: string | null; lease_expires_at: string | null }>();
-
+  const row = await env.DB.prepare(`SELECT id, status, lease_token, lease_expires_at FROM tip_posts WHERE scheduled_key = ?`)
+    .bind(scheduledKey).first<{ id: number; status: string; lease_token: string | null; lease_expires_at: string | null }>();
   if (!row) throw new Error("Tip slot record could not be created or loaded");
   if (row.status === "POSTED") return { claimed: false, id: row.id, leaseToken };
-
   const insertChanges = insertResult.meta?.changes ?? 0;
   if (insertChanges > 0) return { claimed: true, id: row.id, leaseToken };
-
   if (row.status === "PROCESSING" && row.lease_expires_at && row.lease_expires_at > new Date().toISOString().replace("T", " ").slice(0, 19)) {
     return { claimed: false, id: row.id, leaseToken };
   }
-
   const result = await env.DB.prepare(
-    `UPDATE tip_posts
-        SET status='PROCESSING', lease_token=?, lease_expires_at=datetime('now', '+${TIP_LEASE_MINUTES} minutes'),
-            attempt_count=attempt_count+1, error=NULL, updated_at=datetime('now')
-      WHERE id=? AND status <> 'POSTED'
-        AND (status <> 'PROCESSING' OR lease_expires_at IS NULL OR lease_expires_at <= datetime('now'))`
+    `UPDATE tip_posts SET status='PROCESSING', lease_token=?, lease_expires_at=datetime('now', '+${TIP_LEASE_MINUTES} minutes'),
+      attempt_count=attempt_count+1, error=NULL, updated_at=datetime('now')
+      WHERE id=? AND status <> 'POSTED' AND (status <> 'PROCESSING' OR lease_expires_at IS NULL OR lease_expires_at <= datetime('now'))`
   ).bind(leaseToken, row.id).run();
-
   const changes = result.meta?.changes ?? (result.success ? 1 : 0);
   return { claimed: changes > 0, id: row.id, leaseToken };
 }
@@ -370,42 +367,23 @@ async function markTipPosted(env: Env, id: number, candidates: TipCandidate[], t
   const first = candidates[0];
   const payload = JSON.stringify(candidates.map(toPostedSummary));
   await env.DB.prepare(
-    `UPDATE tip_posts
-        SET status='POSTED', event_id=?, sport_key=?, sport_title=?, home_team=?, away_team=?, commence_time=?,
-            market=?, selection=?, odds=?, message_id=?, tips_json=?, posted_at=datetime('now'),
-            error=NULL, lease_token=NULL, lease_expires_at=NULL, updated_at=datetime('now')
-      WHERE id=?`
-  ).bind(
-    first?.event.id ?? null,
-    first?.event.sport_key ?? null,
-    first?.event.sport_title ?? null,
-    first?.event.home_team ?? null,
-    first?.event.away_team ?? null,
-    first?.event.commence_time ?? null,
-    first?.market ?? null,
-    first?.selection ?? null,
-    first?.averageOdds ?? null,
-    telegramMessageId,
-    payload,
-    id,
-  ).run();
+    `UPDATE tip_posts SET status='POSTED', event_id=?, sport_key=?, sport_title=?, home_team=?, away_team=?, commence_time=?,
+      market=?, selection=?, odds=?, message_id=?, tips_json=?, posted_at=datetime('now'), error=NULL,
+      lease_token=NULL, lease_expires_at=NULL, updated_at=datetime('now') WHERE id=?`
+  ).bind(first?.event.id ?? null, first?.event.sport_key ?? null, first?.event.sport_title ?? null, first?.event.home_team ?? null,
+    first?.event.away_team ?? null, first?.event.commence_time ?? null, first?.market ?? null, first?.selection ?? null,
+    first?.averageOdds ?? null, telegramMessageId, payload, id).run();
 }
 
 async function markTipFailed(env: Env, id: number, error: string): Promise<void> {
-  await env.DB.prepare(
-    `UPDATE tip_posts
-        SET status='FAILED', error=?, lease_token=NULL, lease_expires_at=NULL, updated_at=datetime('now')
-      WHERE id=? AND status <> 'POSTED'`
-  ).bind(error, id).run();
+  await env.DB.prepare(`UPDATE tip_posts SET status='FAILED', error=?, lease_token=NULL, lease_expires_at=NULL, updated_at=datetime('now') WHERE id=? AND status <> 'POSTED'`).bind(error, id).run();
 }
 
 export async function runScheduledTip(env: Env, cron: string): Promise<{ status: string; slot: string }> {
   if (!SLOT_CRONS.has(cron)) return { status: "skipped", slot: "" };
   const slot = slotForCron(cron);
   if (!slot) return { status: "skipped", slot: "" };
-
   const scheduledKey = `${sriLankaDate()}:${slot}`;
-
   let claim: { claimed: boolean; id: number; leaseToken: string };
   try {
     claim = await claimTipSlot(env, scheduledKey, slot);
@@ -413,18 +391,11 @@ export async function runScheduledTip(env: Env, cron: string): Promise<{ status:
     console.error(`[Tips] claimTipSlot failed for ${scheduledKey}:`, error instanceof Error ? error.message : error);
     return { status: "claim_failed", slot };
   }
-
-  if (!claim.claimed) {
-    console.log(`[Tips] Slot ${scheduledKey} already claimed or posted — skipping.`);
-    return { status: "already_claimed", slot };
-  }
-
+  if (!claim.claimed) return { status: "already_claimed", slot };
   const joinUrl = env.TIPS_CHANNEL_URL || undefined;
-
   try {
     let message: string;
     let candidates: TipCandidate[] = [];
-
     try {
       candidates = await fetchCandidates(env);
       if (candidates.length === 0) throw new Error("No qualifying candidates were found");
@@ -433,7 +404,6 @@ export async function runScheduledTip(env: Env, cron: string): Promise<{ status:
       console.warn(`[Tips] fetchCandidates failed for ${scheduledKey}:`, fetchError instanceof Error ? fetchError.message : fetchError);
       message = formatFallbackTip(slot, joinUrl);
     }
-
     const telegramMessageId = await postTelegramMessage(env, message);
     await markTipPosted(env, claim.id, candidates, telegramMessageId);
     console.log(`[Tips] Posted ${candidates.length} tip(s) for ${scheduledKey} (msg ${telegramMessageId})`);
@@ -441,9 +411,7 @@ export async function runScheduledTip(env: Env, cron: string): Promise<{ status:
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error(`[Tips] runScheduledTip failed for ${scheduledKey}:`, errorMsg);
-    await markTipFailed(env, claim.id, errorMsg).catch((e) =>
-      console.error(`[Tips] markTipFailed also failed:`, e instanceof Error ? e.message : e)
-    );
+    await markTipFailed(env, claim.id, errorMsg).catch((e) => console.error(`[Tips] markTipFailed also failed:`, e instanceof Error ? e.message : e));
     return { status: "failed", slot };
   }
 }
