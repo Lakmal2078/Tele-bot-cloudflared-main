@@ -1,4 +1,4 @@
-Import type { Env } from "./types";
+import type { Env } from "./types";
 
 const ODDS_API_BASE = "https://api.the-odds-api.com/v4";
 const SLOT_CRONS = new Set(["30 2 * * *", "30 6 * * *", "30 12 * * *"]);
