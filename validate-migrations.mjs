@@ -3,7 +3,7 @@
  * validate-migrations.mjs
  *
  * Validates D1 migration files BEFORE they are applied to production.
- * Used by deploy.sh via `npm run validate:migrations`.
+ * Used by scripts/deploy.sh via `npm run validate:migrations`.
  *
  * What it checks:
  *   1. Migration files exist and follow the required naming convention
@@ -17,8 +17,8 @@
  *        - DROP TRIGGER
  *        - DROP DATABASE
  *        - TRUNCATE
- *        - DELETE FROM (without WHERE) — full-table deletes
- *        - UPDATE (without WHERE) — full-table updates
+ *        - DELETE FROM (without WHERE) — full-table deletes (error)
+ *        - UPDATE (without WHERE) — full-table updates (warning; common for backfills)
  *        - ALTER TABLE ... RENAME (renaming a table breaks deployed code)
  *   4. No empty migration files.
  *   5. No duplicate column adds in the same migration.
@@ -114,7 +114,7 @@ function hasWhereClause(statement) {
   return /\bWHERE\b/i.test(statement);
 }
 
-function validateStatement(statement, file, errors) {
+function validateStatement(statement, file, errors, warnings) {
   for (const { pattern, label } of BREAKING_PATTERNS) {
     if (pattern.test(statement)) {
       errors.push(`${file}: breaking change detected — ${label}`);
@@ -122,14 +122,16 @@ function validateStatement(statement, file, errors) {
     }
   }
 
-  // Full-table DELETE without WHERE
+  // Full-table DELETE without WHERE — data loss risk, always an error.
   if (/\bDELETE\s+FROM\b/i.test(statement) && !hasWhereClause(statement)) {
     errors.push(`${file}: full-table DELETE without WHERE clause`);
   }
 
-  // Full-table UPDATE without WHERE
+  // Full-table UPDATE without WHERE — common for backfills (e.g. setting a
+  // newly added column to a default value). Not schema-breaking and does not
+  // break deployed code, so it is a warning, not an error.
   if (/\bUPDATE\b/i.test(statement) && !hasWhereClause(statement)) {
-    errors.push(`${file}: full-table UPDATE without WHERE clause`);
+    warnings.push(`${file}: full-table UPDATE without WHERE clause (backfill?)`);
   }
 }
 
@@ -154,6 +156,7 @@ if (files.length === 0) {
 
 // ── Naming convention & sequence validation ──────────────────────────────
 const errors = [];
+const warnings = [];
 const seenNumbers = new Set();
 
 for (const file of files) {
@@ -196,7 +199,7 @@ for (const file of files) {
   }
 
   for (const statement of statements) {
-    validateStatement(statement, file, errors);
+    validateStatement(statement, file, errors, warnings);
   }
 }
 
@@ -206,6 +209,13 @@ console.log(`  Directory:  ${migrationsDir}/`);
 console.log(`  Files:      ${files.length}`);
 console.log(`  Range:      ${files[0]} → ${files[files.length - 1]}`);
 console.log(`─────────────────────────────────────────────────────────`);
+
+if (warnings.length > 0) {
+  console.log(`\n⚠️  ${warnings.length} warning(s):\n`);
+  for (const w of warnings) {
+    console.log(`  • ${w}`);
+  }
+}
 
 if (errors.length === 0) {
   console.log(`\n✅ All ${files.length} migration(s) passed validation.\n`);
