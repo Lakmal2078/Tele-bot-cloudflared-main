@@ -3,19 +3,20 @@ name: CI/CD
 # ═══════════════════════════════════════════════════════════════════════
 #  XBet Telegram Bot — CI/CD Pipeline
 #
-#  Safety contract (matches deploy.sh):
+#  Safety contract:
 #  - CI is the single production deployment path.
 #  - Wrangler is pinned by package.json/package-lock.json; never `latest`.
 #  - D1 migrations are validated before application and must be
 #    backward-compatible. Breaking migrations are blocked.
-#  - Quality gates (lint, tests, migration validation) cannot be skipped.
-#  - Migrations are applied before Worker deployment.
+#  - Quality gates (type-check, tests, migration validation, shell syntax)
+#    cannot be skipped.
+#  - Migrations are applied by the deployment command before Worker deploy.
+#  - Production deployment runs exactly once per successful push to main.
 #
 #  Required GitHub repository secrets:
 #    CLOUDFLARE_API_TOKEN   — token with Workers Scripts:Edit, D1:Edit,
 #                             R2:Edit permissions for this account
 #    CLOUDFLARE_ACCOUNT_ID  — your Cloudflare account ID
-#                             (5e881675f6e48904761848cfbf3b44b8)
 # ═══════════════════════════════════════════════════════════════════════
 
 "on":
@@ -41,10 +42,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -75,10 +76,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -92,13 +93,3 @@ jobs:
           CI: true
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Deploy to Cloudflare
-        run: npm run deploy:cf:ci
-        env:
-          CI: true
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
