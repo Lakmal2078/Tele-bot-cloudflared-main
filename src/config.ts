@@ -20,11 +20,6 @@ function parsePositiveNumber(name: string, value: unknown, errors: string[]): nu
   return parsed;
 }
 
-/**
- * Validate security-sensitive production configuration without logging secret values.
- * This is intentionally fail-closed: a production runtime must not start with a
- * missing authentication secret or an invalid financial limit.
- */
 export function validateEnv(env: Partial<Env>): string[] {
   const errors: string[] = [];
 
@@ -73,6 +68,11 @@ export function validateEnv(env: Partial<Env>): string[] {
     }
 
     parsePositiveNumber("TIPS_HOURS_AHEAD", env.TIPS_HOURS_AHEAD, errors);
+
+    const perSlot = parsePositiveNumber("TIPS_PER_SLOT", env.TIPS_PER_SLOT || "3", errors);
+    if (perSlot !== null && (!Number.isInteger(perSlot) || perSlot < 1 || perSlot > 5)) {
+      errors.push("TIPS_PER_SLOT must be an integer from 1 to 5");
+    }
   }
 
   return errors;
@@ -96,7 +96,6 @@ function constantTimeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-/** Authenticate private operational/diagnostic HTTP endpoints with a dedicated secret. */
 export function isAuthorizedAdminRequest(request: Request, env: Partial<Env>): boolean {
   const expected = env.ADMIN_API_SECRET?.trim() || "";
   if (!expected) return false;
