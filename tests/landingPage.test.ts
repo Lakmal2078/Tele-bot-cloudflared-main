@@ -47,16 +47,36 @@ describe("Landing Page Render & SEO", () => {
     expect(html).toContain('<html lang="ta">');
   });
 
-  it("includes OpenGraph and Twitter card meta tags", () => {
+  it("includes OpenGraph and Twitter card meta tags with WhatsApp optimizations", () => {
     const req = new Request("https://fast-xbet.lk/");
     const html = renderLandingPage(mockEnv, req);
 
-    expect(html).toContain('<meta property="og:image" content="https://fast-xbet.lk/og-image.png">');
+    expect(html).toContain('<meta property="og:site_name" content="Fast xBet Cash">');
+    expect(html).toContain('<meta property="og:image" content="https://fast-xbet.lk/og-image.jpg?v=2">');
+    expect(html).toContain('<meta property="og:image:secure_url" content="https://fast-xbet.lk/og-image.jpg?v=2">');
+    expect(html).toContain('<meta property="og:image:type" content="image/jpeg">');
+    expect(html).toContain('<meta property="og:image" content="https://fast-xbet.lk/og-image.png?v=2">');
+    expect(html).toContain('<meta property="og:image:secure_url" content="https://fast-xbet.lk/og-image.png?v=2">');
     expect(html).toContain('<meta property="og:image:type" content="image/png">');
     expect(html).toContain('<meta property="og:image:width" content="1200">');
     expect(html).toContain('<meta property="og:image:height" content="630">');
+    expect(html).toContain('<link rel="image_src" href="https://fast-xbet.lk/og-image.jpg?v=2">');
+    expect(html).toContain('<meta itemprop="image" content="https://fast-xbet.lk/og-image.jpg?v=2">');
     expect(html).toContain('<meta name="twitter:card" content="summary_large_image">');
-    expect(html).toContain('<meta name="twitter:image" content="https://fast-xbet.lk/og-image.png">');
+    expect(html).toContain('<meta name="twitter:image" content="https://fast-xbet.lk/og-image.jpg?v=2">');
+  });
+
+  it("serves JPEG OG Image at /og-image.jpg via handleApiRequest", async () => {
+    const req = new Request("https://fast-xbet.lk/og-image.jpg");
+    const res = await handleApiRequest(req, mockEnv);
+
+    expect(res).not.toBeNull();
+    expect(res?.status).toBe(200);
+    expect(res?.headers.get("Content-Type")).toBe("image/jpeg");
+    expect(res?.headers.get("Content-Disposition")).toContain("inline");
+    expect(res?.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    const bytes = await res?.arrayBuffer();
+    expect(bytes?.byteLength).toBeGreaterThan(1000);
   });
 
   it("serves PNG OG Image at /og-image.png via handleApiRequest", async () => {
@@ -66,6 +86,8 @@ describe("Landing Page Render & SEO", () => {
     expect(res).not.toBeNull();
     expect(res?.status).toBe(200);
     expect(res?.headers.get("Content-Type")).toBe("image/png");
+    expect(res?.headers.get("Content-Disposition")).toContain("inline");
+    expect(res?.headers.get("Access-Control-Allow-Origin")).toBe("*");
     const bytes = await res?.arrayBuffer();
     expect(bytes?.byteLength).toBeGreaterThan(1000);
   });
@@ -106,8 +128,7 @@ describe("Landing Page Render & SEO", () => {
     const html = renderLandingPage(mockEnv, req);
 
     expect(html).toContain("start=landing");
-    expect(html).toContain("start=landing_sticky");
-    expect(html).toContain("mobile-sticky-cta");
+    expect(html).not.toContain("mobile-sticky-cta");
   });
 
   it("renders Trust signals strip and supported payment rails", () => {

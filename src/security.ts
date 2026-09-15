@@ -30,6 +30,8 @@ export function securityHeaders(): Record<string, string> {
  */
 export function landingPageSecurityHeaders(nonce?: string): Record<string, string> {
   const headers = { ...securityHeaders() };
+  headers["Cache-Control"] = "public, max-age=1800, s-maxage=86400, stale-while-revalidate=86400";
+  headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
   headers["X-Frame-Options"] = "DENY";
   const scriptPolicy = nonce ? `'nonce-${nonce}'` : "'unsafe-inline'";
   const stylePolicy = nonce ? `'nonce-${nonce}' https://fonts.googleapis.com` : "'unsafe-inline' https://fonts.googleapis.com";

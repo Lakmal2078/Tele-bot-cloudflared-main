@@ -1,5 +1,5 @@
 import type { Env } from "./types";
-import { OG_IMAGE_PNG } from "./ogImage";
+import { OG_IMAGE_PNG, OG_IMAGE_JPEG } from "./ogImage";
 import { constantTimeEqual, isConfiguredAdminId, validateEnv } from "./config";
 import { securityHeaders } from "./security";
 import { getStats, getOperationsDashboard, getSupportTickets, updateSupportTicket, createScheduledChannelPost } from "./db";
@@ -251,11 +251,29 @@ export async function handleApiRequest(
     }
   }
 
+  // OpenGraph Image JPEG (1200x630 bitmap optimized for WhatsApp & mobile chat previews)
+  if ((path === "/og-image.jpg" || path === "/og-image.jpeg") && (method === "GET" || method === "HEAD")) {
+    const headers: Record<string, string> = {
+      "Content-Type": "image/jpeg",
+      "Content-Length": String(OG_IMAGE_JPEG.byteLength),
+      "Content-Disposition": "inline; filename=\"og-image.jpg\"",
+      "Access-Control-Allow-Origin": "*",
+      "Accept-Ranges": "bytes",
+      "Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
+      "X-Content-Type-Options": "nosniff",
+    };
+    if (method === "HEAD") return new Response(null, { status: 200, headers });
+    return new Response(OG_IMAGE_JPEG, { status: 200, headers });
+  }
+
   // OpenGraph Image PNG (1200x630 bitmap for WhatsApp, Telegram, Facebook, Twitter social previews)
   if (path === "/og-image.png" && (method === "GET" || method === "HEAD")) {
     const headers: Record<string, string> = {
       "Content-Type": "image/png",
       "Content-Length": String(OG_IMAGE_PNG.byteLength),
+      "Content-Disposition": "inline; filename=\"og-image.png\"",
+      "Access-Control-Allow-Origin": "*",
+      "Accept-Ranges": "bytes",
       "Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
       "X-Content-Type-Options": "nosniff",
     };

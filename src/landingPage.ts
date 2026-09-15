@@ -34,12 +34,10 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
     String((request as Request & { cf?: { colo?: string } }).cf?.colo || "EDGE")
   );
 
-  // Deep linked bot CTAs
+  // Deep linked bot CTA
   const botDeepLink = `${BOT_URL}?start=landing`;
-  const botStickyLink = `${BOT_URL}?start=landing_sticky`;
 
   const bot = escapeAttribute(botDeepLink);
-  const botSticky = escapeAttribute(botStickyLink);
   const channel = escapeAttribute(channelUrl);
   const xbet = escapeAttribute(xbetLink);
   const _channelName = escapeText(channelUsername);
@@ -52,7 +50,13 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
   let pageUrl = "https://fast-xbet-cash.example/";
   try {
     const u = new URL(request.url);
-    pageUrl = `${u.origin}/`;
+    const proto = request.headers.get("x-forwarded-proto") || u.protocol.replace(":", "") || "https";
+    const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || u.host;
+    pageUrl = `${proto}://${host}/`;
+    // Ensure HTTPS in non-local environments for WhatsApp preview requirements
+    if (!host.includes("localhost") && !host.includes("127.0.0.1") && pageUrl.startsWith("http://")) {
+      pageUrl = pageUrl.replace(/^http:\/\//i, "https://");
+    }
     const qLang = u.searchParams.get("lang")?.toLowerCase();
     if (qLang === "en" || qLang === "ta" || qLang === "si") {
       initialLang = qLang;
@@ -66,8 +70,11 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
   }
 
   const pageUrlAttr = escapeAttribute(pageUrl);
-  const ogImageUrl = `${pageUrl}og-image.png`;
-  const ogImageUrlAttr = escapeAttribute(ogImageUrl);
+  // High-compatibility JPEG (~78KB 1200x630 sRGB) for WhatsApp & mobile chat apps, plus PNG fallback
+  const ogImageUrlJpg = `${pageUrl}og-image.jpg?v=2`;
+  const ogImageUrlJpgAttr = escapeAttribute(ogImageUrlJpg);
+  const ogImageUrlPng = `${pageUrl}og-image.png?v=2`;
+  const ogImageUrlPngAttr = escapeAttribute(ogImageUrlPng);
 
   // Multi-schema JSON-LD: Organization, WebSite, and FAQPage (for Google rich results)
   const jsonLd = escapeJsonForScript(
@@ -79,7 +86,8 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
           "@id": `${pageUrl}#organization`,
           name: "Fast xBet Cash",
           url: pageUrl,
-          logo: `${pageUrl}og-image.svg`,
+          logo: `${pageUrl}og-image.png`,
+          image: `${pageUrl}og-image.jpg`,
           sameAs: [channelUrl, BOT_URL],
           description:
             "Sri Lanka Telegram service for free betting tips and a fast cash deposit/withdraw agent. Multi-language support (Sinhala, English, Tamil).",
@@ -172,16 +180,32 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
 
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
 
-<!-- OpenGraph Social Preview (P0 #1) -->
+<!-- OpenGraph Social Preview & WhatsApp Link Preview (P0 #1) -->
+<meta property="og:site_name" content="Fast xBet Cash">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Fast xBet Cash 🇱🇰 — Free Betting Tips &amp; Cash Agent">
 <meta property="og:description" content="ස්වයංක්‍රීය Free Betting Tips, වේගවත් Deposit &amp; Withdraw සේවාව — සියල්ල Telegram හරහා. 18+ Only.">
 <meta property="og:url" content="${pageUrlAttr}">
-<meta property="og:image" content="${ogImageUrlAttr}">
-<meta property="og:image:type" content="image/png">
+
+<!-- WhatsApp & Primary Social Preview Image (High-Compatibility 1200x630 JPEG ~78KB) -->
+<meta property="og:image" content="${ogImageUrlJpgAttr}">
+<meta property="og:image:secure_url" content="${ogImageUrlJpgAttr}">
+<meta property="og:image:type" content="image/jpeg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Fast xBet Cash 🇱🇰 — Free Betting Tips &amp; Cash Agent">
+
+<!-- Secondary OpenGraph Image (Lossless PNG Fallback) -->
+<meta property="og:image" content="${ogImageUrlPngAttr}">
+<meta property="og:image:secure_url" content="${ogImageUrlPngAttr}">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<!-- Legacy & Microdata Preview Fallbacks for WhatsApp / Google -->
+<link rel="image_src" href="${ogImageUrlJpgAttr}">
+<meta itemprop="image" content="${ogImageUrlJpgAttr}">
+
 <meta property="og:locale" content="si_LK">
 <meta property="og:locale:alternate" content="en_US">
 <meta property="og:locale:alternate" content="ta_LK">
@@ -190,7 +214,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Fast xBet Cash 🇱🇰 — Free Betting Tips &amp; Cash Agent">
 <meta name="twitter:description" content="ස්වයංක්‍රීය Free Betting Tips, වේගවත් Deposit &amp; Withdraw — Telegram හරහා.">
-<meta name="twitter:image" content="${ogImageUrlAttr}">
+<meta name="twitter:image" content="${ogImageUrlJpgAttr}">
 
 <!-- Performance: Optimized Variable Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1125,57 +1149,7 @@ summary:focus-visible {
   line-height: 1.5;
 }
 
-/* ===== MOBILE STICKY CTA BAR (P1 #5) ===== */
-.mobile-sticky-cta {
-  display: none;
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 99;
-  background: rgba(7, 11, 18, 0.94);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(0, 230, 118, 0.25);
-  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
-  gap: 10px;
-  align-items: center;
-  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.6);
-}
-
-.sticky-btn-primary {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background: linear-gradient(135deg, var(--accent), #00c853);
-  color: #061b0d;
-  font-weight: 800;
-  font-size: 0.95rem;
-  padding: 12px 18px;
-  border-radius: 999px;
-  box-shadow: 0 4px 16px var(--accent-glow);
-  white-space: nowrap;
-}
-
-.sticky-btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid var(--card-border);
-  color: var(--text);
-  font-weight: 700;
-  font-size: 0.88rem;
-  padding: 12px 16px;
-  border-radius: 999px;
-  white-space: nowrap;
-}
-
 @media (max-width: 768px) {
-  .mobile-sticky-cta { display: flex; }
   .nav-links { display: none; }
   .hero { padding: 48px 16px 28px; }
   .hero h1 { font-size: 2.2rem; }
@@ -1693,18 +1667,6 @@ summary:focus-visible {
     ඔට්ටු ඇල්ලීම අවදානම් සහිතයි. වයස 18+ පමණි. වගකීමෙන් යුතුව ක්‍රීඩා කරන්න.
   </p>
 </footer>
-
-<!-- MOBILE STICKY BOTTOM CTA BAR (P1 #5) -->
-<div class="mobile-sticky-cta" id="mobileStickyCta">
-  <a href="${botSticky}" class="sticky-btn-primary" target="_blank" rel="noopener">
-    <span>⚡</span>
-    <span data-t="stickyBot">Bot එක විවෘත කරන්න</span>
-  </a>
-  <a href="${channel}" class="sticky-btn-secondary" target="_blank" rel="noopener">
-    <span>📢</span>
-    <span data-t="stickyTips">Tips</span>
-  </a>
-</div>
 
 <!-- CLIENT JAVASCRIPT (WITH NONCE SUPPORT) -->
 <script${nonceAttr}>
