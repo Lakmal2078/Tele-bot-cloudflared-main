@@ -47,7 +47,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
   const maxAmount = escapeText(String(maxTx));
 
   // Determine server-side initial language from query or accept-language
-  let initialLang: "si" | "en" | "ta" = "si";
+  let initialLang: "si" | "en" = "si";
   let pageUrl = "https://fast-xbet-cash.example/";
   try {
     const u = new URL(request.url);
@@ -59,12 +59,11 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
       pageUrl = pageUrl.replace(/^http:\/\//i, "https://");
     }
     const qLang = u.searchParams.get("lang")?.toLowerCase();
-    if (qLang === "en" || qLang === "ta" || qLang === "si") {
+    if (qLang === "en" || qLang === "si") {
       initialLang = qLang;
     } else {
       const accept = request.headers.get("accept-language") || "";
-      if (/\bta\b/i.test(accept)) initialLang = "ta";
-      else if (/\ben\b/i.test(accept)) initialLang = "en";
+      if (/\ben\b/i.test(accept)) initialLang = "en";
     }
   } catch {
     /* keep fallback */
@@ -91,9 +90,9 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
           image: `${pageUrl}og-image.jpg`,
           sameAs: [channelUrl, BOT_URL],
           description:
-            "Sri Lanka Telegram service for free betting tips and a fast cash deposit/withdraw agent. Multi-language support (Sinhala, English, Tamil).",
+            "Sri Lanka Telegram service for free betting tips and a fast cash deposit/withdraw agent. Multi-language support (Sinhala, English).",
           areaServed: "LK",
-          availableLanguage: ["si", "en", "ta"],
+          availableLanguage: ["si", "en"],
         },
         {
           "@type": "WebSite",
@@ -101,7 +100,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
           url: pageUrl,
           name: "Fast xBet Cash 🇱🇰",
           publisher: { "@id": `${pageUrl}#organization` },
-          inLanguage: ["si", "en", "ta"],
+          inLanguage: ["si", "en"],
         },
         {
           "@type": "FAQPage",
@@ -152,7 +151,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
               name: "භාෂාව වෙනස් කරන්නේ කෙසේද? (How to switch language?)",
               acceptedAnswer: {
                 "@type": "Answer",
-                text: "Bot එකේ /language command එක හෝ මෙම වෙබ් අඩවියේ ඉහළ ඇති සිං / EN / த බොත්තම් භාවිතා කර ඕනෑම වේලාවක භාෂාව වෙනස් කළ හැක.",
+                text: "Bot එකේ /language command එක හෝ මෙම වෙබ් අඩවියේ ඉහළ ඇති සිං / EN බොත්තම් භාවිතා කර ඕනෑම වේලාවක භාෂාව වෙනස් කළ හැක.",
               },
             },
           ],
@@ -167,7 +166,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Fast xBet Cash 🇱🇰 — Free Betting Tips &amp; Cash Agent</title>
-<meta name="description" content="ශ්‍රී ලංකාවේ වේගවත් Free Betting Tips &amp; Cash Agent සේවාව. Telegram හරහා deposit, withdraw, referral සහ ස්වයංක්‍රීය betting tips ලබාගන්න. Sinhala / English / Tamil.">
+<meta name="description" content="ශ්‍රී ලංකාවේ වේගවත් Free Betting Tips &amp; Cash Agent සේවාව. Telegram හරහා deposit, withdraw, referral සහ ස්වයංක්‍රීය betting tips ලබාගන්න. Sinhala / English.">
 <meta name="robots" content="index, follow">
 <meta name="theme-color" content="#0a0e17">
 <meta name="color-scheme" content="dark">
@@ -176,7 +175,6 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
 <!-- Hreflang Tags (SEO & Localization) -->
 <link rel="alternate" hreflang="si" href="${pageUrlAttr}?lang=si">
 <link rel="alternate" hreflang="en" href="${pageUrlAttr}?lang=en">
-<link rel="alternate" hreflang="ta" href="${pageUrlAttr}?lang=ta">
 <link rel="alternate" hreflang="x-default" href="${pageUrlAttr}">
 
 <link rel="icon" type="image/svg+xml" href="${BRAND_LOGO_FAVICON_DATA_URI}">
@@ -1366,7 +1364,6 @@ summary:focus-visible {
   <div class="langs" role="group" aria-label="Language selector">
     <button type="button" id="btn-lang-si" data-lang="si" class="${initialLang === "si" ? "active" : ""}">සිං</button>
     <button type="button" id="btn-lang-en" data-lang="en" class="${initialLang === "en" ? "active" : ""}">EN</button>
-    <button type="button" id="btn-lang-ta" data-lang="ta" class="${initialLang === "ta" ? "active" : ""}">த</button>
   </div>
 </header>
 
@@ -1664,7 +1661,7 @@ summary:focus-visible {
     </div>
     <div class="cmd-item">
       <span class="cmd-code">/language</span>
-      <p class="cmd-desc" data-t="cmdLang">භාෂාව වෙනස් කරන්න (සිං / EN / த)</p>
+      <p class="cmd-desc" data-t="cmdLang">භාෂාව වෙනස් කරන්න (සිං / EN)</p>
     </div>
     <div class="cmd-item">
       <span class="cmd-code">/safety</span>
@@ -1765,8 +1762,8 @@ summary:focus-visible {
     </div>
     <div class="card">
       <div class="card-icon">🌐</div>
-      <h3 data-t="feat5Title">භාෂා 3කින්</h3>
-      <p data-t="feat5Desc">Sinhala, English, Tamil — /language මගින් ඕනෑම වේලාවක වෙනස් කරන්න.</p>
+      <h3 data-t="feat5Title">භාෂා 2කින්</h3>
+      <p data-t="feat5Desc">Sinhala, English — /language මගින් ඕනෑම වේලාවක වෙනස් කරන්න.</p>
     </div>
     <div class="card">
       <div class="card-icon">📜</div>
@@ -1844,7 +1841,7 @@ summary:focus-visible {
     </details>
     <details class="faq-item">
       <summary data-t="faq6q">භාෂාව වෙනස් කරන්නේ කෙසේද?</summary>
-      <p data-t="faq6a">Bot එකේ /language command එක හෝ මෙම වෙබ් අඩවියේ ඉහළ ඇති සිං / EN / த buttons භාවිතා කරන්න.</p>
+      <p data-t="faq6a">Bot එකේ /language command එක හෝ මෙම වෙබ් අඩවියේ ඉහළ ඇති සිං / EN buttons භාවිතා කරන්න.</p>
     </details>
   </div>
 </section>
@@ -1952,7 +1949,7 @@ summary:focus-visible {
       cmdHist: "ගනුදෙනු ඉතිහාසය බලන්න",
       cmdDash: "Account overview බලන්න",
       cmdTicket: "Support ticket එකක් විවෘත කරන්න",
-      cmdLang: "භාෂාව වෙනස් කරන්න (සිං / EN / த)",
+      cmdLang: "භාෂාව වෙනස් කරන්න (සිං / EN)",
       cmdSafe: "ආරක්ෂාව හා responsible gaming tips",
       cmdHelp: "උදව් හා උපදෙස් ලබාගන්න",
       openBot: "🚀 Telegram Bot විවෘත කරන්න",
@@ -1976,8 +1973,8 @@ summary:focus-visible {
       feat3Desc: "මිතුරන්ට ආරාධනා කර bonus ලබාගන්න. /referrals මගින් dashboard බලන්න.",
       feat4Title: "ස්වයංක්‍රීය Free Tips",
       feat4Desc: "EPL, UCL, NBA, ATP — දිනකට 3 වතාවක් automatic tips.",
-      feat5Title: "භාෂා 3කින්",
-      feat5Desc: "Sinhala, English, Tamil — /language මගින් ඕනෑම වේලාවක වෙනස් කරන්න.",
+      feat5Title: "භාෂා 2කින්",
+      feat5Desc: "Sinhala, English — /language මගින් ඕනෑම වේලාවක වෙනස් කරන්න.",
       feat6Title: "Transaction History",
       feat6Desc: "සියලුම ගනුදෙනු /history මගින් ඕනෑම වේලාවක බලන්න.",
       feat7Title: "Support Ticket",
@@ -2004,7 +2001,7 @@ summary:focus-visible {
       faq5q: "ගැටලුවක් තිබේ නම් කුමක් කළ යුතුද?",
       faq5a: "/ticket command එක භාවිතා කර support ticket එකක් විවෘත කරන්න. Admin කෙනෙක් ඉක්මනින් ප්‍රතිචාර දක්වයි.",
       faq6q: "භාෂාව වෙනස් කරන්නේ කෙසේද?",
-      faq6a: "Bot එකේ /language command එක හෝ මෙම වෙබ් අඩවියේ ඉහළ ඇති සිං / EN / த buttons භාවිතා කරන්න.",
+      faq6a: "Bot එකේ /language command එක හෝ මෙම වෙබ් අඩවියේ ඉහළ ඇති සිං / EN buttons භාවිතා කරන්න.",
       ctaTitle: "දැන්ම ආරම්භ කරන්න",
       ctaSub: "Telegram Bot එක විවෘත කර deposit, withdraw සහ free tips භුක්ති විඳින්න",
       ctaBot: "🚀 Bot එකට යන්න",
@@ -2071,7 +2068,7 @@ summary:focus-visible {
       cmdHist: "View transaction history",
       cmdDash: "View account overview",
       cmdTicket: "Open support ticket",
-      cmdLang: "Switch language (සිං / EN / த)",
+      cmdLang: "Switch language (සිං / EN)",
       cmdSafe: "Security & responsible gaming tips",
       cmdHelp: "Get help and guidance",
       openBot: "🚀 Open Telegram Bot",
@@ -2095,8 +2092,8 @@ summary:focus-visible {
       feat3Desc: "Invite friends and earn rewards. Check dashboard with /referrals.",
       feat4Title: "Automated Free Tips",
       feat4Desc: "EPL, UCL, NBA, ATP — 3 times daily automatic tips.",
-      feat5Title: "3 Languages",
-      feat5Desc: "Sinhala, English, Tamil — switch anytime with /language.",
+      feat5Title: "2 Languages",
+      feat5Desc: "Sinhala, English — switch anytime with /language.",
       feat6Title: "Transaction History",
       feat6Desc: "View all transactions anytime with /history.",
       feat7Title: "Support Ticket",
@@ -2123,132 +2120,13 @@ summary:focus-visible {
       faq5q: "What if I have a problem?",
       faq5a: "Use the /ticket command to open a support ticket. An admin will respond quickly.",
       faq6q: "How do I change language?",
-      faq6a: "Use /language in the bot or the සිං / EN / த buttons at the top of this page.",
+      faq6a: "Use /language in the bot or the සිං / EN buttons at the top of this page.",
       ctaTitle: "Get started now",
       ctaSub: "Open the Telegram Bot for deposits, withdrawals and free tips",
       ctaBot: "🚀 Go to Bot",
       ctaChannel: "📢 Tips Channel",
       disclaimer: "This is not an official xBet website. This is an independent cash agent and free betting tips service. Betting involves risk. 18+ only. Play responsibly.",
       stickyBot: "Open Telegram Bot",
-      stickyTips: "Tips"
-    },
-    ta: {
-      skip: "முக்கிய உள்ளடக்கத்திற்கு செல்லவும்",
-      offlineNotice: "⚠️ நீங்கள் தற்போது Offline இல் உள்ளீர்கள். இணைய இணைப்பை சரிபார்க்கவும்.",
-      howNav: "எப்படி பயன்படுத்துவது",
-      cmdNav: "Commands",
-      calcNav: "Calculator",
-      featuresNav: "அம்சங்கள்",
-      tipsNav: "Free Tips 🔥",
-      secNav: "பாதுகாப்பு",
-      faqNav: "FAQ",
-      demoTitle: "Telegram හරහා සජීවී අත්දැකීම",
-      badge: "🇱🇰 24/7 Active Bot & Cash Agent · 🔞 18+ Only",
-      hero: "தானியங்கி Free Betting Tips, விரைவான Deposit & Withdraw, Referral System — அனைத்தும் Telegram மூலம் உங்கள் தொலைபேசியில்.",
-      start: "🚀 Bot ஐ தொடங்கவும்",
-      channel: "📢 Tips Channel",
-      seeCmds: "📋 Commands பார்க்க",
-      statusText: "System Status: Online",
-      statusSub: "Telegram Bot & Processing Active · Edge: ${colo}",
-      nextTipsLabel: "அடுத்த Tips:",
-      trustSpeedTitle: "விரைவான நேரம்",
-      trustSpeedSub: "Instant Player Account Credit",
-      trustUsersTitle: "செயலில் உள்ள பயனர்கள்",
-      trustUsersSub: "Sri Lanka Telegram Community",
-      trustSuccessTitle: "வெற்றி விகிதம்",
-      trustSuccessSub: "Automated Fraud Verification",
-      trustFeeTitle: "கூடுதல் கட்டணம் இல்லை",
-      trustFeeSub: "Zero Hidden Deductions",
-      supportedPay: "ஆதரிக்கப்படும் பணம் செலுத்தும் முறைகள்",
-      tipsPreviewTitle: "🔥 இன்றைய சிறப்பு Free Betting Tips",
-      tipsPreviewSub: "எங்கள் AI மற்றும் விளையாட்டு ஆய்வாளர் அமைப்பு மூலம் நாளொன்றுக்கு 3 முறை (08:00, 12:00, 18:00 SL Time) வெளியிடப்படும் Tips.",
-      joinChannelCta: "📢 முழுமையான Betting Slips ஐ Telegram Channel இல் இலவசமாக பெறவும்",
-      howTitle: "எப்படி வேலை செய்கிறது?",
-      howSub: "சில நிமிடங்களில் பரிவர்த்தனைகளை முடிக்கவும்",
-      tabDep: "💰 Deposit படிகள்",
-      tabWd: "💸 Withdraw படிகள்",
-      step1dTitle: "Bot ஐ தொடங்கவும்",
-      step1dDesc: "Telegram Bot க்கு சென்று /deposit command கொடுத்து உங்கள் Player ID ஐ உள்ளிடவும்.",
-      step2dTitle: "பணம் செலுத்தி Receipt அனுப்பவும்",
-      step2dDesc: "eZ Cash, mCash அல்லது Bank Transfer மூலம் செலுத்தி receipt புகைப்படத்தை bot க்கு upload செய்யவும்.",
-      step3dTitle: "நிமிடங்களில் கணக்கில்",
-      step3dDesc: "Admin உறுதிப்படுத்திய உடன் உங்கள் xBet கணக்கில் பணம் உடனடியாக வரவு வைக்கப்படும்.",
-      step1wTitle: "/withdraw தொடங்கவும்",
-      step1wDesc: "Bot இல் /withdraw command பயன்படுத்தி Player ID மற்றும் தொகையை உள்ளிடவும்.",
-      step2wTitle: "பணம் விவரங்களை கொடுக்கவும்",
-      step2wDesc: "உங்கள் Bank / eZ Cash / mCash விவரங்களை கொடுக்கவும். Admin சரிபார்ப்பார்.",
-      step3wTitle: "பணம் கிடைக்கும்",
-      step3wDesc: "உறுதிப்படுத்திய பிறகு விரைவாக உங்கள் கணக்கிற்கு பணம் மாற்றப்படும். History இல் நிலையை பார்க்கவும்.",
-      cmdTitle: "Bot Commands — அனைத்து வசதிகளும்",
-      cmdSub: "Telegram Bot இல் கிடைக்கும் அனைத்து commands",
-      cmdStart: "Bot ஐ தொடங்கி முக்கிய மெனுவை பார்க்கவும்",
-      cmdMenu: "முக்கிய மெனுவை திறக்கவும்",
-      cmdDep: "Deposit தொடங்கவும் (receipt upload)",
-      cmdWd: "Withdrawal கோரிக்கை அனுப்பவும்",
-      cmdReg: "Player ID பதிவு செய்யவும்",
-      cmdRef: "உங்கள் Referral dashboard பார்க்கவும்",
-      cmdHist: "பரிவர்த்தனை வரலாற்றை பார்க்கவும்",
-      cmdDash: "கணக்கு கண்ணோட்டம் பார்க்கவும்",
-      cmdTicket: "Support ticket திறக்கவும்",
-      cmdLang: "மொழியை மாற்றவும் (සිං / EN / த)",
-      cmdSafe: "பாதுகாப்பு & பொறுப்பான விளையாட்டு",
-      cmdHelp: "உதவி மற்றும் வழிமுறைகளை பெறவும்",
-      openBot: "🚀 Telegram Bot திறக்கவும்",
-      calcTitle: "பரிவர்த்தனை Calculator",
-      calcSub: "Deposit அல்லது Withdraw தொகையை விரைவாக கணக்கிடவும்",
-      calcDep: "💰 Deposit",
-      calcWd: "💸 Withdraw",
-      calcAmount: "தொகை (LKR)",
-      calcLimitWarn: "⚠️ குறைந்தபட்ச பரிவர்த்தனை LKR " + minLimit + " மற்றும் அதிகபட்சம் LKR " + maxLimit + " ஆகும்.",
-      calcYouSend: "நீங்கள் அனுப்புவது",
-      calcFee: "சேவை கட்டணம்",
-      calcReceive: "நீங்கள் பெறுவது",
-      proceedBot: "🚀 Telegram Bot இல் தொடரவும்",
-      featTitle: "முக்கிய அம்சங்கள்",
-      featSub: "உங்களுக்கு தேவையான அனைத்தும் ஒரே இடத்தில்",
-      feat1Title: "விரைவான Deposit",
-      feat1Desc: "Receipt upload செய்து நிமிடங்களில் xBet கணக்கில் பணம் வரவு.",
-      feat2Title: "எளிய Withdraw",
-      feat2Desc: "Bank / eZ Cash / mCash க்கு விரைவாக பணம் திரும்பப் பெறவும்.",
-      feat3Title: "Referral System",
-      feat3Desc: "நண்பர்களை அழைத்து bonus பெறவும். /referrals மூலம் dashboard பார்க்கவும்.",
-      feat4Title: "தானியங்கி Free Tips",
-      feat4Desc: "EPL, UCL, NBA, ATP — நாளொன்றுக்கு 3 முறை automatic tips.",
-      feat5Title: "3 மொழிகள்",
-      feat5Desc: "Sinhala, English, Tamil — /language மூலம் எப்போதும் மாற்றலாம்.",
-      feat6Title: "Transaction History",
-      feat6Desc: "அனைத்து பரிவர்த்தனைகளையும் /history மூலம் பார்க்கவும்.",
-      feat7Title: "Support Ticket",
-      feat7Desc: "/ticket மூலம் admin ஐ நேரடியாக தொடர்பு கொள்ளவும்.",
-      feat8Title: "மேம்பட்ட பாதுகாப்பு",
-      feat8Desc: "Duplicate protection, rate limits, audit trail மற்றும் R2 receipt backup.",
-      promoTitle: "xBet Promo Code",
-      promoSub: "புதிய கணக்குகளுக்கான சிறப்பு bonus code",
-      promoText: "நகலெடுத்து xBet இல் பயன்படுத்தவும்",
-      promoHint: "நகலெடுக்க கிளிக் செய்யவும்",
-      goXbet: "🎯 xBet க்கு செல்லவும்",
-      respTitle: "பொறுப்பான விளையாட்டு அறிவிப்பு (18+ மட்டும்)",
-      respDesc: "பந்தயம் கட்டுதல் நிதி ஆபத்து மற்றும் பழக்கத்தை ஏற்படுத்தலாம். இந்த சேவை 18 வயது அல்லது அதற்கு மேற்பட்டவர்களுக்கு மட்டுமே. நீங்கள் இழக்க முடியாத பணத்தை பந்தயம் கட்ட வேண்டாம்.",
-      faqTitle: "அடிக்கடி கேட்கப்படும் கேள்விகள்",
-      faqSub: "பொதுவான கேள்விகளுக்கான விரைவான பதில்கள்",
-      faq1q: "Deposit செய்வது எப்படி?",
-      faq1a: "Bot ஐ திறந்து /deposit command கொடுக்கவும். Player ID உள்ளிட்டு, பணம் செலுத்தி receipt புகைப்படத்தை upload செய்யவும்.",
-      faq2q: "Withdrawal எவ்வளவு நேரம் எடுக்கும்?",
-      faq2a: "பொதுவாக 2–5 நிமிடங்கள். அதிக தொகை அல்லது கூடுதல் சரிபார்ப்புக்கு சிறிது நேரம் ஆகலாம்.",
-      faq3q: "Free Tips என்றால் என்ன?",
-      faq3a: "நாளொன்றுக்கு 3 முறை (08:00, 12:00, 18:00 SL நேரம்) EPL, UCL, NBA, ATP தானியங்கி tips channel இல் வெளியாகும்.",
-      faq4q: "Referral bonus பெறுவது எப்படி?",
-      faq4a: "/referrals மூலம் உங்கள் link ஐ பெற்று நண்பர்களுக்கு அனுப்பவும். அவர்கள் பதிவு செய்து deposit செய்யும்போது உங்களுக்கு பரிசு கிடைக்கும்.",
-      faq5q: "பிரச்சனை ஏற்பட்டால் என்ன செய்வது?",
-      faq5a: "/ticket command பயன்படுத்தி support ticket திறக்கவும். Admin விரைவாக பதிலளிப்பார்.",
-      faq6q: "மொழியை மாற்றுவது எப்படி?",
-      faq6a: "Bot இல் /language அல்லது இந்த தளத்தின் மேலே உள்ள සිං / EN / த பொத்தான்களைப் பயன்படுத்தவும்.",
-      ctaTitle: "இப்போதே தொடங்குங்கள்",
-      ctaSub: "Deposit, withdraw மற்றும் free tips பெற Telegram Bot ஐ திறக்கவும்",
-      ctaBot: "🚀 Bot க்கு செல்லவும்",
-      ctaChannel: "📢 Tips Channel",
-      disclaimer: "இது உத்தியோகபூர்வ xBet தளம் அல்ல. இது ஒரு சுயாதீன cash agent மற்றும் free tips சேவையாகும். பந்தயம் கட்டுவதில் ஆபத்து உள்ளது. 18+ மட்டும். பொறுப்புடன் விளையாடுங்கள்.",
-      stickyBot: "Telegram Bot ஐ திறக்கவும்",
       stickyTips: "Tips"
     }
   };
@@ -2396,7 +2274,7 @@ summary:focus-visible {
       try {
         await navigator.clipboard.writeText(text);
         if (promoHint) {
-          promoHint.textContent = currentLang === "en" ? "Copied!" : currentLang === "ta" ? "நகலெடுக்கப்பட்டது!" : "Copy වුණා!";
+          promoHint.textContent = currentLang === "en" ? "Copied!" : "Copy වුණා!";
           setTimeout(function () {
             promoHint.textContent = translations[currentLang]?.promoHint || "Click to copy";
           }, 1800);
