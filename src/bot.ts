@@ -9,6 +9,7 @@ import { logTransactionAudit, logBotError } from "./logger";
 import { cleanupOldR2Logs } from "./logCleanup";
 import * as fraud from "./fraud";
 import { RateLimiter, DEFAULT_TIPS_BLOCK_MESSAGE } from "./rateLimit";
+import { isUsableTrackingHost, normalizeChannelUrl } from "./tips";
 
 export const executionContextStorage = new AsyncLocalStorage<{
   waitUntil?: (promise: Promise<unknown>) => void;
@@ -151,8 +152,9 @@ function faqMenuKeyboard(lang: Language, env: Env): InlineKeyboard {
     const cleanPhone = env.WHATSAPP_NUMBER.replace(/[^0-9]/g, "");
     kb.row().url(dict.faqBtnContactSupport, `https://wa.me/${cleanPhone}`);
   }
-  if (env.CHANNEL_URL && env.CHANNEL_URL.startsWith("http")) {
-    kb.row().url("📢 Official Channel", env.CHANNEL_URL);
+  const officialFaqChannel = normalizeChannelUrl(env.CHANNEL_URL, env.CHANNEL_USERNAME);
+  if (officialFaqChannel) {
+    kb.row().url("📢 Official Channel", officialFaqChannel);
   }
   kb.row().text(dict.btnBack, "back");
   return kb;
@@ -388,7 +390,7 @@ function getPaymentMethodInstructions(method: PaymentMethod, env: Env, lang: Lan
 export function createBot(env: Env) {
   const bot = new Bot<MyContext>(env.BOT_TOKEN);
   const adminIds = parseAdminIds(env.ADMIN_IDS || "");
-  mainMenuChannelUrl = env.CHANNEL_URL?.trim() || "";
+  mainMenuChannelUrl = normalizeChannelUrl(env.CHANNEL_URL, env.CHANNEL_USERNAME) || "";
 
   // 🛡️ Global, per-user & command-specific rate limiting — runs BEFORE every handler.
   // Admins listed in ADMIN_IDS are exempt; deposits/withdrawals keep their own
@@ -675,7 +677,10 @@ export function createBot(env: Env) {
       console.warn("[Tips Bot] Failed to query latest tip post:", err);
     }
 
-    const channelLink = env.TIPS_CHANNEL_URL || env.CHANNEL_URL || "https://t.me/fastxbettips";
+    const channelLink =
+      normalizeChannelUrl(env.TIPS_CHANNEL_URL) ||
+      normalizeChannelUrl(env.CHANNEL_URL, env.CHANNEL_USERNAME) ||
+      "https://t.me/fastxbettips";
     const xbetUrl = env.XBET_LINK?.trim() || "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622";
     const kb = new InlineKeyboard();
 
@@ -747,7 +752,7 @@ export function createBot(env: Env) {
     ].join("\n");
 
     const trackingBase = env.CHANNEL_URL || undefined;
-    if (trackingBase) {
+    if (isUsableTrackingHost(trackingBase)) {
       kb.url("🎲 Bet on 1xBet", `${trackingBase.replace(/\/$/, "")}/go/tip/${latestPost.id}`).row();
     } else {
       kb.url("🎲 Bet on 1xBet", xbetUrl).row();
