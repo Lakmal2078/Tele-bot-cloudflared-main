@@ -74,6 +74,7 @@ const env: Env = {
   EZCASH_NUMBER: process.env.EZCASH_NUMBER || "",
   MCASH_NUMBER: process.env.MCASH_NUMBER || "",
   FRIMI_NUMBER: process.env.FRIMI_NUMBER || "",
+  IPAY_NUMBER: process.env.IPAY_NUMBER || "",
 };
 
 const envErrors = validateEnv(env);

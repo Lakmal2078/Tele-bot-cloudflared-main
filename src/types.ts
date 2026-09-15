@@ -75,6 +75,7 @@ export interface Env {
   EZCASH_NUMBER?: string;
   MCASH_NUMBER?: string;
   FRIMI_NUMBER?: string;
+  IPAY_NUMBER?: string;
 }
 
 export interface UserRow {

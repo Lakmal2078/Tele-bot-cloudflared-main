@@ -292,11 +292,12 @@ function getPaymentMethodInstructions(method: PaymentMethod, env: Env, lang: Lan
   }
 
   if (method === "IPAY") {
+    const ipayNumber = env.IPAY_NUMBER || "0740452530";
     if (lang === "en") {
       return (
         `📱 *iPay Mobile 1*\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `• *iPay Mobile Number:* \`0740452530\`\n` +
+        `• *iPay Mobile Number:* \`${ipayNumber}\`\n` +
         `• *Account Holder:* *VGS Lakmal*\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
         `💡 _Tap the number above to copy it instantly._`
@@ -306,7 +307,7 @@ function getPaymentMethodInstructions(method: PaymentMethod, env: Env, lang: Lan
       return (
         `📱 *iPay Mobile 1*\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `• *iPay Mobile எண்:* \`0740452530\`\n` +
+        `• *iPay Mobile எண்:* \`${ipayNumber}\`\n` +
         `• *கணக்கு உரிமையாளர்:* *VGS Lakmal*\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
         `💡 _நகலெடுக்க எண்ணைத் தொடவும் (Tap to copy)._`
@@ -315,7 +316,7 @@ function getPaymentMethodInstructions(method: PaymentMethod, env: Env, lang: Lan
     return (
       `📱 *iPay Mobile 1*\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `• *iPay Mobile අංකය:* \`0740452530\`\n` +
+      `• *iPay Mobile අංකය:* \`${ipayNumber}\`\n` +
       `• *ගිණුම් හිමියා:* *VGS Lakmal*\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
       `💡 _අංකය Copy කර ගැනීමට එය මත Tap කරන්න._`
