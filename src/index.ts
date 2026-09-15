@@ -228,3 +228,21 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, HOST, () => {
   console.log(`[XBet Bot Server] Running on http://${HOST}:${PORT}`);
 });
+
+const shutdown = (signal: string) => {
+  console.log(`[XBet Bot Server] Received ${signal}. Shutting down gracefully...`);
+  if (bot && usePolling) {
+    bot.stop().catch(() => {});
+  }
+  server.close(() => {
+    console.log("[XBet Bot Server] HTTP server closed cleanly.");
+    process.exit(0);
+  });
+  setTimeout(() => {
+    process.exit(0);
+  }, 5000).unref();
+};
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+

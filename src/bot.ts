@@ -1638,7 +1638,7 @@ export function createBot(env: Env) {
           reply_markup: kb,
           link_preview_options: { is_disabled: true },
         });
-      } catch (_err) {
+      } catch {
         await ctx.reply(text, {
           parse_mode: "Markdown",
           reply_markup: kb,
