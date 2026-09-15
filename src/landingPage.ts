@@ -1369,43 +1369,7 @@ summary:focus-visible {
   </div>
 </div>
 
-<!-- TELEGRAM BOT DEMO SECTION -->
-<section class="bot-demo-section">
-  <h2 data-t="demoTitle">Telegram හරහා සජීවී අත්දැකීම</h2>
-  <div class="phone-frame">
-    <div class="phone-notch"></div>
-    <div class="tg-header">
-      <div class="tg-back" style="font-size:24px; color:#38bdf8;">‹</div>
-      <div class="avatar">⚡</div>
-      <div class="info">
-        <h4>Fast xBet Cash</h4>
-        <p>bot</p>
-      </div>
-    </div>
-    <div class="tg-chat">
-      <div class="tg-msg tg-user m-delay-1">/start</div>
-      <div class="tg-msg tg-bot m-delay-2">
-        👋 ආයුබෝවන්!<br>
-        Deposit, Withdraw, සහ Free Tips සියල්ල එකම තැනකින්!
-      </div>
-      <div class="tg-msg tg-user m-delay-3">/deposit</div>
-      <div class="tg-msg tg-bot m-delay-4">
-        💰 Deposit කරන්න අවශ්‍ය ක්‍රමය තෝරන්න:
-        <div class="tg-kb">
-           <div class="tg-btn">🏦 Bank Transfer</div>
-           <div class="tg-btn">📱 eZ Cash / mCash</div>
-           <div class="tg-btn">🟣 FriMi / iPay</div>
-        </div>
-      </div>
-    </div>
-    <div class="tg-input">
-      <span>Message...</span>
-      <span style="color:#38bdf8; font-size:18px;">🎤</span>
-    </div>
-  </div>
-</section>
-
-<!-- TRUST SIGNALS STRIP (P0 #4) -->
+<!-- HOW IT WORKS -->
 <section class="trust-strip">
   <div class="trust-grid">
     <div class="trust-card">
@@ -1516,6 +1480,42 @@ summary:focus-visible {
     <a href="${channel}" class="btn btn-secondary" target="_blank" rel="noopener" data-t="joinChannelCta">
       📢 සියලුම Betting Slips Telegram Channel එකෙන් නොමිලේ ගන්න
     </a>
+  </div>
+</section>
+
+<!-- TELEGRAM BOT DEMO SECTION -->
+<section class="bot-demo-section">
+  <h2 data-t="demoTitle">Telegram හරහා සජීවී අත්දැකීම</h2>
+  <div class="phone-frame">
+    <div class="phone-notch"></div>
+    <div class="tg-header">
+      <div class="tg-back" style="font-size:24px; color:#38bdf8;">‹</div>
+      <div class="avatar">⚡</div>
+      <div class="info">
+        <h4>Fast xBet Cash</h4>
+        <p>bot</p>
+      </div>
+    </div>
+    <div class="tg-chat">
+      <div class="tg-msg tg-user m-delay-1">/start</div>
+      <div class="tg-msg tg-bot m-delay-2">
+        👋 ආයුබෝවන්!<br>
+        Deposit, Withdraw, සහ Free Tips සියල්ල එකම තැනකින්!
+      </div>
+      <div class="tg-msg tg-user m-delay-3">/deposit</div>
+      <div class="tg-msg tg-bot m-delay-4">
+        💰 Deposit කරන්න අවශ්‍ය ක්‍රමය තෝරන්න:
+        <div class="tg-kb">
+           <div class="tg-btn">🏦 Bank Transfer</div>
+           <div class="tg-btn">📱 eZ Cash / mCash</div>
+           <div class="tg-btn">🟣 FriMi / iPay</div>
+        </div>
+      </div>
+    </div>
+    <div class="tg-input">
+      <span>Message...</span>
+      <span style="color:#38bdf8; font-size:18px;">🎤</span>
+    </div>
   </div>
 </section>
 
