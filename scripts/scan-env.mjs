@@ -47,6 +47,20 @@ export const KEY_DEFINITIONS = [
     },
   },
   {
+    key: "BOT_USERNAME",
+    category: "Core Telegram",
+    mandatory: false,
+    description: "Telegram Bot Username (e.g. fast_1xbetcash_bot)",
+    defaultVal: "fast_1xbetcash_bot",
+    validate: (val) => {
+      if (!val || val.trim().length === 0) return null;
+      if (!/^[A-Za-z0-9_]{5,32}$/.test(val.replace(/^@/, "").trim())) {
+        return "Must be 5-32 alphanumeric characters and underscores";
+      }
+      return null;
+    },
+  },
+  {
     key: "ADMIN_IDS",
     category: "Core Telegram",
     mandatory: true,

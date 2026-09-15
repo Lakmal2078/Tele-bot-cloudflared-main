@@ -39,7 +39,7 @@
 
 ### 🔹 2.2 කේතයේ (Source Code) සිදුකළ නිවැරදි කිරීම්
 1. **`src/landingPage.ts`**:
-   - `BOT_URL = "https://t.me/fast_1xbetcash_bot"` ඉවත් කර dynamic `env.BOT_USERNAME` හෝ `fast_xbet_official_tips_bot` වෙත යොමු කරන ලදී.
+   - Bot URL dynamic කර `env.BOT_USERNAME` හෝ `fast_1xbetcash_bot` (`https://t.me/fast_1xbetcash_bot`) වෙත යොමු කරන ලදී.
    - Structured JSON-LD schema links dynamic bot URL සමඟ යාවත්කාලීන කරන ලදී.
 2. **`src/apiRoutes.ts`**:
    - OG image SVG generator එකෙහි තිබූ hardcoded bot username එක dynamic කර `env.BOT_USERNAME` මඟින් override වීමට ඉඩ සලසන ලදී.
@@ -153,7 +153,7 @@ npm run secrets:cf
 *(විකල්පව `npx wrangler secret put <VARIABLE_NAME>` මඟින්: `BOT_TOKEN`, `WEBHOOK_SECRET`, `ADMIN_API_SECRET`, `ODDS_API_KEY`, `ADMIN_IDS`, `ADMIN_CHANNEL_ID`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_PUBLIC_DOMAIN` set කරන්න)*
 
 ### පියවර 2: Telegram Channel Admin අවසර ලබා දීම
-- Telegram Bot (`@fast_xbet_official_tips_bot`) නිල Tips Channel එකෙහි (`-1004336999467`) **Administrator** (Post Messages අවසර සහිතව) ලෙස එක් කර ඇති බව තහවුරු කරගන්න.
+- Telegram Bot (`@fast_1xbetcash_bot`) නිල Tips Channel එකෙහි (`-1004336999467`) **Administrator** (Post Messages අවසර සහිතව) ලෙස එක් කර ඇති බව තහවුරු කරගන්න.
 
 ### පියවර 3: GitHub Secrets සැකසීම
 GitHub repository හි **Settings ➔ Secrets and variables ➔ Actions** වෙත ගොස් පහත secrets දෙක සකසන්න:

@@ -1,7 +1,7 @@
 import type { Env } from "./types";
 import { BRAND_LOGO_SVG_COMPACT, BRAND_LOGO_FAVICON_DATA_URI } from "./brandLogo";
 
-const DEFAULT_BOT_URL = "https://t.me/fast_xbet_official_tips_bot";
+const DEFAULT_BOT_URL = "https://t.me/fast_1xbetcash_bot";
 
 function escapeAttribute(value: string): string {
   return value

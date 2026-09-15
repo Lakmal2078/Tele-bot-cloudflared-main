@@ -311,7 +311,7 @@ export function renderAdminPage(
 
       <div style="display: flex; gap: 10px; align-items: center;">
         <a href="/" class="btn btn-secondary" id="btn-back-home">← Public Website</a>
-        <a href="https://t.me/${escapeAttribute(((env as any).BOT_USERNAME || "fast_xbet_official_tips_bot").replace(/^@/, ""))}" target="_blank" rel="noopener noreferrer" class="btn btn-primary" id="btn-open-bot">🚀 Open Bot</a>
+        <a href="https://t.me/${escapeAttribute((env.BOT_USERNAME || "fast_1xbetcash_bot").replace(/^@/, ""))}" target="_blank" rel="noopener noreferrer" class="btn btn-primary" id="btn-open-bot">🚀 Open Bot</a>
       </div>
     </header>
 

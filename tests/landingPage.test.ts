@@ -128,7 +128,12 @@ describe("Landing Page Render & SEO", () => {
     const html = renderLandingPage(mockEnv, req);
 
     expect(html).toContain("start=landing");
+    expect(html).toContain("https://t.me/fast_1xbetcash_bot?start=landing");
+    expect(html).not.toContain("fast_xbet_official_tips_bot");
     expect(html).not.toContain("mobile-sticky-cta");
+
+    const customHtml = renderLandingPage({ ...mockEnv, BOT_USERNAME: "custom_bot" }, req);
+    expect(customHtml).toContain("https://t.me/custom_bot?start=landing");
   });
 
   it("renders Trust signals strip and supported payment rails", () => {
