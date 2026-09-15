@@ -79,11 +79,12 @@ export function validateEnv(env: Partial<Env>): string[] {
     nonEmpty(env.EZCASH_NUMBER) ||
     nonEmpty(env.MCASH_NUMBER) ||
     nonEmpty(env.FRIMI_NUMBER) ||
+    nonEmpty(env.IPAY_NUMBER) ||
     nonEmpty(env.WHATSAPP_NUMBER) ||
     nonEmpty(env.DEPOSIT_INSTRUCTIONS);
   if (!hasPaymentMethod) {
     errors.push(
-      "At least one deposit payment method or contact (BANK_DETAILS, EZCASH_NUMBER, MCASH_NUMBER, FRIMI_NUMBER, or WHATSAPP_NUMBER) must be configured"
+      "At least one deposit payment method or contact (BANK_DETAILS, EZCASH_NUMBER, MCASH_NUMBER, FRIMI_NUMBER, IPAY_NUMBER, or WHATSAPP_NUMBER) must be configured"
     );
   }
 

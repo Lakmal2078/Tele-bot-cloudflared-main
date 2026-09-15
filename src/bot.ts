@@ -8,7 +8,7 @@ import { escapeMarkdown, escapeCode, getTransactionLimits, validateTransactionAm
 import { logTransactionAudit, logBotError } from "./logger";
 import { cleanupOldR2Logs } from "./logCleanup";
 import * as fraud from "./fraud";
-import { RateLimiter } from "./rateLimit";
+import { RateLimiter, DEFAULT_TIPS_BLOCK_MESSAGE } from "./rateLimit";
 
 export const executionContextStorage = new AsyncLocalStorage<{
   waitUntil?: (promise: Promise<unknown>) => void;
@@ -292,11 +292,12 @@ function getPaymentMethodInstructions(method: PaymentMethod, env: Env, lang: Lan
   }
 
   if (method === "IPAY") {
+    const ipayNumber = env.IPAY_NUMBER || "0740452530";
     if (lang === "en") {
       return (
         `📱 *iPay Mobile 1*\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `• *iPay Mobile Number:* \`0740452530\`\n` +
+        `• *iPay Mobile Number:* \`${ipayNumber}\`\n` +
         `• *Account Holder:* *VGS Lakmal*\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
         `💡 _Tap the number above to copy it instantly._`
@@ -306,7 +307,7 @@ function getPaymentMethodInstructions(method: PaymentMethod, env: Env, lang: Lan
       return (
         `📱 *iPay Mobile 1*\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `• *iPay Mobile எண்:* \`0740452530\`\n` +
+        `• *iPay Mobile எண்:* \`${ipayNumber}\`\n` +
         `• *கணக்கு உரிமையாளர்:* *VGS Lakmal*\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
         `💡 _நகலெடுக்க எண்ணைத் தொடவும் (Tap to copy)._`
@@ -315,7 +316,7 @@ function getPaymentMethodInstructions(method: PaymentMethod, env: Env, lang: Lan
     return (
       `📱 *iPay Mobile 1*\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `• *iPay Mobile අංකය:* \`0740452530\`\n` +
+      `• *iPay Mobile අංකය:* \`${ipayNumber}\`\n` +
       `• *ගිණුම් හිමියා:* *VGS Lakmal*\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
       `💡 _අංකය Copy කර ගැනීමට එය මත Tap කරන්න._`
@@ -389,14 +390,35 @@ export function createBot(env: Env) {
   const adminIds = parseAdminIds(env.ADMIN_IDS || "");
   mainMenuChannelUrl = env.CHANNEL_URL?.trim() || "";
 
-  // 🛡️ Global & per-user rate limiting — runs BEFORE every handler.
+  // 🛡️ Global, per-user & command-specific rate limiting — runs BEFORE every handler.
   // Admins listed in ADMIN_IDS are exempt; deposits/withdrawals keep their own
   // stricter DB-backed limits in fraud.ts on top of this.
+  // Command-specific limits protect high-overhead betting tips queries (/tips, /freetips)
+  // and other slash commands against automated spamming.
   const rateLimiter = new RateLimiter({
     windowMs: 60_000,
     maxPerUser: 20,
     maxGlobal: 300,
     exemptUserIds: [...adminIds],
+    // Max 10 slash commands per minute for regular commands
+    defaultCommandLimit: {
+      windowMs: 60_000,
+      maxPerUser: 10,
+    },
+    // Stricter limit on betting tips queries to prevent API flood & automated scraping:
+    // max 5 tips queries per minute per user
+    commandLimits: {
+      tips: {
+        windowMs: 60_000,
+        maxPerUser: 5,
+        blockMessage: DEFAULT_TIPS_BLOCK_MESSAGE,
+      },
+      freetips: {
+        windowMs: 60_000,
+        maxPerUser: 5,
+        blockMessage: DEFAULT_TIPS_BLOCK_MESSAGE,
+      },
+    },
   });
   bot.use(rateLimiter.middleware());
 
@@ -973,7 +995,7 @@ export function createBot(env: Env) {
       photoFileId?: string;
     }
   ) {
-    const adminChannel = (env.ADMIN_CHANNEL_ID || env.CHANNEL_USERNAME || "").trim();
+    const adminChannel = (env.ADMIN_CHANNEL_ID || env.CHANNEL_USERNAME || "").replace(/^id:\s*/i, "").trim();
     if (!adminChannel) {
       console.warn("[Admin Channel] Neither ADMIN_CHANNEL_ID nor CHANNEL_USERNAME is set for R2 upload notification.");
       return;
@@ -1073,7 +1095,7 @@ export function createBot(env: Env) {
       `\n\n📌 *Status:* ⏳ Pending Admin Approval`;
 
     // 1. Post to Admin Channel (ADMIN_CHANNEL_ID or fallback to CHANNEL_USERNAME)
-    const adminChannel = (env.ADMIN_CHANNEL_ID || env.CHANNEL_USERNAME || "").trim();
+    const adminChannel = (env.ADMIN_CHANNEL_ID || env.CHANNEL_USERNAME || "").replace(/^id:\s*/i, "").trim();
     if (adminChannel) {
       try {
         if (photoFileId) {
@@ -1320,6 +1342,19 @@ export function createBot(env: Env) {
 
     // Free Tips View
     if (data === "view_free_tips") {
+      const tipsScopeResult = rateLimiter.checkScope("tips", user.id, {
+        windowMs: 60_000,
+        maxPerUser: 5,
+        blockMessage: DEFAULT_TIPS_BLOCK_MESSAGE,
+      });
+      if (!tipsScopeResult.allowed) {
+        const secs = Math.max(1, Math.ceil((tipsScopeResult.retryAfterMs ?? 1000) / 1000));
+        await ctx.answerCallbackQuery({
+          text: `⏳ ${secs}s: Tips rate limit reached. Please wait.`,
+          show_alert: true,
+        });
+        return;
+      }
       await showFreeTipsView(ctx, lang, true);
       return;
     }

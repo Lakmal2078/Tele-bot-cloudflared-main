@@ -2,10 +2,11 @@ import type { Env } from "./types";
 import { OG_IMAGE_PNG, OG_IMAGE_JPEG } from "./ogImage";
 import { constantTimeEqual, isConfiguredAdminId, validateEnv } from "./config";
 import { securityHeaders } from "./security";
-import { getStats, getOperationsDashboard, getSupportTickets, updateSupportTicket, createScheduledChannelPost } from "./db";
+import { getStats, getOperationsDashboard, getDailyFinancialTrends, getSupportTickets, updateSupportTicket, createScheduledChannelPost } from "./db";
 import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
 import { getObject } from "./storage";
 import { settlePendingTips, getTipsPerformanceStats } from "./tipsSettlement";
+import { renderAdminPage } from "./adminPage";
 
 export function adminAuthorized(request: Request, env: Env): boolean {
   const secret = (env.ADMIN_API_SECRET || "").trim();
@@ -15,9 +16,19 @@ export function adminAuthorized(request: Request, env: Env): boolean {
   const directHeader = request.headers.get("x-admin-secret");
 
   let candidate = "";
-  if (directHeader) {
+  try {
+    const url = new URL(request.url);
+    const querySecret = url.searchParams.get("secret");
+    if (querySecret) {
+      candidate = querySecret.trim();
+    }
+  } catch {
+    // Ignore invalid URL
+  }
+
+  if (!candidate && directHeader) {
     candidate = directHeader.trim();
-  } else if (authHeader?.toLowerCase().startsWith("bearer ")) {
+  } else if (!candidate && authHeader?.toLowerCase().startsWith("bearer ")) {
     candidate = authHeader.slice(7).trim();
   }
 
@@ -462,6 +473,14 @@ export async function handleApiRequest(
       runtime: options?.runtime || "cf-worker",
       mode: options?.isPolling ? "polling" : "webhook",
       stats,
+      paymentMethods: {
+        bank: env.BANK_DETAILS || "Not Configured",
+        ezcash: env.EZCASH_NUMBER || "Not Configured",
+        mcash: env.MCASH_NUMBER || "Not Configured",
+        frimi: env.FRIMI_NUMBER || "Not Configured",
+        ipay: env.IPAY_NUMBER || "Not Configured",
+        whatsapp: env.WHATSAPP_NUMBER || "Not Configured",
+      },
     });
   }
 
@@ -480,6 +499,101 @@ export async function handleApiRequest(
     } catch (error) {
       console.error("[Admin Dashboard] query failed", error);
       return json({ ok: false, error: "Dashboard data unavailable" }, 503);
+    }
+  }
+
+  // Admin financial trends API (/api/admin/trends)
+  if (path === "/api/admin/trends" && (method === "GET" || method === "HEAD")) {
+    if (!adminAuthorized(request, env)) return unauthorizedResponse();
+    if (method === "HEAD") {
+      return new Response(null, {
+        status: 200,
+        headers: { "Cache-Control": "no-store", ...securityHeaders() },
+      });
+    }
+    try {
+      const daysParam = parseInt(url.searchParams.get("days") || "7", 10);
+      const safeDays = Math.max(1, Math.min(daysParam, 90));
+      const metric = url.searchParams.get("metric") === "count" ? "count" : "volume";
+      const trends = await getDailyFinancialTrends(env.DB, safeDays);
+
+      const totalDepVol = trends.reduce((sum, d) => sum + d.depositVolume, 0);
+      const totalWdVol = trends.reduce((sum, d) => sum + d.withdrawalVolume, 0);
+      const totalDepCnt = trends.reduce((sum, d) => sum + d.depositCount, 0);
+      const totalWdCnt = trends.reduce((sum, d) => sum + d.withdrawalCount, 0);
+
+      return json({
+        ok: true,
+        days: safeDays,
+        metric,
+        trends,
+        summary: {
+          totalDepositVolume: totalDepVol,
+          totalWithdrawalVolume: totalWdVol,
+          netVolume: Math.round((totalDepVol - totalWdVol) * 100) / 100,
+          totalDepositCount: totalDepCnt,
+          totalWithdrawalCount: totalWdCnt,
+        },
+      });
+    } catch (error) {
+      console.error("[Admin Trends] query failed", error);
+      return json({ ok: false, error: "Trends data unavailable" }, 503);
+    }
+  }
+
+  // Admin panel web interface (/admin, /admin/, /panel)
+  if ((path === "/admin" || path === "/admin/" || path === "/panel") && (method === "GET" || method === "HEAD")) {
+    const isAuth = adminAuthorized(request, env) || (!env.ADMIN_API_SECRET && !env.WEBHOOK_SECRET);
+    const daysParam = parseInt(url.searchParams.get("days") || "7", 10);
+    const safeDays = Math.max(1, Math.min(daysParam, 90));
+    const metricParam = url.searchParams.get("metric") === "count" ? "count" : "volume";
+
+    try {
+      const [stats, trends, dashboard] = await Promise.all([
+        getStats(env.DB),
+        getDailyFinancialTrends(env.DB, safeDays),
+        getOperationsDashboard(env.DB).catch(() => null),
+      ]);
+
+      const nonce = crypto.randomUUID().replace(/-/g, "");
+      const html = renderAdminPage(
+        env,
+        request,
+        {
+          stats,
+          trends,
+          days: safeDays,
+          metric: metricParam,
+          isAuthorized: isAuth,
+          tickets: dashboard?.tickets || [],
+          alerts: dashboard?.alerts || [],
+          tips: dashboard?.tips || [],
+          paymentMethods: {
+            bank: env.BANK_DETAILS || "Not Configured",
+            ezcash: env.EZCASH_NUMBER || "Not Configured",
+            mcash: env.MCASH_NUMBER || "Not Configured",
+            frimi: env.FRIMI_NUMBER || "Not Configured",
+            ipay: env.IPAY_NUMBER || "Not Configured",
+            whatsapp: env.WHATSAPP_NUMBER || "Not Configured",
+          }
+        },
+        nonce
+      );
+
+      const headers: Record<string, string> = {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store, must-revalidate",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+        "Content-Security-Policy": `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}' 'unsafe-inline'; img-src 'self' data: https:; font-src https://fonts.gstatic.com;`,
+      };
+
+      if (method === "HEAD") return new Response(null, { status: 200, headers });
+      return new Response(html, { status: 200, headers });
+    } catch (err) {
+      console.error("[Admin Panel] render error", err);
+      return json({ ok: false, error: "Admin panel error" }, 500);
     }
   }
 

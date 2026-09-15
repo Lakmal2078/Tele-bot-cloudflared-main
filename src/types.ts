@@ -75,6 +75,7 @@ export interface Env {
   EZCASH_NUMBER?: string;
   MCASH_NUMBER?: string;
   FRIMI_NUMBER?: string;
+  IPAY_NUMBER?: string;
 }
 
 export interface UserRow {
@@ -150,4 +151,19 @@ export interface ReferralItem {
   created_at: string;
   deposit_count: number;
   total_deposited: number;
+}
+
+export interface DailyTrendItem {
+  date: string; // YYYY-MM-DD
+  label: string; // e.g. "Sep 15"
+  depositCount: number;
+  depositVolume: number; // LKR
+  approvedDepositCount: number;
+  approvedDepositVolume: number; // LKR
+  withdrawalCount: number;
+  withdrawalVolume: number; // LKR
+  approvedWithdrawalCount: number;
+  approvedWithdrawalVolume: number; // LKR
+  netVolume: number; // approvedDepositVolume - approvedWithdrawalVolume
+  totalTransactions: number;
 }

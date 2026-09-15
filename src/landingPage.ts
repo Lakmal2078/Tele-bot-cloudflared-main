@@ -1157,6 +1157,139 @@ summary:focus-visible {
   .stat-num { font-size: 1.6rem; }
   .calc-container { padding: 22px 16px; }
 }
+
+/* Telegram Bot Demo */
+.bot-demo-section {
+  padding: 80px 20px;
+  text-align: center;
+  overflow: hidden;
+  position: relative;
+}
+.bot-demo-section h2 {
+  font-size: 2rem;
+  margin-bottom: 40px;
+  background: var(--gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.phone-frame {
+  max-width: 320px;
+  margin: 0 auto;
+  background: #0e1621;
+  border-radius: 40px;
+  border: 10px solid #0f172a;
+  box-shadow: 0 25px 50px -12px rgba(0, 230, 118, 0.15), 0 0 0 2px #334155;
+  height: 600px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  text-align: left;
+}
+.phone-notch {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100px;
+  height: 24px;
+  background: #0f172a;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  z-index: 10;
+}
+.tg-header {
+  background: #17212b;
+  padding: 36px 16px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid #101921;
+  position: relative;
+  z-index: 5;
+}
+.tg-header .avatar {
+  width: 38px; height: 38px;
+  background: linear-gradient(135deg, var(--accent), #00b0ff);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+.tg-header .info h4 { margin:0; font-size: 15px; color: #fff; font-weight: 600; }
+.tg-header .info p { margin:2px 0 0; font-size: 12px; color: #38bdf8; }
+
+.tg-chat {
+  flex: 1;
+  padding: 16px;
+  background: #0e1621;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  overflow: hidden;
+}
+.tg-msg {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.4;
+  opacity: 0;
+  animation: tgPopIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+.tg-user {
+  background: #2b5278;
+  color: #fff;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+  transform-origin: bottom right;
+}
+.tg-bot {
+  background: #182533;
+  color: #fff;
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+  transform-origin: bottom left;
+}
+.tg-kb {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+.tg-btn {
+  background: rgba(255,255,255,0.05);
+  color: #38bdf8;
+  padding: 10px;
+  text-align: center;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.tg-input {
+  background: #17212b;
+  padding: 16px;
+  color: #7f91a4;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #101921;
+}
+
+@keyframes tgPopIn {
+  from { opacity: 0; transform: scale(0.9) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.m-delay-1 { animation-delay: 0.5s; }
+.m-delay-2 { animation-delay: 1.5s; }
+.m-delay-3 { animation-delay: 3.5s; }
+.m-delay-4 { animation-delay: 4.5s; }
+
 </style>
 </head>
 
@@ -1235,6 +1368,42 @@ summary:focus-visible {
     </div>
   </div>
 </div>
+
+<!-- TELEGRAM BOT DEMO SECTION -->
+<section class="bot-demo-section">
+  <h2 data-t="demoTitle">Telegram හරහා සජීවී අත්දැකීම</h2>
+  <div class="phone-frame">
+    <div class="phone-notch"></div>
+    <div class="tg-header">
+      <div class="tg-back" style="font-size:24px; color:#38bdf8;">‹</div>
+      <div class="avatar">⚡</div>
+      <div class="info">
+        <h4>Fast xBet Cash</h4>
+        <p>bot</p>
+      </div>
+    </div>
+    <div class="tg-chat">
+      <div class="tg-msg tg-user m-delay-1">/start</div>
+      <div class="tg-msg tg-bot m-delay-2">
+        👋 ආයුබෝවන්!<br>
+        Deposit, Withdraw, සහ Free Tips සියල්ල එකම තැනකින්!
+      </div>
+      <div class="tg-msg tg-user m-delay-3">/deposit</div>
+      <div class="tg-msg tg-bot m-delay-4">
+        💰 Deposit කරන්න අවශ්‍ය ක්‍රමය තෝරන්න:
+        <div class="tg-kb">
+           <div class="tg-btn">🏦 Bank Transfer</div>
+           <div class="tg-btn">📱 eZ Cash / mCash</div>
+           <div class="tg-btn">🟣 FriMi / iPay</div>
+        </div>
+      </div>
+    </div>
+    <div class="tg-input">
+      <span>Message...</span>
+      <span style="color:#38bdf8; font-size:18px;">🎤</span>
+    </div>
+  </div>
+</section>
 
 <!-- TRUST SIGNALS STRIP (P0 #4) -->
 <section class="trust-strip">
@@ -1658,6 +1827,7 @@ summary:focus-visible {
     <a href="#how-it-works">How It Works</a>
     <a href="#faq">FAQ</a>
     <a href="#security">Security</a>
+    <a href="/admin" id="footer-admin-link">Admin Panel</a>
   </div>
   <div>
     © ${new Date().getFullYear()} Fast xBet Cash · Built for Sri Lanka 🇱🇰
@@ -1688,6 +1858,7 @@ summary:focus-visible {
       tipsNav: "Free Tips 🔥",
       secNav: "ආරක්ෂාව",
       faqNav: "FAQ",
+      demoTitle: "Telegram හරහා සජීවී අත්දැකීම",
       badge: "🇱🇰 24/7 Active Bot & Cash Agent · 🔞 18+ Only",
       hero: "ස්වයංක්‍රීය Free Betting Tips, වේගවත් Deposit & Withdraw, Referral System — සියල්ල Telegram හරහා, ඔබේ දුරකථනයෙන්.",
       start: "🚀 Bot එක පටන් ගන්න",
@@ -1806,6 +1977,7 @@ summary:focus-visible {
       tipsNav: "Free Tips 🔥",
       secNav: "Security",
       faqNav: "FAQ",
+      demoTitle: "Telegram හරහා සජීවී අත්දැකීම",
       badge: "🇱🇰 24/7 Active Bot & Cash Agent · 🔞 18+ Only",
       hero: "Automated Free Betting Tips, fast Deposit & Withdraw, Referral System — everything via Telegram on your phone.",
       start: "🚀 Start the Bot",
@@ -1924,6 +2096,7 @@ summary:focus-visible {
       tipsNav: "Free Tips 🔥",
       secNav: "பாதுகாப்பு",
       faqNav: "FAQ",
+      demoTitle: "Telegram හරහා සජීවී අත්දැකීම",
       badge: "🇱🇰 24/7 Active Bot & Cash Agent · 🔞 18+ Only",
       hero: "தானியங்கி Free Betting Tips, விரைவான Deposit & Withdraw, Referral System — அனைத்தும் Telegram மூலம் உங்கள் தொலைபேசியில்.",
       start: "🚀 Bot ஐ தொடங்கவும்",
