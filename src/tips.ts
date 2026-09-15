@@ -485,6 +485,59 @@ export function formatMatchButtonLabel(candidate: TipCandidate, index: number): 
   return `${badge} ${candidate.emoji} Bet: ${match}`;
 }
 
+/**
+ * Ensures that Telegram links are never mistaken for tracking endpoints.
+ * Tracking base URLs must be real web servers, not t.me / telegram channels.
+ */
+export function isUsableTrackingHost(url?: string): url is string {
+  if (!url || typeof url !== "string") return false;
+  const trimmed = url.trim();
+  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) return false;
+  try {
+    const parsed = new URL(trimmed);
+    const host = parsed.hostname.toLowerCase();
+    if (
+      host === "t.me" ||
+      host.endsWith(".t.me") ||
+      host.includes("telegram.me") ||
+      host.includes("telegram.org")
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Normalizes any telegram channel string into a valid https://t.me/... clickable link.
+ * Handles @username, t.me/username, https://t.me/username, or bare username.
+ */
+export function normalizeChannelUrl(url?: string, username?: string): string | undefined {
+  if (url && typeof url === "string") {
+    let trimmed = url.trim();
+    if (!trimmed) return undefined;
+    if (trimmed.startsWith("https://") || trimmed.startsWith("http://")) {
+      return trimmed;
+    }
+    if (trimmed.startsWith("t.me/")) {
+      return `https://${trimmed}`;
+    }
+    if (trimmed.startsWith("@")) {
+      return `https://t.me/${trimmed.slice(1)}`;
+    }
+    return `https://t.me/${trimmed}`;
+  }
+  if (username && typeof username === "string") {
+    const trimmed = username.trim().replace(/^@/, "");
+    if (trimmed) {
+      return `https://t.me/${trimmed}`;
+    }
+  }
+  return undefined;
+}
+
 export function buildTipsInlineKeyboard(
   candidates: TipCandidate[],
   xbetLink?: string,
@@ -493,12 +546,13 @@ export function buildTipsInlineKeyboard(
   tipPostId?: number
 ): TelegramInlineKeyboardMarkup {
   const rows: TelegramInlineKeyboardButton[][] = [];
+  const useTracking = isUsableTrackingHost(trackingBaseUrl) && Boolean(tipPostId);
 
   // Individual match buttons linking directly to 1xBet or tracking endpoint
   candidates.forEach((candidate, index) => {
     const text = formatMatchButtonLabel(candidate, index);
     let url: string;
-    if (trackingBaseUrl && tipPostId) {
+    if (useTracking && trackingBaseUrl && tipPostId) {
       url = `${trackingBaseUrl.replace(/\/$/, "")}/go/tip/${tipPostId}?event=${encodeURIComponent(candidate.event.id)}&pick=${encodeURIComponent(candidate.selection)}`;
     } else {
       url = buildMatchBetLink(xbetLink, candidate);
@@ -511,7 +565,7 @@ export function buildTipsInlineKeyboard(
     const totalMultiplier = candidates.reduce((acc, c) => acc * c.averageOdds, 1);
     const raw = xbetLink?.trim() ? xbetLink.trim() : DEFAULT_XBET_LINK;
     let accumUrl: string;
-    if (trackingBaseUrl && tipPostId) {
+    if (useTracking && trackingBaseUrl && tipPostId) {
       accumUrl = `${trackingBaseUrl.replace(/\/$/, "")}/go/tip/${tipPostId}?type=accumulator`;
     } else {
       try {
@@ -532,11 +586,12 @@ export function buildTipsInlineKeyboard(
   }
 
   // Official Channel button if joinUrl is provided
-  if (joinUrl && joinUrl.startsWith("http")) {
+  const cleanJoinUrl = normalizeChannelUrl(joinUrl);
+  if (cleanJoinUrl && cleanJoinUrl.startsWith("http")) {
     rows.push([
       {
         text: "📣 Join Official Channel",
-        url: joinUrl,
+        url: cleanJoinUrl,
       },
     ]);
   }
@@ -552,8 +607,9 @@ export function buildFallbackInlineKeyboard(
   const raw = xbetLink?.trim() ? xbetLink.trim() : DEFAULT_XBET_LINK;
   rows.push([{ text: "🎲 Go to 1xBet", url: raw }]);
 
-  if (joinUrl && joinUrl.startsWith("http")) {
-    rows.push([{ text: "📣 Join Official Channel", url: joinUrl }]);
+  const cleanJoinUrl = normalizeChannelUrl(joinUrl);
+  if (cleanJoinUrl && cleanJoinUrl.startsWith("http")) {
+    rows.push([{ text: "📣 Join Official Channel", url: cleanJoinUrl }]);
   }
 
   return { inline_keyboard: rows };
@@ -787,9 +843,14 @@ export async function runScheduledTip(
     return { status: "already_claimed", slot };
   }
 
-  const joinUrl = env.TIPS_CHANNEL_URL || undefined;
+  // Channel URL: prioritize official main channel, fallback to tips channel
+  const joinUrl =
+    normalizeChannelUrl(env.CHANNEL_URL, env.CHANNEL_USERNAME) ||
+    normalizeChannelUrl(env.TIPS_CHANNEL_URL) ||
+    undefined;
   const xbetLink = env.XBET_LINK || DEFAULT_XBET_LINK;
-  const trackingBase = env.CHANNEL_URL || undefined;
+  // CHANNEL_URL is a Telegram channel URL and must never be passed as a tracking base
+  const trackingBase = undefined;
 
   try {
     let message: string;

@@ -8,6 +8,8 @@ import {
   formatFallbackTip,
   formatMatchButtonLabel,
   formatTipMessage,
+  isUsableTrackingHost,
+  normalizeChannelUrl,
   slotForCron,
   sriLankaDate,
   type TipCandidate,
@@ -372,5 +374,67 @@ describe("scheduled tips", () => {
 
     const singleChosen = chooseCandidate(events, 1.4, 2.5, excludedIds);
     expect(singleChosen?.event.id).toBe("fresh-event-2");
+  });
+
+  describe("link reliability and URL normalization", () => {
+    it("identifies telegram channels as non-usable tracking hosts", () => {
+      expect(isUsableTrackingHost("https://t.me/fast_xbet_official_tips")).toBe(false);
+      expect(isUsableTrackingHost("https://t.me/fast_xbet_cash")).toBe(false);
+      expect(isUsableTrackingHost("https://telegram.me/some_channel")).toBe(false);
+      expect(isUsableTrackingHost(undefined)).toBe(false);
+      expect(isUsableTrackingHost("not-a-url")).toBe(false);
+      expect(isUsableTrackingHost("https://ais-my-app.cloudrun.app")).toBe(true);
+    });
+
+    it("normalizes diverse channel inputs to clickable https://t.me/... URLs", () => {
+      expect(normalizeChannelUrl("https://t.me/fast_xbet_official_tips")).toBe("https://t.me/fast_xbet_official_tips");
+      expect(normalizeChannelUrl("t.me/fast_xbet_official_tips")).toBe("https://t.me/fast_xbet_official_tips");
+      expect(normalizeChannelUrl("@fast_xbet_official_tips")).toBe("https://t.me/fast_xbet_official_tips");
+      expect(normalizeChannelUrl("fast_xbet_official_tips")).toBe("https://t.me/fast_xbet_official_tips");
+      expect(normalizeChannelUrl("", "@from_username")).toBe("https://t.me/from_username");
+      expect(normalizeChannelUrl(undefined, undefined)).toBeUndefined();
+    });
+
+    it("does not corrupt 1xBet links even if CHANNEL_URL is mistakenly passed as trackingBaseUrl", () => {
+      const candidates: TipCandidate[] = [
+        {
+          event: {
+            id: "match-123",
+            sport_key: "cricket_cplt20",
+            sport_title: "CPL T20",
+            commence_time: "2026-09-18T05:30:00.000Z",
+            home_team: "Guyana Amazon Warriors",
+            away_team: "Antigua & Barbuda Falcons",
+            bookmakers: [],
+          },
+          selection: "Guyana Amazon Warriors",
+          market: "h2h",
+          averageOdds: 1.66,
+          impliedProbability: 0.60,
+          bookmakerCount: 3,
+          sportGroup: "cricket",
+          emoji: "🏏",
+        },
+      ];
+
+      // Even if CHANNEL_URL (https://t.me/...) and tipPostId (42) are supplied:
+      const kb = buildTipsInlineKeyboard(
+        candidates,
+        "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622",
+        "https://t.me/fast_xbet_official_tips",
+        "https://t.me/fast_xbet_official_tips",
+        42
+      );
+
+      const betBtn = kb.inline_keyboard[0][0];
+      // Button MUST link directly to 1xBet affiliate URL, NOT a broken t.me/go/tip URL
+      expect(betBtn.url).not.toContain("t.me");
+      expect(betBtn.url).toContain("reffpa.com");
+      expect(betBtn.url).toContain("match=Guyana+Amazon+Warriors+vs+Antigua+%26+Barbuda+Falcons");
+
+      // Channel button must be a valid t.me link
+      const channelBtn = kb.inline_keyboard[1][0];
+      expect(channelBtn.url).toBe("https://t.me/fast_xbet_official_tips");
+    });
   });
 });
