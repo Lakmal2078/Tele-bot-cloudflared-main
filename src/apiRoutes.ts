@@ -1,5 +1,5 @@
 import type { Env, D1Database } from "./types";
-import { constantTimeEqual, isConfiguredAdminId } from "./config";
+import { constantTimeEqual, isConfiguredAdminId, validateEnv } from "./config";
 import { securityHeaders } from "./security";
 import { getStats, getOperationsDashboard, getSupportTickets, updateSupportTicket, createScheduledChannelPost } from "./db";
 import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
@@ -169,12 +169,84 @@ export async function handleApiRequest(
         headers: { "Cache-Control": "no-store", ...securityHeaders() },
       });
     }
+    const envErrors = validateEnv(env);
     return json({
       status: "ok",
       service: "telegram-bot",
       runtime: options?.runtime || "cf-worker",
       timestamp: new Date().toISOString(),
+      configuration: {
+        healthy: envErrors.length === 0,
+        issues: envErrors,
+        hasBotToken: Boolean(env.BOT_TOKEN && env.BOT_TOKEN.length > 10),
+        hasWebhookSecret: Boolean(env.WEBHOOK_SECRET && env.WEBHOOK_SECRET.length >= 16),
+        hasAdminIds: Boolean(env.ADMIN_IDS),
+        hasAdminApiSecret: Boolean(env.ADMIN_API_SECRET || env.WEBHOOK_SECRET),
+        hasOddsApiKey: Boolean(env.ODDS_API_KEY),
+      },
     });
+  }
+
+  // Telegram webhook setup & status endpoint
+  if ((path === "/api/telegram/webhook" || path === "/api/setup-webhook") && (method === "GET" || method === "POST")) {
+    const isPost = method === "POST";
+    const autoSet = url.searchParams.get("action") === "set" || isPost;
+
+    if (!env.BOT_TOKEN) {
+      return json({
+        ok: false,
+        error: "BOT_TOKEN is not configured",
+        help: "Set BOT_TOKEN in Cloudflare Secrets: npx wrangler secret put BOT_TOKEN",
+      }, 400);
+    }
+
+    const workerOrigin = url.origin;
+    const webhookSecret = env.WEBHOOK_SECRET?.trim() || "";
+
+    if (autoSet) {
+      if (!webhookSecret) {
+        return json({
+          ok: false,
+          error: "WEBHOOK_SECRET is not configured",
+          help: "Set WEBHOOK_SECRET (minimum 16 characters) in Cloudflare Secrets: npx wrangler secret put WEBHOOK_SECRET",
+        }, 400);
+      }
+      try {
+        const tgRes = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/setWebhook`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: workerOrigin,
+            secret_token: webhookSecret,
+            drop_pending_updates: false,
+            allowed_updates: ["message", "callback_query"],
+          }),
+        });
+        const tgData = await tgRes.json();
+        return json({
+          ok: true,
+          action: "setWebhook",
+          targetUrl: workerOrigin,
+          telegramResponse: tgData,
+        });
+      } catch (err) {
+        return json({ ok: false, error: String(err) }, 500);
+      }
+    }
+
+    try {
+      const tgRes = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/getWebhookInfo`);
+      const tgData = await tgRes.json();
+      return json({
+        ok: true,
+        action: "getWebhookInfo",
+        currentWorkerUrl: workerOrigin,
+        telegramWebhook: tgData,
+        instruction: "To register or update this worker URL as Telegram webhook, visit /api/setup-webhook?action=set or send POST to /api/setup-webhook",
+      });
+    } catch (err) {
+      return json({ ok: false, error: String(err) }, 500);
+    }
   }
 
   // OpenGraph Image (1200x630 vector graphic for Telegram / WhatsApp / Twitter social previews)

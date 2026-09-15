@@ -23,7 +23,7 @@ function parsePositiveNumber(name: string, value: unknown, errors: string[]): nu
 export function validateEnv(env: Partial<Env>): string[] {
   const errors: string[] = [];
 
-  for (const name of ["BOT_TOKEN", "ADMIN_IDS", "WEBHOOK_SECRET", "ADMIN_API_SECRET"] as const) {
+  for (const name of ["BOT_TOKEN", "ADMIN_IDS", "WEBHOOK_SECRET"] as const) {
     if (!nonEmpty(env[name])) errors.push(`${name} is required`);
   }
 
@@ -32,8 +32,7 @@ export function validateEnv(env: Partial<Env>): string[] {
     errors.push(`WEBHOOK_SECRET must be at least ${MIN_SECRET_LENGTH} characters`);
   }
 
-  const adminApiSecret = env.ADMIN_API_SECRET?.trim() || "";
-  if (adminApiSecret && adminApiSecret.length < MIN_ADMIN_API_SECRET_LENGTH) {
+  if (env.ADMIN_API_SECRET && env.ADMIN_API_SECRET.trim().length < MIN_ADMIN_API_SECRET_LENGTH) {
     errors.push(`ADMIN_API_SECRET must be at least ${MIN_ADMIN_API_SECRET_LENGTH} characters`);
   }
 
@@ -55,9 +54,9 @@ export function validateEnv(env: Partial<Env>): string[] {
     errors.push("MIN_TRANSACTION_LKR must not exceed MAX_TRANSACTION_LKR");
   }
 
-  const tipsEnabled = nonEmpty(env.TIPS_CHANNEL_ID) || nonEmpty(env.ODDS_API_KEY);
-  if (tipsEnabled) {
-    for (const name of ["TIPS_CHANNEL_ID", "ODDS_API_KEY", "TIPS_SPORTS", "TIPS_ODDS_REGIONS"] as const) {
+  const tipsAutomated = nonEmpty(env.TIPS_CHANNEL_ID) && nonEmpty(env.ODDS_API_KEY);
+  if (tipsAutomated) {
+    for (const name of ["TIPS_SPORTS", "TIPS_ODDS_REGIONS"] as const) {
       if (!nonEmpty(env[name])) errors.push(`${name} is required when automated tips are enabled`);
     }
 
@@ -80,7 +79,8 @@ export function validateEnv(env: Partial<Env>): string[] {
     nonEmpty(env.EZCASH_NUMBER) ||
     nonEmpty(env.MCASH_NUMBER) ||
     nonEmpty(env.FRIMI_NUMBER) ||
-    nonEmpty(env.WHATSAPP_NUMBER);
+    nonEmpty(env.WHATSAPP_NUMBER) ||
+    nonEmpty(env.DEPOSIT_INSTRUCTIONS);
   if (!hasPaymentMethod) {
     errors.push(
       "At least one deposit payment method or contact (BANK_DETAILS, EZCASH_NUMBER, MCASH_NUMBER, FRIMI_NUMBER, or WHATSAPP_NUMBER) must be configured"
@@ -124,7 +124,7 @@ export function constantTimeEqual(a: string, b: string): boolean {
 }
 
 export function isAuthorizedAdminRequest(request: Request, env: Partial<Env>): boolean {
-  const expected = env.ADMIN_API_SECRET?.trim() || "";
+  const expected = env.ADMIN_API_SECRET?.trim() || env.WEBHOOK_SECRET?.trim() || "";
   if (!expected) return false;
 
   const authorization = request.headers.get("Authorization") || "";

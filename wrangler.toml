@@ -15,6 +15,8 @@ R2_BUCKET_NAME = "chat-media"
 USE_POLLING = "false"
 XBET_LINK = "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622"
 XBET_PROMO_CODE = "VGSL"
+EZCASH_NUMBER = "0703346455"
+WHATSAPP_NUMBER = "0703346455"
 
 # Automated Free Tips — Sri Lanka time (UTC+05:30)
 # 08:00 = 02:30 UTC, 12:00 = 06:30 UTC, 18:00 = 12:30 UTC.

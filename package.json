@@ -17,6 +17,7 @@
     "check": "npm run lint && npm test",
     "validate:migrations": "node validate-migrations.mjs",
     "check:tips-provider": "node scripts/check-tips-provider.mjs",
+    "secrets:cf": "bash scripts/setup-cf-secrets.sh",
     "deploy:cf": "bash deploy.sh",
     "deploy:cf:ci": "CI=true bash deploy.sh",
     "deploy:cf:dry": "SKIP_MIGRATION=1 SKIP_HEALTHCHECK=1 ALLOW_DIRTY=1 bash deploy.sh"

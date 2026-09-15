@@ -135,4 +135,27 @@ describe("Landing Page Render & SEO", () => {
     expect(svgText).toContain("Fast xBet Cash 🇱🇰");
     expect(svgText).toContain("18+");
   });
+
+  it("serves landing page through worker fetch even when secrets are unconfigured", async () => {
+    // Import worker
+    const workerModule = await import("../src/worker");
+    const worker = workerModule.default;
+
+    // Simulate empty/partial environment in Cloudflare
+    const bareEnv = {
+      CHANNEL_URL: "https://t.me/fast_xbet_official_tips",
+      CHANNEL_USERNAME: "@fast_xbet_official_tips",
+      XBET_LINK: "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622",
+      XBET_PROMO_CODE: "VGSL",
+    } as unknown as Env;
+
+    const req = new Request("https://xbet-telegram-bot.agent-1xfast-srilanka.workers.dev/");
+    const res = await worker.fetch(req, bareEnv);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toContain("text/html");
+    const html = await res.text();
+    expect(html).toContain("Fast xBet Cash 🇱🇰");
+    expect(html).toContain("VGSL");
+  });
 });

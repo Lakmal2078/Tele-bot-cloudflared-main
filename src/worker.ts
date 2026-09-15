@@ -88,64 +88,69 @@ export default {
       return apiResponse;
     }
 
+    // 2. Serve public Landing page for GET and HEAD requests
+    if (request.method !== "POST") {
+      const nonce = crypto.randomUUID().replace(/-/g, "");
+      return new Response(
+        renderLandingPage(env, request, nonce),
+        { headers: { "Content-Type": "text/html; charset=utf-8", ...landingPageSecurityHeaders(nonce) } }
+      );
+    }
+
+    // 3. Process POST requests (Telegram Webhook)
     try {
       assertValidEnv(env, "Cloudflare Worker");
     } catch (err) {
       console.error("[Worker Config Error]", err instanceof Error ? err.message : String(err));
-      return json({ ok: false, error: "Service configuration error" }, 503);
+      return json({
+        ok: false,
+        error: "Service configuration error",
+        details: err instanceof Error ? err.message : String(err),
+      }, 503);
     }
 
-    if (request.method === "POST") {
-      if (!webhookRequestAllowed(request)) {
-        return new Response("bad request", { status: 400, headers: securityHeaders() });
-      }
-
-      const incomingSecret = request.headers.get("X-Telegram-Bot-Api-Secret-Token") || "";
-      const expectedSecret = env.WEBHOOK_SECRET.trim();
-      if (!incomingSecret || !constantTimeEqual(incomingSecret, expectedSecret)) {
-        return new Response("unauthorized", { status: 401, headers: securityHeaders() });
-      }
-
-      if (!botInstance || cachedToken !== env.BOT_TOKEN) {
-        botInstance = createBot(env);
-        cachedToken = env.BOT_TOKEN;
-        webhookHandler = null;
-        const commandRegistration = registerBotCommands(botInstance).catch((err) => {
-          console.error("[Telegram Commands] Registration failed:", err);
-        });
-        if (ctx?.waitUntil) ctx.waitUntil(commandRegistration);
-      }
-
-      if (!webhookHandler) {
-        webhookHandler = webhookCallback(botInstance, "cloudflare-mod", {
-          timeoutMilliseconds: 25000,
-        }) as (request: Request) => Promise<Response>;
-      }
-
-      try {
-        return await executionContextStorage.run(ctx, async () => await webhookHandler!(request));
-      } catch (err) {
-        console.error("[Worker Webhook Error]:", err);
-        logBotError(
-          env,
-          {
-            source: "WorkerWebhookFetch",
-            message: err instanceof Error ? err.message : String(err),
-            stack: err instanceof Error ? err.stack : undefined,
-            context: { flow: "worker_webhook_fetch" },
-          },
-          ctx?.waitUntil?.bind(ctx)
-        );
-        return json({ ok: true });
-      }
+    if (!webhookRequestAllowed(request)) {
+      return new Response("bad request", { status: 400, headers: securityHeaders() });
     }
 
-    // Landing page with CSP cryptographic nonce
-    const nonce = crypto.randomUUID().replace(/-/g, "");
-    return new Response(
-      renderLandingPage(env, request, nonce),
-      { headers: { "Content-Type": "text/html; charset=utf-8", ...landingPageSecurityHeaders(nonce) } }
-    );
+    const incomingSecret = request.headers.get("X-Telegram-Bot-Api-Secret-Token") || "";
+    const expectedSecret = env.WEBHOOK_SECRET?.trim() || "";
+    if (!incomingSecret || !constantTimeEqual(incomingSecret, expectedSecret)) {
+      return new Response("unauthorized", { status: 401, headers: securityHeaders() });
+    }
+
+    if (!botInstance || cachedToken !== env.BOT_TOKEN) {
+      botInstance = createBot(env);
+      cachedToken = env.BOT_TOKEN;
+      webhookHandler = null;
+      const commandRegistration = registerBotCommands(botInstance).catch((err) => {
+        console.error("[Telegram Commands] Registration failed:", err);
+      });
+      if (ctx?.waitUntil) ctx.waitUntil(commandRegistration);
+    }
+
+    if (!webhookHandler) {
+      webhookHandler = webhookCallback(botInstance, "cloudflare-mod", {
+        timeoutMilliseconds: 25000,
+      }) as (request: Request) => Promise<Response>;
+    }
+
+    try {
+      return await executionContextStorage.run(ctx, async () => await webhookHandler!(request));
+    } catch (err) {
+      console.error("[Worker Webhook Error]:", err);
+      logBotError(
+        env,
+        {
+          source: "WorkerWebhookFetch",
+          message: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined,
+          context: { flow: "worker_webhook_fetch" },
+        },
+        ctx?.waitUntil?.bind(ctx)
+      );
+      return json({ ok: true });
+    }
   },
 
   async scheduled(event: any, env: Env, ctx: any): Promise<void> {
