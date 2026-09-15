@@ -151,3 +151,18 @@ export interface ReferralItem {
   deposit_count: number;
   total_deposited: number;
 }
+
+export interface DailyTrendItem {
+  date: string; // YYYY-MM-DD
+  label: string; // e.g. "Sep 15"
+  depositCount: number;
+  depositVolume: number; // LKR
+  approvedDepositCount: number;
+  approvedDepositVolume: number; // LKR
+  withdrawalCount: number;
+  withdrawalVolume: number; // LKR
+  approvedWithdrawalCount: number;
+  approvedWithdrawalVolume: number; // LKR
+  netVolume: number; // approvedDepositVolume - approvedWithdrawalVolume
+  totalTransactions: number;
+}

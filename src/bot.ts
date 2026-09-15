@@ -994,7 +994,7 @@ export function createBot(env: Env) {
       photoFileId?: string;
     }
   ) {
-    const adminChannel = (env.ADMIN_CHANNEL_ID || env.CHANNEL_USERNAME || "").trim();
+    const adminChannel = (env.ADMIN_CHANNEL_ID || env.CHANNEL_USERNAME || "").replace(/^id:\s*/i, "").trim();
     if (!adminChannel) {
       console.warn("[Admin Channel] Neither ADMIN_CHANNEL_ID nor CHANNEL_USERNAME is set for R2 upload notification.");
       return;
@@ -1094,7 +1094,7 @@ export function createBot(env: Env) {
       `\n\n📌 *Status:* ⏳ Pending Admin Approval`;
 
     // 1. Post to Admin Channel (ADMIN_CHANNEL_ID or fallback to CHANNEL_USERNAME)
-    const adminChannel = (env.ADMIN_CHANNEL_ID || env.CHANNEL_USERNAME || "").trim();
+    const adminChannel = (env.ADMIN_CHANNEL_ID || env.CHANNEL_USERNAME || "").replace(/^id:\s*/i, "").trim();
     if (adminChannel) {
       try {
         if (photoFileId) {

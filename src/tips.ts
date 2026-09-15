@@ -566,7 +566,7 @@ async function postTelegramMessage(
   replyMarkup?: TelegramInlineKeyboardMarkup
 ): Promise<number | null> {
   const payload: Record<string, unknown> = {
-    chat_id: env.TIPS_CHANNEL_ID,
+    chat_id: (env.TIPS_CHANNEL_ID || "").replace(/^id:\s*/i, "").trim(),
     text: message,
     parse_mode: parseMode,
     disable_web_page_preview: true,
@@ -727,7 +727,7 @@ export async function sendAdminAlert(env: Env, alertMessage: string): Promise<vo
 
   const targets: string[] = [];
   if (env.ADMIN_CHANNEL_ID) {
-    targets.push(env.ADMIN_CHANNEL_ID.trim());
+    targets.push(env.ADMIN_CHANNEL_ID.replace(/^id:\s*/i, "").trim());
   }
   if (env.ADMIN_IDS) {
     for (const raw of env.ADMIN_IDS.split(",")) {

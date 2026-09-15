@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import http from "node:http";
 import { webhookCallback } from "grammy";
 import { createBot } from "./bot";
@@ -9,10 +10,29 @@ import { renderLandingPage } from "./landingPage";
 import { handleApiRequest } from "./apiRoutes";
 import type { Env } from "./types";
 
+// Load .env file with explicit override support
 try {
-  if (typeof (process as any).loadEnvFile === "function") (process as any).loadEnvFile();
+  if (fs.existsSync(".env")) {
+    const envContent = fs.readFileSync(".env", "utf-8");
+    for (const line of envContent.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eqIdx = trimmed.indexOf("=");
+      if (eqIdx === -1) continue;
+      const key = trimmed.slice(0, eqIdx).trim();
+      let val = trimmed.slice(eqIdx + 1).trim();
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      if (key) {
+        process.env[key] = val;
+      }
+    }
+  } else if (typeof (process as any).loadEnvFile === "function") {
+    (process as any).loadEnvFile();
+  }
 } catch {
-  // .env is optional for the loader; validation below remains non-fatal for dev preview.
+  // .env is optional; validation below remains non-fatal for dev preview.
 }
 
 const PORT = 3000;
@@ -24,12 +44,12 @@ const env: Env = {
   DB: db,
   BOT_TOKEN: process.env.BOT_TOKEN || "",
   ADMIN_IDS: process.env.ADMIN_IDS || "",
-  ADMIN_CHANNEL_ID: process.env.ADMIN_CHANNEL_ID || "",
+  ADMIN_CHANNEL_ID: (process.env.ADMIN_CHANNEL_ID || "").replace(/^id:\s*/i, "").trim(),
   WEBHOOK_SECRET: process.env.WEBHOOK_SECRET || "",
   ADMIN_API_SECRET: process.env.ADMIN_API_SECRET || "",
   CHANNEL_USERNAME: process.env.CHANNEL_USERNAME || "",
   CHANNEL_URL: process.env.CHANNEL_URL || "",
-  TIPS_CHANNEL_ID: process.env.TIPS_CHANNEL_ID || "",
+  TIPS_CHANNEL_ID: (process.env.TIPS_CHANNEL_ID || "").replace(/^id:\s*/i, "").trim(),
   TIPS_CHANNEL_URL: process.env.TIPS_CHANNEL_URL || "",
   ODDS_API_KEY: process.env.ODDS_API_KEY || "",
   TIPS_SPORTS: process.env.TIPS_SPORTS || "",
@@ -37,6 +57,8 @@ const env: Env = {
   TIPS_MIN_ODDS: process.env.TIPS_MIN_ODDS || "",
   TIPS_MAX_ODDS: process.env.TIPS_MAX_ODDS || "",
   TIPS_HOURS_AHEAD: process.env.TIPS_HOURS_AHEAD || "",
+  TIPS_PER_SLOT: process.env.TIPS_PER_SLOT || "",
+  TIPS_MAX_FEEDS: process.env.TIPS_MAX_FEEDS || "",
   XBET_LINK: process.env.XBET_LINK || "",
   XBET_PROMO_CODE: process.env.XBET_PROMO_CODE || "",
   MIN_TRANSACTION_LKR: process.env.MIN_TRANSACTION_LKR || "",

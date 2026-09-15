@@ -1,4 +1,4 @@
-import type { DepositRow, WithdrawalRow, D1Database, SystemStats, ReferralItem, AdminActionRow } from "./types";
+import type { DepositRow, WithdrawalRow, D1Database, SystemStats, ReferralItem, AdminActionRow, DailyTrendItem } from "./types";
 
 /** Convert LKR major units (e.g. 1500.50) to integer cents. Avoids floating-point drift. */
 export function toCents(amountLkr: number): number {
@@ -606,9 +606,119 @@ export async function getRecentAdminActions(db: D1Database, limit: number = 20):
  * Operations dashboard, support, scheduling, and safety
  * ============================================================ */
 
+export async function getDailyFinancialTrends(
+  db: D1Database,
+  days: number = 7
+): Promise<DailyTrendItem[]> {
+  const safeDays = Math.max(1, Math.min(days, 90));
+
+  const depQuery = `
+    SELECT 
+      date(created_at) as day,
+      COUNT(*) as total_count,
+      COUNT(CASE WHEN status = 'APPROVED' THEN 1 END) as approved_count,
+      COALESCE(SUM(amount), 0) as total_volume_cents,
+      COALESCE(SUM(CASE WHEN status = 'APPROVED' THEN amount ELSE 0 END), 0) as approved_volume_cents
+    FROM deposits
+    WHERE deleted_at IS NULL AND date(created_at) >= date('now', '-' || ? || ' days')
+    GROUP BY date(created_at)
+  `;
+
+  const wdQuery = `
+    SELECT 
+      date(created_at) as day,
+      COUNT(*) as total_count,
+      COUNT(CASE WHEN status = 'APPROVED' THEN 1 END) as approved_count,
+      COALESCE(SUM(amount), 0) as total_volume_cents,
+      COALESCE(SUM(CASE WHEN status = 'APPROVED' THEN amount ELSE 0 END), 0) as approved_volume_cents
+    FROM withdrawals
+    WHERE deleted_at IS NULL AND date(created_at) >= date('now', '-' || ? || ' days')
+    GROUP BY date(created_at)
+  `;
+
+  const [depRes, wdRes] = await Promise.all([
+    db.prepare(depQuery).bind(safeDays).all<{
+      day: string;
+      total_count: number;
+      approved_count: number;
+      total_volume_cents: number;
+      approved_volume_cents: number;
+    }>(),
+    db.prepare(wdQuery).bind(safeDays).all<{
+      day: string;
+      total_count: number;
+      approved_count: number;
+      total_volume_cents: number;
+      approved_volume_cents: number;
+    }>(),
+  ]);
+
+  const depMap = new Map<string, {
+    total_count: number;
+    approved_count: number;
+    total_volume_cents: number;
+    approved_volume_cents: number;
+  }>();
+  for (const r of depRes.results || []) {
+    if (r?.day) depMap.set(r.day, r);
+  }
+
+  const wdMap = new Map<string, {
+    total_count: number;
+    approved_count: number;
+    total_volume_cents: number;
+    approved_volume_cents: number;
+  }>();
+  for (const r of wdRes.results || []) {
+    if (r?.day) wdMap.set(r.day, r);
+  }
+
+  const trends: DailyTrendItem[] = [];
+  const now = new Date();
+
+  for (let i = safeDays - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setUTCDate(d.getUTCDate() - i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const label = `${monthNames[d.getUTCMonth()]} ${d.getUTCDate()}`;
+
+    const dep = depMap.get(dateStr);
+    const wd = wdMap.get(dateStr);
+
+    const depVol = fromCents(dep?.total_volume_cents ?? 0);
+    const depAppVol = fromCents(dep?.approved_volume_cents ?? 0);
+    const wdVol = fromCents(wd?.total_volume_cents ?? 0);
+    const wdAppVol = fromCents(wd?.approved_volume_cents ?? 0);
+
+    const depCnt = dep?.total_count ?? 0;
+    const depAppCnt = dep?.approved_count ?? 0;
+    const wdCnt = wd?.total_count ?? 0;
+    const wdAppCnt = wd?.approved_count ?? 0;
+
+    trends.push({
+      date: dateStr,
+      label,
+      depositCount: depCnt,
+      depositVolume: depVol,
+      approvedDepositCount: depAppCnt,
+      approvedDepositVolume: depAppVol,
+      withdrawalCount: wdCnt,
+      withdrawalVolume: wdVol,
+      approvedWithdrawalCount: wdAppCnt,
+      approvedWithdrawalVolume: wdAppVol,
+      netVolume: Math.round((depAppVol - wdAppVol) * 100) / 100,
+      totalTransactions: depCnt + wdCnt,
+    });
+  }
+
+  return trends;
+}
+
 export async function getOperationsDashboard(db: D1Database) {
-  const stats = await getStats(db);
-  const [tips, tickets, alerts, channel] = await Promise.all([
+  const [stats, trends, tips, tickets, alerts, channel] = await Promise.all([
+    getStats(db),
+    getDailyFinancialTrends(db, 7),
     db.prepare(`SELECT status, COUNT(*) as count, MAX(posted_at) as last_posted_at FROM tip_posts GROUP BY status`).all<any>(),
     db.prepare(`SELECT status, COUNT(*) as count FROM support_tickets GROUP BY status`).all<any>(),
     db.prepare(`SELECT id, alert_type, severity, message, created_at FROM operational_alerts WHERE acknowledged_at IS NULL ORDER BY created_at DESC LIMIT 20`).all<any>(),
@@ -616,6 +726,7 @@ export async function getOperationsDashboard(db: D1Database) {
   ]);
   return {
     stats,
+    trends,
     tips: tips.results || [],
     tickets: tickets.results || [],
     alerts: alerts.results || [],

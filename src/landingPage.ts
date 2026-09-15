@@ -1658,6 +1658,7 @@ summary:focus-visible {
     <a href="#how-it-works">How It Works</a>
     <a href="#faq">FAQ</a>
     <a href="#security">Security</a>
+    <a href="/admin" id="footer-admin-link">Admin Panel</a>
   </div>
   <div>
     © ${new Date().getFullYear()} Fast xBet Cash · Built for Sri Lanka 🇱🇰

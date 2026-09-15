@@ -236,7 +236,7 @@ export async function updateTelegramMessageWithResults(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        chat_id: env.TIPS_CHANNEL_ID,
+        chat_id: (env.TIPS_CHANNEL_ID || "").replace(/^id:\s*/i, "").trim(),
         message_id: messageId,
         text: updatedText,
         parse_mode: "Markdown",
