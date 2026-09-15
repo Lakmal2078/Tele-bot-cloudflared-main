@@ -199,6 +199,9 @@ const server = http.createServer(async (req, res) => {
       const nonce = crypto.randomUUID().replace(/-/g, "");
       const html = renderLandingPage(env, webReq, nonce);
       const headers = landingPageSecurityHeaders(nonce);
+      // Allow embedding in AI Studio workspace preview iframe
+      delete headers["X-Frame-Options"];
+      headers["Content-Security-Policy"] = headers["Content-Security-Policy"].replace(/;\s*frame-ancestors\s+'none'/, "");
       res.writeHead(200, {
         "Content-Type": "text/html; charset=utf-8",
         ...headers,
