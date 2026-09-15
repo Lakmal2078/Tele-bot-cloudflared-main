@@ -923,7 +923,7 @@ export function createBot(env: Env) {
     if (!user) return;
     await db.clearUserState(env.DB, user.id);
     const lang = await getUserLang(env.DB, user.id);
-    const profile = await db.getUser(env.DB, user.id);
+    const _profile = await db.getUser(env.DB, user.id);
     const history = await db.getUserHistory(env.DB, user.id);
     const safety = await db.getSafetyPreferences(env.DB, user.id);
     const pending = [...history.deposits, ...history.withdrawals].filter((row: any) => row.status === "PENDING").length;
@@ -1638,7 +1638,7 @@ export function createBot(env: Env) {
           reply_markup: kb,
           link_preview_options: { is_disabled: true },
         });
-      } catch (err) {
+      } catch (_err) {
         await ctx.reply(text, {
           parse_mode: "Markdown",
           reply_markup: kb,
@@ -3284,7 +3284,7 @@ async function renderReferralDashboard(ctx: MyContext, userId: number, editMessa
   const summary = await db.getUserReferralSummary(ctx.env.DB, userId);
   const referrals = await db.getUserReferrals(ctx.env.DB, userId);
 
-  let friendsList = "";
+  let friendsList: string;
   if (referrals.length === 0) {
     friendsList = lang === "en"
       ? "_No friends have joined via your link yet._"

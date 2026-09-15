@@ -31,15 +31,23 @@ export interface TipCandidate { event: OddsEvent; selection: string; market: str
 export interface PostedTipSummary { eventId: string; sportKey: string; sportTitle: string; homeTeam: string; awayTeam: string; commenceTime: string; selection: string; market: string; odds: number; bookmakerCount: number; marketProbability: number; }
 
 function csv(value: string | undefined, fallback: string): string[] { return (value || fallback).split(",").map((item) => item.trim()).filter(Boolean); }
-function escapeHtml(value: string): string { return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;"); }
+function _escapeHtml(value: string): string { return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;"); }
 function decimalPrice(price: number): number { return Number.isFinite(price) && price > 1 ? price : 0; }
 function sportMeta(sportKey: string, title: string): { group: string; emoji: string } { const key = `${sportKey} ${title}`.toLowerCase(); if (key.includes("cricket")) return { group: "cricket", emoji: "🏏" }; if (key.includes("soccer") || key.includes("football")) return { group: "football", emoji: "⚽" }; if (key.includes("basketball")) return { group: "basketball", emoji: "🏀" }; if (key.includes("table") && key.includes("tennis")) return { group: "table_tennis", emoji: "🏓" }; if (key.includes("esport") || key.includes("cs2") || key.includes("dota") || key.includes("valorant")) return { group: "esports", emoji: "🎮" }; if (key.includes("tennis")) return { group: "tennis", emoji: "🎾" }; return { group: sportKey, emoji: "🏆" }; }
 function candidateScore(candidate: TipCandidate): number { const probabilityScore = candidate.impliedProbability * 100; const bookmakerScore = Math.min(candidate.bookmakerCount, 8) * 2; const oddsPenalty = candidate.averageOdds > 2.2 ? (candidate.averageOdds - 2.2) * 4 : 0; return probabilityScore + bookmakerScore - oddsPenalty; }
 
-export function chooseCandidates(events: OddsEvent[], minOdds: number, maxOdds: number, limit = DEFAULT_TIPS_PER_SLOT, minBookmakers = 2): TipCandidate[] {
+export function chooseCandidates(
+  events: OddsEvent[],
+  minOdds: number,
+  maxOdds: number,
+  limit = DEFAULT_TIPS_PER_SLOT,
+  minBookmakers = 2,
+  excludeEventIds: ReadonlySet<string> = new Set()
+): TipCandidate[] {
   const candidates: TipCandidate[] = [];
   for (const event of events) {
-    if (!event.id || !event.commence_time || new Date(event.commence_time).getTime() <= Date.now()) continue;
+    if (!event.id || excludeEventIds.has(event.id)) continue;
+    if (!event.commence_time || new Date(event.commence_time).getTime() <= Date.now()) continue;
     const meta = sportMeta(event.sport_key, event.sport_title);
     const bySelection = new Map<string, number[]>();
     let bookmakerCount = 0;
@@ -85,7 +93,7 @@ export function chooseCandidates(events: OddsEvent[], minOdds: number, maxOdds: 
   return selected;
 }
 
-export function chooseCandidate(events: OddsEvent[], minOdds: number, maxOdds: number): TipCandidate | null { return chooseCandidates(events, minOdds, maxOdds, 1)[0] || null; }
+export function chooseCandidate(events: OddsEvent[], minOdds: number, maxOdds: number, excludeEventIds?: ReadonlySet<string>): TipCandidate | null { return chooseCandidates(events, minOdds, maxOdds, 1, 2, excludeEventIds)[0] || null; }
 function retryDelayMs(attempt: number, retryAfter: string | null): number { const retrySeconds = retryAfter ? Number(retryAfter) : NaN; if (Number.isFinite(retrySeconds) && retrySeconds >= 0) return Math.min(retrySeconds * 1000, 5000); return Math.min(500 * 2 ** attempt, 4000); }
 
 class OddsCreditGuard {
@@ -188,7 +196,7 @@ export async function getTodayPostedEventIds(env: Env): Promise<Set<string>> {
       SELECT event_id, tips_json
       FROM tip_posts
       WHERE status = 'POSTED'
-        AND date(created_at) = date('now')
+        AND (date(created_at) = date('now') OR (posted_at IS NOT NULL AND date(posted_at) = date('now')))
     `).all<{ event_id: string | null; tips_json: string | null }>();
 
     for (const r of rows.results || []) {
@@ -198,7 +206,8 @@ export async function getTodayPostedEventIds(env: Env): Promise<Set<string>> {
           const payload = JSON.parse(r.tips_json);
           if (Array.isArray(payload)) {
             for (const item of payload) {
-              if (item.eventId) ids.add(item.eventId);
+              const id = item.eventId || item.event_id;
+              if (id) ids.add(id);
             }
           }
         } catch {}
@@ -210,6 +219,8 @@ export async function getTodayPostedEventIds(env: Env): Promise<Set<string>> {
 
   return ids;
 }
+
+export const getTodaysPostedEventIds = getTodayPostedEventIds;
 
 async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
   if (!env.ODDS_API_KEY) throw new Error("ODDS_API_KEY is not configured");
@@ -269,23 +280,21 @@ async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
 
   // Exclude events already posted earlier today to prevent duplicate tips across 08:00, 12:00, and 18:00 slots
   const todayPostedIds = await getTodayPostedEventIds(env);
-  const freshEvents = uniqueEvents.filter((ev) => !todayPostedIds.has(ev.id));
-  const candidatePool = freshEvents.length >= targetCount ? freshEvents : uniqueEvents;
 
   const now = Date.now();
-  const primaryEvents = candidatePool.filter((ev) => {
+  const primaryEvents = uniqueEvents.filter((ev) => {
     const start = new Date(ev.commence_time).getTime();
     return start <= now + hoursAhead * 60 * 60 * 1000;
   });
 
-  // Pass 1: Strict criteria within primary window
-  const selected = chooseCandidates(primaryEvents, minOdds, maxOdds, targetCount, 2);
+  // Pass 1: Strict criteria within primary window with exclusion
+  const selected = chooseCandidates(primaryEvents, minOdds, maxOdds, targetCount, 2, todayPostedIds);
 
-  // Pass 2: If fewer than targetCount, relax odds range slightly within primary window
+  // Pass 2: If fewer than targetCount, relax odds range slightly within primary window with exclusion
   if (selected.length < targetCount) {
     const relaxedMin = Math.max(1.20, minOdds - 0.20);
     const relaxedMax = Math.min(3.50, maxOdds + 0.70);
-    const pass2 = chooseCandidates(primaryEvents, relaxedMin, relaxedMax, targetCount, 1);
+    const pass2 = chooseCandidates(primaryEvents, relaxedMin, relaxedMax, targetCount, 1, todayPostedIds);
     const usedIds = new Set(selected.map((c) => c.event.id));
     for (const c of pass2) {
       if (selected.length >= targetCount) break;
@@ -296,11 +305,24 @@ async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
     }
   }
 
-  // Pass 3: If still under targetCount, include events up to extended window (72h)
+  // Pass 3: If still under targetCount, include events up to extended window (72h) with exclusion
   if (selected.length < targetCount && uniqueEvents.length > primaryEvents.length) {
-    const pass3 = chooseCandidates(uniqueEvents, minOdds, maxOdds, targetCount, 1);
+    const pass3 = chooseCandidates(uniqueEvents, minOdds, maxOdds, targetCount, 1, todayPostedIds);
     const usedIds = new Set(selected.map((c) => c.event.id));
     for (const c of pass3) {
+      if (selected.length >= targetCount) break;
+      if (!usedIds.has(c.event.id)) {
+        selected.push(c);
+        usedIds.add(c.event.id);
+      }
+    }
+  }
+
+  // Pass 4 (last resort): If still under targetCount, try unique events without exclusion so slot is not left empty
+  if (selected.length < targetCount && todayPostedIds.size > 0) {
+    const pass4 = chooseCandidates(uniqueEvents, minOdds, maxOdds, targetCount, 1);
+    const usedIds = new Set(selected.map((c) => c.event.id));
+    for (const c of pass4) {
       if (selected.length >= targetCount) break;
       if (!usedIds.has(c.event.id)) {
         selected.push(c);

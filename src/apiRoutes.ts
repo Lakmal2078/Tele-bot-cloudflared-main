@@ -1,4 +1,5 @@
-import type { Env, D1Database } from "./types";
+import type { Env } from "./types";
+import { OG_IMAGE_PNG } from "./ogImage";
 import { constantTimeEqual, isConfiguredAdminId, validateEnv } from "./config";
 import { securityHeaders } from "./security";
 import { getStats, getOperationsDashboard, getSupportTickets, updateSupportTicket, createScheduledChannelPost } from "./db";
@@ -248,6 +249,18 @@ export async function handleApiRequest(
     } catch (err) {
       return json({ ok: false, error: String(err) }, 500);
     }
+  }
+
+  // OpenGraph Image PNG (1200x630 bitmap for WhatsApp, Telegram, Facebook, Twitter social previews)
+  if (path === "/og-image.png" && (method === "GET" || method === "HEAD")) {
+    const headers: Record<string, string> = {
+      "Content-Type": "image/png",
+      "Content-Length": String(OG_IMAGE_PNG.byteLength),
+      "Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
+      "X-Content-Type-Options": "nosniff",
+    };
+    if (method === "HEAD") return new Response(null, { status: 200, headers });
+    return new Response(OG_IMAGE_PNG, { status: 200, headers });
   }
 
   // OpenGraph Image (1200x630 vector graphic for Telegram / WhatsApp / Twitter social previews)

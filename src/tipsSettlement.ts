@@ -453,7 +453,7 @@ export async function settlePendingTips(
           pick.completed,
           pick.settled_at || null
         ).run();
-      } catch (err) {
+      } catch (_err) {
         // Table or record write error handling
       }
     }

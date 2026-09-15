@@ -1,7 +1,6 @@
 import type { Env } from "./types";
 
 const BOT_URL = "https://t.me/fast_1xbetcash_bot";
-const BOT_USERNAME = "@fast_1xbetcash_bot";
 
 function escapeAttribute(value: string): string {
   return value
@@ -43,7 +42,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
   const botSticky = escapeAttribute(botStickyLink);
   const channel = escapeAttribute(channelUrl);
   const xbet = escapeAttribute(xbetLink);
-  const channelName = escapeText(channelUsername);
+  const _channelName = escapeText(channelUsername);
   const code = escapeText(promo);
   const minAmount = escapeText(String(minTx));
   const maxAmount = escapeText(String(maxTx));
@@ -67,7 +66,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
   }
 
   const pageUrlAttr = escapeAttribute(pageUrl);
-  const ogImageUrl = `${pageUrl}og-image.svg`;
+  const ogImageUrl = `${pageUrl}og-image.png`;
   const ogImageUrlAttr = escapeAttribute(ogImageUrl);
 
   // Multi-schema JSON-LD: Organization, WebSite, and FAQPage (for Google rich results)
@@ -179,7 +178,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
 <meta property="og:description" content="ස්වයංක්‍රීය Free Betting Tips, වේගවත් Deposit &amp; Withdraw සේවාව — සියල්ල Telegram හරහා. 18+ Only.">
 <meta property="og:url" content="${pageUrlAttr}">
 <meta property="og:image" content="${ogImageUrlAttr}">
-<meta property="og:image:type" content="image/svg+xml">
+<meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Fast xBet Cash 🇱🇰 — Free Betting Tips &amp; Cash Agent">

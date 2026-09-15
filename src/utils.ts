@@ -8,7 +8,7 @@
  */
 export function escapeMarkdown(text: string | null | undefined): string {
   if (!text) return "";
-  return String(text).replace(/([_*`\[])/g, "\\$1");
+  return String(text).replace(/([_*`[])/g, "\\$1");
 }
 
 /**
@@ -72,7 +72,7 @@ export function validateTransactionAmount(
     return { valid: false, amount: null, error: "INVALID_FORMAT", min, max };
   }
 
-  let cleaned = "";
+  let cleaned: string;
   if (typeof rawInput === "number") {
     if (!Number.isFinite(rawInput) || isNaN(rawInput) || rawInput <= 0) {
       return { valid: false, amount: null, error: "INVALID_FORMAT", min, max };

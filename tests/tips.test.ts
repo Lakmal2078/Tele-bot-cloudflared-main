@@ -5,7 +5,6 @@ import {
   buildTipsInlineKeyboard,
   chooseCandidate,
   chooseCandidates,
-  DEFAULT_XBET_LINK,
   formatFallbackTip,
   formatMatchButtonLabel,
   formatTipMessage,
@@ -333,5 +332,45 @@ describe("scheduled tips", () => {
     expect(kb.inline_keyboard[0][0].url).toBe("https://1xbet.example.com");
     expect(kb.inline_keyboard[1][0].text).toBe("📣 Join Official Channel");
     expect(kb.inline_keyboard[1][0].url).toBe("https://t.me/test_channel");
+  });
+
+  it("never returns candidates with event IDs that are in the excluded set", () => {
+    const future = new Date(Date.now() + 2 * 3600 * 1000).toISOString();
+    const events = [
+      {
+        id: "already-posted-event-1",
+        sport_key: "soccer_epl",
+        sport_title: "Premier League",
+        commence_time: future,
+        home_team: "Team A",
+        away_team: "Team B",
+        bookmakers: [
+          { key: "b1", title: "B1", markets: [{ key: "h2h", outcomes: [{ name: "Team A", price: 1.8 }] }] },
+          { key: "b2", title: "B2", markets: [{ key: "h2h", outcomes: [{ name: "Team A", price: 1.85 }] }] },
+        ],
+      },
+      {
+        id: "fresh-event-2",
+        sport_key: "basketball_nba",
+        sport_title: "NBA",
+        commence_time: future,
+        home_team: "Team C",
+        away_team: "Team D",
+        bookmakers: [
+          { key: "b1", title: "B1", markets: [{ key: "h2h", outcomes: [{ name: "Team C", price: 1.75 }] }] },
+          { key: "b2", title: "B2", markets: [{ key: "h2h", outcomes: [{ name: "Team C", price: 1.8 }] }] },
+        ],
+      },
+    ];
+
+    const excludedIds = new Set(["already-posted-event-1"]);
+    const chosen = chooseCandidates(events, 1.4, 2.5, 3, 2, excludedIds);
+
+    expect(chosen.length).toBe(1);
+    expect(chosen[0].event.id).toBe("fresh-event-2");
+    expect(chosen.some((c) => c.event.id === "already-posted-event-1")).toBe(false);
+
+    const singleChosen = chooseCandidate(events, 1.4, 2.5, excludedIds);
+    expect(singleChosen?.event.id).toBe("fresh-event-2");
   });
 });

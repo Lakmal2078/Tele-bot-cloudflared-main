@@ -1,4 +1,4 @@
-import type { Env, DepositRow, WithdrawalRow, D1Database, SystemStats, ReferralItem, AdminActionRow } from "./types";
+import type { DepositRow, WithdrawalRow, D1Database, SystemStats, ReferralItem, AdminActionRow } from "./types";
 
 /** Convert LKR major units (e.g. 1500.50) to integer cents. Avoids floating-point drift. */
 export function toCents(amountLkr: number): number {

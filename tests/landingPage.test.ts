@@ -51,12 +51,23 @@ describe("Landing Page Render & SEO", () => {
     const req = new Request("https://fast-xbet.lk/");
     const html = renderLandingPage(mockEnv, req);
 
-    expect(html).toContain('<meta property="og:image" content="https://fast-xbet.lk/og-image.svg">');
-    expect(html).toContain('<meta property="og:image:type" content="image/svg+xml">');
+    expect(html).toContain('<meta property="og:image" content="https://fast-xbet.lk/og-image.png">');
+    expect(html).toContain('<meta property="og:image:type" content="image/png">');
     expect(html).toContain('<meta property="og:image:width" content="1200">');
     expect(html).toContain('<meta property="og:image:height" content="630">');
     expect(html).toContain('<meta name="twitter:card" content="summary_large_image">');
-    expect(html).toContain('<meta name="twitter:image" content="https://fast-xbet.lk/og-image.svg">');
+    expect(html).toContain('<meta name="twitter:image" content="https://fast-xbet.lk/og-image.png">');
+  });
+
+  it("serves PNG OG Image at /og-image.png via handleApiRequest", async () => {
+    const req = new Request("https://fast-xbet.lk/og-image.png");
+    const res = await handleApiRequest(req, mockEnv);
+
+    expect(res).not.toBeNull();
+    expect(res?.status).toBe(200);
+    expect(res?.headers.get("Content-Type")).toBe("image/png");
+    const bytes = await res?.arrayBuffer();
+    expect(bytes?.byteLength).toBeGreaterThan(1000);
   });
 
   it("includes canonical and hreflang tags for multi-language SEO", () => {
