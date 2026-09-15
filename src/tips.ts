@@ -231,7 +231,7 @@ async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
   if (!env.ODDS_API_KEY) throw new Error("ODDS_API_KEY is not configured");
 
   const defaultSports =
-    "soccer_epl,soccer_uefa_champs_league,soccer_spain_la_liga,soccer_italy_serie_a,soccer_germany_bundesliga,basketball_nba,tennis_atp,auto:cricket,auto:table_tennis,auto:esports";
+    "soccer_epl,soccer_uefa_champs_league,soccer_spain_la_liga,soccer_italy_serie_a,soccer_germany_bundesliga,basketball_nba,tennis_atp,auto:table_tennis,auto:esports";
   const requested = csv(env.TIPS_SPORTS, defaultSports);
   const explicitSports = requested.filter((sport) => !sport.startsWith("auto:"));
   const maxFeeds = Math.max(6, Number(env.TIPS_MAX_FEEDS || MAX_ODDS_FEEDS_PER_SLOT));
