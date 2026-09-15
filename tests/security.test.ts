@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   adminAttemptAllowed,
   adminAttemptAllowedNode,
+  landingPageSecurityHeaders,
   recordAdminFailure,
   recordAdminFailureNode,
   securityHeaders,
@@ -81,5 +82,15 @@ describe("security headers", () => {
     expect(headers["X-Content-Type-Options"]).toBe("nosniff");
     expect(headers["X-Frame-Options"]).toBe("DENY");
     expect(headers["Content-Security-Policy"]).toContain("default-src 'none'");
+  });
+
+  it("returns strict landing page CSP with frame-ancestors none and nonce support", () => {
+    const headersNoNonce = landingPageSecurityHeaders();
+    expect(headersNoNonce["X-Frame-Options"]).toBe("DENY");
+    expect(headersNoNonce["Content-Security-Policy"]).toContain("frame-ancestors 'none'");
+
+    const testNonce = "abcdef1234567890";
+    const headersWithNonce = landingPageSecurityHeaders(testNonce);
+    expect(headersWithNonce["Content-Security-Policy"]).toContain(`'nonce-${testNonce}'`);
   });
 });

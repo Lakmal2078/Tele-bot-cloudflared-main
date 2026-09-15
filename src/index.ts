@@ -1,14 +1,12 @@
 import http from "node:http";
-import { timingSafeEqual } from "node:crypto";
 import { webhookCallback } from "grammy";
 import { createBot } from "./bot";
 import { createD1Database } from "./sqlite-d1";
-import { getStats, getOperationsDashboard, getSupportTickets, updateSupportTicket, createScheduledChannelPost } from "./db";
 import { logBotError } from "./logger";
-import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
 import { validateEnv } from "./config";
-import { adminAttemptAllowedNode, recordAdminFailureNode, landingPageSecurityHeaders } from "./security";
+import { landingPageSecurityHeaders } from "./security";
 import { renderLandingPage } from "./landingPage";
+import { handleApiRequest } from "./apiRoutes";
 import type { Env } from "./types";
 
 try {
@@ -103,26 +101,44 @@ if (env.BOT_TOKEN && env.BOT_TOKEN.trim().length > 0) {
   console.log("[Bot] BOT_TOKEN not configured. Live Telegram bot polling is standby; Web showcase and APIs active.");
 }
 
-function isAuthorizedAdminRequest(req: http.IncomingMessage): boolean {
-  const expected = env.ADMIN_API_SECRET.trim();
-  if (!expected) return false;
+async function nodeToWebRequest(req: http.IncomingMessage, hostHeader: string): Promise<Request> {
+  const url = new URL(req.url || "/", `http://${hostHeader}`);
+  const headers = new Headers();
+  for (const [k, v] of Object.entries(req.headers)) {
+    if (v === undefined) continue;
+    if (Array.isArray(v)) {
+      for (const item of v) headers.append(k, item);
+    } else {
+      headers.set(k, v);
+    }
+  }
 
-  const authorization = String(req.headers.authorization || "");
-  const bearer = /^Bearer\s+(.+)$/i.exec(authorization)?.[1]?.trim() || "";
-  const headerSecret = String(req.headers["x-admin-secret"] || "").trim();
-  const supplied = bearer || headerSecret;
-  if (!supplied) return false;
+  const method = (req.method || "GET").toUpperCase();
+  const init: RequestInit = { method, headers };
 
-  const a = Buffer.from(supplied);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
+  if (method !== "GET" && method !== "HEAD") {
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) {
+      chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+    }
+    init.body = Buffer.concat(chunks);
+  }
+
+  return new Request(url.toString(), init);
 }
 
-function adminAuthorized(req: http.IncomingMessage): boolean {
-  if (!adminAttemptAllowedNode(req.headers)) return false;
-  const authorized = isAuthorizedAdminRequest(req);
-  if (!authorized) recordAdminFailureNode(req.headers);
-  return authorized;
+async function sendWebResponse(res: http.ServerResponse, webRes: Response): Promise<void> {
+  res.statusCode = webRes.status;
+  res.statusMessage = webRes.statusText;
+  webRes.headers.forEach((val, key) => {
+    res.setHeader(key, val);
+  });
+  if (webRes.body) {
+    const buf = Buffer.from(await webRes.arrayBuffer());
+    res.end(buf);
+  } else {
+    res.end();
+  }
 }
 
 function writeJson(res: http.ServerResponse, body: unknown, status = 200): void {
@@ -136,231 +152,74 @@ function writeJson(res: http.ServerResponse, body: unknown, status = 200): void 
 
 const server = http.createServer(async (req, res) => {
   const method = (req.method || "GET").toUpperCase();
-  const url = (req.url || "/").split("?")[0];
+  const host = req.headers.host || `localhost:${PORT}`;
 
-  if (url === "/health" || url === "/api/health") {
-    if (method === "HEAD") {
-      res.writeHead(200, { "Cache-Control": "no-store" });
-      res.end();
-    } else {
-      writeJson(res, { status: "ok", service: "telegram-bot" });
-    }
-    return;
-  }
+  try {
+    const webReq = await nodeToWebRequest(req, host);
 
-  if (url === "/api/cleanup/logs/status" && (method === "GET" || method === "HEAD")) {
-    if (!adminAuthorized(req)) {
-      writeJson(res, { ok: false, error: "Unauthorized" }, 401);
-      return;
-    }
-    const last = getLastCleanupResult();
-    if (method === "HEAD") {
-      res.writeHead(200, { "Cache-Control": "no-store" });
-      res.end();
-    } else {
-      writeJson(res, {
-        status: "ok",
-        retentionPolicyDays: 30,
-        schedule: "Daily at 02:00 UTC",
-        lastCleanup: last,
-      });
-    }
-    return;
-  }
-
-  if (url === "/api/admin/status" && (method === "GET" || method === "HEAD")) {
-    if (!adminAuthorized(req)) {
-      writeJson(res, { ok: false, error: "Unauthorized" }, 401);
-      return;
-    }
-    if (method === "HEAD") {
-      res.writeHead(200, { "Cache-Control": "no-store" });
-      res.end();
-      return;
-    }
-    const stats = await getStats(env.DB);
-    writeJson(res, {
-      status: "ok",
+    // 1. Dispatch shared API routes (health, dashboard, tickets, schedule, receipts, cleanup)
+    const apiResponse = await handleApiRequest(webReq, env, {
       runtime: "node",
-      mode: usePolling ? "polling" : "webhook",
-      stats,
+      isPolling: usePolling,
     });
-    return;
-  }
-
-  if (url === "/api/admin/dashboard" && (method === "GET" || method === "HEAD")) {
-    if (!adminAuthorized(req)) {
-      writeJson(res, { ok: false, error: "Unauthorized" }, 401);
-      return;
-    }
-    if (method === "HEAD") {
-      res.writeHead(200, { "Cache-Control": "no-store" });
-      res.end();
-      return;
-    }
-    try {
-      const dashboard = await getOperationsDashboard(env.DB);
-      writeJson(res, { ok: true, ...dashboard });
-    } catch (error) {
-      console.error("[Admin Dashboard] query failed", error);
-      writeJson(res, { ok: false, error: "Dashboard data unavailable" }, 503);
-    }
-    return;
-  }
-
-  if (url === "/api/admin/tickets") {
-    if (!adminAuthorized(req)) {
-      writeJson(res, { ok: false, error: "Unauthorized" }, 401);
-      return;
-    }
-    if (method === "GET") {
-      const parsedUrl = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
-      const status = parsedUrl.searchParams.get("status") as "OPEN" | "PENDING" | "CLOSED" | null;
-      const tickets = await getSupportTickets(env.DB, status || undefined);
-      writeJson(res, { ok: true, tickets });
-      return;
-    }
-    if (method === "PATCH") {
-      let body = "";
-      req.on("data", (chunk) => { body += chunk; });
-      req.on("end", async () => {
-        try {
-          const parsed = JSON.parse(body || "{}");
-          if (!parsed.id || !parsed.status || !parsed.adminId) {
-            writeJson(res, { ok: false, error: "id, status and adminId are required" }, 400);
-            return;
-          }
-          const updated = await updateSupportTicket(env.DB, parsed.id, parsed.status, parsed.reply || null, parsed.adminId);
-          writeJson(res, { ok: updated }, updated ? 200 : 404);
-        } catch {
-          writeJson(res, { ok: false, error: "Invalid JSON" }, 400);
-        }
-      });
-      return;
-    }
-    writeJson(res, { ok: false, error: "Method Not Allowed" }, 405);
-    return;
-  }
-
-  if (url === "/api/admin/schedule") {
-    if (!adminAuthorized(req)) {
-      writeJson(res, { ok: false, error: "Unauthorized" }, 401);
-      return;
-    }
-    if (method !== "POST") {
-      writeJson(res, { ok: false, error: "Method Not Allowed" }, 405);
-      return;
-    }
-    let body = "";
-    req.on("data", (chunk) => { body += chunk; });
-    req.on("end", async () => {
-      try {
-        const parsed = JSON.parse(body || "{}");
-        if (!parsed.title || !parsed.body || !parsed.scheduledFor || !parsed.createdBy) {
-          writeJson(res, { ok: false, error: "title, body, scheduledFor and createdBy are required" }, 400);
-          return;
-        }
-        const id = await createScheduledChannelPost(env.DB, {
-          title: parsed.title,
-          body: parsed.body,
-          mediaUrl: parsed.mediaUrl,
-          ctaText: parsed.ctaText,
-          ctaUrl: parsed.ctaUrl,
-          language: parsed.language,
-          scheduledFor: parsed.scheduledFor,
-          createdBy: parsed.createdBy,
-        });
-        writeJson(res, { ok: true, id }, 201);
-      } catch {
-        writeJson(res, { ok: false, error: "Invalid JSON" }, 400);
-      }
-    });
-    return;
-  }
-
-  if (url === "/api/cleanup/logs" && method === "POST") {
-    if (!adminAuthorized(req)) {
-      writeJson(res, { ok: false, error: "Unauthorized" }, 401);
+    if (apiResponse) {
+      await sendWebResponse(res, apiResponse);
       return;
     }
 
-    let body = "";
-    req.on("data", (chunk) => {
-      body += chunk;
-      if (body.length > 4096) req.destroy();
-    });
-    req.on("end", async () => {
-      let days = 30;
-      try {
-        const parsed = JSON.parse(body || "{}");
-        if (parsed.retentionDays && parsed.retentionDays > 0 && parsed.retentionDays <= 3650) {
-          days = Math.floor(parsed.retentionDays);
-        }
-      } catch {
-        writeJson(res, { ok: false, error: "Invalid JSON body" }, 400);
+    // 2. Telegram Webhook handling
+    if (method === "POST" && usePolling) {
+      writeJson(res, { ok: true, mode: "polling" });
+      return;
+    }
+
+    if (method === "POST") {
+      if (!webhookHandler || !bot) {
+        writeJson(res, { ok: false, error: "Webhook is not configured" }, 503);
         return;
       }
 
       try {
-        const result = await cleanupOldR2Logs(env, days);
-        writeJson(res, result, result.success ? 200 : 500);
-      } catch (err: any) {
-        writeJson(res, { success: false, error: err?.message || "Cleanup failed" }, 500);
+        await webhookHandler(req, res);
+      } catch (err) {
+        console.error("[Webhook Error]:", err);
+        logBotError(env, {
+          source: "NodeWebhookServer",
+          message: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined,
+          context: { flow: "node_http_webhook" },
+        });
+        if (!res.writableEnded) writeJson(res, { ok: true });
       }
-    });
-    return;
-  }
-
-  if (method === "POST" && usePolling) {
-    writeJson(res, { ok: true, mode: "polling" });
-    return;
-  }
-
-  if (method === "POST") {
-    if (!webhookHandler || !bot) {
-      writeJson(res, { ok: false, error: "Webhook is not configured" }, 503);
       return;
     }
 
-    try {
-      await webhookHandler(req, res);
-    } catch (err) {
-      console.error("[Webhook Error]:", err);
-      logBotError(env, {
-        source: "NodeWebhookServer",
-        message: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack : undefined,
-        context: { flow: "node_http_webhook" },
+    // 3. HTML landing page with CSP cryptographic nonce
+    if (method === "GET" || method === "HEAD") {
+      const nonce = crypto.randomUUID().replace(/-/g, "");
+      const html = renderLandingPage(env, webReq, nonce);
+      const headers = landingPageSecurityHeaders(nonce);
+      res.writeHead(200, {
+        "Content-Type": "text/html; charset=utf-8",
+        ...headers,
       });
-      if (!res.writableEnded) writeJson(res, { ok: true });
+      if (method === "HEAD") {
+        res.end();
+      } else {
+        res.end(html);
+      }
+      return;
     }
-    return;
-  }
 
-  // HTML landing page for all web browsers and preview frames
-  if (method === "GET" || method === "HEAD") {
-    const host = req.headers.host || `localhost:${PORT}`;
-    const fullUrl = `http://${host}${req.url || "/"}`;
-    const webReq = new Request(fullUrl, {
-      method,
-      headers: req.headers as Record<string, string>,
-    });
-    const html = renderLandingPage(env, webReq);
-    const headers = landingPageSecurityHeaders();
-    res.writeHead(200, {
-      "Content-Type": "text/html; charset=utf-8",
-      ...headers,
-    });
-    if (method === "HEAD") {
-      res.end();
-    } else {
-      res.end(html);
+    res.writeHead(404, { "Content-Type": "text/plain", "Cache-Control": "no-store" });
+    res.end("Not Found");
+  } catch (err) {
+    console.error("[Server Error]:", err);
+    if (!res.writableEnded) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: false, error: "Internal Server Error" }));
     }
-    return;
   }
-
-  res.writeHead(404, { "Content-Type": "text/plain", "Cache-Control": "no-store" });
-  res.end("Not Found");
 });
 
 server.listen(PORT, HOST, () => {

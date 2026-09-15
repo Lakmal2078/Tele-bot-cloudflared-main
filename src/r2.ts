@@ -56,9 +56,10 @@ export async function backupReceiptToR2(
     }
     const arrayBuffer = await fileRes.arrayBuffer();
 
-    // 3. Store in R2
+    // 3. Store in R2 with unguessable random token to prevent public enumeration
     const extension = filePath.split(".").pop()?.toLowerCase() || "jpg";
-    const key = `receipts/deposit_${depositId}_${Date.now()}.${extension}`;
+    const randomToken = crypto.randomUUID().replace(/-/g, "");
+    const key = `receipts/deposit_${depositId}_${Date.now()}_${randomToken}.${extension}`;
     const mimeType =
       extension === "png"
         ? "image/png"

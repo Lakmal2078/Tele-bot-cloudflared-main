@@ -75,7 +75,34 @@ export function validateEnv(env: Partial<Env>): string[] {
     }
   }
 
+  const hasPaymentMethod =
+    nonEmpty(env.BANK_DETAILS) ||
+    nonEmpty(env.EZCASH_NUMBER) ||
+    nonEmpty(env.MCASH_NUMBER) ||
+    nonEmpty(env.FRIMI_NUMBER) ||
+    nonEmpty(env.WHATSAPP_NUMBER);
+  if (!hasPaymentMethod) {
+    errors.push(
+      "At least one deposit payment method or contact (BANK_DETAILS, EZCASH_NUMBER, MCASH_NUMBER, FRIMI_NUMBER, or WHATSAPP_NUMBER) must be configured"
+    );
+  }
+
   return errors;
+}
+
+export function getAdminIdSet(env: Partial<Env>): Set<number> {
+  const ids = (env.ADMIN_IDS || "")
+    .split(",")
+    .map((v) => parseInt(v.trim(), 10))
+    .filter((n) => Number.isInteger(n) && n > 0);
+  return new Set(ids);
+}
+
+export function isConfiguredAdminId(adminId: unknown, env: Partial<Env>): boolean {
+  if (typeof adminId !== "number" || !Number.isInteger(adminId) || adminId <= 0) {
+    return false;
+  }
+  return getAdminIdSet(env).has(adminId);
 }
 
 export function assertValidEnv(env: Partial<Env>, context = "runtime"): void {
@@ -85,7 +112,7 @@ export function assertValidEnv(env: Partial<Env>, context = "runtime"): void {
   }
 }
 
-function constantTimeEqual(a: string, b: string): boolean {
+export function constantTimeEqual(a: string, b: string): boolean {
   const left = new TextEncoder().encode(a);
   const right = new TextEncoder().encode(b);
   let diff = left.length ^ right.length;

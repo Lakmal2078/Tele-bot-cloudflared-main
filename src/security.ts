@@ -28,20 +28,22 @@ export function securityHeaders(): Record<string, string> {
  * language switcher / promo-copy button to run at all) and loads the Sinhala
  * webfont + a data-URI favicon from a tightly scoped allowlist.
  */
-export function landingPageSecurityHeaders(): Record<string, string> {
+export function landingPageSecurityHeaders(nonce?: string): Record<string, string> {
   const headers = { ...securityHeaders() };
-  delete headers["X-Frame-Options"];
+  headers["X-Frame-Options"] = "DENY";
+  const scriptPolicy = nonce ? `'nonce-${nonce}'` : "'unsafe-inline'";
+  const stylePolicy = nonce ? `'nonce-${nonce}' https://fonts.googleapis.com` : "'unsafe-inline' https://fonts.googleapis.com";
   return {
     ...headers,
     "Content-Security-Policy":
       "default-src 'none'; " +
-      "script-src 'unsafe-inline'; " +
-      "style-src 'unsafe-inline' https://fonts.googleapis.com; " +
+      `script-src ${scriptPolicy}; ` +
+      `style-src ${stylePolicy}; ` +
       "font-src https://fonts.gstatic.com; " +
       "img-src data:; " +
       "base-uri 'none'; " +
       "form-action 'none'; " +
-      "frame-ancestors *",
+      "frame-ancestors 'none'",
   };
 }
 

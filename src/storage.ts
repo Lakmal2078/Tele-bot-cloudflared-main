@@ -86,6 +86,43 @@ export async function putObject(
   return true;
 }
 
+/** Retrieve an object's content and metadata from R2 or S3. Returns null if not found. */
+export async function getObject(
+  env: Env,
+  key: string
+): Promise<{ body: any; contentType: string; size?: number } | null> {
+  const bucket = getBucket(env);
+  if (bucket) {
+    const obj = await bucket.get(key);
+    if (!obj) return null;
+    return {
+      body: obj.body,
+      contentType: obj.httpMetadata?.contentType || "application/octet-stream",
+      size: obj.size,
+    };
+  }
+
+  const client = await getS3Client(env);
+  if (!client) return null;
+
+  try {
+    const { GetObjectCommand } = await import("@aws-sdk/client-s3");
+    const res: any = await client.send(
+      new GetObjectCommand({
+        Bucket: env.R2_BUCKET_NAME!,
+        Key: key,
+      })
+    );
+    return {
+      body: res.Body,
+      contentType: res.ContentType || "application/octet-stream",
+      size: res.ContentLength,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** List objects under a prefix, paginating transparently. */
 export async function listObjects(
   env: Env,

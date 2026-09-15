@@ -22,7 +22,8 @@ function escapeJsonForScript(value: string): string {
     .replace(/&/g, "\\u0026");
 }
 
-export function renderLandingPage(env: Env, request: Request): string {
+export function renderLandingPage(env: Env, request: Request, nonce?: string): string {
+  const nonceAttr = nonce ? ` nonce="${escapeAttribute(nonce)}"` : "";
   const channelUrl =
     env.CHANNEL_URL?.trim() || "https://t.me/fast_xbet_official_tips";
   const channelUsername =
@@ -98,9 +99,9 @@ export function renderLandingPage(env: Env, request: Request): string {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 
-<script type="application/ld+json">${jsonLd}</script>
+<script type="application/ld+json"${nonceAttr}>${jsonLd}</script>
 
-<style>
+<style${nonceAttr}>
 :root {
   --bg: #070b12;
   --bg2: #0f172a;
@@ -1485,7 +1486,7 @@ summary:focus-visible {
   </p>
 </footer>
 
-<script>
+<script${nonceAttr}>
 (function () {
   "use strict";
 

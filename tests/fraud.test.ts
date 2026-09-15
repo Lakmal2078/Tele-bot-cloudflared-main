@@ -8,32 +8,24 @@ import type { D1Database } from "../src/types";
  * `countRecentSubmissions` (the only query checkRateLimit makes).
  */
 function mockD1(count: number): D1Database {
+  const stmt: import("../src/types").D1PreparedStatement = {
+    bind(..._values: unknown[]) {
+      return stmt;
+    },
+    async first<T = unknown>(): Promise<T | null> {
+      return { c: count } as unknown as T;
+    },
+    async run() {
+      return { success: true };
+    },
+    async all<T = unknown>() {
+      return { results: [] as T[], success: true };
+    },
+  };
+
   return {
     prepare(_query: string) {
-      return {
-        bind(..._values: any[]) {
-          return {
-            async first<T = unknown>(): Promise<T | null> {
-              return { c: count } as unknown as T;
-            },
-            async run() {
-              return { success: true };
-            },
-            async all<T = unknown>() {
-              return { results: [] as T[], success: true };
-            },
-          };
-        },
-        async first<T = unknown>(): Promise<T | null> {
-          return null;
-        },
-        async run() {
-          return { success: true };
-        },
-        async all<T = unknown>() {
-          return { results: [] as T[], success: true };
-        },
-      };
+      return stmt;
     },
     exec() {},
     async batch() {

@@ -1,13 +1,18 @@
 import { webhookCallback } from "grammy";
 import { createBot, executionContextStorage } from "./bot";
 import { logBotError } from "./logger";
-import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
+import { cleanupOldR2Logs } from "./logCleanup";
 import { runScheduledTip } from "./tips";
-import { assertValidEnv, isAuthorizedAdminRequest, unauthorizedResponse } from "./config";
-import { adminAttemptAllowed, landingPageSecurityHeaders, recordAdminFailure, securityHeaders, webhookRequestAllowed } from "./security";
+import { assertValidEnv, constantTimeEqual } from "./config";
+import { landingPageSecurityHeaders, securityHeaders, webhookRequestAllowed } from "./security";
 import { renderLandingPage } from "./landingPage";
+import { handleApiRequest, json } from "./apiRoutes";
 import type { Env } from "./types";
-import * as db from "./db";
+
+export const WORKER_CRONS = {
+  FREE_TIPS: ["30 2 * * *", "30 6 * * *", "30 12 * * *"] as const,
+  R2_CLEANUP: "0 2 * * *" as const,
+};
 
 let botInstance: ReturnType<typeof createBot> | null = null;
 let cachedToken: string | null = null;
@@ -75,117 +80,12 @@ async function registerBotCommands(bot: ReturnType<typeof createBot>): Promise<v
   ]);
 }
 
-function json(data: unknown, status = 200, extraHeaders: Record<string, string> = {}): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      "Content-Type": "application/json",
-      ...securityHeaders(),
-      ...extraHeaders,
-    },
-  });
-}
-
-function adminAuthorized(request: Request, env: Env): boolean {
-  if (!adminAttemptAllowed(request)) return false;
-  const authorized = isAuthorizedAdminRequest(request, env);
-  if (!authorized) recordAdminFailure(request);
-  return authorized;
-}
-
 export default {
   async fetch(request: Request, env: Env, ctx?: any): Promise<Response> {
-    const url = new URL(request.url);
-
-    if (url.pathname === "/health" || url.pathname === "/api/health") {
-      return json({ status: "ok", service: "telegram-bot" });
-    }
-
-    if (url.pathname === "/api/cleanup/logs/status") {
-      if (request.method !== "GET" && request.method !== "HEAD") return json({ ok: false, error: "Method Not Allowed" }, 405);
-      if (!adminAuthorized(request, env)) return unauthorizedResponse();
-      if (request.method === "HEAD") return new Response(null, { status: 200, headers: securityHeaders() });
-      const last = getLastCleanupResult();
-      return json({
-        status: "ok",
-        retentionPolicyDays: 30,
-        schedule: "Daily at 02:00 UTC (Cloudflare Cron)",
-        lastCleanup: last,
-      });
-    }
-
-    if (url.pathname === "/api/admin/status") {
-      if (request.method !== "GET" && request.method !== "HEAD") return json({ ok: false, error: "Method Not Allowed" }, 405);
-      if (!adminAuthorized(request, env)) return unauthorizedResponse();
-      if (request.method === "HEAD") return new Response(null, { status: 200, headers: securityHeaders() });
-      return json({ status: "ok", runtime: "cloudflare-worker", service: "telegram-bot" });
-    }
-
-    if (url.pathname === "/api/admin/dashboard") {
-      if (request.method !== "GET" && request.method !== "HEAD") return json({ ok: false, error: "Method Not Allowed" }, 405);
-      if (!adminAuthorized(request, env)) return unauthorizedResponse();
-      if (request.method === "HEAD") return new Response(null, { status: 200, headers: securityHeaders() });
-      try {
-        return json({ ok: true, ...(await db.getOperationsDashboard(env.DB)) });
-      } catch (error) {
-        console.error("[Admin Dashboard] query failed", error);
-        return json({ ok: false, error: "Dashboard data unavailable" }, 503);
-      }
-    }
-
-    if (url.pathname === "/api/admin/tickets") {
-      if (!adminAuthorized(request, env)) return unauthorizedResponse();
-      if (request.method === "GET") {
-        const status = url.searchParams.get("status") as "OPEN" | "PENDING" | "CLOSED" | null;
-        return json({ ok: true, tickets: await db.getSupportTickets(env.DB, status || undefined) });
-      }
-      if (request.method === "PATCH") {
-        const body = await request.json().catch(() => ({})) as { id?: number; status?: "OPEN" | "PENDING" | "CLOSED"; reply?: string; adminId?: number };
-        if (!body.id || !body.status || !body.adminId) return json({ ok: false, error: "id, status and adminId are required" }, 400);
-        const updated = await db.updateSupportTicket(env.DB, body.id, body.status, body.reply || null, body.adminId);
-        return json({ ok: updated }, updated ? 200 : 404);
-      }
-      return json({ ok: false, error: "Method Not Allowed" }, 405);
-    }
-
-    if (url.pathname === "/api/admin/schedule") {
-      if (!adminAuthorized(request, env)) return unauthorizedResponse();
-      if (request.method !== "POST") return json({ ok: false, error: "Method Not Allowed" }, 405);
-      const body = await request.json().catch(() => ({})) as {
-        title?: string; body?: string; mediaUrl?: string; ctaText?: string; ctaUrl?: string;
-        language?: "all" | "si" | "en" | "ta"; scheduledFor?: string; createdBy?: number;
-      };
-      if (!body.title || !body.body || !body.scheduledFor || !body.createdBy) {
-        return json({ ok: false, error: "title, body, scheduledFor and createdBy are required" }, 400);
-      }
-      const id = await db.createScheduledChannelPost(env.DB, {
-        title: body.title,
-        body: body.body,
-        mediaUrl: body.mediaUrl,
-        ctaText: body.ctaText,
-        ctaUrl: body.ctaUrl,
-        language: body.language,
-        scheduledFor: body.scheduledFor,
-        createdBy: body.createdBy,
-      });
-      return json({ ok: true, id }, 201);
-    }
-
-    if (url.pathname === "/api/cleanup/logs" && request.method === "POST") {
-      if (!adminAuthorized(request, env)) return unauthorizedResponse();
-
-      let days = 30;
-      try {
-        const body = (await request.json().catch(() => ({}))) as { retentionDays?: number };
-        if (body?.retentionDays && body.retentionDays > 0 && body.retentionDays <= 3650) {
-          days = Math.floor(body.retentionDays);
-        }
-      } catch {}
-
-      const cleanupPromise = cleanupOldR2Logs(env, days);
-      if (ctx?.waitUntil) ctx.waitUntil(cleanupPromise);
-      const result = await cleanupPromise;
-      return json(result, result.success ? 200 : 500);
+    // 1. Dispatch shared API routes (health, dashboard, tickets, schedule, receipts, cleanup)
+    const apiResponse = await handleApiRequest(request, env, { runtime: "cf-worker" });
+    if (apiResponse) {
+      return apiResponse;
     }
 
     try {
@@ -202,7 +102,7 @@ export default {
 
       const incomingSecret = request.headers.get("X-Telegram-Bot-Api-Secret-Token") || "";
       const expectedSecret = env.WEBHOOK_SECRET.trim();
-      if (!incomingSecret || incomingSecret !== expectedSecret) {
+      if (!incomingSecret || !constantTimeEqual(incomingSecret, expectedSecret)) {
         return new Response("unauthorized", { status: 401, headers: securityHeaders() });
       }
 
@@ -240,28 +140,28 @@ export default {
       }
     }
 
+    // Landing page with CSP cryptographic nonce
+    const nonce = crypto.randomUUID().replace(/-/g, "");
     return new Response(
-      renderLandingPage(env, request),
-      { headers: { "Content-Type": "text/html; charset=utf-8", ...landingPageSecurityHeaders() } }
+      renderLandingPage(env, request, nonce),
+      { headers: { "Content-Type": "text/html; charset=utf-8", ...landingPageSecurityHeaders(nonce) } }
     );
   },
 
   async scheduled(event: any, env: Env, ctx: any): Promise<void> {
     assertValidEnv(env, "Cloudflare Worker cron");
 
-    const cron = String(event?.cron || "");
+    const cron = String(event?.cron || "").trim();
     console.log(`[Worker Cron] Scheduled event at ${new Date().toISOString()}: ${cron || "unknown"}`);
 
     const tasks: Promise<unknown>[] = [];
-    if (["30 2 * * *", "30 6 * * *", "30 12 * * *"].includes(cron)) {
+    if (WORKER_CRONS.FREE_TIPS.includes(cron as any)) {
       tasks.push(
         runScheduledTip(env, cron)
           .then((result) => console.log(`[Worker Cron] Free tip ${result.status} for ${result.slot} Sri Lanka time`))
           .catch((err) => console.error("[Worker Cron] Free tip publishing failed:", err))
       );
-    }
-
-    if (cron === "0 2 * * *") {
+    } else if (cron === WORKER_CRONS.R2_CLEANUP) {
       tasks.push(
         cleanupOldR2Logs(env, 30)
           .then((res) => {
@@ -273,10 +173,11 @@ export default {
           })
           .catch((err) => console.error("[Worker Cron] R2 cleanup failed:", err))
       );
+    } else {
+      console.warn(`[Worker Cron ALERT] Unmapped scheduled cron trigger received: "${cron}". Check wrangler.toml triggers!`);
     }
 
     if (tasks.length === 0) {
-      console.warn(`[Worker Cron] No scheduled task mapped to cron: ${cron}`);
       return;
     }
 
