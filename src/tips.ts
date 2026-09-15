@@ -2,7 +2,18 @@ import type { Env } from "./types";
 import { escapeMarkdown, escapeCode } from "./utils";
 
 const ODDS_API_BASE = "https://api.the-odds-api.com/v4";
-const SLOT_CRONS = new Set(["30 2 * * *", "30 6 * * *", "30 12 * * *"]);
+export const TIPS_CRONS = {
+  SL_0800: "30 2 * * *",
+  SL_1200: "30 6 * * *",
+  SL_1800: "30 12 * * *",
+  SETTLEMENT: "15 * * * *",
+} as const;
+
+export const SLOT_CRONS: ReadonlySet<string> = new Set<string>([
+  TIPS_CRONS.SL_0800,
+  TIPS_CRONS.SL_1200,
+  TIPS_CRONS.SL_1800,
+]);
 const TIP_LEASE_MINUTES = 15;
 const ODDS_API_RETRIES = 2;
 const DEFAULT_TIPS_PER_SLOT = 3;
@@ -164,6 +175,42 @@ function selectPaidFeeds(explicitSports: string[], discoveredSports: string[], m
   return selected;
 }
 
+/**
+ * Retrieves the set of event IDs already posted today to prevent repeating
+ * the same match across morning, noon, and evening slots.
+ */
+export async function getTodayPostedEventIds(env: Env): Promise<Set<string>> {
+  const ids = new Set<string>();
+  if (!env.DB) return ids;
+
+  try {
+    const rows = await env.DB.prepare(`
+      SELECT event_id, tips_json
+      FROM tip_posts
+      WHERE status = 'POSTED'
+        AND date(created_at) = date('now')
+    `).all<{ event_id: string | null; tips_json: string | null }>();
+
+    for (const r of rows.results || []) {
+      if (r.event_id) ids.add(r.event_id);
+      if (r.tips_json) {
+        try {
+          const payload = JSON.parse(r.tips_json);
+          if (Array.isArray(payload)) {
+            for (const item of payload) {
+              if (item.eventId) ids.add(item.eventId);
+            }
+          }
+        } catch {}
+      }
+    }
+  } catch (err) {
+    console.warn("[Tips] Failed to fetch today's posted event IDs:", err);
+  }
+
+  return ids;
+}
+
 async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
   if (!env.ODDS_API_KEY) throw new Error("ODDS_API_KEY is not configured");
 
@@ -220,8 +267,13 @@ async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
   }
   const uniqueEvents = [...eventMap.values()];
 
+  // Exclude events already posted earlier today to prevent duplicate tips across 08:00, 12:00, and 18:00 slots
+  const todayPostedIds = await getTodayPostedEventIds(env);
+  const freshEvents = uniqueEvents.filter((ev) => !todayPostedIds.has(ev.id));
+  const candidatePool = freshEvents.length >= targetCount ? freshEvents : uniqueEvents;
+
   const now = Date.now();
-  const primaryEvents = uniqueEvents.filter((ev) => {
+  const primaryEvents = candidatePool.filter((ev) => {
     const start = new Date(ev.commence_time).getTime();
     return start <= now + hoursAhead * 60 * 60 * 1000;
   });
@@ -323,6 +375,8 @@ export function formatTipMessage(candidates: TipCandidate[], slot: string, joinU
   const footer = [
     "━━━━━━━━━━━━━━━━━━━━━━━━━",
     `💰 *සමස්ත Multiplier Odds (Accumulator):* *~${totalMultiplier.toFixed(2)}*`,
+    "🕒 _Odds පලකල මොහොතේ අගයන් වේ (Odds subject to live market changes)._",
+    "⚡ _Accumulator (Acca) bets අධික අවදානම් සහිතයි (High Risk). Single bets නිර්දේශ කරමු._",
     "ℹ️ _Picks are ranked using market odds data. Implied probability is an estimate, not a guarantee._",
     "⚠️ _18+ පමණි. වගකීමෙන් යුතුව ක්‍රීඩා කරන්න. Never stake money you cannot afford to lose._",
   ].join("\n");
@@ -407,14 +461,21 @@ export function formatMatchButtonLabel(candidate: TipCandidate, index: number): 
 export function buildTipsInlineKeyboard(
   candidates: TipCandidate[],
   xbetLink?: string,
-  joinUrl?: string
+  joinUrl?: string,
+  trackingBaseUrl?: string,
+  tipPostId?: number
 ): TelegramInlineKeyboardMarkup {
   const rows: TelegramInlineKeyboardButton[][] = [];
 
-  // Individual match buttons linking directly to XBET_LINK for that specific match
+  // Individual match buttons linking directly to 1xBet or tracking endpoint
   candidates.forEach((candidate, index) => {
     const text = formatMatchButtonLabel(candidate, index);
-    const url = buildMatchBetLink(xbetLink, candidate);
+    let url: string;
+    if (trackingBaseUrl && tipPostId) {
+      url = `${trackingBaseUrl.replace(/\/$/, "")}/go/tip/${tipPostId}?event=${encodeURIComponent(candidate.event.id)}&pick=${encodeURIComponent(candidate.selection)}`;
+    } else {
+      url = buildMatchBetLink(xbetLink, candidate);
+    }
     rows.push([{ text, url }]);
   });
 
@@ -423,17 +484,21 @@ export function buildTipsInlineKeyboard(
     const totalMultiplier = candidates.reduce((acc, c) => acc * c.averageOdds, 1);
     const raw = xbetLink?.trim() ? xbetLink.trim() : DEFAULT_XBET_LINK;
     let accumUrl: string;
-    try {
-      const u = new URL(raw);
-      u.searchParams.set("bet_type", "accumulator");
-      u.searchParams.set("multiplier", totalMultiplier.toFixed(2));
-      accumUrl = u.toString();
-    } catch {
-      accumUrl = raw;
+    if (trackingBaseUrl && tipPostId) {
+      accumUrl = `${trackingBaseUrl.replace(/\/$/, "")}/go/tip/${tipPostId}?type=accumulator`;
+    } else {
+      try {
+        const u = new URL(raw);
+        u.searchParams.set("bet_type", "accumulator");
+        u.searchParams.set("multiplier", totalMultiplier.toFixed(2));
+        accumUrl = u.toString();
+      } catch {
+        accumUrl = raw;
+      }
     }
     rows.push([
       {
-        text: `💰 Bet Accumulator (~${totalMultiplier.toFixed(2)}) on 1xBet`,
+        text: `⚡ Bet Accumulator (~${totalMultiplier.toFixed(2)}) on 1xBet`,
         url: accumUrl,
       },
     ]);
@@ -505,7 +570,240 @@ async function postTelegramMessage(
   if (!response.ok || !telegram.ok) throw new Error(`Telegram send failed: ${telegram.description || response.status}`);
   return telegram.result?.message_id ?? null;
 }
-async function claimTipSlot(env: Env, scheduledKey: string, slot: string): Promise<{ claimed: boolean; id: number; leaseToken: string }> { const leaseToken = crypto.randomUUID(); const insertResult = await env.DB.prepare(`INSERT OR IGNORE INTO tip_posts (scheduled_key, slot_time, status, lease_token, lease_expires_at, attempt_count, created_at, updated_at) VALUES (?, ?, 'PROCESSING', ?, datetime('now', '+${TIP_LEASE_MINUTES} minutes'), 1, datetime('now'), datetime('now'))`).bind(scheduledKey, slot, leaseToken).run(); const row = await env.DB.prepare(`SELECT id, status, lease_token, lease_expires_at FROM tip_posts WHERE scheduled_key = ?`).bind(scheduledKey).first<{ id: number; status: string; lease_token: string | null; lease_expires_at: string | null }>(); if (!row) throw new Error("Tip slot record could not be created or loaded"); if (row.status === "POSTED") return { claimed: false, id: row.id, leaseToken }; const insertChanges = insertResult.meta?.changes ?? 0; if (insertChanges > 0) return { claimed: true, id: row.id, leaseToken }; if (row.status === "PROCESSING" && row.lease_expires_at && row.lease_expires_at > new Date().toISOString().replace("T", " ").slice(0, 19)) return { claimed: false, id: row.id, leaseToken }; const result = await env.DB.prepare(`UPDATE tip_posts SET status='PROCESSING', lease_token=?, lease_expires_at=datetime('now', '+${TIP_LEASE_MINUTES} minutes'), attempt_count=attempt_count+1, error=NULL, updated_at=datetime('now') WHERE id=? AND status <> 'POSTED' AND (status <> 'PROCESSING' OR lease_expires_at IS NULL OR lease_expires_at <= datetime('now'))`).bind(leaseToken, row.id).run(); const changes = result.meta?.changes ?? (result.success ? 1 : 0); return { claimed: changes > 0, id: row.id, leaseToken }; }
-async function markTipPosted(env: Env, id: number, candidates: TipCandidate[], telegramMessageId: number | null): Promise<void> { const first = candidates[0]; const payload = JSON.stringify(candidates.map(toPostedSummary)); await env.DB.prepare(`UPDATE tip_posts SET status='POSTED', event_id=?, sport_key=?, sport_title=?, home_team=?, away_team=?, commence_time=?, market=?, selection=?, odds=?, message_id=?, tips_json=?, posted_at=datetime('now'), error=NULL, lease_token=NULL, lease_expires_at=NULL, updated_at=datetime('now') WHERE id=?`).bind(first?.event.id ?? null, first?.event.sport_key ?? null, first?.event.sport_title ?? null, first?.event.home_team ?? null, first?.event.away_team ?? null, first?.event.commence_time ?? null, first?.market ?? null, first?.selection ?? null, first?.averageOdds ?? null, telegramMessageId, payload, id).run(); }
-async function markTipFailed(env: Env, id: number, error: string): Promise<void> { await env.DB.prepare(`UPDATE tip_posts SET status='FAILED', error=?, lease_token=NULL, lease_expires_at=NULL, updated_at=datetime('now') WHERE id=? AND status <> 'POSTED'`).bind(error, id).run(); }
-export async function runScheduledTip(env: Env, cron: string): Promise<{ status: string; slot: string }> { if (!SLOT_CRONS.has(cron)) return { status: "skipped", slot: "" }; const slot = slotForCron(cron); if (!slot) return { status: "skipped", slot: "" }; const scheduledKey = `${sriLankaDate()}:${slot}`; let claim: { claimed: boolean; id: number; leaseToken: string }; try { claim = await claimTipSlot(env, scheduledKey, slot); } catch (error) { console.error(`[Tips] claimTipSlot failed for ${scheduledKey}:`, error instanceof Error ? error.message : error); return { status: "claim_failed", slot }; } if (!claim.claimed) return { status: "already_claimed", slot }; const joinUrl = env.TIPS_CHANNEL_URL || undefined; const xbetLink = env.XBET_LINK || DEFAULT_XBET_LINK; try { let message: string; let candidates: TipCandidate[] = []; let keyboard: TelegramInlineKeyboardMarkup; try { candidates = await fetchCandidates(env); if (candidates.length === 0) throw new Error("No qualifying candidates were found"); message = formatTipMessage(candidates, slot, joinUrl); keyboard = buildTipsInlineKeyboard(candidates, xbetLink, joinUrl); } catch (fetchError) { console.warn(`[Tips] fetchCandidates failed for ${scheduledKey}:`, fetchError instanceof Error ? fetchError.message : fetchError); message = formatFallbackTip(slot, joinUrl); keyboard = buildFallbackInlineKeyboard(xbetLink, joinUrl); } const telegramMessageId = await postTelegramMessage(env, message, "Markdown", keyboard); await markTipPosted(env, claim.id, candidates, telegramMessageId); console.log(`[Tips] Posted ${candidates.length} tip(s) with match buttons for ${scheduledKey} (msg ${telegramMessageId})`); return { status: candidates.length > 0 ? "posted" : "posted_fallback", slot }; } catch (error) { const errorMsg = error instanceof Error ? error.message : String(error); console.error(`[Tips] runScheduledTip failed for ${scheduledKey}:`, errorMsg); await markTipFailed(env, claim.id, errorMsg).catch((e) => console.error(`[Tips] markTipFailed also failed:`, e instanceof Error ? e.message : e)); return { status: "failed", slot }; } }
+
+/**
+ * Atomically claims a scheduled slot to prevent duplicate posts across multiple workers.
+ */
+async function claimTipSlot(
+  env: Env,
+  scheduledKey: string,
+  slot: string
+): Promise<{ claimed: boolean; id: number; leaseToken: string }> {
+  const leaseToken = crypto.randomUUID();
+  const insertResult = await env.DB.prepare(`
+    INSERT OR IGNORE INTO tip_posts (
+      scheduled_key, slot_time, status, lease_token,
+      lease_expires_at, attempt_count, created_at, updated_at
+    ) VALUES (
+      ?, ?, 'PROCESSING', ?, datetime('now', '+${TIP_LEASE_MINUTES} minutes'),
+      1, datetime('now'), datetime('now')
+    )
+  `).bind(scheduledKey, slot, leaseToken).run();
+
+  const row = await env.DB.prepare(`
+    SELECT id, status, lease_token, lease_expires_at
+    FROM tip_posts
+    WHERE scheduled_key = ?
+  `).bind(scheduledKey).first<{
+    id: number;
+    status: string;
+    lease_token: string | null;
+    lease_expires_at: string | null;
+  }>();
+
+  if (!row) throw new Error("Tip slot record could not be created or loaded");
+  if (row.status === "POSTED") return { claimed: false, id: row.id, leaseToken };
+
+  const insertChanges = insertResult.meta?.changes ?? 0;
+  if (insertChanges > 0) return { claimed: true, id: row.id, leaseToken };
+
+  if (row.status === "PROCESSING" && row.lease_expires_at && row.lease_expires_at > new Date().toISOString().replace("T", " ").slice(0, 19)) {
+    return { claimed: false, id: row.id, leaseToken };
+  }
+
+  const result = await env.DB.prepare(`
+    UPDATE tip_posts
+    SET status='PROCESSING',
+        lease_token=?,
+        lease_expires_at=datetime('now', '+${TIP_LEASE_MINUTES} minutes'),
+        attempt_count=attempt_count+1,
+        error=NULL,
+        updated_at=datetime('now')
+    WHERE id=?
+      AND status <> 'POSTED'
+      AND (status <> 'PROCESSING' OR lease_expires_at IS NULL OR lease_expires_at <= datetime('now'))
+  `).bind(leaseToken, row.id).run();
+
+  const changes = result.meta?.changes ?? (result.success ? 1 : 0);
+  return { claimed: changes > 0, id: row.id, leaseToken };
+}
+
+/**
+ * Updates a tip record as POSTED with full candidate JSON payload and message ID.
+ */
+async function markTipPosted(
+  env: Env,
+  id: number,
+  candidates: TipCandidate[],
+  telegramMessageId: number | null
+): Promise<void> {
+  const first = candidates[0];
+  const payload = JSON.stringify(candidates.map(toPostedSummary));
+
+  await env.DB.prepare(`
+    UPDATE tip_posts
+    SET status='POSTED',
+        event_id=?,
+        sport_key=?,
+        sport_title=?,
+        home_team=?,
+        away_team=?,
+        commence_time=?,
+        market=?,
+        selection=?,
+        odds=?,
+        message_id=?,
+        tips_json=?,
+        posted_at=datetime('now'),
+        error=NULL,
+        lease_token=NULL,
+        lease_expires_at=NULL,
+        updated_at=datetime('now')
+    WHERE id=?
+  `).bind(
+    first?.event.id ?? null,
+    first?.event.sport_key ?? null,
+    first?.event.sport_title ?? null,
+    first?.event.home_team ?? null,
+    first?.event.away_team ?? null,
+    first?.event.commence_time ?? null,
+    first?.market ?? null,
+    first?.selection ?? null,
+    first?.averageOdds ?? null,
+    telegramMessageId,
+    payload,
+    id
+  ).run();
+}
+
+/**
+ * Marks a tip slot as FAILED with error message and clears lease token.
+ */
+async function markTipFailed(env: Env, id: number, error: string): Promise<void> {
+  await env.DB.prepare(`
+    UPDATE tip_posts
+    SET status='FAILED',
+        error=?,
+        lease_token=NULL,
+        lease_expires_at=NULL,
+        updated_at=datetime('now')
+    WHERE id=?
+      AND status <> 'POSTED'
+  `).bind(error, id).run();
+}
+
+/**
+ * Sends urgent alert notifications to all configured admin Telegram accounts.
+ */
+export async function sendAdminAlert(env: Env, alertMessage: string): Promise<void> {
+  if (!env.BOT_TOKEN) return;
+
+  const targets: string[] = [];
+  if (env.ADMIN_CHANNEL_ID) {
+    targets.push(env.ADMIN_CHANNEL_ID.trim());
+  }
+  if (env.ADMIN_IDS) {
+    for (const raw of env.ADMIN_IDS.split(",")) {
+      const trimmed = raw.trim();
+      if (trimmed && /^-?\d+$/.test(trimmed)) {
+        targets.push(trimmed);
+      }
+    }
+  }
+
+  const uniqueTargets = [...new Set(targets)];
+  for (const chatId of uniqueTargets) {
+    try {
+      await fetch(`https://api.telegram.org/bot${encodeURIComponent(env.BOT_TOKEN)}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: alertMessage,
+          parse_mode: "Markdown",
+          disable_web_page_preview: true,
+        }),
+      });
+    } catch (err) {
+      console.warn(`[Tips Admin Alert] Failed to send alert to ${chatId}:`, err);
+    }
+  }
+}
+
+/**
+ * Runs scheduled tips publication for a specific cron trigger.
+ */
+export async function runScheduledTip(
+  env: Env,
+  cron: string
+): Promise<{ status: string; slot: string }> {
+  if (!SLOT_CRONS.has(cron)) return { status: "skipped", slot: "" };
+  const slot = slotForCron(cron);
+  if (!slot) return { status: "skipped", slot: "" };
+
+  const scheduledKey = `${sriLankaDate()}:${slot}`;
+  let claim: { claimed: boolean; id: number; leaseToken: string };
+
+  try {
+    claim = await claimTipSlot(env, scheduledKey, slot);
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`[Tips] claimTipSlot failed for ${scheduledKey}:`, errorMsg);
+    await sendAdminAlert(
+      env,
+      `🚨 *[TIPS CLAIM ERROR]*\n⏰ *Slot:* ${slot} Sri Lanka\n⚠️ *Error:* ${escapeMarkdown(errorMsg)}`
+    ).catch(() => {});
+    return { status: "claim_failed", slot };
+  }
+
+  if (!claim.claimed) {
+    return { status: "already_claimed", slot };
+  }
+
+  const joinUrl = env.TIPS_CHANNEL_URL || undefined;
+  const xbetLink = env.XBET_LINK || DEFAULT_XBET_LINK;
+  const trackingBase = env.CHANNEL_URL || undefined;
+
+  try {
+    let message: string;
+    let candidates: TipCandidate[] = [];
+    let keyboard: TelegramInlineKeyboardMarkup;
+
+    try {
+      candidates = await fetchCandidates(env);
+      if (candidates.length === 0) throw new Error("No qualifying candidates were found");
+      message = formatTipMessage(candidates, slot, joinUrl);
+      keyboard = buildTipsInlineKeyboard(candidates, xbetLink, joinUrl, trackingBase, claim.id);
+    } catch (fetchError) {
+      console.warn(
+        `[Tips] fetchCandidates failed for ${scheduledKey}:`,
+        fetchError instanceof Error ? fetchError.message : fetchError
+      );
+      message = formatFallbackTip(slot, joinUrl);
+      keyboard = buildFallbackInlineKeyboard(xbetLink, joinUrl);
+    }
+
+    const telegramMessageId = await postTelegramMessage(env, message, "Markdown", keyboard);
+    await markTipPosted(env, claim.id, candidates, telegramMessageId);
+
+    console.log(
+      `[Tips] Posted ${candidates.length} tip(s) with match buttons for ${scheduledKey} (msg ${telegramMessageId})`
+    );
+    return { status: candidates.length > 0 ? "posted" : "posted_fallback", slot };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`[Tips] runScheduledTip failed for ${scheduledKey}:`, errorMsg);
+
+    await markTipFailed(env, claim.id, errorMsg).catch((e) =>
+      console.error(`[Tips] markTipFailed also failed:`, e instanceof Error ? e.message : e)
+    );
+
+    // P0: Alert admin immediately on failed tips execution
+    await sendAdminAlert(
+      env,
+      `🚨 *[ALERT] Scheduled Tip Failed!*\n\n⏰ *Slot:* ${slot} Sri Lanka Time\n🔑 *Key:* \`${scheduledKey}\`\n⚠️ *Error:* ${escapeMarkdown(errorMsg)}\n\n_Please check The Odds API credits or Telegram channel permissions._`
+    ).catch(() => {});
+
+    return { status: "failed", slot };
+  }
+}

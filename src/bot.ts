@@ -633,6 +633,132 @@ export function createBot(env: Env) {
     });
   });
 
+  // Helper: Show Free Tips View
+  async function showFreeTipsView(ctx: Context, lang: Language, isEdit = false) {
+    const dict = t(lang);
+    let latestPost: any = null;
+    try {
+      if (env.DB) {
+        latestPost = await env.DB.prepare(`
+          SELECT id, scheduled_key, slot_time, event_id, sport_key, sport_title,
+                 home_team, away_team, commence_time, market, selection, odds,
+                 tips_json, result, posted_at
+          FROM tip_posts
+          WHERE status = 'POSTED'
+          ORDER BY id DESC
+          LIMIT 1
+        `).first<any>();
+      }
+    } catch (err) {
+      console.warn("[Tips Bot] Failed to query latest tip post:", err);
+    }
+
+    const channelLink = env.TIPS_CHANNEL_URL || env.CHANNEL_URL || "https://t.me/fastxbettips";
+    const xbetUrl = env.XBET_LINK?.trim() || "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622";
+    const kb = new InlineKeyboard();
+
+    if (!latestPost) {
+      const text =
+        lang === "en"
+          ? `🎯 *Free Sports Betting Tips*\n━━━━━━━━━━━━━━━━━━━━━━━━━\n\nDaily automated tips are posted 3 times every day:\n• 08:00 AM (Sri Lanka)\n• 12:00 PM (Sri Lanka)\n• 06:00 PM (Sri Lanka)\n\nJoin our official tips channel to receive real-time notifications!`
+          : lang === "ta"
+          ? `🎯 *இலவச விளையாட்டு பந்தய குறிப்புகள்*\n━━━━━━━━━━━━━━━━━━━━━━━━━\n\nதினசரி தானியங்கி குறிப்புகள் ஒரு நாளைக்கு 3 முறை பகிரப்படும்:\n• 08:00 AM (இலங்கை)\n• 12:00 PM (இலங்கை)\n• 06:00 PM (இலங்கை)\n\nநேரடி அறிவிப்புகளைப் பெற எங்கள் சேனலில் சேருங்கள்!`
+          : `🎯 *නොමිලේ ලබාදෙන ක්‍රීඩා Betting Tips*\n━━━━━━━━━━━━━━━━━━━━━━━━━\n\nදිනපතා ස්වයංක්‍රීයව විශ්ලේෂණය කළ Tips දිනකට 3 වරක් පළවේ:\n• උදෑසන 08:00 (ශ්‍රී ලංකා)\n• දහවල් 12:00 (ශ්‍රී ලංකා)\n• සවස 06:00 (ශ්‍රී ලංකා)\n\nනවතම Tips සජීවීව ලබාගැනීමට අපගේ නිල Tips Channel එකට සම්බන්ධ වන්න!`;
+
+      kb.url("📢 Official Tips Channel", channelLink).row();
+      kb.url("🎲 1xBet හි ලියාපදිංචි වන්න", xbetUrl).row();
+      kb.text(dict.btnBack, "back");
+
+      if (isEdit) {
+        try {
+          await ctx.editMessageText(text, {
+            parse_mode: "Markdown",
+            reply_markup: kb,
+            link_preview_options: { is_disabled: true },
+          });
+          return;
+        } catch {}
+      }
+      await ctx.reply(text, {
+        parse_mode: "Markdown",
+        reply_markup: kb,
+        link_preview_options: { is_disabled: true },
+      });
+      return;
+    }
+
+    let picksSummary = "";
+    if (latestPost.tips_json) {
+      try {
+        const picks = JSON.parse(latestPost.tips_json);
+        if (Array.isArray(picks) && picks.length > 0) {
+          picksSummary = picks
+            .map((p: any, idx: number) => {
+              const num = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"][idx] || `[${idx + 1}]`;
+              const pickOdds = typeof p.odds === "number" ? p.odds.toFixed(2) : p.odds || "—";
+              return `${num} *${escapeMarkdown(p.homeTeam || "")}* vs *${escapeMarkdown(p.awayTeam || "")}*\n🎯 Pick: \`${escapeCode(p.selection || "")}\` | Odds: *${pickOdds}*`;
+            })
+            .join("\n\n");
+        }
+      } catch {}
+    }
+
+    if (!picksSummary && latestPost.home_team) {
+      const oddsStr = latestPost.odds ? Number(latestPost.odds).toFixed(2) : "—";
+      picksSummary = `1️⃣ *${escapeMarkdown(latestPost.home_team)}* vs *${escapeMarkdown(latestPost.away_team || "")}*\n🎯 Pick: \`${escapeCode(latestPost.selection || "")}\` | Odds: *${oddsStr}*`;
+    }
+
+    let resultBadge = "⏳ Pending";
+    if (latestPost.result === "WON") resultBadge = "✅ WON";
+    else if (latestPost.result === "LOST") resultBadge = "❌ LOST";
+    else if (latestPost.result === "VOID") resultBadge = "⚪ VOID";
+
+    const slotLabel = latestPost.slot_time || "Today";
+    const text = [
+      `🎯 *LATEST FREE TIPS — SRI LANKA*`,
+      `⏰ *වේලාව:* ${escapeMarkdown(slotLabel)} (SL) | ප්‍රතිඵලය: *${resultBadge}*`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      picksSummary || "Tips available in the official channel.",
+      `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `⚡ _Accumulator bets අධික අවදානම් සහිතයි. Single bets නිර්දේශ කරමු._`,
+      `⚠️ _18+ පමණි. වගකීමෙන් යුතුව ක්‍රීඩා කරන්න._`,
+    ].join("\n");
+
+    const trackingBase = env.CHANNEL_URL || undefined;
+    if (trackingBase) {
+      kb.url("🎲 Bet on 1xBet", `${trackingBase.replace(/\/$/, "")}/go/tip/${latestPost.id}`).row();
+    } else {
+      kb.url("🎲 Bet on 1xBet", xbetUrl).row();
+    }
+    kb.url("📢 Official Tips Channel", channelLink).row();
+    kb.text(dict.btnBack, "back");
+
+    if (isEdit) {
+      try {
+        await ctx.editMessageText(text, {
+          parse_mode: "Markdown",
+          reply_markup: kb,
+          link_preview_options: { is_disabled: true },
+        });
+        return;
+      } catch {}
+    }
+    await ctx.reply(text, {
+      parse_mode: "Markdown",
+      reply_markup: kb,
+      link_preview_options: { is_disabled: true },
+    });
+  }
+
+  // ========== /tips and /freetips commands ==========
+  bot.command(["tips", "freetips"], async (ctx) => {
+    const user = ctx.from;
+    if (!user) return;
+    await db.clearUserState(env.DB, user.id);
+    const lang = await getUserLang(env.DB, user.id);
+    await showFreeTipsView(ctx, lang, false);
+  });
+
   // Helper: Show Automated FAQ Menu
   async function showFaqMenu(ctx: Context, lang: Language, isEdit = false) {
     const dict = t(lang);
@@ -1189,6 +1315,12 @@ export function createBot(env: Env) {
       await ctx.editMessageText(dict.chooseLanguage, {
         reply_markup: languageKeyboard(),
       });
+      return;
+    }
+
+    // Free Tips View
+    if (data === "view_free_tips") {
+      await showFreeTipsView(ctx, lang, true);
       return;
     }
 
@@ -3093,8 +3225,9 @@ function mainMenu(userId: number, adminIds: Set<number>, lang: Language = "si") 
     .text(dict.btnHelp, "help")
     .row()
     .text("📊 Dashboard", "user_dashboard")
-    .text("🎫 Support Ticket", "support_ticket_help")
+    .text("🎯 Free Tips", "view_free_tips")
     .row()
+    .text("🎫 Support Ticket", "support_ticket_help")
     .text("🛡️ Responsible Gaming", "safety_info")
     .row()
     .text("🆔 My ID", "id_info")

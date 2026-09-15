@@ -42,5 +42,5 @@ binding = "CHAT_MEDIA"
 bucket_name = "chat-media"
 
 [triggers]
-# 02:00 UTC = legacy R2 cleanup; 02:30/06:30/12:30 UTC = 08:00/12:00/18:00 SL free tips.
-crons = ["0 2 * * *", "30 2 * * *", "30 6 * * *", "30 12 * * *"]
+# 02:00 UTC = legacy R2 cleanup; 02:30/06:30/12:30 UTC = 08:00/12:00/18:00 SL free tips; 15 * * * * = Hourly settlement
+crons = ["0 2 * * *", "30 2 * * *", "30 6 * * *", "30 12 * * *", "15 * * * *"]

@@ -4,6 +4,7 @@ import { securityHeaders } from "./security";
 import { getStats, getOperationsDashboard, getSupportTickets, updateSupportTicket, createScheduledChannelPost } from "./db";
 import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
 import { getObject } from "./storage";
+import { settlePendingTips, getTipsPerformanceStats } from "./tipsSettlement";
 
 export function adminAuthorized(request: Request, env: Env): boolean {
   const secret = (env.ADMIN_API_SECRET || "").trim();
@@ -264,7 +265,118 @@ export async function handleApiRequest(
     return new Response(svg, { status: 200, headers });
   }
 
-  // Cleanup logs status
+  // Affiliate Click Tracking & 302 Redirect for Tip Picks (/go/tip/:id)
+  const tipClickMatch = path.match(/^\/go\/tip\/([a-zA-Z0-9_-]+)/);
+  if (tipClickMatch && (method === "GET" || method === "HEAD")) {
+    const rawTipId = tipClickMatch[1];
+    const tipPostId = parseInt(rawTipId, 10);
+    const eventId = url.searchParams.get("event") || url.searchParams.get("event_id") || "";
+    const selection = url.searchParams.get("pick") || url.searchParams.get("selection") || "";
+    const customUrl = url.searchParams.get("url") || "";
+
+    const defaultBase = env.XBET_LINK?.trim() || "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622";
+    let destinationUrl = defaultBase;
+
+    // Validate safe affiliate destination to prevent open-redirect vulnerabilities
+    if (customUrl) {
+      try {
+        const parsed = new URL(customUrl);
+        const allowedHosts = ["reffpa.com", "1xbet.com", "1x-bet.mobi", "1xpartner.com"];
+        if (env.XBET_LINK) {
+          try {
+            allowedHosts.push(new URL(env.XBET_LINK).hostname);
+          } catch {}
+        }
+        const isAllowed = allowedHosts.some(
+          (h) => parsed.hostname === h || parsed.hostname.endsWith(`.${h}`)
+        );
+        if (isAllowed) {
+          destinationUrl = customUrl;
+        }
+      } catch {}
+    }
+
+    // Attach tracking parameters
+    try {
+      const destObj = new URL(destinationUrl);
+      if (rawTipId) destObj.searchParams.set("sub1", `tip_${rawTipId}`);
+      if (eventId) destObj.searchParams.set("sub2", eventId);
+      destinationUrl = destObj.toString();
+    } catch {}
+
+    // Asynchronously log click to DB
+    if (env.DB) {
+      const userAgent = request.headers.get("user-agent") || "";
+      const referer = request.headers.get("referer") || "";
+      const rawIp = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "";
+      const ipHash = rawIp ? crypto.randomUUID().slice(0, 8) : null;
+
+      env.DB.prepare(`
+        INSERT INTO tip_clicks (tip_post_id, event_id, selection, target_url, user_agent, referer, ip_hash, clicked_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `).bind(
+        Number.isInteger(tipPostId) ? tipPostId : null,
+        eventId || null,
+        selection || null,
+        destinationUrl,
+        userAgent.slice(0, 500) || null,
+        referer.slice(0, 500) || null,
+        ipHash
+      ).run().catch((err) => {
+        console.warn("[Tip Click Log Error]:", err);
+      });
+    }
+
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: destinationUrl,
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+        "X-Robots-Tag": "noindex, nofollow",
+      },
+    });
+  }
+
+  // Tips Performance & Click Statistics API (/api/tips/stats)
+  if (path === "/api/tips/stats" && (method === "GET" || method === "HEAD")) {
+    if (method === "HEAD") {
+      return new Response(null, {
+        status: 200,
+        headers: { "Cache-Control": "no-store", ...securityHeaders() },
+      });
+    }
+    const days = parseInt(url.searchParams.get("days") || "7", 10);
+    const safeDays = Math.max(1, Math.min(days, 90));
+    const stats = await getTipsPerformanceStats(env, safeDays);
+
+    let clickCount = 0;
+    if (env.DB) {
+      try {
+        const clickRow = await env.DB.prepare(`
+          SELECT COUNT(*) as count FROM tip_clicks WHERE clicked_at >= datetime('now', ? || ' days')
+        `).bind(`-${safeDays}`).first<{ count: number }>();
+        clickCount = clickRow?.count || 0;
+      } catch {}
+    }
+
+    return json({
+      ok: true,
+      windowDays: safeDays,
+      tips: stats,
+      totalClicks: clickCount,
+    });
+  }
+
+  // Trigger manual or admin tips settlement (/api/tips/settle)
+  if (path === "/api/tips/settle" && method === "POST") {
+    if (!adminAuthorized(request, env)) return unauthorizedResponse();
+    try {
+      const summary = await settlePendingTips(env);
+      return json({ ok: true, summary });
+    } catch (err) {
+      return json({ ok: false, error: String(err) }, 500);
+    }
+  }
   if (path === "/api/cleanup/logs/status" && (method === "GET" || method === "HEAD")) {
     if (!adminAuthorized(request, env)) return unauthorizedResponse();
     if (method === "HEAD") {

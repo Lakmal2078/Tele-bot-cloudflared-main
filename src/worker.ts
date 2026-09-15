@@ -2,7 +2,8 @@ import { webhookCallback } from "grammy";
 import { createBot, executionContextStorage } from "./bot";
 import { logBotError } from "./logger";
 import { cleanupOldR2Logs } from "./logCleanup";
-import { runScheduledTip } from "./tips";
+import { runScheduledTip, TIPS_CRONS } from "./tips";
+import { settlePendingTips } from "./tipsSettlement";
 import { assertValidEnv, constantTimeEqual } from "./config";
 import { landingPageSecurityHeaders, securityHeaders, webhookRequestAllowed } from "./security";
 import { renderLandingPage } from "./landingPage";
@@ -10,7 +11,8 @@ import { handleApiRequest, json } from "./apiRoutes";
 import type { Env } from "./types";
 
 export const WORKER_CRONS = {
-  FREE_TIPS: ["30 2 * * *", "30 6 * * *", "30 12 * * *"] as const,
+  FREE_TIPS: [TIPS_CRONS.SL_0800, TIPS_CRONS.SL_1200, TIPS_CRONS.SL_1800] as const,
+  SETTLEMENT: TIPS_CRONS.SETTLEMENT,
   R2_CLEANUP: "0 2 * * *" as const,
 };
 
@@ -21,6 +23,7 @@ let webhookHandler: ((request: Request) => Promise<Response>) | null = null;
 const publicCommands = [
   { command: "start", description: "Start the bot" },
   { command: "menu", description: "Open the main menu" },
+  { command: "tips", description: "View latest free betting tips" },
   { command: "deposit", description: "Start a cash deposit" },
   { command: "confirm_deposit", description: "Confirm a deposit" },
   { command: "withdraw", description: "Start a cash withdrawal" },
@@ -39,6 +42,7 @@ const publicCommands = [
 const sinhalaCommands = [
   { command: "start", description: "Bot එක ආරම්භ කරන්න" },
   { command: "menu", description: "ප්‍රධාන මෙනුව විවෘත කරන්න" },
+  { command: "tips", description: "නවතම Free Betting Tips බලන්න" },
   { command: "deposit", description: "මුදල් තැන්පතුවක් ආරම්භ කරන්න" },
   { command: "confirm_deposit", description: "තැන්පතුව තහවුරු කරන්න" },
   { command: "withdraw", description: "මුදල් ලබාගැනීම ආරම්භ කරන්න" },
@@ -57,6 +61,7 @@ const sinhalaCommands = [
 const tamilCommands = [
   { command: "start", description: "போட்டை தொடங்கவும்" },
   { command: "menu", description: "முதன்மை மெனுவைத் திறக்கவும்" },
+  { command: "tips", description: "சமீபத்திய இலவச குறிப்புகளைப் பார்க்கவும்" },
   { command: "deposit", description: "பண வைப்பு தொடங்கவும்" },
   { command: "confirm_deposit", description: "வைப்பை உறுதிப்படுத்தவும்" },
   { command: "withdraw", description: "பணம் பெறும் செயல்முறையை தொடங்கவும்" },
@@ -165,6 +170,16 @@ export default {
         runScheduledTip(env, cron)
           .then((result) => console.log(`[Worker Cron] Free tip ${result.status} for ${result.slot} Sri Lanka time`))
           .catch((err) => console.error("[Worker Cron] Free tip publishing failed:", err))
+      );
+    } else if (cron === WORKER_CRONS.SETTLEMENT) {
+      tasks.push(
+        settlePendingTips(env)
+          .then((summary) =>
+            console.log(
+              `[Worker Cron] Tips settlement completed: posts=${summary.settledPosts}/${summary.checkedPosts}, won=${summary.wonPicks}, lost=${summary.lostPicks}, void=${summary.voidPicks}, tgUpdates=${summary.editedTelegramMessages}`
+            )
+          )
+          .catch((err) => console.error("[Worker Cron] Tips settlement failed:", err))
       );
     } else if (cron === WORKER_CRONS.R2_CLEANUP) {
       tasks.push(
