@@ -326,7 +326,7 @@ function getPaymentMethodInstructions(method: PaymentMethod, env: Env, lang: Lan
   }
 
   if (method === "EZCASH") {
-    const ezNumber = env.EZCASH_NUMBER || "0703346455";
+    const ezNumber = env.EZCASH_NUMBER || "0765865387";
     if (lang === "en") {
       return (
         `📱 *eZ Cash Mobile 2*\n` +
@@ -563,7 +563,7 @@ export function createBot(env: Env) {
     if (!adminIds.has(user.id)) {
       const check = await checkChannelMembership(env.CHANNEL_USERNAME, user.id);
       if (!check.isMember) {
-        const channelLink = env.CHANNEL_URL || "https://t.me/fast_xbet_cash";
+        const channelLink = env.CHANNEL_URL || "https://t.me/fast_xbet_official_tips";
         const kb = new InlineKeyboard()
           .url(dict.joinChannelBtn, channelLink)
           .row()

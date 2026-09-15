@@ -38,9 +38,9 @@ export const PAYMENT_METHOD_NAMES: Record<PaymentMethod, { si: string; en: strin
     ta: "📱 iPay Mobile (0740452530)",
   },
   EZCASH: {
-    si: "📱 eZ Cash Mobile (0703346455)",
-    en: "📱 eZ Cash Mobile (0703346455)",
-    ta: "📱 eZ Cash Mobile (0703346455)",
+    si: "📱 eZ Cash Mobile (0765865387)",
+    en: "📱 eZ Cash Mobile (0765865387)",
+    ta: "📱 eZ Cash Mobile (0765865387)",
   },
   BANK: {
     si: "🏦 Other Bank (වෙනත් බැංකු)",

@@ -1,7 +1,7 @@
 import type { Env } from "./types";
 import { BRAND_LOGO_SVG_COMPACT, BRAND_LOGO_FAVICON_DATA_URI } from "./brandLogo";
 
-const BOT_URL = "https://t.me/fast_1xbetcash_bot";
+const DEFAULT_BOT_URL = "https://t.me/fast_xbet_official_tips_bot";
 
 function escapeAttribute(value: string): string {
   return value
@@ -36,7 +36,10 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
   );
 
   // Deep linked bot CTA
-  const botDeepLink = `${BOT_URL}?start=landing`;
+  const botBase = (env as any).BOT_USERNAME
+    ? `https://t.me/${(env as any).BOT_USERNAME.replace(/^@/, "")}`
+    : DEFAULT_BOT_URL;
+  const botDeepLink = `${botBase}?start=landing`;
 
   const bot = escapeAttribute(botDeepLink);
   const channel = escapeAttribute(channelUrl);
@@ -47,7 +50,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
   const maxAmount = escapeText(String(maxTx));
 
   // Determine server-side initial language from query or accept-language
-  let initialLang: "si" | "en" = "si";
+  let initialLang: "si" | "en" | "ta" = "si";
   let pageUrl = "https://fast-xbet-cash.example/";
   try {
     const u = new URL(request.url);
@@ -59,11 +62,12 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
       pageUrl = pageUrl.replace(/^http:\/\//i, "https://");
     }
     const qLang = u.searchParams.get("lang")?.toLowerCase();
-    if (qLang === "en" || qLang === "si") {
+    if (qLang === "en" || qLang === "si" || qLang === "ta") {
       initialLang = qLang;
     } else {
       const accept = request.headers.get("accept-language") || "";
-      if (/\ben\b/i.test(accept)) initialLang = "en";
+      if (/\bta\b/i.test(accept)) initialLang = "ta";
+      else if (/\ben\b/i.test(accept)) initialLang = "en";
     }
   } catch {
     /* keep fallback */
@@ -88,7 +92,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
           url: pageUrl,
           logo: `${pageUrl}og-image.png`,
           image: `${pageUrl}og-image.jpg`,
-          sameAs: [channelUrl, BOT_URL],
+          sameAs: [channelUrl, botBase],
           description:
             "Sri Lanka Telegram service for free betting tips and a fast cash deposit/withdraw agent. Multi-language support (Sinhala, English).",
           areaServed: "LK",
@@ -175,6 +179,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
 <!-- Hreflang Tags (SEO & Localization) -->
 <link rel="alternate" hreflang="si" href="${pageUrlAttr}?lang=si">
 <link rel="alternate" hreflang="en" href="${pageUrlAttr}?lang=en">
+<link rel="alternate" hreflang="ta" href="${pageUrlAttr}?lang=ta">
 <link rel="alternate" hreflang="x-default" href="${pageUrlAttr}">
 
 <link rel="icon" type="image/svg+xml" href="${BRAND_LOGO_FAVICON_DATA_URI}">
