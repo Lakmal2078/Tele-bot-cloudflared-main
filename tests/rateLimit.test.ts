@@ -144,4 +144,78 @@ describe("RateLimiter (global rate limiting)", () => {
     );
     expect(toast).toContain("⏳");
   });
+
+  it("extractCommand() correctly identifies Telegram commands", () => {
+    expect(RateLimiter.extractCommand({ message: { text: "/tips" } })).toBe("tips");
+    expect(RateLimiter.extractCommand({ message: { text: "  /freetips@my_bot" } })).toBe("freetips");
+    expect(RateLimiter.extractCommand({ message: { text: "/Start 123" } })).toBe("start");
+    expect(RateLimiter.extractCommand({ message: { text: "hello world" } })).toBeNull();
+    expect(RateLimiter.extractCommand(null)).toBeNull();
+  });
+
+  it("enforces dedicated command-specific rate limits on betting tip queries (/tips)", async () => {
+    const rl = new RateLimiter({
+      windowMs: 60_000,
+      maxPerUser: 20, // generous general user limit
+      commandLimits: {
+        tips: { windowMs: 60_000, maxPerUser: 2, blockMessage: "Tips rate limit" },
+      },
+    });
+
+    const mw = rl.middleware();
+    let executed = 0;
+    const next = async () => {
+      executed++;
+    };
+
+    let replyMsg = "";
+    const ctx = {
+      from: { id: 42 },
+      message: { text: "/tips" },
+      reply: async (msg: string) => {
+        replyMsg = msg;
+      },
+    };
+
+    // 1st /tips call -> allowed
+    await mw(ctx, next);
+    expect(executed).toBe(1);
+
+    // 2nd /tips call -> allowed
+    await mw(ctx, next);
+    expect(executed).toBe(2);
+
+    // 3rd /tips call -> blocked by command limit even though user has 18 slots left in global
+    await mw(ctx, next);
+    expect(executed).toBe(2);
+    expect(replyMsg).toContain("Tips rate limit");
+
+    // Other non-tips commands or text still have room in general quota
+    const otherCtx = {
+      from: { id: 42 },
+      message: { text: "/help" },
+      reply: async () => {},
+    };
+    await mw(otherCtx, next);
+    expect(executed).toBe(3);
+  });
+
+  it("checkScope allows dedicated rate limiting for inline callback queries", () => {
+    const clock = makeClock();
+    const rl = new RateLimiter();
+    const rule = { windowMs: 60_000, maxPerUser: 2 };
+
+    expect(rl.checkScope("tips", 101, rule, clock.now()).allowed).toBe(true);
+    expect(rl.checkScope("tips", 101, rule, clock.now()).allowed).toBe(true);
+    const blocked = rl.checkScope("tips", 101, rule, clock.now());
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.retryAfterMs).toBe(60_000);
+
+    // Exempt user (admin) bypasses checkScope
+    const adminRl = new RateLimiter({ exemptUserIds: [999] });
+    expect(adminRl.checkScope("tips", 999, rule, clock.now()).allowed).toBe(true);
+    expect(adminRl.checkScope("tips", 999, rule, clock.now()).allowed).toBe(true);
+    expect(adminRl.checkScope("tips", 999, rule, clock.now()).allowed).toBe(true);
+  });
 });
+

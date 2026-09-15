@@ -8,7 +8,7 @@ import { escapeMarkdown, escapeCode, getTransactionLimits, validateTransactionAm
 import { logTransactionAudit, logBotError } from "./logger";
 import { cleanupOldR2Logs } from "./logCleanup";
 import * as fraud from "./fraud";
-import { RateLimiter } from "./rateLimit";
+import { RateLimiter, DEFAULT_TIPS_BLOCK_MESSAGE } from "./rateLimit";
 
 export const executionContextStorage = new AsyncLocalStorage<{
   waitUntil?: (promise: Promise<unknown>) => void;
@@ -389,14 +389,35 @@ export function createBot(env: Env) {
   const adminIds = parseAdminIds(env.ADMIN_IDS || "");
   mainMenuChannelUrl = env.CHANNEL_URL?.trim() || "";
 
-  // 🛡️ Global & per-user rate limiting — runs BEFORE every handler.
+  // 🛡️ Global, per-user & command-specific rate limiting — runs BEFORE every handler.
   // Admins listed in ADMIN_IDS are exempt; deposits/withdrawals keep their own
   // stricter DB-backed limits in fraud.ts on top of this.
+  // Command-specific limits protect high-overhead betting tips queries (/tips, /freetips)
+  // and other slash commands against automated spamming.
   const rateLimiter = new RateLimiter({
     windowMs: 60_000,
     maxPerUser: 20,
     maxGlobal: 300,
     exemptUserIds: [...adminIds],
+    // Max 10 slash commands per minute for regular commands
+    defaultCommandLimit: {
+      windowMs: 60_000,
+      maxPerUser: 10,
+    },
+    // Stricter limit on betting tips queries to prevent API flood & automated scraping:
+    // max 5 tips queries per minute per user
+    commandLimits: {
+      tips: {
+        windowMs: 60_000,
+        maxPerUser: 5,
+        blockMessage: DEFAULT_TIPS_BLOCK_MESSAGE,
+      },
+      freetips: {
+        windowMs: 60_000,
+        maxPerUser: 5,
+        blockMessage: DEFAULT_TIPS_BLOCK_MESSAGE,
+      },
+    },
   });
   bot.use(rateLimiter.middleware());
 
@@ -1320,6 +1341,19 @@ export function createBot(env: Env) {
 
     // Free Tips View
     if (data === "view_free_tips") {
+      const tipsScopeResult = rateLimiter.checkScope("tips", user.id, {
+        windowMs: 60_000,
+        maxPerUser: 5,
+        blockMessage: DEFAULT_TIPS_BLOCK_MESSAGE,
+      });
+      if (!tipsScopeResult.allowed) {
+        const secs = Math.max(1, Math.ceil((tipsScopeResult.retryAfterMs ?? 1000) / 1000));
+        await ctx.answerCallbackQuery({
+          text: `⏳ ${secs}s: Tips rate limit reached. Please wait.`,
+          show_alert: true,
+        });
+        return;
+      }
       await showFreeTipsView(ctx, lang, true);
       return;
     }
