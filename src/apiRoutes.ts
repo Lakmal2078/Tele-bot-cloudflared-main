@@ -51,7 +51,7 @@ export function adminAuthorized(request: Request, env: Env): boolean {
 
 export function renderOgImageSvg(env: Env): string {
   const channelName = env.CHANNEL_USERNAME?.trim() || "@fast_xbet_official_tips";
-  const botUsername = "@fast_1xbetcash_bot";
+  const botUsername = (env as any).BOT_USERNAME?.trim() || "@fast_xbet_official_tips_bot";
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
   <defs>
