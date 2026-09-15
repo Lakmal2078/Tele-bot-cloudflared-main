@@ -11,6 +11,9 @@
 
 set -Eeuo pipefail
 
+# Clean up npm environment variables that trigger EALLOWSCRIPTS in nested npm commands
+unset npm_config_allow_scripts || true
+
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 info()    { echo -e "${BLUE}[INFO]${NC} $*"; }
 success() { echo -e "${GREEN}[ OK ]${NC} $*"; }
@@ -83,8 +86,12 @@ MIGRATION_COUNT="$(find migrations -maxdepth 1 -type f -name '*.sql' | wc -l | t
 (( MIGRATION_COUNT > 0 )) || die "No D1 migrations found."
 
 # ── Install dependencies ────────────────────────────────────────────────
-info "Installing locked dependencies..."
-npm ci
+if $IS_CI || [[ ! -d node_modules ]]; then
+  info "Installing locked dependencies..."
+  npm ci
+else
+  info "Dependencies already present in node_modules, skipping reinstall."
+fi
 
 # ── Validate D1 migrations ─────────────────────────────────────────────
 info "Validating D1 migrations..."
@@ -314,3 +321,4 @@ if [[ -n "$WRANGLER_ENV" ]]; then
 fi
 echo "  Wrangler:    $EXPECTED_WRANGLER"
 echo "══════════════════════════════════════════════════════════════"
+
