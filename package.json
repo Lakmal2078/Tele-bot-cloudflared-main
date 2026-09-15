@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "npm run lint && npm test",
+    "migrate": "wrangler d1 migrations apply fastxbetcash_bot-db",
     "validate:migrations": "node validate-migrations.mjs",
     "env:scan": "node scripts/scan-env.mjs",
     "env:check": "node scripts/scan-env.mjs --check",
