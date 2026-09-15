@@ -473,6 +473,14 @@ export async function handleApiRequest(
       runtime: options?.runtime || "cf-worker",
       mode: options?.isPolling ? "polling" : "webhook",
       stats,
+      paymentMethods: {
+        bank: env.BANK_DETAILS || "Not Configured",
+        ezcash: env.EZCASH_NUMBER || "Not Configured",
+        mcash: env.MCASH_NUMBER || "Not Configured",
+        frimi: env.FRIMI_NUMBER || "Not Configured",
+        ipay: env.IPAY_NUMBER || "Not Configured",
+        whatsapp: env.WHATSAPP_NUMBER || "Not Configured",
+      },
     });
   }
 
@@ -560,6 +568,14 @@ export async function handleApiRequest(
           tickets: dashboard?.tickets || [],
           alerts: dashboard?.alerts || [],
           tips: dashboard?.tips || [],
+          paymentMethods: {
+            bank: env.BANK_DETAILS || "Not Configured",
+            ezcash: env.EZCASH_NUMBER || "Not Configured",
+            mcash: env.MCASH_NUMBER || "Not Configured",
+            frimi: env.FRIMI_NUMBER || "Not Configured",
+            ipay: env.IPAY_NUMBER || "Not Configured",
+            whatsapp: env.WHATSAPP_NUMBER || "Not Configured",
+          }
         },
         nonce
       );

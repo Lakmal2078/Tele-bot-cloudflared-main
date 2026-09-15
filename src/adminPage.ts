@@ -22,6 +22,14 @@ export interface AdminPageData {
   tickets?: any[];
   alerts?: any[];
   tips?: any[];
+  paymentMethods?: {
+    bank: string;
+    ezcash: string;
+    mcash: string;
+    frimi: string;
+    ipay: string;
+    whatsapp: string;
+  };
 }
 
 export function renderAdminPage(
@@ -406,6 +414,44 @@ export function renderAdminPage(
             ${tableRows}
           </tbody>
         </table>
+      </div>
+    </section>
+
+    <!-- Payment Methods Config -->
+    <section class="card" id="section-payment-methods" style="margin-bottom: 24px;">
+      <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 12px; color: #f8fafc;">
+        💳 Active Payment Methods
+      </h3>
+      <p style="font-size: 13px; color: #94a3b8; margin-bottom: 16px;">
+        Current deposit accounts and wallets active in the Telegram Bot menu.
+      </p>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+        ${data.paymentMethods ? `
+          <div style="background: #070b12; border: 1px solid rgba(255,255,255,0.06); padding: 12px; border-radius: 8px;">
+            <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px;">Bank Transfer</div>
+            <div style="font-size: 13px; font-family: monospace; color: #38bdf8; word-break: break-all;">${escapeText(data.paymentMethods.bank)}</div>
+          </div>
+          <div style="background: #070b12; border: 1px solid rgba(255,255,255,0.06); padding: 12px; border-radius: 8px;">
+            <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px;">eZ Cash</div>
+            <div style="font-size: 13px; font-family: monospace; color: #10b981;">${escapeText(data.paymentMethods.ezcash)}</div>
+          </div>
+          <div style="background: #070b12; border: 1px solid rgba(255,255,255,0.06); padding: 12px; border-radius: 8px;">
+            <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px;">mCash</div>
+            <div style="font-size: 13px; font-family: monospace; color: #f59e0b;">${escapeText(data.paymentMethods.mcash)}</div>
+          </div>
+          <div style="background: #070b12; border: 1px solid rgba(255,255,255,0.06); padding: 12px; border-radius: 8px;">
+            <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px;">FriMi</div>
+            <div style="font-size: 13px; font-family: monospace; color: #a855f7;">${escapeText(data.paymentMethods.frimi)}</div>
+          </div>
+          <div style="background: #070b12; border: 1px solid rgba(255,255,255,0.06); padding: 12px; border-radius: 8px;">
+            <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px;">iPay</div>
+            <div style="font-size: 13px; font-family: monospace; color: #ef4444;">${escapeText(data.paymentMethods.ipay)}</div>
+          </div>
+          <div style="background: #070b12; border: 1px solid rgba(255,255,255,0.06); padding: 12px; border-radius: 8px;">
+            <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px;">WhatsApp Support</div>
+            <div style="font-size: 13px; font-family: monospace; color: #22c55e;">${escapeText(data.paymentMethods.whatsapp)}</div>
+          </div>
+        ` : '<div style="font-size: 13px; color: #64748b;">Payment details unavailable.</div>'}
       </div>
     </section>
 
