@@ -1,5 +1,6 @@
 import type { Env, SystemStats, DailyTrendItem } from "./types";
 import { renderTrendsChartSvg } from "./adminChart";
+import { BRAND_LOGO_SVG_COMPACT, BRAND_LOGO_FAVICON_DATA_URI } from "./brandLogo";
 
 function escapeAttribute(value: string): string {
   return value
@@ -89,6 +90,9 @@ export function renderAdminPage(
   <meta name="description" content="Operational admin panel and financial trend monitoring for Fast xBet Cash Telegram bot.">
   <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#070b12">
+  <link rel="icon" type="image/svg+xml" href="${BRAND_LOGO_FAVICON_DATA_URI}">
+  <link rel="alternate icon" type="image/png" sizes="32x32" href="/favicon.ico">
+  <link rel="apple-touch-icon" sizes="192x192" href="/logo.png">
   <style${nonceAttr}>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -298,6 +302,7 @@ export function renderAdminPage(
     <header class="header-bar" id="admin-header">
       <div>
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+          <span style="width:32px; height:32px; display:inline-flex; border-radius:8px; overflow:hidden; box-shadow:0 0 10px rgba(0,180,248,0.35); flex-shrink:0;">${BRAND_LOGO_SVG_COMPACT}</span>
           <h1 style="font-size: 22px; font-weight: 800; color: #f8fafc;">Fast xBet Cash — Admin Panel</h1>
           <span class="badge" id="sys-badge"><span class="badge-dot"></span> System Live</span>
         </div>

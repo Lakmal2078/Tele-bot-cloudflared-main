@@ -1,4 +1,5 @@
 import type { Env } from "./types";
+import { BRAND_LOGO_SVG_COMPACT, BRAND_LOGO_FAVICON_DATA_URI } from "./brandLogo";
 
 const BOT_URL = "https://t.me/fast_1xbetcash_bot";
 
@@ -178,7 +179,9 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
 <link rel="alternate" hreflang="ta" href="${pageUrlAttr}?lang=ta">
 <link rel="alternate" hreflang="x-default" href="${pageUrlAttr}">
 
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="${BRAND_LOGO_FAVICON_DATA_URI}">
+<link rel="alternate icon" type="image/png" sizes="32x32" href="/favicon.ico">
+<link rel="apple-touch-icon" sizes="192x192" href="/logo.png">
 
 <!-- OpenGraph Social Preview & WhatsApp Link Preview (P0 #1) -->
 <meta property="og:site_name" content="Fast xBet Cash">
@@ -302,14 +305,48 @@ summary:focus-visible {
 }
 
 .logo {
-  font-size: 1.3rem;
+  font-size: 1.25rem;
   font-weight: 800;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   white-space: nowrap;
+  text-decoration: none;
+  color: #fff;
+  transition: opacity 0.2s ease;
 }
-.logo span { color: var(--accent); }
+.logo:hover {
+  opacity: 0.95;
+}
+.logo-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  overflow: hidden;
+  box-shadow: 0 0 14px rgba(0, 180, 248, 0.35), 0 2px 6px rgba(0, 0, 0, 0.5);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+}
+.logo:hover .logo-badge {
+  transform: scale(1.08) rotate(-3deg);
+  box-shadow: 0 0 22px rgba(0, 180, 248, 0.6), 0 0 10px rgba(166, 248, 0, 0.45);
+}
+.logo-badge svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.logo-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  letter-spacing: -0.01em;
+}
+.logo-text span { color: var(--accent); }
+.logo-text .flag { font-size: 1.1rem; }
 
 .badge-18 {
   display: inline-flex;
@@ -1210,12 +1247,20 @@ summary:focus-visible {
 }
 .tg-header .avatar {
   width: 38px; height: 38px;
-  background: linear-gradient(135deg, var(--accent), #00b0ff);
+  background: #050a14;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
+  overflow: hidden;
+  box-shadow: 0 0 10px rgba(0, 180, 248, 0.35);
+  flex-shrink: 0;
+}
+.tg-header .avatar svg {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: block;
 }
 .tg-header .info h4 { margin:0; font-size: 15px; color: #fff; font-weight: 600; }
 .tg-header .info p { margin:2px 0 0; font-size: 12px; color: #38bdf8; }
@@ -1302,10 +1347,11 @@ summary:focus-visible {
 
 <!-- NAVBAR -->
 <header class="navbar">
-  <div class="logo">
-    ⚡ Fast <span>xBet</span> Cash 🇱🇰
+  <a href="#" class="logo" aria-label="Fast xBet Cash Sri Lanka">
+    <span class="logo-badge" aria-hidden="true">${BRAND_LOGO_SVG_COMPACT}</span>
+    <span class="logo-text">Fast <span>xBet</span> Cash <span class="flag">🇱🇰</span></span>
     <span class="badge-18">🔞 18+</span>
-  </div>
+  </a>
 
   <nav class="nav-links" aria-label="Main Navigation">
     <a href="#how-it-works" data-t="howNav">භාවිතා කරන්නේ කෙසේද</a>
@@ -1490,7 +1536,7 @@ summary:focus-visible {
     <div class="phone-notch"></div>
     <div class="tg-header">
       <div class="tg-back" style="font-size:24px; color:#38bdf8;">‹</div>
-      <div class="avatar">⚡</div>
+      <div class="avatar">${BRAND_LOGO_SVG_COMPACT}</div>
       <div class="info">
         <h4>Fast xBet Cash</h4>
         <p>bot</p>

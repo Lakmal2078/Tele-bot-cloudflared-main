@@ -1,5 +1,6 @@
 import type { Env } from "./types";
 import { OG_IMAGE_PNG, OG_IMAGE_JPEG } from "./ogImage";
+import { BRAND_LOGO_SVG, BRAND_FAVICON_PNG, BRAND_LOGO_PNG_192 } from "./brandLogo";
 import { constantTimeEqual, isConfiguredAdminId, validateEnv } from "./config";
 import { securityHeaders } from "./security";
 import { getStats, getOperationsDashboard, getDailyFinancialTrends, getSupportTickets, updateSupportTicket, createScheduledChannelPost } from "./db";
@@ -305,6 +306,48 @@ export async function handleApiRequest(
       return new Response(null, { status: 200, headers });
     }
     return new Response(svg, { status: 200, headers });
+  }
+
+  // Official Brand Favicon (.ico / .png) - Dollar + Lightning circular badge
+  if ((path === "/favicon.ico" || path === "/favicon.png") && (method === "GET" || method === "HEAD")) {
+    const headers: Record<string, string> = {
+      "Content-Type": "image/png",
+      "Content-Length": String(BRAND_FAVICON_PNG.byteLength),
+      "Content-Disposition": "inline; filename=\"favicon.ico\"",
+      "Access-Control-Allow-Origin": "*",
+      "Accept-Ranges": "bytes",
+      "Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
+      "X-Content-Type-Options": "nosniff",
+    };
+    if (method === "HEAD") return new Response(null, { status: 200, headers });
+    return new Response(BRAND_FAVICON_PNG, { status: 200, headers });
+  }
+
+  // Official Brand Logo / Favicon SVG (/favicon.svg, /logo.svg)
+  if ((path === "/favicon.svg" || path === "/logo.svg") && (method === "GET" || method === "HEAD")) {
+    const headers: Record<string, string> = {
+      "Content-Type": "image/svg+xml; charset=utf-8",
+      "Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
+      "X-Content-Type-Options": "nosniff",
+      "Access-Control-Allow-Origin": "*",
+    };
+    if (method === "HEAD") return new Response(null, { status: 200, headers });
+    return new Response(BRAND_LOGO_SVG, { status: 200, headers });
+  }
+
+  // Official Brand Logo 192x192 PNG (/logo.png, /apple-touch-icon.png)
+  if ((path === "/logo.png" || path === "/apple-touch-icon.png" || path === "/apple-touch-icon-precomposed.png") && (method === "GET" || method === "HEAD")) {
+    const headers: Record<string, string> = {
+      "Content-Type": "image/png",
+      "Content-Length": String(BRAND_LOGO_PNG_192.byteLength),
+      "Content-Disposition": "inline; filename=\"logo.png\"",
+      "Access-Control-Allow-Origin": "*",
+      "Accept-Ranges": "bytes",
+      "Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
+      "X-Content-Type-Options": "nosniff",
+    };
+    if (method === "HEAD") return new Response(null, { status: 200, headers });
+    return new Response(BRAND_LOGO_PNG_192, { status: 200, headers });
   }
 
   // Affiliate Click Tracking & 302 Redirect for Tip Picks (/go/tip/:id)
