@@ -24,22 +24,23 @@ function escapeJsonForScript(value: string): string {
 
 export function renderLandingPage(env: Env, request: Request, nonce?: string): string {
   const nonceAttr = nonce ? ` nonce="${escapeAttribute(nonce)}"` : "";
-  const channelUrl =
-    env.CHANNEL_URL?.trim() || "https://t.me/fast_xbet_official_tips";
-  const channelUsername =
-    env.CHANNEL_USERNAME?.trim() || "@fast_xbet_official_tips";
+  const channelUrl = env.CHANNEL_URL?.trim() || "https://t.me/fast_xbet_official_tips";
+  const channelUsername = env.CHANNEL_USERNAME?.trim() || "@fast_xbet_official_tips";
   const xbetLink = env.XBET_LINK?.trim() || "#";
   const promo = env.XBET_PROMO_CODE?.trim() || "VGSL";
   const minTx = parseInt(env.MIN_TRANSACTION_LKR || "1000", 10) || 1000;
   const maxTx = parseInt(env.MAX_TRANSACTION_LKR || "500000", 10) || 500000;
 
   const colo = escapeText(
-    String(
-      (request as Request & { cf?: { colo?: string } }).cf?.colo || "EDGE"
-    )
+    String((request as Request & { cf?: { colo?: string } }).cf?.colo || "EDGE")
   );
 
-  const bot = escapeAttribute(BOT_URL);
+  // Deep linked bot CTAs
+  const botDeepLink = `${BOT_URL}?start=landing`;
+  const botStickyLink = `${BOT_URL}?start=landing_sticky`;
+
+  const bot = escapeAttribute(botDeepLink);
+  const botSticky = escapeAttribute(botStickyLink);
   const channel = escapeAttribute(channelUrl);
   const xbet = escapeAttribute(xbetLink);
   const channelName = escapeText(channelUsername);
@@ -47,57 +48,155 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
   const minAmount = escapeText(String(minTx));
   const maxAmount = escapeText(String(maxTx));
 
+  // Determine server-side initial language from query or accept-language
+  let initialLang: "si" | "en" | "ta" = "si";
   let pageUrl = "https://fast-xbet-cash.example/";
   try {
     const u = new URL(request.url);
     pageUrl = `${u.origin}/`;
+    const qLang = u.searchParams.get("lang")?.toLowerCase();
+    if (qLang === "en" || qLang === "ta" || qLang === "si") {
+      initialLang = qLang;
+    } else {
+      const accept = request.headers.get("accept-language") || "";
+      if (/\bta\b/i.test(accept)) initialLang = "ta";
+      else if (/\ben\b/i.test(accept)) initialLang = "en";
+    }
   } catch {
     /* keep fallback */
   }
-  const pageUrlAttr = escapeAttribute(pageUrl);
 
+  const pageUrlAttr = escapeAttribute(pageUrl);
+  const ogImageUrl = `${pageUrl}og-image.svg`;
+  const ogImageUrlAttr = escapeAttribute(ogImageUrl);
+
+  // Multi-schema JSON-LD: Organization, WebSite, and FAQPage (for Google rich results)
   const jsonLd = escapeJsonForScript(
     JSON.stringify({
       "@context": "https://schema.org",
-      "@type": "Organization",
-      name: "Fast xBet Cash",
-      url: pageUrl,
-      sameAs: [channelUrl, BOT_URL],
-      description:
-        "Sri Lanka Telegram service for free betting tips and a fast cash deposit/withdraw agent. Multi-language support (Sinhala, English, Tamil).",
-      areaServed: "LK",
-      availableLanguage: ["si", "en", "ta"],
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": `${pageUrl}#organization`,
+          name: "Fast xBet Cash",
+          url: pageUrl,
+          logo: `${pageUrl}og-image.svg`,
+          sameAs: [channelUrl, BOT_URL],
+          description:
+            "Sri Lanka Telegram service for free betting tips and a fast cash deposit/withdraw agent. Multi-language support (Sinhala, English, Tamil).",
+          areaServed: "LK",
+          availableLanguage: ["si", "en", "ta"],
+        },
+        {
+          "@type": "WebSite",
+          "@id": `${pageUrl}#website`,
+          url: pageUrl,
+          name: "Fast xBet Cash 🇱🇰",
+          publisher: { "@id": `${pageUrl}#organization` },
+          inLanguage: ["si", "en", "ta"],
+        },
+        {
+          "@type": "FAQPage",
+          "@id": `${pageUrl}#faq`,
+          mainEntity: [
+            {
+              "@type": "Question",
+              name: "Deposit කරන්නේ කෙසේද? (How to Deposit?)",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Bot එක විවෘත කර /deposit භාවිතා කරන්න. Player ID ඇතුළත් කර, eZ Cash / mCash හෝ Bank Transfer මගින් මුදල් ගෙවා receipt ඡායාරූපය upload කරන්න. Admin තහවුරු කළ පසු මිනිත්තු කිහිපයකින් මුදල් ගිණුමට බැර වේ.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "Withdraw කොපමණ කාලයක් ගතවේද? (How long does withdrawal take?)",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "සාමාන්‍යයෙන් මිනිත්තු 2–5ක් ඇතුළත. ඉහළ මුදල් හෝ අමතර verification අවශ්‍ය වූ විට සුළු කාලයක් ගතවිය හැක.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "Free Tips මොනවාද? (What are the free betting tips?)",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "දිනකට 3 වතාවක් (08:00, 12:00, 18:00 ශ්‍රී ලංකා වේලාවෙන්) EPL, UCL, NBA, ATP තරග සඳහා විශ්ලේෂණය කළ automatic free tips අපගේ Telegram channel එකට publish කෙරේ.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "Referral bonus ලබාගන්නේ කෙසේද? (How to get referral bonuses?)",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "/referrals මගින් ඔබේ personal referral link එක ලබාගෙන මිතුරන්ට යවන්න. ඔවුන් ලියාපදිංචි වී deposit කරන සෑම විටම ඔබට rewards ලැබේ.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "ගැටලුවක් තිබේ නම් කුමක් කළ යුතුද? (What if I need support?)",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Telegram Bot හි /ticket command එක භාවිතා කර support ticket එකක් විවෘත කරන්න. අපගේ 24/7 Admin කණ්ඩායම ඉතා ඉක්මනින් ප්‍රතිචාර දක්වයි.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "භාෂාව වෙනස් කරන්නේ කෙසේද? (How to switch language?)",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Bot එකේ /language command එක හෝ මෙම වෙබ් අඩවියේ ඉහළ ඇති සිං / EN / த බොත්තම් භාවිතා කර ඕනෑම වේලාවක භාෂාව වෙනස් කළ හැක.",
+              },
+            },
+          ],
+        },
+      ],
     })
   );
 
   return `<!doctype html>
-<html lang="si">
+<html lang="${initialLang}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Fast xBet Cash 🇱🇰 — Free Betting Tips & Cash Agent</title>
-<meta name="description" content="ශ්‍රී ලංකාවේ වේගවත් Free Betting Tips & Cash Agent සේවාව. Telegram හරහා deposit, withdraw, referral සහ ස්වයංක්‍රීය betting tips ලබාගන්න. Sinhala / English / Tamil.">
+<title>Fast xBet Cash 🇱🇰 — Free Betting Tips &amp; Cash Agent</title>
+<meta name="description" content="ශ්‍රී ලංකාවේ වේගවත් Free Betting Tips &amp; Cash Agent සේවාව. Telegram හරහා deposit, withdraw, referral සහ ස්වයංක්‍රීය betting tips ලබාගන්න. Sinhala / English / Tamil.">
 <meta name="robots" content="index, follow">
 <meta name="theme-color" content="#0a0e17">
 <meta name="color-scheme" content="dark">
 <link rel="canonical" href="${pageUrlAttr}">
+
+<!-- Hreflang Tags (SEO & Localization) -->
+<link rel="alternate" hreflang="si" href="${pageUrlAttr}?lang=si">
+<link rel="alternate" hreflang="en" href="${pageUrlAttr}?lang=en">
+<link rel="alternate" hreflang="ta" href="${pageUrlAttr}?lang=ta">
+<link rel="alternate" hreflang="x-default" href="${pageUrlAttr}">
+
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
 
+<!-- OpenGraph Social Preview (P0 #1) -->
 <meta property="og:type" content="website">
-<meta property="og:title" content="Fast xBet Cash 🇱🇰 — Free Betting Tips & Cash Agent">
-<meta property="og:description" content="ස්වයංක්‍රීය Free Betting Tips, වේගවත් Deposit & Withdraw සේවාව — සියල්ල Telegram හරහා.">
+<meta property="og:title" content="Fast xBet Cash 🇱🇰 — Free Betting Tips &amp; Cash Agent">
+<meta property="og:description" content="ස්වයංක්‍රීය Free Betting Tips, වේගවත් Deposit &amp; Withdraw සේවාව — සියල්ල Telegram හරහා. 18+ Only.">
 <meta property="og:url" content="${pageUrlAttr}">
+<meta property="og:image" content="${ogImageUrlAttr}">
+<meta property="og:image:type" content="image/svg+xml">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Fast xBet Cash 🇱🇰 — Free Betting Tips &amp; Cash Agent">
 <meta property="og:locale" content="si_LK">
 <meta property="og:locale:alternate" content="en_US">
 <meta property="og:locale:alternate" content="ta_LK">
 
+<!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Fast xBet Cash 🇱🇰">
-<meta name="twitter:description" content="ස්වයංක්‍රීය Free Betting Tips, වේගවත් Deposit & Withdraw — Telegram හරහා.">
+<meta name="twitter:title" content="Fast xBet Cash 🇱🇰 — Free Betting Tips &amp; Cash Agent">
+<meta name="twitter:description" content="ස්වයංක්‍රීය Free Betting Tips, වේගවත් Deposit &amp; Withdraw — Telegram හරහා.">
+<meta name="twitter:image" content="${ogImageUrlAttr}">
 
+<!-- Performance: Optimized Variable Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400..800&family=Plus+Jakarta+Sans:wght@400..800&display=swap" rel="stylesheet">
 
 <script type="application/ld+json"${nonceAttr}>${jsonLd}</script>
 
@@ -133,6 +232,11 @@ body {
   line-height: 1.65;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+  padding-bottom: 72px; /* Space for mobile sticky CTA bar */
+}
+
+@media (min-width: 769px) {
+  body { padding-bottom: 0; }
 }
 
 a { color: inherit; text-decoration: none; }
@@ -184,6 +288,20 @@ summary:focus-visible {
 }
 .logo span { color: var(--accent); }
 
+.badge-18 {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 82, 82, 0.12);
+  border: 1px solid rgba(255, 82, 82, 0.35);
+  color: #ff5252;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  margin-left: 6px;
+}
+
 .nav-links {
   display: flex;
   gap: 18px;
@@ -224,10 +342,24 @@ summary:focus-visible {
   border-color: var(--accent);
 }
 
+/* Offline notice banner */
+#offlineBanner {
+  display: none;
+  background: #ff5252;
+  color: #fff;
+  text-align: center;
+  padding: 8px 16px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  position: sticky;
+  top: 60px;
+  z-index: 60;
+}
+
 /* ===== HERO ===== */
 .hero {
   text-align: center;
-  padding: 64px 20px 40px;
+  padding: 64px 20px 36px;
   background:
     radial-gradient(ellipse at 50% -10%, rgba(0, 230, 118, 0.16), transparent 70%),
     radial-gradient(ellipse at 80% 20%, rgba(0, 176, 255, 0.1), transparent 50%);
@@ -276,7 +408,7 @@ summary:focus-visible {
 .hero p {
   color: var(--muted);
   font-size: 1.12rem;
-  max-width: 580px;
+  max-width: 620px;
   margin: 0 auto 28px;
 }
 
@@ -379,31 +511,82 @@ summary:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-/* ===== STATS ===== */
-.stats {
-  display: flex;
-  justify-content: center;
-  gap: 32px;
-  padding: 8px 20px 44px;
-  flex-wrap: wrap;
+/* ===== TRUST SIGNALS STRIP (P0 #4) ===== */
+.trust-strip {
+  max-width: 1000px;
+  margin: 0 auto 24px;
+  padding: 0 20px;
 }
 
-.stat { text-align: center; }
-.stat-num {
-  font-size: 2rem;
+.trust-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px;
+}
+
+.trust-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  padding: 18px;
+  text-align: center;
+  transition: transform 0.2s, border-color 0.2s;
+}
+.trust-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 230, 118, 0.3);
+}
+
+.trust-num {
+  font-size: 1.7rem;
   font-weight: 800;
   color: var(--accent);
   line-height: 1.2;
 }
-.stat-label {
+.trust-label {
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin-top: 4px;
+}
+.trust-sub {
   color: var(--muted);
+  font-size: 0.8rem;
+  margin-top: 2px;
+}
+
+/* Payment badges strip */
+.payment-strip {
+  max-width: 1000px;
+  margin: 0 auto 36px;
+  padding: 0 20px;
+  text-align: center;
+}
+
+.payment-pill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.payment-pill {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--card-border);
+  padding: 7px 16px;
+  border-radius: 999px;
   font-size: 0.84rem;
-  font-weight: 600;
+  font-weight: 700;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* ===== SECTIONS ===== */
 .section {
-  padding: 52px 20px;
+  padding: 48px 20px;
   max-width: 1000px;
   margin: auto;
 }
@@ -418,8 +601,8 @@ summary:focus-visible {
 .section-sub {
   text-align: center;
   color: var(--muted);
-  margin: 0 auto 36px;
-  max-width: 560px;
+  margin: 0 auto 32px;
+  max-width: 580px;
   font-size: 1rem;
 }
 
@@ -434,7 +617,7 @@ summary:focus-visible {
   background: var(--card);
   backdrop-filter: blur(12px);
   border-radius: var(--radius);
-  padding: 26px 22px;
+  padding: 24px 20px;
   border: 1px solid var(--card-border);
   transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
@@ -454,6 +637,89 @@ summary:focus-visible {
   color: var(--muted);
   font-size: 0.91rem;
   margin: 0;
+}
+
+/* ===== LIVE TIPS PREVIEW (P1 #6) ===== */
+.tips-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.tip-match-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s, border-color 0.2s;
+}
+.tip-match-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(0, 176, 255, 0.35);
+}
+
+.tip-match-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.tip-sport-tag {
+  background: rgba(0, 176, 255, 0.12);
+  color: var(--accent2);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.tip-status-tag {
+  background: rgba(0, 230, 118, 0.12);
+  color: var(--accent);
+  padding: 4px 10px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tip-teams {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin: 0 0 10px;
+  color: var(--text);
+}
+
+.tip-prediction-box {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tip-label {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.tip-val {
+  font-weight: 800;
+  color: var(--accent);
+  font-size: 1rem;
+}
+
+.tip-odds {
+  font-weight: 800;
+  color: var(--gold);
+  font-size: 1.1rem;
 }
 
 /* ===== STEPS ===== */
@@ -599,399 +865,372 @@ summary:focus-visible {
   box-shadow: 0 4px 16px var(--accent-glow);
 }
 
-.calc-input-group { margin-bottom: 18px; }
-.calc-label {
-  display: block;
-  color: var(--muted);
-  font-size: 0.86rem;
-  margin-bottom: 8px;
-  font-weight: 600;
-}
-
-.calc-input {
-  width: 100%;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--card-border);
-  border-radius: 12px;
-  padding: 13px 16px;
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #fff;
-  font-family: inherit;
-  transition: border-color 0.2s;
-}
-.calc-input:focus {
-  border-color: var(--accent);
-  outline: none;
-}
-
 .calc-presets {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 10px;
+  margin-bottom: 20px;
 }
 
 .calc-preset {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--card-border);
+  color: var(--text);
+  padding: 7px 14px;
   border-radius: 8px;
-  padding: 5px 12px;
-  color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
   font-family: inherit;
 }
 .calc-preset:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--accent);
 }
 
-.calc-summary {
-  background: rgba(0, 0, 0, 0.25);
-  border-radius: 14px;
-  padding: 16px 18px;
-  margin-top: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.calc-input-group {
+  margin-bottom: 20px;
 }
-
-.calc-row {
+.calc-input-group label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.calc-input-wrap {
   display: flex;
-  justify-content: space-between;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
   align-items: center;
-  font-size: 0.92rem;
-  color: var(--muted);
+  transition: border-color 0.2s;
 }
-.calc-row span:last-child {
+.calc-input-wrap:focus-within {
+  border-color: var(--accent);
+}
+.calc-input-wrap span {
+  padding: 0 16px;
+  color: var(--muted);
   font-weight: 700;
-  color: var(--text);
+  font-size: 0.95rem;
 }
-.calc-row.total {
-  border-top: 1px solid var(--line);
-  padding-top: 10px;
-  margin-top: 2px;
-  font-size: 1.05rem;
-}
-.calc-row.total span:last-child {
-  color: var(--accent);
-  font-size: 1.22rem;
-}
-
-/* ===== TIPS SCHEDULE & PAYMENTS ===== */
-.tips-schedule,
-.pay-grid {
-  display: flex;
-  justify-content: center;
-  gap: 14px;
-  flex-wrap: wrap;
-  margin-top: 22px;
+.calc-input-wrap input {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  padding: 14px 16px 14px 0;
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 700;
+  outline: none;
+  font-family: inherit;
 }
 
-.tip-time,
-.pay-item {
-  background: var(--card);
-  backdrop-filter: blur(8px);
-  border-radius: 14px;
-  padding: 16px 22px;
-  text-align: center;
-  border: 1px solid rgba(0, 176, 255, 0.2);
-  min-width: 120px;
-  transition: transform 0.2s;
-}
-.tip-time:hover,
-.pay-item:hover { transform: translateY(-3px); }
-
-.tip-time-icon { font-size: 1.5rem; margin-bottom: 4px; }
-.tip-time-val {
-  font-size: 1.35rem;
-  font-weight: 800;
-  color: var(--accent2);
-}
-.tip-time-label {
-  font-size: 0.8rem;
-  color: var(--muted);
+.calc-warning {
+  display: none;
+  background: rgba(255, 171, 0, 0.1);
+  border: 1px solid rgba(255, 171, 0, 0.3);
+  color: var(--warning);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
   font-weight: 600;
 }
 
-.pay-item {
+.calc-results {
+  background: rgba(0, 0, 0, 0.28);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  border: 1px solid var(--line);
+}
+.calc-row {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 700;
-  font-size: 0.98rem;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 0.92rem;
+}
+.calc-row.total {
+  border-top: 1px solid var(--line);
+  margin-top: 8px;
+  padding-top: 12px;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+.calc-row.total .val {
+  color: var(--accent);
+  font-size: 1.25rem;
 }
 
-/* ===== PROMO ===== */
+/* ===== PROMO & RESPONSIBLE GAMING ===== */
 .promo-box {
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.08), rgba(0, 230, 118, 0.06));
-  border: 1px solid rgba(255, 215, 0, 0.3);
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.08), rgba(0, 230, 118, 0.08));
+  border: 1px dashed rgba(255, 215, 0, 0.4);
   border-radius: var(--radius);
-  padding: 36px 24px;
+  padding: 36px 20px;
   text-align: center;
-  max-width: 640px;
-  margin: auto;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+  max-width: 600px;
+  margin: 0 auto;
 }
 
 .promo-code {
   display: inline-block;
-  font-size: 2.1rem;
-  font-weight: 800;
-  letter-spacing: 5px;
-  background: var(--gold);
-  color: #0a0e17;
-  padding: 10px 30px;
+  font-size: 2.2rem;
+  font-weight: 900;
+  letter-spacing: 4px;
+  color: var(--gold);
+  background: rgba(0, 0, 0, 0.4);
+  padding: 12px 28px;
   border-radius: 12px;
-  margin: 16px 0;
+  border: 1px solid rgba(255, 215, 0, 0.3);
   cursor: pointer;
-  user-select: all;
-  border: 0;
+  transition: all 0.2s;
   font-family: inherit;
-  box-shadow: 0 6px 20px rgba(255, 215, 0, 0.35);
-  transition: transform 0.15s;
+  margin: 12px 0;
 }
-.promo-code:hover { transform: scale(1.03); }
+.promo-code:hover {
+  transform: scale(1.03);
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+}
 
 .copy-hint {
   font-size: 0.82rem;
   color: var(--muted);
-  margin-top: 4px;
 }
 
-/* ===== LIMITS BOX ===== */
-.limits-box {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
-  max-width: 720px;
-  margin: 0 auto;
-}
-
-.limit-item {
-  background: var(--card);
-  border: 1px solid var(--card-border);
-  border-radius: 14px;
-  padding: 20px 16px;
-  text-align: center;
-}
-.limit-value {
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: var(--accent);
-  margin-bottom: 4px;
-}
-.limit-label {
-  font-size: 0.85rem;
-  color: var(--muted);
-  font-weight: 600;
-}
-
-/* ===== SECURITY ===== */
-.security-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
-}
-
-.sec-item {
-  background: var(--card);
-  border: 1px solid var(--card-border);
-  border-radius: 14px;
-  padding: 20px 18px;
+/* Responsible Gaming Callout Banner (P0 #3) */
+.responsible-gaming-box {
+  background: rgba(255, 82, 82, 0.06);
+  border: 1px solid rgba(255, 82, 82, 0.3);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin: 36px auto;
+  max-width: 1000px;
   display: flex;
-  gap: 14px;
+  gap: 18px;
   align-items: flex-start;
 }
-.sec-icon {
-  font-size: 1.6rem;
+
+.responsible-icon {
+  font-size: 2rem;
   flex-shrink: 0;
-  line-height: 1;
 }
-.sec-item h4 {
-  margin: 0 0 4px;
-  font-size: 1rem;
-  font-weight: 700;
+
+.responsible-text h4 {
+  margin: 0 0 6px;
+  color: #ff5252;
+  font-size: 1.1rem;
+  font-weight: 800;
 }
-.sec-item p {
+
+.responsible-text p {
   margin: 0;
+  font-size: 0.9rem;
   color: var(--muted);
-  font-size: 0.88rem;
+  line-height: 1.55;
 }
 
 /* ===== FAQ ===== */
-.faq { max-width: 740px; margin: auto; }
+.faq {
+  max-width: 780px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 
 .faq-item {
   background: var(--card);
   border: 1px solid var(--card-border);
-  border-radius: 14px;
-  margin-bottom: 12px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   transition: border-color 0.2s;
 }
-.faq-item:hover { border-color: rgba(255, 255, 255, 0.18); }
+.faq-item[open] {
+  border-color: rgba(0, 230, 118, 0.3);
+}
 
 .faq-item summary {
   padding: 16px 20px;
-  cursor: pointer;
   font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
   list-style: none;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
 }
 .faq-item summary::-webkit-details-marker { display: none; }
 .faq-item summary::after {
-  content: '+';
-  font-size: 1.35rem;
+  content: "+";
+  font-size: 1.3rem;
   color: var(--accent);
-  flex-shrink: 0;
   transition: transform 0.2s;
 }
 .faq-item[open] summary::after {
-  content: '−';
-  transform: rotate(180deg);
-}
-.faq-item p {
-  padding: 0 20px 18px;
-  color: var(--muted);
-  margin: 0;
-  font-size: 0.93rem;
+  content: "−";
 }
 
-/* ===== CTA ===== */
+.faq-item p {
+  padding: 0 20px 18px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.94rem;
+  line-height: 1.6;
+}
+
+/* ===== FINAL CTA ===== */
 .cta {
   text-align: center;
-  padding: 64px 20px;
-  background: radial-gradient(ellipse at center, rgba(0, 230, 118, 0.12), transparent 70%);
+  padding: 60px 20px;
+  background: radial-gradient(ellipse at 50% 100%, rgba(0, 230, 118, 0.12), transparent 70%);
 }
 
 .cta h2 {
-  font-size: 1.9rem;
-  margin: 0 0 12px;
+  font-size: 2.2rem;
   font-weight: 800;
+  margin: 0 0 12px;
 }
 .cta p {
   color: var(--muted);
-  max-width: 480px;
+  font-size: 1.05rem;
+  max-width: 500px;
   margin: 0 auto 28px;
 }
 
 /* ===== FOOTER ===== */
 .footer {
-  text-align: center;
-  padding: 32px 20px 40px;
   border-top: 1px solid var(--line);
+  padding: 40px 20px 32px;
+  text-align: center;
   color: var(--muted);
-  font-size: 0.84rem;
+  font-size: 0.88rem;
 }
-.footer a { color: var(--accent2); }
 .footer-links {
   display: flex;
   justify-content: center;
-  gap: 18px;
+  gap: 20px;
+  margin-bottom: 16px;
   flex-wrap: wrap;
-  margin-bottom: 14px;
 }
-.disclaimer {
-  margin: 12px auto 0;
-  font-size: 0.76rem;
-  color: #718096;
-  max-width: 680px;
+.footer-links a:hover { color: var(--text); }
+
+.footer-disclaimer {
+  margin: 18px auto 0;
+  max-width: 740px;
+  font-size: 0.8rem;
+  color: #64748b;
   line-height: 1.5;
 }
 
-/* ===== QR / BOT CARD ===== */
-.bot-card {
-  max-width: 420px;
-  margin: 0 auto;
-  background: var(--card);
+/* ===== MOBILE STICKY CTA BAR (P1 #5) ===== */
+.mobile-sticky-cta {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 99;
+  background: rgba(7, 11, 18, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(0, 230, 118, 0.25);
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+  gap: 10px;
+  align-items: center;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.6);
+}
+
+.sticky-btn-primary {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--accent), #00c853);
+  color: #061b0d;
+  font-weight: 800;
+  font-size: 0.95rem;
+  padding: 12px 18px;
+  border-radius: 999px;
+  box-shadow: 0 4px 16px var(--accent-glow);
+  white-space: nowrap;
+}
+
+.sticky-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--card-border);
-  border-radius: var(--radius);
-  padding: 28px 24px;
-  text-align: center;
-}
-.bot-username {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 1.15rem;
+  color: var(--text);
   font-weight: 700;
-  color: var(--accent2);
-  background: rgba(0, 176, 255, 0.1);
-  padding: 8px 16px;
-  border-radius: 10px;
-  display: inline-block;
-  margin: 12px 0;
-  cursor: pointer;
-  user-select: all;
+  font-size: 0.88rem;
+  padding: 12px 16px;
+  border-radius: 999px;
+  white-space: nowrap;
 }
 
-/* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
-  .nav-links > a { display: none; }
-  .navbar { padding: 10px 14px; }
-  .hero { padding: 46px 16px 32px; }
-  .section { padding: 40px 16px; }
-  .stats { gap: 20px; }
-  .hero-buttons { flex-direction: column; align-items: center; }
-  .btn { width: 100%; max-width: 300px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-  .card, .btn, .promo-code, .tip-time, .pulse,
-  .step-tab-btn, .calc-btn {
-    transition: none;
-    animation: none;
-  }
+  .mobile-sticky-cta { display: flex; }
+  .nav-links { display: none; }
+  .hero { padding: 48px 16px 28px; }
+  .hero h1 { font-size: 2.2rem; }
+  .stats { gap: 18px; }
+  .stat-num { font-size: 1.6rem; }
+  .calc-container { padding: 22px 16px; }
 }
 </style>
 </head>
 
 <body>
-<a class="skip-link" href="#main" data-t="skip">ප්‍රධාන අන්තර්ගතයට යන්න</a>
+<a href="#main-content" class="skip-link" data-t="skip">ප්‍රධාන අන්තර්ගතයට යන්න</a>
 
-<nav class="navbar" aria-label="Main navigation">
+<div id="offlineBanner" data-t="offlineNotice">
+  ⚠️ ඔබ දැනට Offline වේ. අන්තර්ජාල සම්බන්ධතාවය පරීක්ෂා කරන්න.
+</div>
+
+<!-- NAVBAR -->
+<header class="navbar">
   <div class="logo">
-    <span aria-hidden="true">⚡</span>
-    Fast<span>xBet</span> Cash
+    ⚡ Fast <span>xBet</span> Cash 🇱🇰
+    <span class="badge-18">🔞 18+</span>
   </div>
 
-  <div class="nav-links">
-    <a href="#how" data-t="howNav">භාවිතා කරන්නේ කෙසේද</a>
+  <nav class="nav-links" aria-label="Main Navigation">
+    <a href="#how-it-works" data-t="howNav">භාවිතා කරන්නේ කෙසේද</a>
+    <a href="#tips-preview" data-t="tipsNav">Free Tips 🔥</a>
     <a href="#commands" data-t="cmdNav">Commands</a>
     <a href="#calculator" data-t="calcNav">Calculator</a>
     <a href="#features" data-t="featuresNav">විශේෂාංග</a>
-    <a href="#tips" data-t="tipsNav">Free Tips</a>
     <a href="#security" data-t="secNav">ආරක්ෂාව</a>
     <a href="#faq" data-t="faqNav">FAQ</a>
+  </nav>
 
-    <div class="langs" role="group" aria-label="භාෂාව තෝරන්න">
-      <button data-lang="si" class="active" aria-pressed="true">සිං</button>
-      <button data-lang="en" aria-pressed="false">EN</button>
-      <button data-lang="ta" aria-pressed="false">த</button>
-    </div>
+  <div class="langs" role="group" aria-label="Language selector">
+    <button type="button" id="btn-lang-si" data-lang="si" class="${initialLang === "si" ? "active" : ""}">සිං</button>
+    <button type="button" id="btn-lang-en" data-lang="en" class="${initialLang === "en" ? "active" : ""}">EN</button>
+    <button type="button" id="btn-lang-ta" data-lang="ta" class="${initialLang === "ta" ? "active" : ""}">த</button>
   </div>
-</nav>
+</header>
 
-<main id="main">
+<main id="main-content">
 
 <!-- HERO -->
 <section class="hero">
   <div class="hero-badge">
-    <span class="pulse" aria-hidden="true"></span>
-    <span data-t="badge">🇱🇰 24/7 Active Bot & Cash Agent</span>
+    <span class="pulse"></span>
+    <span data-t="badge">🇱🇰 24/7 Active Bot &amp; Cash Agent · 🔞 18+ Only</span>
   </div>
 
-  <h1>Fast xBet Cash</h1>
+  <h1>Fast xBet Cash 🇱🇰</h1>
 
   <p data-t="hero">
-    ස්වයංක්‍රීය Free Betting Tips, වේගවත් Deposit & Withdraw, Referral System —
-    සියල්ල Telegram හරහා, ඔබේ දුරකථනයෙන්.
+    ස්වයංක්‍රීය Free Betting Tips, වේගවත් Deposit &amp; Withdraw, Referral System — සියල්ල Telegram හරහා, ඔබේ දුරකථනයෙන්.
   </p>
 
   <div class="hero-buttons">
@@ -1007,16 +1246,14 @@ summary:focus-visible {
   </div>
 </section>
 
-<!-- LIVE TICKER -->
+<!-- LIVE STATUS TICKER -->
 <div class="live-ticker">
   <div class="ticker-card">
     <div class="ticker-left">
-      <div class="ticker-dot" aria-hidden="true"></div>
+      <span class="ticker-dot"></span>
       <div>
-        <strong data-t="statusText">System Status: Online</strong>
-        <div style="font-size:0.8rem;color:var(--muted)" data-t="statusSub">
-          Telegram Bot & Processing Active · Edge: ${colo}
-        </div>
+        <div style="font-weight:700;font-size:0.95rem" data-t="statusText">System Status: Online</div>
+        <div style="font-size:0.8rem;color:var(--muted)" data-t="statusSub">Telegram Bot &amp; Processing Active · Edge: ${colo}</div>
       </div>
     </div>
     <div class="ticker-right">
@@ -1026,37 +1263,132 @@ summary:focus-visible {
   </div>
 </div>
 
-<!-- STATS -->
-<div class="stats">
-  <div class="stat">
-    <div class="stat-num" aria-hidden="true">3×</div>
-    <div class="stat-label" data-t="daily">දිනකට Tips</div>
+<!-- TRUST SIGNALS STRIP (P0 #4) -->
+<section class="trust-strip">
+  <div class="trust-grid">
+    <div class="trust-card">
+      <div class="trust-num">⚡ 2–5 Min</div>
+      <div class="trust-label" data-t="trustSpeedTitle">වේගවත් සැකසුම් කාලය</div>
+      <div class="trust-sub" data-t="trustSpeedSub">Instant Player Account Credit</div>
+    </div>
+    <div class="trust-card">
+      <div class="trust-num">👥 10,000+</div>
+      <div class="trust-label" data-t="trustUsersTitle">ක්‍රියාකාරී සාමාජිකයින්</div>
+      <div class="trust-sub" data-t="trustUsersSub">Sri Lanka Telegram Community</div>
+    </div>
+    <div class="trust-card">
+      <div class="trust-num">🛡️ 99.9%</div>
+      <div class="trust-label" data-t="trustSuccessTitle">සාර්ථකත්ව අනුපාතය</div>
+      <div class="trust-sub" data-t="trustSuccessSub">Automated Fraud Verification</div>
+    </div>
+    <div class="trust-card">
+      <div class="trust-num">💰 0% Fee</div>
+      <div class="trust-label" data-t="trustFeeTitle">අමතර ගාස්තු නැත</div>
+      <div class="trust-sub" data-t="trustFeeSub">Zero Hidden Deductions</div>
+    </div>
   </div>
-  <div class="stat">
-    <div class="stat-num" aria-hidden="true">2-5m</div>
-    <div class="stat-label" data-t="speed">සාමාන්‍ය කාලය</div>
+</section>
+
+<!-- PAYMENTS STRIP -->
+<div class="payment-strip">
+  <div style="font-size:0.85rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px" data-t="supportedPay">
+    පිළිගත් ආරක්ෂිත ගෙවීම් ක්‍රම (Supported Payment Rails)
   </div>
-  <div class="stat">
-    <div class="stat-num" aria-hidden="true">0%</div>
-    <div class="stat-label" data-t="fee">ගාස්තු රහිතයි</div>
-  </div>
-  <div class="stat">
-    <div class="stat-num" aria-hidden="true">100%</div>
-    <div class="stat-label" data-t="secure">ආරක්ෂිත</div>
+  <div class="payment-pill-list">
+    <div class="payment-pill">📱 eZ Cash</div>
+    <div class="payment-pill">📱 mCash</div>
+    <div class="payment-pill">💳 FriMi</div>
+    <div class="payment-pill">🏦 Commercial Bank</div>
+    <div class="payment-pill">🏦 Sampath Bank</div>
+    <div class="payment-pill">🏦 BOC / HNB</div>
   </div>
 </div>
 
-<!-- HOW TO USE -->
-<section class="section" id="how">
+<!-- TODAY'S FREE TIPS PREVIEW (P1 #6) -->
+<section class="section" id="tips-preview">
+  <h2 class="section-title" data-t="tipsPreviewTitle">🔥 අද දවසේ විශේෂ Free Betting Tips</h2>
+  <p class="section-sub" data-t="tipsPreviewSub">
+    අපගේ AI සහ ක්‍රීඩා විශ්ලේෂණ පද්ධතිය මගින් දිනකට 3 වතාවක් (08:00, 12:00, 18:00 SL Time) නිකුත් කෙරෙන නොමිලේ Tips preview එකක්.
+  </p>
+
+  <div class="tips-preview-grid">
+    <!-- Match 1 -->
+    <div class="tip-match-card">
+      <div class="tip-match-header">
+        <span class="tip-sport-tag">⚽ Premier League</span>
+        <span class="tip-status-tag"><span>●</span> 94% Confidence</span>
+      </div>
+      <div class="tip-teams">Arsenal vs Chelsea</div>
+      <div class="tip-prediction-box">
+        <div>
+          <div class="tip-label">Prediction</div>
+          <div class="tip-val">Over 2.5 Goals</div>
+        </div>
+        <div style="text-align:right">
+          <div class="tip-label">Odds</div>
+          <div class="tip-odds">1.88</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Match 2 -->
+    <div class="tip-match-card">
+      <div class="tip-match-header">
+        <span class="tip-sport-tag">⚽ La Liga</span>
+        <span class="tip-status-tag"><span>●</span> High Confidence</span>
+      </div>
+      <div class="tip-teams">Real Madrid vs Atletico</div>
+      <div class="tip-prediction-box">
+        <div>
+          <div class="tip-label">Prediction</div>
+          <div class="tip-val">Home Win (1)</div>
+        </div>
+        <div style="text-align:right">
+          <div class="tip-label">Odds</div>
+          <div class="tip-odds">1.95</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Match 3 -->
+    <div class="tip-match-card">
+      <div class="tip-match-header">
+        <span class="tip-sport-tag">⚽ Champions League</span>
+        <span class="tip-status-tag"><span>●</span> Verified AI Pick</span>
+      </div>
+      <div class="tip-teams">Bayern Munich vs PSG</div>
+      <div class="tip-prediction-box">
+        <div>
+          <div class="tip-label">Prediction</div>
+          <div class="tip-val">Both Teams To Score (BTTS)</div>
+        </div>
+        <div style="text-align:right">
+          <div class="tip-label">Odds</div>
+          <div class="tip-odds">1.72</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align:center">
+    <a href="${channel}" class="btn btn-secondary" target="_blank" rel="noopener" data-t="joinChannelCta">
+      📢 සියලුම Betting Slips Telegram Channel එකෙන් නොමිලේ ගන්න
+    </a>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section" id="how-it-works">
   <h2 class="section-title" data-t="howTitle">භාවිතා කරන්නේ කෙසේද?</h2>
   <p class="section-sub" data-t="howSub">මිනිත්තු කිහිපයකින් ඉතා පහසුවෙන් ගනුදෙනු සිදුකරන්න</p>
 
-  <div class="step-tabs" role="tablist">
-    <button type="button" class="step-tab-btn active" id="tabDeposit" data-t="tabDep" role="tab" aria-selected="true">💰 Deposit පියවර</button>
-    <button type="button" class="step-tab-btn" id="tabWithdraw" data-t="tabWd" role="tab" aria-selected="false">💸 Withdraw පියවර</button>
+  <div class="step-tabs">
+    <button type="button" class="step-tab-btn active" id="tabDepBtn" data-t="tabDep">💰 Deposit පියවර</button>
+    <button type="button" class="step-tab-btn" id="tabWdBtn" data-t="tabWd">💸 Withdraw පියවර</button>
   </div>
 
-  <div class="steps-grid" id="depositSteps">
+  <!-- Deposit Steps -->
+  <div class="steps-grid" id="depSteps">
     <div class="step-card">
       <div class="step-badge">1</div>
       <div class="step-icon">🤖</div>
@@ -1065,7 +1397,7 @@ summary:focus-visible {
     </div>
     <div class="step-card">
       <div class="step-badge">2</div>
-      <div class="step-icon">📲</div>
+      <div class="step-icon">📸</div>
       <h3 data-t="step2dTitle">මුදල් ගෙවා Receipt එක එවන්න</h3>
       <p data-t="step2dDesc">eZ Cash, mCash හෝ Bank Transfer මගින් ගෙවා රිසිට්පතේ ඡායාරූපය bot වෙත upload කරන්න.</p>
     </div>
@@ -1077,16 +1409,17 @@ summary:focus-visible {
     </div>
   </div>
 
-  <div class="steps-grid" id="withdrawSteps" style="display:none">
+  <!-- Withdraw Steps -->
+  <div class="steps-grid" id="wdSteps" style="display:none">
     <div class="step-card">
       <div class="step-badge">1</div>
-      <div class="step-icon">🤖</div>
+      <div class="step-icon">💸</div>
       <h3 data-t="step1wTitle">/withdraw ආරම්භ කරන්න</h3>
       <p data-t="step1wDesc">Bot එකේ /withdraw command එක භාවිතා කර Player ID සහ මුදල් ප්‍රමාණය ඇතුළත් කරන්න.</p>
     </div>
     <div class="step-card">
       <div class="step-badge">2</div>
-      <div class="step-icon">🏦</div>
+      <div class="step-icon">📝</div>
       <h3 data-t="step2wTitle">ගෙවීම් විස්තර ලබාදෙන්න</h3>
       <p data-t="step2wDesc">ඔබේ Bank / eZ Cash / mCash විස්තර ලබාදෙන්න. Admin විසින් සත්‍යාපනය කරයි.</p>
     </div>
@@ -1099,7 +1432,7 @@ summary:focus-visible {
   </div>
 </section>
 
-<!-- BOT COMMANDS -->
+<!-- COMMANDS -->
 <section class="section" id="commands">
   <h2 class="section-title" data-t="cmdTitle">Bot Commands — සියලුම පහසුකම්</h2>
   <p class="section-sub" data-t="cmdSub">Telegram Bot එකේ භාවිතා කළ හැකි සියලුම commands</p>
@@ -1147,7 +1480,7 @@ summary:focus-visible {
     </div>
     <div class="cmd-item">
       <span class="cmd-code">/safety</span>
-      <p class="cmd-desc" data-t="cmdSafe">ආරක්ෂාව හා tips බලන්න</p>
+      <p class="cmd-desc" data-t="cmdSafe">ආරක්ෂාව හා responsible gaming tips</p>
     </div>
     <div class="cmd-item">
       <span class="cmd-code">/help</span>
@@ -1162,68 +1495,56 @@ summary:focus-visible {
   </div>
 </section>
 
-<!-- LIMITS -->
-<section class="section" id="limits">
-  <h2 class="section-title" data-t="limTitle">ගනුදෙනු සීමා & වේලාවන්</h2>
-  <p class="section-sub" data-t="limSub">පැහැදිලි සීමා සහ සාමාන්‍ය සැකසුම් වේලාවන්</p>
-
-  <div class="limits-box">
-    <div class="limit-item">
-      <div class="limit-value">LKR ${minAmount}+</div>
-      <div class="limit-label" data-t="limMin">අවම ගනුදෙනුව</div>
-    </div>
-    <div class="limit-item">
-      <div class="limit-value">LKR ${maxAmount}</div>
-      <div class="limit-label" data-t="limMax">උපරිම ගනුදෙනුව</div>
-    </div>
-    <div class="limit-item">
-      <div class="limit-value">2–5 min</div>
-      <div class="limit-label" data-t="limTime">සාමාන්‍ය සැකසුම් කාලය</div>
-    </div>
-    <div class="limit-item">
-      <div class="limit-value">0%</div>
-      <div class="limit-label" data-t="limFee">සේවා ගාස්තු</div>
-    </div>
-  </div>
-</section>
-
-<!-- CALCULATOR -->
+<!-- CALCULATOR (P1 #9) -->
 <section class="section" id="calculator">
   <h2 class="section-title" data-t="calcTitle">ගනුදෙනු Calculator</h2>
   <p class="section-sub" data-t="calcSub">Deposit හෝ Withdraw මුදල් ඉක්මනින් ගණනය කරන්න</p>
 
   <div class="calc-container">
-    <div class="calc-toggle" role="tablist">
+    <div class="calc-toggle">
       <button type="button" class="calc-btn active" id="calcDepBtn" data-t="calcDep">💰 Deposit</button>
       <button type="button" class="calc-btn" id="calcWdBtn" data-t="calcWd">💸 Withdraw</button>
     </div>
 
+    <div class="calc-presets">
+      <button type="button" class="calc-preset" data-amount="2000">රු. 2,000</button>
+      <button type="button" class="calc-preset" data-amount="5000">රු. 5,000</button>
+      <button type="button" class="calc-preset" data-amount="10000">රු. 10,000</button>
+      <button type="button" class="calc-preset" data-amount="25000">රු. 25,000</button>
+      <button type="button" class="calc-preset" data-amount="50000">රු. 50,000</button>
+    </div>
+
     <div class="calc-input-group">
-      <label class="calc-label" for="amountInput" data-t="calcAmount">මුදල් ප්‍රමාණය (LKR)</label>
-      <input type="number" id="amountInput" class="calc-input" value="5000" min="${minAmount}" max="${maxAmount}" step="100" inputmode="numeric">
-      <div class="calc-presets">
-        <button type="button" class="calc-preset" data-amount="1000">1,000</button>
-        <button type="button" class="calc-preset" data-amount="3000">3,000</button>
-        <button type="button" class="calc-preset" data-amount="5000">5,000</button>
-        <button type="button" class="calc-preset" data-amount="10000">10,000</button>
-        <button type="button" class="calc-preset" data-amount="25000">25,000</button>
-        <button type="button" class="calc-preset" data-amount="50000">50,000</button>
+      <label for="amountInput" data-t="calcAmount">මුදල් ප්‍රමාණය (LKR)</label>
+      <div class="calc-input-wrap">
+        <span>LKR</span>
+        <input type="number" id="amountInput" value="5000" min="${minAmount}" max="${maxAmount}" step="500" aria-label="Amount in LKR">
       </div>
     </div>
 
-    <div class="calc-summary">
+    <div class="calc-warning" id="calcWarning" data-t="calcLimitWarn">
+      ⚠️ අවම ගනුදෙනුව රු. ${minAmount} සහ උපරිම ගනුදෙනුව රු. ${maxAmount} වේ.
+    </div>
+
+    <div class="calc-results">
       <div class="calc-row">
-        <span data-t="calcYouSend">ඔබ යවන මුදල්</span>
-        <span id="calcSend">LKR 5,000</span>
+        <span style="color:var(--muted)" data-t="calcYouSend">ඔබ යවන මුදල්</span>
+        <span style="font-weight:700" id="calcSend">රු. 5,000.00</span>
       </div>
       <div class="calc-row">
-        <span data-t="calcFee">සේවා ගාස්තු</span>
-        <span id="calcFee">LKR 0</span>
+        <span style="color:var(--muted)" data-t="calcFee">සේවා ගාස්තු</span>
+        <span style="font-weight:700;color:var(--accent)" id="calcFee">රු. 0.00 (Free)</span>
       </div>
       <div class="calc-row total">
         <span data-t="calcReceive">ගිණුමට ලැබෙන මුදල්</span>
-        <span id="calcReceive">LKR 5,000</span>
+        <span class="val" id="calcReceive">රු. 5,000.00</span>
       </div>
+    </div>
+
+    <div style="margin-top:22px;text-align:center">
+      <a href="${bot}" class="btn btn-primary" target="_blank" rel="noopener" data-t="proceedBot">
+        🚀 Bot එකෙන් ගනුදෙනුව කරන්න
+      </a>
     </div>
   </div>
 </section>
@@ -1235,7 +1556,7 @@ summary:focus-visible {
 
   <div class="grid">
     <div class="card">
-      <div class="card-icon">💳</div>
+      <div class="card-icon">⚡</div>
       <h3 data-t="feat1Title">වේගවත් Deposit</h3>
       <p data-t="feat1Desc">Receipt upload කර මිනිත්තු කිහිපයකින් xBet ගිණුමට මුදල් බැර වේ.</p>
     </div>
@@ -1245,7 +1566,7 @@ summary:focus-visible {
       <p data-t="feat2Desc">Bank / eZ Cash / mCash වෙත ඉක්මනින් මුදල් ආපසු ගන්න.</p>
     </div>
     <div class="card">
-      <div class="card-icon">🔗</div>
+      <div class="card-icon">👥</div>
       <h3 data-t="feat3Title">Referral System</h3>
       <p data-t="feat3Desc">මිතුරන්ට ආරාධනා කර bonus ලබාගන්න. /referrals මගින් dashboard බලන්න.</p>
     </div>
@@ -1277,55 +1598,7 @@ summary:focus-visible {
   </div>
 </section>
 
-<!-- FREE TIPS -->
-<section class="section" id="tips">
-  <h2 class="section-title" data-t="tipsTitle">ස්වයංක්‍රීය Free Betting Tips</h2>
-  <p class="section-sub" data-t="tipsSub">දිනකට 3 වතාවක් — ශ්‍රී ලංකා වේලාවෙන්</p>
-
-  <div class="tips-schedule">
-    <div class="tip-time">
-      <div class="tip-time-icon">🌅</div>
-      <div class="tip-time-val">08:00</div>
-      <div class="tip-time-label" data-t="tipMorning">උදෑසන</div>
-    </div>
-    <div class="tip-time">
-      <div class="tip-time-icon">☀️</div>
-      <div class="tip-time-val">12:00</div>
-      <div class="tip-time-label" data-t="tipNoon">දහවල්</div>
-    </div>
-    <div class="tip-time">
-      <div class="tip-time-icon">🌆</div>
-      <div class="tip-time-val">18:00</div>
-      <div class="tip-time-label" data-t="tipEve">සවස</div>
-    </div>
-  </div>
-
-  <div class="grid" style="margin-top:32px">
-    <div class="card">
-      <div class="card-icon">⚽</div>
-      <h3>Football</h3>
-      <p data-t="tipsFoot">EPL + UEFA Champions League</p>
-    </div>
-    <div class="card">
-      <div class="card-icon">🏀</div>
-      <h3>Basketball</h3>
-      <p data-t="tipsNba">NBA games</p>
-    </div>
-    <div class="card">
-      <div class="card-icon">🎾</div>
-      <h3>Tennis</h3>
-      <p data-t="tipsAtp">ATP Tour</p>
-    </div>
-  </div>
-
-  <div style="text-align:center;margin-top:28px">
-    <a href="${channel}" class="btn btn-secondary" target="_blank" rel="noopener" data-t="joinChannel">
-      📢 Tips Channel එකට Join වෙන්න — ${channelName}
-    </a>
-  </div>
-</section>
-
-<!-- PROMO -->
+<!-- PROMO CODE -->
 <section class="section" id="promo">
   <h2 class="section-title" data-t="promoTitle">xBet Promo Code</h2>
   <p class="section-sub" data-t="promoSub">නව ගිණුම් සඳහා special bonus code</p>
@@ -1342,84 +1615,15 @@ summary:focus-visible {
   </div>
 </section>
 
-<!-- PAYMENTS -->
-<section class="section" id="payments">
-  <h2 class="section-title" data-t="payTitle">ගෙවීම් ක්‍රම</h2>
-  <p class="section-sub" data-t="paySub">පහසු සහ ආරක්ෂිත ගෙවීම් විකල්ප</p>
-
-  <div class="pay-grid">
-    <div class="pay-item">📱 eZ Cash</div>
-    <div class="pay-item">📱 mCash</div>
-    <div class="pay-item">🏦 Bank Transfer</div>
-  </div>
-</section>
-
-<!-- SECURITY -->
-<section class="section" id="security">
-  <h2 class="section-title" data-t="secTitle">ආරක්ෂාව & විශ්වාසය</h2>
-  <p class="section-sub" data-t="secSub">Production-grade security controls</p>
-
-  <div class="security-grid">
-    <div class="sec-item">
-      <div class="sec-icon">🔐</div>
-      <div>
-        <h4 data-t="sec1Title">Webhook Protection</h4>
-        <p data-t="sec1Desc">Fail-closed secret validation + request size/method checks</p>
-      </div>
-    </div>
-    <div class="sec-item">
-      <div class="sec-icon">🚫</div>
-      <div>
-        <h4 data-t="sec2Title">Duplicate Guard</h4>
-        <p data-t="sec2Desc">Same receipt හෝ pending withdrawal එකක් දෙවරක් submit කළ නොහැක</p>
-      </div>
-    </div>
-    <div class="sec-item">
-      <div class="sec-icon">⏱️</div>
-      <div>
-        <h4 data-t="sec3Title">Rate Limiting</h4>
-        <p data-t="sec3Desc">User & transaction level abuse protection</p>
-      </div>
-    </div>
-    <div class="sec-item">
-      <div class="sec-icon">📦</div>
-      <div>
-        <h4 data-t="sec4Title">R2 Receipt Backup</h4>
-        <p data-t="sec4Desc">සියලුම receipts Cloudflare R2 හි ආරක්ෂිතව ගබඩා වේ</p>
-      </div>
-    </div>
-    <div class="sec-item">
-      <div class="sec-icon">🧾</div>
-      <div>
-        <h4 data-t="sec5Title">Financial Audit Trail</h4>
-        <p data-t="sec5Desc">සෑම status change එකක්ම D1 හි log වේ</p>
-      </div>
-    </div>
-    <div class="sec-item">
-      <div class="sec-icon">🔒</div>
-      <div>
-        <h4 data-t="sec6Title">Atomic Transitions</h4>
-        <p data-t="sec6Desc">Database-level conditional status updates</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- REFERRAL -->
-<section class="section" id="referral">
-  <h2 class="section-title" data-t="refTitle">Referral System</h2>
-  <p class="section-sub" data-t="refSub">මිතුරන්ට ආරාධනා කර bonus ලබාගන්න</p>
-
-  <div class="bot-card">
-    <p data-t="refHow" style="margin:0 0 8px;color:var(--muted)">Bot එකේ /referrals command එක භාවිතා කර ඔබේ personal link එක ලබාගන්න</p>
-    <div class="bot-username" id="botUserBtn" title="Open bot">${BOT_USERNAME}</div>
-    <p style="margin:12px 0 0;font-size:0.88rem;color:var(--muted)" data-t="refNote">
-      Link එක හරහා ලියාපදිංචි වූ මිතුරන්ගේ deposits සඳහා rewards ලැබේ.
-    </p>
-    <div style="margin-top:20px">
-      <a href="${bot}" class="btn btn-primary" target="_blank" rel="noopener" data-t="getRef">
-        🔗 Referral Link ගන්න
-      </a>
+<!-- RESPONSIBLE GAMING BANNER (P0 #3) -->
+<section class="section" style="padding-top:0">
+  <div class="responsible-gaming-box">
+    <div class="responsible-icon">🔞</div>
+    <div class="responsible-text">
+      <h4 data-t="respTitle">වගකීමෙන් යුතුව ක්‍රීඩා කරන්න (Responsible Gaming Notice)</h4>
+      <p data-t="respDesc">
+        ඔට්ටු ඇල්ලීම (Betting) මූල්‍යමය අවදානම් සහ ඇබ්බැහිවීම් ඇති කළ හැක. වයස අවුරුදු 18ට අඩු පුද්ගලයින් සඳහා මෙම සේවාව භාවිතය දැඩිව තහනම් වේ. කිසිවිටෙකත් ඔබට දරාගත නොහැකි මුදල් ඔට්ටු සඳහා යොදවන්න එපා.
+      </p>
     </div>
   </div>
 </section>
@@ -1473,35 +1677,57 @@ summary:focus-visible {
 
 </main>
 
+<!-- FOOTER -->
 <footer class="footer">
   <div class="footer-links">
     <a href="${bot}" target="_blank" rel="noopener">Telegram Bot</a>
     <a href="${channel}" target="_blank" rel="noopener">Tips Channel</a>
+    <a href="#how-it-works">How It Works</a>
     <a href="#faq">FAQ</a>
+    <a href="#security">Security</a>
   </div>
-  <div>© ${new Date().getFullYear()} Fast xBet Cash · Built on Cloudflare Workers</div>
-  <p class="disclaimer" data-t="disclaimer">
-    මෙය නිල xBet වෙබ් අඩවියක් නොවේ. මෙය ස්වාධීන cash agent සහ free tips සේවාවකි.
-    Betting හි අවදානම් අඩංගු වේ. වයස 18+ පමණි. වගකීමෙන් ක්‍රීඩා කරන්න.
+  <div>
+    © ${new Date().getFullYear()} Fast xBet Cash · Built for Sri Lanka 🇱🇰
+  </div>
+  <p class="footer-disclaimer" data-t="disclaimer">
+    මෙය නිල xBet වෙබ් අඩවියක් නොවේ. මෙය ස්වාධීන cash agent සහ free betting tips සේවාවකි.
+    ඔට්ටු ඇල්ලීම අවදානම් සහිතයි. වයස 18+ පමණි. වගකීමෙන් යුතුව ක්‍රීඩා කරන්න.
   </p>
 </footer>
 
+<!-- MOBILE STICKY BOTTOM CTA BAR (P1 #5) -->
+<div class="mobile-sticky-cta" id="mobileStickyCta">
+  <a href="${botSticky}" class="sticky-btn-primary" target="_blank" rel="noopener">
+    <span>⚡</span>
+    <span data-t="stickyBot">Bot එක විවෘත කරන්න</span>
+  </a>
+  <a href="${channel}" class="sticky-btn-secondary" target="_blank" rel="noopener">
+    <span>📢</span>
+    <span data-t="stickyTips">Tips</span>
+  </a>
+</div>
+
+<!-- CLIENT JAVASCRIPT (WITH NONCE SUPPORT) -->
 <script${nonceAttr}>
 (function () {
   "use strict";
 
-  // ===== i18n =====
+  const minLimit = ${minTx};
+  const maxLimit = ${maxTx};
+
+  // ===== i18n Translations =====
   const translations = {
     si: {
       skip: "ප්‍රධාන අන්තර්ගතයට යන්න",
+      offlineNotice: "⚠️ ඔබ දැනට Offline වේ. අන්තර්ජාල සම්බන්ධතාවය පරීක්ෂා කරන්න.",
       howNav: "භාවිතා කරන්නේ කෙසේද",
       cmdNav: "Commands",
       calcNav: "Calculator",
       featuresNav: "විශේෂාංග",
-      tipsNav: "Free Tips",
+      tipsNav: "Free Tips 🔥",
       secNav: "ආරක්ෂාව",
       faqNav: "FAQ",
-      badge: "🇱🇰 24/7 Active Bot & Cash Agent",
+      badge: "🇱🇰 24/7 Active Bot & Cash Agent · 🔞 18+ Only",
       hero: "ස්වයංක්‍රීය Free Betting Tips, වේගවත් Deposit & Withdraw, Referral System — සියල්ල Telegram හරහා, ඔබේ දුරකථනයෙන්.",
       start: "🚀 Bot එක පටන් ගන්න",
       channel: "📢 Tips Channel",
@@ -1509,10 +1735,18 @@ summary:focus-visible {
       statusText: "System Status: Online",
       statusSub: "Telegram Bot & Processing Active · Edge: ${colo}",
       nextTipsLabel: "ඊළඟ Tips:",
-      daily: "දිනකට Tips",
-      speed: "සාමාන්‍ය කාලය",
-      fee: "ගාස්තු රහිතයි",
-      secure: "ආරක්ෂිත",
+      trustSpeedTitle: "වේගවත් සැකසුම් කාලය",
+      trustSpeedSub: "Instant Player Account Credit",
+      trustUsersTitle: "ක්‍රියාකාරී සාමාජිකයින්",
+      trustUsersSub: "Sri Lanka Telegram Community",
+      trustSuccessTitle: "සාර්ථකත්ව අනුපාතය",
+      trustSuccessSub: "Automated Fraud Verification",
+      trustFeeTitle: "අමතර ගාස්තු නැත",
+      trustFeeSub: "Zero Hidden Deductions",
+      supportedPay: "පිළිගත් ආරක්ෂිත ගෙවීම් ක්‍රම (Supported Payment Rails)",
+      tipsPreviewTitle: "🔥 අද දවසේ විශේෂ Free Betting Tips",
+      tipsPreviewSub: "අපගේ AI සහ ක්‍රීඩා විශ්ලේෂණ පද්ධතිය මගින් දිනකට 3 වතාවක් (08:00, 12:00, 18:00 SL Time) නිකුත් කෙරෙන නොමිලේ Tips preview එකක්.",
+      joinChannelCta: "📢 සියලුම Betting Slips Telegram Channel එකෙන් නොමිලේ ගන්න",
       howTitle: "භාවිතා කරන්නේ කෙසේද?",
       howSub: "මිනිත්තු කිහිපයකින් ඉතා පහසුවෙන් ගනුදෙනු සිදුකරන්න",
       tabDep: "💰 Deposit පියවර",
@@ -1541,23 +1775,19 @@ summary:focus-visible {
       cmdDash: "Account overview බලන්න",
       cmdTicket: "Support ticket එකක් විවෘත කරන්න",
       cmdLang: "භාෂාව වෙනස් කරන්න (සිං / EN / த)",
-      cmdSafe: "ආරක්ෂාව හා tips බලන්න",
+      cmdSafe: "ආරක්ෂාව හා responsible gaming tips",
       cmdHelp: "උදව් හා උපදෙස් ලබාගන්න",
       openBot: "🚀 Telegram Bot විවෘත කරන්න",
-      limTitle: "ගනුදෙනු සීමා & වේලාවන්",
-      limSub: "පැහැදිලි සීමා සහ සාමාන්‍ය සැකසුම් වේලාවන්",
-      limMin: "අවම ගනුදෙනුව",
-      limMax: "උපරිම ගනුදෙනුව",
-      limTime: "සාමාන්‍ය සැකසුම් කාලය",
-      limFee: "සේවා ගාස්තු",
       calcTitle: "ගනුදෙනු Calculator",
       calcSub: "Deposit හෝ Withdraw මුදල් ඉක්මනින් ගණනය කරන්න",
       calcDep: "💰 Deposit",
       calcWd: "💸 Withdraw",
       calcAmount: "මුදල් ප්‍රමාණය (LKR)",
+      calcLimitWarn: "⚠️ අවම ගනුදෙනුව රු. " + minLimit + " සහ උපරිම ගනුදෙනුව රු. " + maxLimit + " වේ.",
       calcYouSend: "ඔබ යවන මුදල්",
       calcFee: "සේවා ගාස්තු",
       calcReceive: "ගිණුමට ලැබෙන මුදල්",
+      proceedBot: "🚀 Bot එකෙන් ගනුදෙනුව කරන්න",
       featTitle: "ප්‍රධාන විශේෂාංග",
       featSub: "ඔබට අවශ්‍ය සියලුම පහසුකම් එක තැනක",
       feat1Title: "වේගවත් Deposit",
@@ -1576,41 +1806,13 @@ summary:focus-visible {
       feat7Desc: "ගැටලුවක් තිබේ නම් /ticket මගින් කෙලින්ම admin ට යවන්න.",
       feat8Title: "උසස් ආරක්ෂාව",
       feat8Desc: "Duplicate protection, rate limits, audit trail සහ R2 receipt backup.",
-      tipsTitle: "ස්වයංක්‍රීය Free Betting Tips",
-      tipsSub: "දිනකට 3 වතාවක් — ශ්‍රී ලංකා වේලාවෙන්",
-      tipMorning: "උදෑසන",
-      tipNoon: "දහවල්",
-      tipEve: "සවස",
-      tipsFoot: "EPL + UEFA Champions League",
-      tipsNba: "NBA games",
-      tipsAtp: "ATP Tour",
-      joinChannel: "📢 Tips Channel එකට Join වෙන්න — ${channelName}",
       promoTitle: "xBet Promo Code",
       promoSub: "නව ගිණුම් සඳහා special bonus code",
       promoText: "Copy කර xBet හි භාවිතා කරන්න",
       promoHint: "Click to copy",
       goXbet: "🎯 xBet වෙත යන්න",
-      payTitle: "ගෙවීම් ක්‍රම",
-      paySub: "පහසු සහ ආරක්ෂිත ගෙවීම් විකල්ප",
-      secTitle: "ආරක්ෂාව & විශ්වාසය",
-      secSub: "Production-grade security controls",
-      sec1Title: "Webhook Protection",
-      sec1Desc: "Fail-closed secret validation + request size/method checks",
-      sec2Title: "Duplicate Guard",
-      sec2Desc: "Same receipt හෝ pending withdrawal එකක් දෙවරක් submit කළ නොහැක",
-      sec3Title: "Rate Limiting",
-      sec3Desc: "User & transaction level abuse protection",
-      sec4Title: "R2 Receipt Backup",
-      sec4Desc: "සියලුම receipts Cloudflare R2 හි ආරක්ෂිතව ගබඩා වේ",
-      sec5Title: "Financial Audit Trail",
-      sec5Desc: "සෑම status change එකක්ම D1 හි log වේ",
-      sec6Title: "Atomic Transitions",
-      sec6Desc: "Database-level conditional status updates",
-      refTitle: "Referral System",
-      refSub: "මිතුරන්ට ආරාධනා කර bonus ලබාගන්න",
-      refHow: "Bot එකේ /referrals command එක භාවිතා කර ඔබේ personal link එක ලබාගන්න",
-      refNote: "Link එක හරහා ලියාපදිංචි වූ මිතුරන්ගේ deposits සඳහා rewards ලැබේ.",
-      getRef: "🔗 Referral Link ගන්න",
+      respTitle: "වගකීමෙන් යුතුව ක්‍රීඩා කරන්න (Responsible Gaming Notice)",
+      respDesc: "ඔට්ටු ඇල්ලීම (Betting) මූල්‍යමය අවදානම් සහ ඇබ්බැහිවීම් ඇති කළ හැක. වයස අවුරුදු 18ට අඩු පුද්ගලයින් සඳහා මෙම සේවාව භාවිතය දැඩිව තහනම් වේ. කිසිවිටෙකත් ඔබට දරාගත නොහැකි මුදල් ඔට්ටු සඳහා යොදවන්න එපා.",
       faqTitle: "නිතර අසන ප්‍රශ්න",
       faqSub: "ඔබේ ප්‍රශ්නවලට ඉක්මන් පිළිතුරු",
       faq1q: "Deposit කරන්නේ කෙසේද?",
@@ -1629,18 +1831,21 @@ summary:focus-visible {
       ctaSub: "Telegram Bot එක විවෘත කර deposit, withdraw සහ free tips භුක්ති විඳින්න",
       ctaBot: "🚀 Bot එකට යන්න",
       ctaChannel: "📢 Tips Channel",
-      disclaimer: "මෙය නිල xBet වෙබ් අඩවියක් නොවේ. මෙය ස්වාධීන cash agent සහ free tips සේවාවකි. Betting හි අවදානම් අඩංගු වේ. වයස 18+ පමණි. වගකීමෙන් ක්‍රීඩා කරන්න."
+      disclaimer: "මෙය නිල xBet වෙබ් අඩවියක් නොවේ. මෙය ස්වාධීන cash agent සහ free betting tips සේවාවකි. ඔට්ටු ඇල්ලීම අවදානම් සහිතයි. වයස 18+ පමණි. වගකීමෙන් යුතුව ක්‍රීඩා කරන්න.",
+      stickyBot: "Bot එක විවෘත කරන්න",
+      stickyTips: "Tips"
     },
     en: {
       skip: "Skip to main content",
+      offlineNotice: "⚠️ You are currently offline. Please check your internet connection.",
       howNav: "How it works",
       cmdNav: "Commands",
       calcNav: "Calculator",
       featuresNav: "Features",
-      tipsNav: "Free Tips",
+      tipsNav: "Free Tips 🔥",
       secNav: "Security",
       faqNav: "FAQ",
-      badge: "🇱🇰 24/7 Active Bot & Cash Agent",
+      badge: "🇱🇰 24/7 Active Bot & Cash Agent · 🔞 18+ Only",
       hero: "Automated Free Betting Tips, fast Deposit & Withdraw, Referral System — everything via Telegram on your phone.",
       start: "🚀 Start the Bot",
       channel: "📢 Tips Channel",
@@ -1648,55 +1853,59 @@ summary:focus-visible {
       statusText: "System Status: Online",
       statusSub: "Telegram Bot & Processing Active · Edge: ${colo}",
       nextTipsLabel: "Next Tips:",
-      daily: "Tips per day",
-      speed: "Avg. time",
-      fee: "Zero fees",
-      secure: "Secure",
-      howTitle: "How does it work?",
-      howSub: "Complete transactions in just a few minutes",
-      tabDep: "💰 Deposit steps",
-      tabWd: "💸 Withdraw steps",
+      trustSpeedTitle: "Fast Processing",
+      trustSpeedSub: "Instant Player Account Credit",
+      trustUsersTitle: "Active Community",
+      trustUsersSub: "Sri Lanka Telegram Community",
+      trustSuccessTitle: "Success Rate",
+      trustSuccessSub: "Automated Fraud Verification",
+      trustFeeTitle: "Zero Extra Fees",
+      trustFeeSub: "Zero Hidden Deductions",
+      supportedPay: "Supported Payment Rails",
+      tipsPreviewTitle: "🔥 Today's Featured Free Betting Tips",
+      tipsPreviewSub: "AI & sports analyst generated tips published 3 times daily (08:00, 12:00, 18:00 Sri Lanka Time).",
+      joinChannelCta: "📢 Get Full Free Betting Slips on Telegram Channel",
+      howTitle: "How It Works",
+      howSub: "Complete transactions easily within minutes",
+      tabDep: "💰 Deposit Steps",
+      tabWd: "💸 Withdraw Steps",
       step1dTitle: "Start the Bot",
-      step1dDesc: "Open the Telegram Bot, use /deposit and enter your Player ID.",
-      step2dTitle: "Pay & upload receipt",
+      step1dDesc: "Go to the Telegram Bot, send /deposit and enter your Player ID.",
+      step2dTitle: "Pay & Send Receipt",
       step2dDesc: "Pay via eZ Cash, mCash or Bank Transfer and upload the receipt photo to the bot.",
-      step3dTitle: "Credited in minutes",
-      step3dDesc: "Once an admin confirms, funds are instantly credited to your xBet account.",
-      step1wTitle: "Start /withdraw",
-      step1wDesc: "Use the /withdraw command, enter your Player ID and amount.",
-      step2wTitle: "Provide payment details",
-      step2wDesc: "Share your Bank / eZ Cash / mCash details. Admin will verify.",
-      step3wTitle: "Receive funds",
-      step3wDesc: "After confirmation, money is transferred quickly. Check status in History.",
+      step3dTitle: "Credited in Minutes",
+      step3dDesc: "Once verified by admin, funds are credited to your xBet account instantly.",
+      step1wTitle: "Request /withdraw",
+      step1wDesc: "Send /withdraw in the bot and provide your Player ID and desired amount.",
+      step2wTitle: "Provide Payout Info",
+      step2wDesc: "Enter your Bank or eZ Cash / mCash details for admin verification.",
+      step3wTitle: "Receive Funds",
+      step3wDesc: "Funds are transferred quickly upon confirmation. Check status via /history.",
       cmdTitle: "Bot Commands — All Features",
-      cmdSub: "Every command available in the Telegram Bot",
-      cmdStart: "Start the bot and see the main menu",
-      cmdMenu: "Open the main menu",
-      cmdDep: "Start a deposit (receipt upload)",
-      cmdWd: "Submit a withdrawal request",
-      cmdReg: "Register your Player ID",
-      cmdRef: "View your Referral dashboard",
+      cmdSub: "All available commands in the Telegram bot",
+      cmdStart: "Start bot and open main menu",
+      cmdMenu: "Open main navigation menu",
+      cmdDep: "Start deposit (receipt upload)",
+      cmdWd: "Request withdrawal",
+      cmdReg: "Register Player ID",
+      cmdRef: "View referral dashboard",
       cmdHist: "View transaction history",
       cmdDash: "View account overview",
-      cmdTicket: "Open a support ticket",
-      cmdLang: "Change language (සිං / EN / த)",
-      cmdSafe: "View safety tips",
-      cmdHelp: "Get help and instructions",
+      cmdTicket: "Open support ticket",
+      cmdLang: "Switch language (සිං / EN / த)",
+      cmdSafe: "Security & responsible gaming tips",
+      cmdHelp: "Get help and guidance",
       openBot: "🚀 Open Telegram Bot",
-      limTitle: "Limits & Timing",
-      limSub: "Clear limits and typical processing times",
-      limMin: "Minimum transaction",
-      limMax: "Maximum transaction",
-      limTime: "Typical processing time",
-      limFee: "Service fee",
       calcTitle: "Transaction Calculator",
-      calcSub: "Quickly calculate deposit or withdraw amounts",
+      calcSub: "Quickly calculate deposit or withdrawal amounts",
       calcDep: "💰 Deposit",
       calcWd: "💸 Withdraw",
       calcAmount: "Amount (LKR)",
-      calcYouSend: "You send",
-      calcFee: "Service fee",
-      calcReceive: "You receive",
+      calcLimitWarn: "⚠️ Minimum transaction is LKR " + minLimit + " and maximum is LKR " + maxLimit + ".",
+      calcYouSend: "You Send",
+      calcFee: "Service Fee",
+      calcReceive: "Amount Received",
+      proceedBot: "🚀 Proceed in Telegram Bot",
       featTitle: "Key Features",
       featSub: "Everything you need in one place",
       feat1Title: "Fast Deposit",
@@ -1715,41 +1924,13 @@ summary:focus-visible {
       feat7Desc: "Open a ticket with /ticket and reach an admin directly.",
       feat8Title: "Advanced Security",
       feat8Desc: "Duplicate protection, rate limits, audit trail and R2 receipt backup.",
-      tipsTitle: "Automated Free Betting Tips",
-      tipsSub: "3 times a day — Sri Lanka time",
-      tipMorning: "Morning",
-      tipNoon: "Noon",
-      tipEve: "Evening",
-      tipsFoot: "EPL + UEFA Champions League",
-      tipsNba: "NBA games",
-      tipsAtp: "ATP Tour",
-      joinChannel: "📢 Join Tips Channel — ${channelName}",
       promoTitle: "xBet Promo Code",
       promoSub: "Special bonus code for new accounts",
       promoText: "Copy and use on xBet",
       promoHint: "Click to copy",
       goXbet: "🎯 Go to xBet",
-      payTitle: "Payment Methods",
-      paySub: "Convenient and secure options",
-      secTitle: "Security & Trust",
-      secSub: "Production-grade security controls",
-      sec1Title: "Webhook Protection",
-      sec1Desc: "Fail-closed secret validation + request size/method checks",
-      sec2Title: "Duplicate Guard",
-      sec2Desc: "Same receipt or pending withdrawal cannot be submitted twice",
-      sec3Title: "Rate Limiting",
-      sec3Desc: "User & transaction level abuse protection",
-      sec4Title: "R2 Receipt Backup",
-      sec4Desc: "All receipts stored securely on Cloudflare R2",
-      sec5Title: "Financial Audit Trail",
-      sec5Desc: "Every status change is logged in D1",
-      sec6Title: "Atomic Transitions",
-      sec6Desc: "Database-level conditional status updates",
-      refTitle: "Referral System",
-      refSub: "Invite friends and earn rewards",
-      refHow: "Use the /referrals command in the bot to get your personal link",
-      refNote: "You earn rewards when friends register via your link and deposit.",
-      getRef: "🔗 Get Referral Link",
+      respTitle: "Responsible Gaming Notice (18+ Only)",
+      respDesc: "Betting involves financial risk and can be addictive. This service is strictly restricted to individuals aged 18 and older. Never bet money you cannot afford to lose.",
       faqTitle: "Frequently Asked Questions",
       faqSub: "Quick answers to common questions",
       faq1q: "How do I deposit?",
@@ -1768,18 +1949,21 @@ summary:focus-visible {
       ctaSub: "Open the Telegram Bot for deposits, withdrawals and free tips",
       ctaBot: "🚀 Go to Bot",
       ctaChannel: "📢 Tips Channel",
-      disclaimer: "This is not an official xBet website. This is an independent cash agent and free tips service. Betting involves risk. 18+ only. Play responsibly."
+      disclaimer: "This is not an official xBet website. This is an independent cash agent and free betting tips service. Betting involves risk. 18+ only. Play responsibly.",
+      stickyBot: "Open Telegram Bot",
+      stickyTips: "Tips"
     },
     ta: {
       skip: "முக்கிய உள்ளடக்கத்திற்கு செல்லவும்",
+      offlineNotice: "⚠️ நீங்கள் தற்போது Offline இல் உள்ளீர்கள். இணைய இணைப்பை சரிபார்க்கவும்.",
       howNav: "எப்படி பயன்படுத்துவது",
       cmdNav: "Commands",
       calcNav: "Calculator",
       featuresNav: "அம்சங்கள்",
-      tipsNav: "Free Tips",
+      tipsNav: "Free Tips 🔥",
       secNav: "பாதுகாப்பு",
       faqNav: "FAQ",
-      badge: "🇱🇰 24/7 Active Bot & Cash Agent",
+      badge: "🇱🇰 24/7 Active Bot & Cash Agent · 🔞 18+ Only",
       hero: "தானியங்கி Free Betting Tips, விரைவான Deposit & Withdraw, Referral System — அனைத்தும் Telegram மூலம் உங்கள் தொலைபேசியில்.",
       start: "🚀 Bot ஐ தொடங்கவும்",
       channel: "📢 Tips Channel",
@@ -1787,10 +1971,18 @@ summary:focus-visible {
       statusText: "System Status: Online",
       statusSub: "Telegram Bot & Processing Active · Edge: ${colo}",
       nextTipsLabel: "அடுத்த Tips:",
-      daily: "நாளொன்றுக்கு Tips",
-      speed: "சராசரி நேரம்",
-      fee: "கட்டணம் இல்லை",
-      secure: "பாதுகாப்பானது",
+      trustSpeedTitle: "விரைவான நேரம்",
+      trustSpeedSub: "Instant Player Account Credit",
+      trustUsersTitle: "செயலில் உள்ள பயனர்கள்",
+      trustUsersSub: "Sri Lanka Telegram Community",
+      trustSuccessTitle: "வெற்றி விகிதம்",
+      trustSuccessSub: "Automated Fraud Verification",
+      trustFeeTitle: "கூடுதல் கட்டணம் இல்லை",
+      trustFeeSub: "Zero Hidden Deductions",
+      supportedPay: "ஆதரிக்கப்படும் பணம் செலுத்தும் முறைகள்",
+      tipsPreviewTitle: "🔥 இன்றைய சிறப்பு Free Betting Tips",
+      tipsPreviewSub: "எங்கள் AI மற்றும் விளையாட்டு ஆய்வாளர் அமைப்பு மூலம் நாளொன்றுக்கு 3 முறை (08:00, 12:00, 18:00 SL Time) வெளியிடப்படும் Tips.",
+      joinChannelCta: "📢 முழுமையான Betting Slips ஐ Telegram Channel இல் இலவசமாக பெறவும்",
       howTitle: "எப்படி வேலை செய்கிறது?",
       howSub: "சில நிமிடங்களில் பரிவர்த்தனைகளை முடிக்கவும்",
       tabDep: "💰 Deposit படிகள்",
@@ -1819,23 +2011,19 @@ summary:focus-visible {
       cmdDash: "கணக்கு கண்ணோட்டம் பார்க்கவும்",
       cmdTicket: "Support ticket திறக்கவும்",
       cmdLang: "மொழியை மாற்றவும் (සිං / EN / த)",
-      cmdSafe: "பாதுகாப்பு குறிப்புகளை பார்க்கவும்",
+      cmdSafe: "பாதுகாப்பு & பொறுப்பான விளையாட்டு",
       cmdHelp: "உதவி மற்றும் வழிமுறைகளை பெறவும்",
       openBot: "🚀 Telegram Bot திறக்கவும்",
-      limTitle: "வரம்புகள் & நேரங்கள்",
-      limSub: "தெளிவான வரம்புகள் மற்றும் சாதாரண செயலாக்க நேரங்கள்",
-      limMin: "குறைந்தபட்ச பரிவர்த்தனை",
-      limMax: "அதிகபட்ச பரிவர்த்தனை",
-      limTime: "சாதாரண செயலாக்க நேரம்",
-      limFee: "சேவை கட்டணம்",
       calcTitle: "பரிவர்த்தனை Calculator",
       calcSub: "Deposit அல்லது Withdraw தொகையை விரைவாக கணக்கிடவும்",
       calcDep: "💰 Deposit",
       calcWd: "💸 Withdraw",
       calcAmount: "தொகை (LKR)",
+      calcLimitWarn: "⚠️ குறைந்தபட்ச பரிவர்த்தனை LKR " + minLimit + " மற்றும் அதிகபட்சம் LKR " + maxLimit + " ஆகும்.",
       calcYouSend: "நீங்கள் அனுப்புவது",
       calcFee: "சேவை கட்டணம்",
       calcReceive: "நீங்கள் பெறுவது",
+      proceedBot: "🚀 Telegram Bot இல் தொடரவும்",
       featTitle: "முக்கிய அம்சங்கள்",
       featSub: "உங்களுக்கு தேவையான அனைத்தும் ஒரே இடத்தில்",
       feat1Title: "விரைவான Deposit",
@@ -1849,163 +2037,142 @@ summary:focus-visible {
       feat5Title: "3 மொழிகள்",
       feat5Desc: "Sinhala, English, Tamil — /language மூலம் எப்போதும் மாற்றலாம்.",
       feat6Title: "Transaction History",
-      feat6Desc: "அனைத்து பரிவர்த்தனைகளையும் /history மூலம் எப்போதும் பார்க்கலாம்.",
+      feat6Desc: "அனைத்து பரிவர்த்தனைகளையும் /history மூலம் பார்க்கவும்.",
       feat7Title: "Support Ticket",
-      feat7Desc: "சிக்கல் இருந்தால் /ticket மூலம் நேரடியாக admin க்கு அனுப்பவும்.",
+      feat7Desc: "/ticket மூலம் admin ஐ நேரடியாக தொடர்பு கொள்ளவும்.",
       feat8Title: "மேம்பட்ட பாதுகாப்பு",
       feat8Desc: "Duplicate protection, rate limits, audit trail மற்றும் R2 receipt backup.",
-      tipsTitle: "தானியங்கி Free Betting Tips",
-      tipsSub: "நாளொன்றுக்கு 3 முறை — இலங்கை நேரம்",
-      tipMorning: "காலை",
-      tipNoon: "மதியம்",
-      tipEve: "மாலை",
-      tipsFoot: "EPL + UEFA Champions League",
-      tipsNba: "NBA games",
-      tipsAtp: "ATP Tour",
-      joinChannel: "📢 Tips Channel இல் சேரவும் — ${channelName}",
       promoTitle: "xBet Promo Code",
       promoSub: "புதிய கணக்குகளுக்கான சிறப்பு bonus code",
-      promoText: "Copy செய்து xBet இல் பயன்படுத்தவும்",
-      promoHint: "Click to copy",
+      promoText: "நகலெடுத்து xBet இல் பயன்படுத்தவும்",
+      promoHint: "நகலெடுக்க கிளிக் செய்யவும்",
       goXbet: "🎯 xBet க்கு செல்லவும்",
-      payTitle: "பணம் செலுத்தும் முறைகள்",
-      paySub: "வசதியான மற்றும் பாதுகாப்பான விருப்பங்கள்",
-      secTitle: "பாதுகாப்பு & நம்பிக்கை",
-      secSub: "Production-grade security controls",
-      sec1Title: "Webhook Protection",
-      sec1Desc: "Fail-closed secret validation + request size/method checks",
-      sec2Title: "Duplicate Guard",
-      sec2Desc: "அதே receipt அல்லது pending withdrawal இருமுறை submit செய்ய முடியாது",
-      sec3Title: "Rate Limiting",
-      sec3Desc: "User & transaction level abuse protection",
-      sec4Title: "R2 Receipt Backup",
-      sec4Desc: "அனைத்து receipts Cloudflare R2 இல் பாதுகாப்பாக சேமிக்கப்படும்",
-      sec5Title: "Financial Audit Trail",
-      sec5Desc: "ஒவ்வொரு status change உம் D1 இல் log ஆகும்",
-      sec6Title: "Atomic Transitions",
-      sec6Desc: "Database-level conditional status updates",
-      refTitle: "Referral System",
-      refSub: "நண்பர்களை அழைத்து rewards பெறவும்",
-      refHow: "Bot இல் /referrals command பயன்படுத்தி உங்கள் personal link பெறவும்",
-      refNote: "உங்கள் link மூலம் பதிவு செய்த நண்பர்கள் deposit செய்யும்போது உங்களுக்கு rewards கிடைக்கும்.",
-      getRef: "🔗 Referral Link பெறவும்",
+      respTitle: "பொறுப்பான விளையாட்டு அறிவிப்பு (18+ மட்டும்)",
+      respDesc: "பந்தயம் கட்டுதல் நிதி ஆபத்து மற்றும் பழக்கத்தை ஏற்படுத்தலாம். இந்த சேவை 18 வயது அல்லது அதற்கு மேற்பட்டவர்களுக்கு மட்டுமே. நீங்கள் இழக்க முடியாத பணத்தை பந்தயம் கட்ட வேண்டாம்.",
       faqTitle: "அடிக்கடி கேட்கப்படும் கேள்விகள்",
-      faqSub: "பொதுவான கேள்விகளுக்கு விரைவான பதில்கள்",
-      faq1q: "Deposit எப்படி செய்வது?",
-      faq1a: "Bot ஐ திறந்து /deposit பயன்படுத்தவும். Player ID உள்ளிட்டு, பணம் செலுத்தி receipt புகைப்படத்தை upload செய்யவும். Admin உறுதிப்படுத்திய பிறகு பணம் வரவு வைக்கப்படும்.",
-      faq2q: "Withdraw எவ்வளவு நேரம் எடுக்கும்?",
-      faq2a: "சாதாரணமாக 2–5 நிமிடங்கள். அதிக தொகை அல்லது கூடுதல் verification தேவைப்பட்டால் அதிக நேரம் எடுக்கலாம்.",
+      faqSub: "பொதுவான கேள்விகளுக்கான விரைவான பதில்கள்",
+      faq1q: "Deposit செய்வது எப்படி?",
+      faq1a: "Bot ஐ திறந்து /deposit command கொடுக்கவும். Player ID உள்ளிட்டு, பணம் செலுத்தி receipt புகைப்படத்தை upload செய்யவும்.",
+      faq2q: "Withdrawal எவ்வளவு நேரம் எடுக்கும்?",
+      faq2a: "பொதுவாக 2–5 நிமிடங்கள். அதிக தொகை அல்லது கூடுதல் சரிபார்ப்புக்கு சிறிது நேரம் ஆகலாம்.",
       faq3q: "Free Tips என்றால் என்ன?",
-      faq3a: "நாளொன்றுக்கு 3 முறை (08:00, 12:00, 18:00 SL time) EPL, UCL, NBA, ATP க்கான automatic tips channel இல் publish ஆகும்.",
-      faq4q: "Referral bonus எப்படி பெறுவது?",
-      faq4a: "/referrals மூலம் உங்கள் link பெற்று நண்பர்களுக்கு அனுப்பவும். அவர்கள் பதிவு செய்து deposit செய்யும்போது உங்களுக்கு rewards கிடைக்கும்.",
-      faq5q: "சிக்கல் இருந்தால் என்ன செய்ய வேண்டும்?",
-      faq5a: "/ticket command பயன்படுத்தி support ticket திறக்கவும். Admin விரைவில் பதிலளிப்பார்.",
-      faq6q: "மொழியை எப்படி மாற்றுவது?",
-      faq6a: "Bot இல் /language command அல்லது இந்த பக்கத்தின் மேலே உள்ள සිං / EN / த பொத்தான்களை பயன்படுத்தவும்.",
-      ctaTitle: "இப்போதே தொடங்கவும்",
-      ctaSub: "Telegram Bot ஐ திறந்து deposit, withdraw மற்றும் free tips அனுபவிக்கவும்",
+      faq3a: "நாளொன்றுக்கு 3 முறை (08:00, 12:00, 18:00 SL நேரம்) EPL, UCL, NBA, ATP தானியங்கி tips channel இல் வெளியாகும்.",
+      faq4q: "Referral bonus பெறுவது எப்படி?",
+      faq4a: "/referrals மூலம் உங்கள் link ஐ பெற்று நண்பர்களுக்கு அனுப்பவும். அவர்கள் பதிவு செய்து deposit செய்யும்போது உங்களுக்கு பரிசு கிடைக்கும்.",
+      faq5q: "பிரச்சனை ஏற்பட்டால் என்ன செய்வது?",
+      faq5a: "/ticket command பயன்படுத்தி support ticket திறக்கவும். Admin விரைவாக பதிலளிப்பார்.",
+      faq6q: "மொழியை மாற்றுவது எப்படி?",
+      faq6a: "Bot இல் /language அல்லது இந்த தளத்தின் மேலே உள்ள සිං / EN / த பொத்தான்களைப் பயன்படுத்தவும்.",
+      ctaTitle: "இப்போதே தொடங்குங்கள்",
+      ctaSub: "Deposit, withdraw மற்றும் free tips பெற Telegram Bot ஐ திறக்கவும்",
       ctaBot: "🚀 Bot க்கு செல்லவும்",
       ctaChannel: "📢 Tips Channel",
-      disclaimer: "இது அதிகாரப்பூர்வ xBet வலைத்தளம் அல்ல. இது சுயாதீன cash agent மற்றும் free tips சேவையாகும். Betting இல் ஆபத்து உள்ளது. 18+ மட்டும். பொறுப்புடன் விளையாடுங்கள்."
+      disclaimer: "இது உத்தியோகபூர்வ xBet தளம் அல்ல. இது ஒரு சுயாதீன cash agent மற்றும் free tips சேவையாகும். பந்தயம் கட்டுவதில் ஆபத்து உள்ளது. 18+ மட்டும். பொறுப்புடன் விளையாடுங்கள்.",
+      stickyBot: "Telegram Bot ஐ திறக்கவும்",
+      stickyTips: "Tips"
     }
   };
 
-  let currentLang = "si";
+  let currentLang = "${initialLang}";
 
-  function applyLang(lang) {
+  function applyLanguage(lang) {
+    if (!translations[lang]) return;
     currentLang = lang;
-    const t = translations[lang] || translations.si;
-    document.documentElement.lang = lang === "si" ? "si" : lang === "ta" ? "ta" : "en";
+    document.documentElement.lang = lang;
 
-    document.querySelectorAll("[data-t]").forEach((el) => {
+    const dict = translations[lang];
+    document.querySelectorAll("[data-t]").forEach(function (el) {
       const key = el.getAttribute("data-t");
-      if (t[key] !== undefined) {
-        let text = t[key];
-        // simple template replacements
-        text = text.replace("\${colo}", "${colo}");
-        text = text.replace("\${channelName}", "${channelName}");
-        el.textContent = text;
+      if (key && dict[key]) {
+        el.textContent = dict[key];
       }
     });
 
-    document.querySelectorAll(".langs button").forEach((btn) => {
-      const isActive = btn.getAttribute("data-lang") === lang;
-      btn.classList.toggle("active", isActive);
-      btn.setAttribute("aria-pressed", isActive ? "true" : "false");
+    document.querySelectorAll(".langs button").forEach(function (b) {
+      b.classList.toggle("active", b.getAttribute("data-lang") === lang);
     });
 
-    try {
-      localStorage.setItem("fxc-lang", lang);
-    } catch (_) {}
+    // Update URL query parameter seamlessly
+    if (window.history && window.history.replaceState) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("lang", lang);
+      window.history.replaceState(null, "", url.toString());
+    }
   }
 
-  // Language buttons
-  document.querySelectorAll(".langs button").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      applyLang(btn.getAttribute("data-lang") || "si");
+  document.querySelectorAll(".langs button").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      const lang = btn.getAttribute("data-lang");
+      if (lang) applyLanguage(lang);
     });
   });
 
-  // Restore saved language
-  try {
-    const saved = localStorage.getItem("fxc-lang");
-    if (saved && translations[saved]) applyLang(saved);
-  } catch (_) {}
+  // Apply initial language
+  if (currentLang !== "si") {
+    applyLanguage(currentLang);
+  }
 
-  // ===== Deposit / Withdraw tabs =====
-  const tabDep = document.getElementById("tabDeposit");
-  const tabWd = document.getElementById("tabWithdraw");
-  const depSteps = document.getElementById("depositSteps");
-  const wdSteps = document.getElementById("withdrawSteps");
+  // ===== Offline / Online Detection (P1 #9) =====
+  const offlineBanner = document.getElementById("offlineBanner");
+  function updateOnlineStatus() {
+    if (offlineBanner) {
+      offlineBanner.style.display = navigator.onLine ? "none" : "block";
+    }
+  }
+  window.addEventListener("online", updateOnlineStatus);
+  window.addEventListener("offline", updateOnlineStatus);
+  updateOnlineStatus();
 
-  if (tabDep && tabWd && depSteps && wdSteps) {
-    tabDep.addEventListener("click", () => {
-      tabDep.classList.add("active");
-      tabWd.classList.remove("active");
-      tabDep.setAttribute("aria-selected", "true");
-      tabWd.setAttribute("aria-selected", "false");
-      depSteps.style.display = "";
+  // ===== Step Tabs =====
+  const tabDepBtn = document.getElementById("tabDepBtn");
+  const tabWdBtn = document.getElementById("tabWdBtn");
+  const depSteps = document.getElementById("depSteps");
+  const wdSteps = document.getElementById("wdSteps");
+
+  if (tabDepBtn && tabWdBtn && depSteps && wdSteps) {
+    tabDepBtn.addEventListener("click", function () {
+      tabDepBtn.classList.add("active");
+      tabWdBtn.classList.remove("active");
+      depSteps.style.display = "grid";
       wdSteps.style.display = "none";
     });
-    tabWd.addEventListener("click", () => {
-      tabWd.classList.add("active");
-      tabDep.classList.remove("active");
-      tabWd.setAttribute("aria-selected", "true");
-      tabDep.setAttribute("aria-selected", "false");
-      wdSteps.style.display = "";
+    tabWdBtn.addEventListener("click", function () {
+      tabWdBtn.classList.add("active");
+      tabDepBtn.classList.remove("active");
+      wdSteps.style.display = "grid";
       depSteps.style.display = "none";
     });
   }
 
   // ===== Calculator =====
+  let calcMode = "deposit";
   const amountInput = document.getElementById("amountInput");
   const calcSend = document.getElementById("calcSend");
   const calcFee = document.getElementById("calcFee");
   const calcReceive = document.getElementById("calcReceive");
+  const calcWarning = document.getElementById("calcWarning");
   const calcDepBtn = document.getElementById("calcDepBtn");
   const calcWdBtn = document.getElementById("calcWdBtn");
-  let calcMode = "deposit";
 
-  function formatLKR(n) {
-    return "LKR " + Number(n).toLocaleString("en-LK");
+  function formatLKR(num) {
+    return "රු. " + Number(num).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   function updateCalc() {
     if (!amountInput || !calcSend || !calcFee || !calcReceive) return;
-    let val = parseInt(amountInput.value, 10) || 0;
-    const min = ${minTx};
-    const max = ${maxTx};
-    if (val < min) val = min;
-    if (val > max) val = max;
-    amountInput.value = String(val);
+    let val = parseFloat(amountInput.value) || 0;
 
-    // Zero fee model
+    if (val < minLimit || val > maxLimit) {
+      if (calcWarning) calcWarning.style.display = "block";
+    } else {
+      if (calcWarning) calcWarning.style.display = "none";
+    }
+
     const fee = 0;
-    const receive = val - fee;
+    const receive = Math.max(0, val - fee);
 
     calcSend.textContent = formatLKR(val);
-    calcFee.textContent = formatLKR(fee);
+    calcFee.textContent = formatLKR(fee) + " (Free)";
     calcReceive.textContent = formatLKR(receive);
   }
 
@@ -2014,8 +2181,8 @@ summary:focus-visible {
     amountInput.addEventListener("change", updateCalc);
   }
 
-  document.querySelectorAll(".calc-preset").forEach((btn) => {
-    btn.addEventListener("click", () => {
+  document.querySelectorAll(".calc-preset").forEach(function (btn) {
+    btn.addEventListener("click", function () {
       if (amountInput) {
         amountInput.value = btn.getAttribute("data-amount") || "5000";
         updateCalc();
@@ -2024,13 +2191,13 @@ summary:focus-visible {
   });
 
   if (calcDepBtn && calcWdBtn) {
-    calcDepBtn.addEventListener("click", () => {
+    calcDepBtn.addEventListener("click", function () {
       calcMode = "deposit";
       calcDepBtn.classList.add("active");
       calcWdBtn.classList.remove("active");
       updateCalc();
     });
-    calcWdBtn.addEventListener("click", () => {
+    calcWdBtn.addEventListener("click", function () {
       calcMode = "withdraw";
       calcWdBtn.classList.add("active");
       calcDepBtn.classList.remove("active");
@@ -2040,22 +2207,21 @@ summary:focus-visible {
 
   updateCalc();
 
-  // ===== Promo copy =====
+  // ===== Promo Copy =====
   const promoBtn = document.getElementById("promoCodeBtn");
   const promoHint = document.getElementById("promoCopyHint");
   if (promoBtn) {
-    promoBtn.addEventListener("click", async () => {
-      const text = promoBtn.textContent || "";
+    promoBtn.addEventListener("click", async function () {
+      const text = (promoBtn.textContent || "").trim();
       try {
-        await navigator.clipboard.writeText(text.trim());
+        await navigator.clipboard.writeText(text);
         if (promoHint) {
           promoHint.textContent = currentLang === "en" ? "Copied!" : currentLang === "ta" ? "நகலெடுக்கப்பட்டது!" : "Copy වුණා!";
-          setTimeout(() => {
+          setTimeout(function () {
             promoHint.textContent = translations[currentLang]?.promoHint || "Click to copy";
           }, 1800);
         }
       } catch (_) {
-        // fallback
         const range = document.createRange();
         range.selectNode(promoBtn);
         const sel = window.getSelection();
@@ -2067,33 +2233,25 @@ summary:focus-visible {
     });
   }
 
-  // ===== Next tips countdown (SL time 08:00, 12:00, 18:00) =====
+  // ===== Next Tips Countdown (SL Time: 08:00, 12:00, 18:00) =====
   const countdownEl = document.getElementById("nextTipCountdown");
   const tipHours = [8, 12, 18]; // Asia/Colombo
 
   function getNextTip() {
     const now = new Date();
-    // Approximate SL offset (IST +5:30). For accuracy in production use proper TZ lib if needed.
     const formatter = new Intl.DateTimeFormat("en-US", {
       timeZone: "Asia/Colombo",
       hour: "numeric",
       minute: "numeric",
       second: "numeric",
       hour12: false,
-      year: "numeric",
-      month: "numeric",
-      day: "numeric",
     });
     const parts = formatter.formatToParts(now);
     const get = (type) => parseInt(parts.find((p) => p.type === type)?.value || "0", 10);
-    const y = get("year");
-    const m = get("month");
-    const d = get("day");
     const h = get("hour");
     const min = get("minute");
     const s = get("second");
 
-    // Current SL seconds since midnight
     const currentSec = h * 3600 + min * 60 + s;
 
     let nextSec = null;
@@ -2104,7 +2262,6 @@ summary:focus-visible {
         break;
       }
     }
-    // If past last tip, next is tomorrow 08:00
     if (nextSec === null) {
       nextSec = tipHours[0] * 3600 + 24 * 3600;
     }

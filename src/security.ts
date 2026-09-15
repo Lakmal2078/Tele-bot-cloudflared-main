@@ -40,7 +40,7 @@ export function landingPageSecurityHeaders(nonce?: string): Record<string, strin
       `script-src ${scriptPolicy}; ` +
       `style-src ${stylePolicy}; ` +
       "font-src https://fonts.gstatic.com; " +
-      "img-src data:; " +
+      "img-src 'self' data: https:; " +
       "base-uri 'none'; " +
       "form-action 'none'; " +
       "frame-ancestors 'none'",

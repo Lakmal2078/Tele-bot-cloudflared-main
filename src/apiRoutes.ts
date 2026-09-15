@@ -35,6 +35,108 @@ export function adminAuthorized(request: Request, env: Env): boolean {
   return true;
 }
 
+export function renderOgImageSvg(env: Env): string {
+  const channelName = env.CHANNEL_USERNAME?.trim() || "@fast_xbet_official_tips";
+  const botUsername = "@fast_1xbetcash_bot";
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#070b12"/>
+      <stop offset="60%" stop-color="#0c1424"/>
+      <stop offset="100%" stop-color="#070b12"/>
+    </linearGradient>
+    <radialGradient id="glow-green" cx="20%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#00e676" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#00e676" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow-blue" cx="80%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#00b0ff" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#00b0ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="title-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="65%" stop-color="#00e676"/>
+      <stop offset="100%" stop-color="#00b0ff"/>
+    </linearGradient>
+    <linearGradient id="card-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#162032" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#0d1522" stop-opacity="0.9"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow-green)"/>
+  <rect width="1200" height="630" fill="url(#glow-blue)"/>
+
+  <!-- Border Frame -->
+  <rect x="24" y="24" width="1152" height="582" rx="24" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+
+  <!-- Top Badge -->
+  <g transform="translate(60, 60)">
+    <rect width="440" height="42" rx="21" fill="rgba(0, 230, 118, 0.12)" stroke="rgba(0, 230, 118, 0.3)" stroke-width="1.5"/>
+    <circle cx="24" cy="21" r="5" fill="#00e676"/>
+    <text x="40" y="27" fill="#00e676" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="700" letter-spacing="1">🇱🇰 SRI LANKA'S #1 CASH AGENT &amp; TIPS</text>
+  </g>
+
+  <!-- 18+ Badge -->
+  <g transform="translate(1030, 60)">
+    <rect width="110" height="42" rx="21" fill="rgba(255, 82, 82, 0.12)" stroke="rgba(255, 82, 82, 0.4)" stroke-width="1.5"/>
+    <text x="55" y="27" text-anchor="middle" fill="#ff5252" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="800">🔞 18+</text>
+  </g>
+
+  <!-- Main Headline -->
+  <text x="60" y="195" fill="url(#title-grad)" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="64" font-weight="900" letter-spacing="-1">
+    Fast xBet Cash 🇱🇰
+  </text>
+  
+  <text x="60" y="255" fill="#f1f5f9" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="700">
+    Instant Deposit &amp; Withdraw · 24/7 Automated Free Tips
+  </text>
+
+  <text x="60" y="295" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="500">
+    ශ්‍රී ලංකාවේ වේගවත්ම Telegram Cash Agent සේවාව සහ නොමිලේ Betting Tips
+  </text>
+
+  <!-- Key Metrics / Feature Cards -->
+  <g transform="translate(60, 345)">
+    <!-- Card 1 -->
+    <rect x="0" y="0" width="250" height="120" rx="16" fill="url(#card-grad)" stroke="rgba(0,230,118,0.25)" stroke-width="1"/>
+    <text x="24" y="44" fill="#00e676" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="800">⚡ 2–5 Min</text>
+    <text x="24" y="78" fill="#f1f5f9" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="600">Average Processing</text>
+    <text x="24" y="100" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13">ඉක්මන් ගනුදෙනු</text>
+
+    <!-- Card 2 -->
+    <rect x="275" y="0" width="250" height="120" rx="16" fill="url(#card-grad)" stroke="rgba(0,176,255,0.25)" stroke-width="1"/>
+    <text x="299" y="44" fill="#00b0ff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="800">👥 10,000+</text>
+    <text x="299" y="78" fill="#f1f5f9" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="600">Active Telegram Users</text>
+    <text x="299" y="100" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13">විශ්වාසනීය පිරිසක්</text>
+
+    <!-- Card 3 -->
+    <rect x="550" y="0" width="250" height="120" rx="16" fill="url(#card-grad)" stroke="rgba(255,215,0,0.25)" stroke-width="1"/>
+    <text x="574" y="44" fill="#ffd700" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="800">🎯 Daily Tips</text>
+    <text x="574" y="78" fill="#f1f5f9" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="600">EPL, UCL, NBA, ATP</text>
+    <text x="574" y="100" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13">දිනකට 3 වතාවක්</text>
+
+    <!-- Card 4 -->
+    <rect x="825" y="0" width="255" height="120" rx="16" fill="url(#card-grad)" stroke="rgba(0,230,118,0.25)" stroke-width="1"/>
+    <text x="849" y="44" fill="#00e676" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="800">🛡️ 0% Fee</text>
+    <text x="849" y="78" fill="#f1f5f9" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="600">Zero Extra Charges</text>
+    <text x="849" y="100" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13">අමතර ගාස්තු නැත</text>
+  </g>
+
+  <!-- Bottom Bar: Payments & Telegram handles -->
+  <g transform="translate(60, 510)">
+    <text x="0" y="32" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="600">
+      💳 Supported: eZ Cash · mCash · FriMi · Bank Transfer (Commercial, Sampath, BOC, HNB)
+    </text>
+    <text x="1080" y="32" text-anchor="end" fill="#00b0ff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="17" font-weight="700">
+      ${botUsername} · ${channelName}
+    </text>
+  </g>
+</svg>`;
+}
+
 export function json(data: unknown, status = 200, extraHeaders: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(data), {
     status,
@@ -73,6 +175,21 @@ export async function handleApiRequest(
       runtime: options?.runtime || "cf-worker",
       timestamp: new Date().toISOString(),
     });
+  }
+
+  // OpenGraph Image (1200x630 vector graphic for Telegram / WhatsApp / Twitter social previews)
+  if ((path === "/og-image.svg" || path === "/api/og") && (method === "GET" || method === "HEAD")) {
+    const svg = renderOgImageSvg(env);
+    const headers: Record<string, string> = {
+      "Content-Type": "image/svg+xml; charset=utf-8",
+      "Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "default-src 'none'",
+    };
+    if (method === "HEAD") {
+      return new Response(null, { status: 200, headers });
+    }
+    return new Response(svg, { status: 200, headers });
   }
 
   // Cleanup logs status
