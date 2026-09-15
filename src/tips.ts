@@ -100,8 +100,13 @@ class OddsCreditGuard {
   private paidRequestAttempts = 0;
   private remaining: number | null = null;
   private usedFromHeader: number | null = null;
+  private readonly maxPaidRequests: number;
+  private readonly minRemaining: number;
 
-  constructor(private readonly maxPaidRequests: number, private readonly minRemaining: number) {}
+  constructor(maxPaidRequests: number, minRemaining: number) {
+    this.maxPaidRequests = maxPaidRequests;
+    this.minRemaining = minRemaining;
+  }
 
   update(response: Response): void {
     const remaining = Number(response.headers.get("x-requests-remaining"));

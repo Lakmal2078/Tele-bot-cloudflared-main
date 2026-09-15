@@ -14,12 +14,16 @@ function normalizeBindValue(value: unknown): string | number | bigint | null | U
 
 class NodeD1PreparedStatement implements D1PreparedStatement {
   private boundValues: unknown[] = [];
+  private readonly rawDb: DatabaseSync;
+  private readonly query: string;
 
   constructor(
-    private readonly rawDb: DatabaseSync,
-    private readonly query: string,
+    rawDb: DatabaseSync,
+    query: string,
     initialValues: unknown[] = []
   ) {
+    this.rawDb = rawDb;
+    this.query = query;
     this.boundValues = [...initialValues];
   }
 
@@ -92,6 +96,77 @@ class NodeD1PreparedStatement implements D1PreparedStatement {
   }
 }
 
+function splitSqlStatements(sql: string): string[] {
+  const statements: string[] = [];
+  let current = "";
+  let inString: string | null = null;
+  let inTrigger = false;
+  let i = 0;
+
+  while (i < sql.length) {
+    const char = sql[i];
+    const nextChar = sql[i + 1] || "";
+
+    // Skip single-line comments
+    if (!inString && char === "-" && nextChar === "-") {
+      const lineEnd = sql.indexOf("\n", i);
+      if (lineEnd === -1) break;
+      i = lineEnd + 1;
+      continue;
+    }
+    // Skip multi-line comments
+    if (!inString && char === "/" && nextChar === "*") {
+      const blockEnd = sql.indexOf("*/", i + 2);
+      if (blockEnd === -1) break;
+      i = blockEnd + 2;
+      continue;
+    }
+
+    // String literals
+    if (char === "'" || char === '"' || char === "`") {
+      if (inString === char) {
+        if (nextChar === char) {
+          current += char + nextChar;
+          i += 2;
+          continue;
+        }
+        inString = null;
+      } else if (!inString) {
+        inString = char;
+      }
+    }
+
+    if (!inString) {
+      const remaining = sql.slice(i);
+      if (!inTrigger && /^\bBEGIN\b/i.test(remaining)) {
+        inTrigger = true;
+      } else if (inTrigger && /^\bEND\s*;/i.test(remaining)) {
+        inTrigger = false;
+      }
+
+      if (char === ";" && !inTrigger) {
+        const stmt = current.trim();
+        if (stmt.length > 0) {
+          statements.push(stmt);
+        }
+        current = "";
+        i++;
+        continue;
+      }
+    }
+
+    current += char;
+    i++;
+  }
+
+  const remainingStmt = current.trim();
+  if (remainingStmt.length > 0) {
+    statements.push(remainingStmt);
+  }
+
+  return statements;
+}
+
 export function createD1Database(dbPath?: string, autoMigrate = true): D1Database {
   let targetPath = dbPath || ":memory:";
   if (targetPath !== ":memory:") {
@@ -111,13 +186,45 @@ export function createD1Database(dbPath?: string, autoMigrate = true): D1Databas
     try {
       const migrationsDir = path.resolve(process.cwd(), "migrations");
       if (fs.existsSync(migrationsDir)) {
+        // Ensure standard D1 migration tracking table exists
+        rawDb.exec(`
+          CREATE TABLE IF NOT EXISTS d1_migrations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE,
+            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+        `);
+
+        // Check which migrations have already been recorded
+        const appliedRows = rawDb.prepare("SELECT name FROM d1_migrations").all() as { name: string }[];
+        const appliedSet = new Set(appliedRows.map((r) => r.name));
+
         const files = fs
           .readdirSync(migrationsDir)
           .filter((f) => f.endsWith(".sql"))
           .sort();
+
         for (const file of files) {
+          if (appliedSet.has(file)) {
+            continue;
+          }
+
           const sql = fs.readFileSync(path.join(migrationsDir, file), "utf8");
-          rawDb.exec(sql);
+          const statements = splitSqlStatements(sql);
+
+          for (const stmt of statements) {
+            try {
+              rawDb.exec(stmt);
+            } catch (err: any) {
+              // Gracefully handle duplicate columns when bootstrapping existing databases
+              if (err?.message && err.message.toLowerCase().includes("duplicate column name")) {
+                continue;
+              }
+              throw err;
+            }
+          }
+
+          rawDb.prepare("INSERT OR IGNORE INTO d1_migrations (name) VALUES (?)").run(file);
         }
       }
     } catch (migErr) {
