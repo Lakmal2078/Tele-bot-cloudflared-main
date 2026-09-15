@@ -288,6 +288,17 @@ else
   fi
 fi
 
+# ── Auto-register Telegram webhook ─────────────────────────────────────
+if [[ -n "$WORKER_URL" ]] && command -v curl >/dev/null 2>&1; then
+  info "Synchronizing Telegram webhook..."
+  WEBHOOK_RES="$(curl --silent --show-error --max-time 15 "${WORKER_URL%/}/api/setup-webhook?action=set" 2>/dev/null || true)"
+  if grep -q '"ok":true' <<< "$WEBHOOK_RES"; then
+    success "Telegram webhook registered: $WORKER_URL"
+  else
+    warn "Webhook auto-registration response: $WEBHOOK_RES"
+  fi
+fi
+
 # ── Summary ────────────────────────────────────────────────────────────
 echo ""
 echo "══════════════════════════════════════════════════════════════"
