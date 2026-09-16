@@ -1,4 +1,5 @@
 import type { Env } from "./types";
+import { getTipQualityConfig, type TipQualityConfig } from "./config";
 import { escapeMarkdown, escapeCode } from "./utils";
 
 const ODDS_API_BASE = "https://api.the-odds-api.com/v4";
@@ -27,68 +28,84 @@ interface OddsBookmaker { key: string; title: string; markets: OddsMarket[]; }
 interface OddsEvent { id: string; sport_key: string; sport_title: string; commence_time: string; home_team: string; away_team: string; bookmakers: OddsBookmaker[]; }
 interface OddsSport { key: string; group?: string; title?: string; description?: string; active?: boolean; }
 
-export interface TipCandidate { event: OddsEvent; selection: string; market: string; averageOdds: number; impliedProbability: number; bookmakerCount: number; sportGroup: string; emoji: string; }
+export interface TipCandidate {
+  event: OddsEvent;
+  selection: string;
+  market: string;
+  bestPrice?: number;
+  consensusProbability?: number;
+  valueScore?: number;
+  bookmakerCount: number;
+  confidence?: "High" | "Medium" | "Low";
+  /** @deprecated retained for existing consumers while they migrate. */
+  averageOdds?: number;
+  /** @deprecated retained for existing consumers while they migrate. */
+  impliedProbability?: number;
+  sportGroup: string;
+  emoji: string;
+}
 export interface PostedTipSummary { eventId: string; sportKey: string; sportTitle: string; homeTeam: string; awayTeam: string; commenceTime: string; selection: string; market: string; odds: number; bookmakerCount: number; marketProbability: number; }
 
 function csv(value: string | undefined, fallback: string): string[] { return (value || fallback).split(",").map((item) => item.trim()).filter(Boolean); }
 function _escapeHtml(value: string): string { return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;"); }
 function decimalPrice(price: number): number { return Number.isFinite(price) && price > 1 ? price : 0; }
 function sportMeta(sportKey: string, title: string): { group: string; emoji: string } { const key = `${sportKey} ${title}`.toLowerCase(); if (key.includes("cricket")) return { group: "cricket", emoji: "🏏" }; if (key.includes("soccer") || key.includes("football")) return { group: "football", emoji: "⚽" }; if (key.includes("basketball")) return { group: "basketball", emoji: "🏀" }; if (key.includes("table") && key.includes("tennis")) return { group: "table_tennis", emoji: "🏓" }; if (key.includes("esport") || key.includes("cs2") || key.includes("dota") || key.includes("valorant")) return { group: "esports", emoji: "🎮" }; if (key.includes("tennis")) return { group: "tennis", emoji: "🎾" }; return { group: sportKey, emoji: "🏆" }; }
-function candidateScore(candidate: TipCandidate): number { const probabilityScore = candidate.impliedProbability * 100; const bookmakerScore = Math.min(candidate.bookmakerCount, 8) * 2; const oddsPenalty = candidate.averageOdds > 2.2 ? (candidate.averageOdds - 2.2) * 4 : 0; return probabilityScore + bookmakerScore - oddsPenalty; }
+function median(values: number[]): number { const sorted = [...values].sort((a, b) => a - b); const middle = Math.floor(sorted.length / 2); return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2; }
+function confidenceFor(probability: number): TipCandidate["confidence"] { return probability >= 0.70 ? "High" : probability >= 0.60 ? "Medium" : "Low"; }
 
 export function chooseCandidates(
-  events: OddsEvent[],
-  minOdds: number,
-  maxOdds: number,
-  limit = DEFAULT_TIPS_PER_SLOT,
-  minBookmakers = 2,
-  excludeEventIds: ReadonlySet<string> = new Set()
+  events: OddsEvent[], minOdds: number, maxOdds: number, limit = DEFAULT_TIPS_PER_SLOT,
+  minBookmakers: number | undefined = undefined, excludeEventIds: ReadonlySet<string> = new Set(), quality: Partial<TipQualityConfig> = {}
 ): TipCandidate[] {
+  const qualityMode = Object.keys(quality).length > 0;
+  const effectiveMinBookmakers = minBookmakers ?? 2;
+  const thresholds: TipQualityConfig = qualityMode
+    ? { minConsensus: 0.55, minValue: 0.02, minBookmakers: effectiveMinBookmakers, maxStaleHours: 6, ...quality }
+    : { minConsensus: 0, minValue: -Infinity, minBookmakers: effectiveMinBookmakers, maxStaleHours: 72 };
   const candidates: TipCandidate[] = [];
   for (const event of events) {
     if (!event.id || excludeEventIds.has(event.id)) continue;
-    if (!event.commence_time || new Date(event.commence_time).getTime() <= Date.now()) continue;
+    const start = new Date(event.commence_time).getTime();
+    if (!event.commence_time || !Number.isFinite(start) || (qualityMode && (start <= Date.now() || start > Date.now() + thresholds.maxStaleHours * 3600000))) continue;
     const meta = sportMeta(event.sport_key, event.sport_title);
-    const bySelection = new Map<string, number[]>();
-    let bookmakerCount = 0;
+    const marketRows: Array<{ prices: Map<string, number>; fair: Map<string, number> }> = [];
     for (const bookmaker of event.bookmakers || []) {
       const market = (bookmaker.markets || []).find((item) => item.key === "h2h");
-      if (!market) continue;
-      bookmakerCount += 1;
-      for (const outcome of market.outcomes || []) {
-        const price = decimalPrice(Number(outcome.price));
-        if (!price) continue;
-        const prices = bySelection.get(outcome.name) || [];
-        prices.push(price);
-        bySelection.set(outcome.name, prices);
-      }
+      const valid = (market?.outcomes || []).map((outcome) => ({ name: outcome.name, price: decimalPrice(Number(outcome.price)) })).filter((outcome) => outcome.price > 0);
+      if (!market || valid.length < (qualityMode ? 2 : 1)) continue;
+      const overround = valid.reduce((sum, outcome) => sum + 1 / outcome.price, 0);
+      const prices = new Map(valid.map((outcome) => [outcome.name, outcome.price]));
+      const fair = new Map(valid.map((outcome) => [outcome.name, (1 / outcome.price) / overround]));
+      marketRows.push({ prices, fair });
     }
-    for (const [selection, prices] of bySelection) {
-      if (prices.length < minBookmakers) continue;
-      const averageOdds = prices.reduce((sum, price) => sum + price, 0) / prices.length;
-      if (averageOdds < minOdds || averageOdds > maxOdds) continue;
-      const impliedProbability = prices.reduce((sum, price) => sum + 1 / price, 0) / prices.length;
-      candidates.push({ event, selection, market: "h2h", averageOdds, impliedProbability, bookmakerCount, sportGroup: meta.group, emoji: meta.emoji });
+    const selections = new Set(marketRows.flatMap((row) => [...row.prices.keys()]));
+    for (const selection of selections) {
+      const prices = marketRows.map((row) => row.prices.get(selection)).filter((value): value is number => value !== undefined);
+      const fairProbabilities = marketRows.map((row) => row.fair.get(selection)).filter((value): value is number => value !== undefined);
+      const bookmakerCount = prices.length;
+      if (bookmakerCount < thresholds.minBookmakers || fairProbabilities.length < thresholds.minBookmakers) continue;
+      const consensusProbability = median(fairProbabilities);
+      const bestPrice = Math.max(...prices);
+      const valueScore = consensusProbability * bestPrice - 1;
+      if (consensusProbability < thresholds.minConsensus || (qualityMode && (consensusProbability > 0.95 || consensusProbability < 0.05))) continue;
+      if (bestPrice < minOdds || bestPrice > maxOdds || valueScore < thresholds.minValue) continue;
+      candidates.push({ event, selection, market: "h2h", bestPrice, consensusProbability, valueScore, bookmakerCount, confidence: confidenceFor(consensusProbability), averageOdds: prices.reduce((sum, price) => sum + price, 0) / prices.length, impliedProbability: fairProbabilities.reduce((sum, probability) => sum + probability, 0) / fairProbabilities.length, sportGroup: meta.group, emoji: meta.emoji });
     }
   }
-  candidates.sort((a, b) => candidateScore(b) - candidateScore(a) || b.bookmakerCount - a.bookmakerCount || a.averageOdds - b.averageOdds);
+  candidates.sort((a, b) => qualityMode
+    ? (b.valueScore ?? 0) - (a.valueScore ?? 0) || (b.consensusProbability ?? 0) - (a.consensusProbability ?? 0) || b.bookmakerCount - a.bookmakerCount || (a.bestPrice ?? 0) - (b.bestPrice ?? 0)
+    : (a.averageOdds ?? a.bestPrice ?? 0) - (b.averageOdds ?? b.bestPrice ?? 0));
   const selected: TipCandidate[] = [];
-  const usedSports = new Set<string>();
-  const usedEvents = new Set<string>();
+  const usedSports = new Set<string>(); const usedEvents = new Set<string>();
   for (const candidate of candidates) {
     if (selected.length >= limit) break;
     if (usedSports.has(candidate.sportGroup) || usedEvents.has(candidate.event.id)) continue;
-    selected.push(candidate);
-    usedSports.add(candidate.sportGroup);
-    usedEvents.add(candidate.event.id);
+    selected.push(candidate); usedSports.add(candidate.sportGroup); usedEvents.add(candidate.event.id);
   }
-  if (selected.length < limit) {
-    for (const candidate of candidates) {
-      if (selected.length >= limit) break;
-      if (usedEvents.has(candidate.event.id)) continue;
-      selected.push(candidate);
-      usedEvents.add(candidate.event.id);
-    }
+  for (const candidate of candidates) {
+    if (selected.length >= limit) break;
+    if (usedEvents.has(candidate.event.id)) continue;
+    selected.push(candidate); usedEvents.add(candidate.event.id);
   }
   return selected;
 }
@@ -251,6 +268,7 @@ async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
   const minOdds = Number(env.TIPS_MIN_ODDS || "1.40");
   const maxOdds = Number(env.TIPS_MAX_ODDS || "2.50");
   const hoursAhead = Math.max(2, Number(env.TIPS_HOURS_AHEAD || "48"));
+  const quality = getTipQualityConfig(env);
   const targetCount = Math.max(3, tipCount(env));
 
   const allEvents: OddsEvent[] = [];
@@ -292,49 +310,7 @@ async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
     return start <= now + hoursAhead * 60 * 60 * 1000;
   });
 
-  // Pass 1: Strict criteria within primary window with exclusion
-  const selected = chooseCandidates(primaryEvents, minOdds, maxOdds, targetCount, 2, todayPostedIds);
-
-  // Pass 2: If fewer than targetCount, relax odds range slightly within primary window with exclusion
-  if (selected.length < targetCount) {
-    const relaxedMin = Math.max(1.20, minOdds - 0.20);
-    const relaxedMax = Math.min(3.50, maxOdds + 0.70);
-    const pass2 = chooseCandidates(primaryEvents, relaxedMin, relaxedMax, targetCount, 1, todayPostedIds);
-    const usedIds = new Set(selected.map((c) => c.event.id));
-    for (const c of pass2) {
-      if (selected.length >= targetCount) break;
-      if (!usedIds.has(c.event.id)) {
-        selected.push(c);
-        usedIds.add(c.event.id);
-      }
-    }
-  }
-
-  // Pass 3: If still under targetCount, include events up to extended window (72h) with exclusion
-  if (selected.length < targetCount && uniqueEvents.length > primaryEvents.length) {
-    const pass3 = chooseCandidates(uniqueEvents, minOdds, maxOdds, targetCount, 1, todayPostedIds);
-    const usedIds = new Set(selected.map((c) => c.event.id));
-    for (const c of pass3) {
-      if (selected.length >= targetCount) break;
-      if (!usedIds.has(c.event.id)) {
-        selected.push(c);
-        usedIds.add(c.event.id);
-      }
-    }
-  }
-
-  // Pass 4 (last resort): If still under targetCount, try unique events without exclusion so slot is not left empty
-  if (selected.length < targetCount && todayPostedIds.size > 0) {
-    const pass4 = chooseCandidates(uniqueEvents, minOdds, maxOdds, targetCount, 1);
-    const usedIds = new Set(selected.map((c) => c.event.id));
-    for (const c of pass4) {
-      if (selected.length >= targetCount) break;
-      if (!usedIds.has(c.event.id)) {
-        selected.push(c);
-        usedIds.add(c.event.id);
-      }
-    }
-  }
+  const selected = chooseCandidates(primaryEvents, minOdds, maxOdds, targetCount, quality.minBookmakers, todayPostedIds, quality);
 
   const usage = guard.snapshot();
   console.log(`[Tips] Credit guard: paid_requests=${usage.paidRequestAttempts}/${maxFeeds}, remaining=${usage.remaining ?? "unknown"}, used=${usage.usedFromHeader ?? "unknown"}, selected=${selected.length} tip(s)`);
@@ -368,11 +344,11 @@ function formatKickoff(iso: string): string {
   }
 }
 
-function toPostedSummary(candidate: TipCandidate): PostedTipSummary { return { eventId: candidate.event.id, sportKey: candidate.event.sport_key, sportTitle: candidate.event.sport_title, homeTeam: candidate.event.home_team, awayTeam: candidate.event.away_team, commenceTime: candidate.event.commence_time, selection: candidate.selection, market: candidate.market, odds: candidate.averageOdds, bookmakerCount: candidate.bookmakerCount, marketProbability: candidate.impliedProbability }; }
+function toPostedSummary(candidate: TipCandidate): PostedTipSummary { return { eventId: candidate.event.id, sportKey: candidate.event.sport_key, sportTitle: candidate.event.sport_title, homeTeam: candidate.event.home_team, awayTeam: candidate.event.away_team, commenceTime: candidate.event.commence_time, selection: candidate.selection, market: candidate.market, odds: candidate.bestPrice ?? candidate.averageOdds ?? 0, bookmakerCount: candidate.bookmakerCount, marketProbability: candidate.consensusProbability ?? candidate.impliedProbability ?? 0 }; }
 
 export function formatTipMessage(candidates: TipCandidate[], slot: string, joinUrl?: string): string {
   const numberBadges = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"];
-  const totalMultiplier = candidates.reduce((acc, c) => acc * c.averageOdds, 1);
+  const totalMultiplier = candidates.reduce((acc, c) => acc * (c.bestPrice ?? c.averageOdds ?? 0), 1);
 
   const header = [
     "🇱🇰 *FREE TIPS — SRI LANKA* 🎯",
@@ -384,7 +360,11 @@ export function formatTipMessage(candidates: TipCandidate[], slot: string, joinU
   const matchBlocks = candidates.map((candidate, index) => {
     const badge = numberBadges[index] || `[${index + 1}]`;
     const sportName = cleanSportTitle(candidate.event.sport_title);
-    const probPercent = Math.round(candidate.impliedProbability * 100);
+    const bestPrice = candidate.bestPrice ?? candidate.averageOdds ?? 0;
+    const consensusProbability = candidate.consensusProbability ?? candidate.impliedProbability ?? 0;
+    const valueScore = candidate.valueScore ?? (consensusProbability * bestPrice - 1);
+    const probPercent = (consensusProbability * 100).toFixed(1);
+    const valuePercent = (valueScore * 100).toFixed(1);
 
     return [
       `${badge} ${candidate.emoji} *${escapeMarkdown(sportName)}*`,
@@ -392,8 +372,9 @@ export function formatTipMessage(candidates: TipCandidate[], slot: string, joinU
       `🗓️ ${escapeMarkdown(formatKickoff(candidate.event.commence_time))}`,
       `🎯 *Pick:* \`${escapeCode(candidate.selection)}\``,
       `📊 *Market:* ${escapeMarkdown(candidate.market.toUpperCase())}`,
-      `💹 *Odds:* *${candidate.averageOdds.toFixed(2)}*  |  📈 *Win Prob:* ~${probPercent}%`,
-      `🏪 *Bookmakers:* ${candidate.bookmakerCount}`,
+      `💹 *Best Odds:* *${bestPrice.toFixed(2)}*  |  📈 *Consensus Prob:* ${probPercent}%`,
+      `💎 *Value:* +${valuePercent}%  |  🏪 *Bookmakers:* ${candidate.bookmakerCount}`,
+      `🎯 *Confidence:* ${candidate.confidence ?? confidenceFor(consensusProbability)}`,
     ].join("\n");
   });
 
@@ -404,7 +385,7 @@ export function formatTipMessage(candidates: TipCandidate[], slot: string, joinU
     `💰 *සමස්ත Multiplier Odds (Accumulator):* *~${totalMultiplier.toFixed(2)}*`,
     "🕒 _Odds පලකල මොහොතේ අගයන් වේ (Odds subject to live market changes)._",
     "⚡ _Accumulator (Acca) bets අධික අවදානම් සහිතයි (High Risk). Single bets නිර්දේශ කරමු._",
-    "ℹ️ _Picks are ranked using market odds data. Implied probability is an estimate, not a guarantee._",
+    "ℹ️ _Picks use no-vig median market consensus and positive expected value. This is an estimate, not a guarantee._",
     "⚠️ _18+ පමණි. වගකීමෙන් යුතුව ක්‍රීඩා කරන්න. Never stake money you cannot afford to lose._",
   ].join("\n");
 
@@ -562,7 +543,7 @@ export function buildTipsInlineKeyboard(
 
   // Accumulator / Multiplier button if there are 2 or more candidates
   if (candidates.length > 1) {
-    const totalMultiplier = candidates.reduce((acc, c) => acc * c.averageOdds, 1);
+    const totalMultiplier = candidates.reduce((acc, c) => acc * (c.bestPrice ?? c.averageOdds ?? 0), 1);
     const raw = xbetLink?.trim() ? xbetLink.trim() : DEFAULT_XBET_LINK;
     let accumUrl: string;
     if (useTracking && trackingBaseUrl && tipPostId) {
@@ -752,7 +733,7 @@ async function markTipPosted(
     first?.event.commence_time ?? null,
     first?.market ?? null,
     first?.selection ?? null,
-    first?.averageOdds ?? null,
+    first ? (first.bestPrice ?? first.averageOdds ?? null) : null,
     telegramMessageId,
     payload,
     id
