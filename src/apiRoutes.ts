@@ -783,6 +783,14 @@ export async function handleApiRequest(
     });
   }
 
-  // Not handled by API dispatcher
+  // Any other /api/* path is an unknown API route: return a proper 404 JSON
+  // response instead of falling through to the landing page (which the
+  // Worker serves for any unmatched GET/HEAD request).
+  if (path.startsWith("/api/")) {
+    return json({ ok: false, error: "Not found" }, 404, securityHeaders());
+  }
+
+  // Not handled by API dispatcher (falls through to the landing page for
+  // ordinary GET/HEAD routes, or to webhook handling for POST).
   return null;
 }
