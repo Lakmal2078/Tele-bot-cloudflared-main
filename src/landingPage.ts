@@ -1422,6 +1422,9 @@ summary:focus-visible {
   .ticker-left span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ticker-right { flex-shrink: 0; }
   .section { padding: 48px 14px; }
+  .live-status-card { align-items:flex-start; flex-direction:column; }
+  .live-status-meta { text-align:left; }
+  .video-panel { min-height:230px; padding:24px 18px; }
   .section-title { font-size: clamp(1.65rem, 7vw, 2.2rem); }
   .section-sub { font-size: 0.95rem; }
   .trust-grid, .grid, .tips-preview-grid, .steps-grid, .commands-grid { grid-template-columns: 1fr; gap: 12px; }
@@ -1543,6 +1546,17 @@ summary:focus-visible {
     </div>
   </div>
 </div>
+
+<!-- LIVE WORKER STATUS -->
+<section class="section live-status-section" id="live-status" aria-labelledby="live-status-title">
+  <div class="live-status-card" id="liveStatusCard" data-state="loading">
+    <div class="live-status-main">
+      <span class="live-status-dot" id="liveStatusDot" aria-hidden="true"></span>
+      <div><h3 id="live-status-title" data-t="liveStatusTitle">Worker status: checking...</h3><p id="liveStatusDescription" data-t="liveStatusDescription">Checking the live Telegram service connection.</p></div>
+    </div>
+    <div class="live-status-meta" id="liveStatusChecked" data-t="liveStatusUpdated">Not checked yet</div>
+  </div>
+</section>
 
 <!-- HOW IT WORKS -->
 <section class="trust-strip">
@@ -1797,7 +1811,7 @@ summary:focus-visible {
     </div>
     <div class="cmd-item">
       <span class="cmd-code">/safety</span>
-      <p class="cmd-desc" data-t="cmdSafe">ආරක්ෂාව හා responsible gaming tips</p>
+      <p class="cmd-desc" data-t="cmdSafe">ආරක්���ාව හා responsible gaming tips</p>
     </div>
     <div class="cmd-item">
       <span class="cmd-code">/help</span>
@@ -1978,6 +1992,26 @@ summary:focus-visible {
   </div>
 </section>
 
+<!-- HOW-TO VIDEO -->
+<section class="section" id="how-to-video" aria-labelledby="how-to-video-title">
+  <h2 class="section-title" id="how-to-video-title" data-t="videoTitle">How to use the Telegram bot</h2>
+  <p class="section-sub" data-t="videoSub">A short walkthrough for deposits, withdrawals and tips.</p>
+  <div class="video-panel" role="img" aria-label="How-to video coming soon">
+    <div class="video-content"><div class="video-play" aria-hidden="true">▶</div><strong data-t="videoComingSoon">How-to video coming soon</strong><div class="video-label" data-t="videoHint">A real tutorial link will be added here.</div></div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="section" id="testimonials" aria-labelledby="testimonials-title">
+  <h2 class="section-title" id="testimonials-title" data-t="testimonialsTitle">What users say</h2>
+  <p class="section-sub" data-t="testimonialsSub">Sample layout only — replace with approved customer reviews.</p>
+  <div class="testimonials-grid">
+    <article class="testimonial-card"><span class="demo-label" data-t="demoReview">Demo review</span><blockquote>"Fast replies and the bot steps are easy to follow."</blockquote><cite>— Sample user, Colombo</cite></article>
+    <article class="testimonial-card"><span class="demo-label" data-t="demoReview">Demo review</span><blockquote>"I could check my request status without leaving Telegram."</blockquote><cite>— Sample user, Kandy</cite></article>
+    <article class="testimonial-card"><span class="demo-label" data-t="demoReview">Demo review</span><blockquote>"The instructions are clear and support is easy to reach."</blockquote><cite>— Sample user, Galle</cite></article>
+  </div>
+</section>
+
 <!-- FINAL CTA -->
 <section class="cta">
   <h2 data-t="ctaTitle">දැන්ම ආරම්භ කරන්න</h2>
@@ -2041,6 +2075,16 @@ summary:focus-visible {
       seeCmds: "📋 Commands බලන්න",
       statusText: "System Status: Online",
       statusSub: "Telegram Bot & Processing Active · Edge: ${colo}",
+      liveStatusTitle: "Worker status: checking...",
+      liveStatusDescription: "Live Telegram service connection එක පරීක්ෂා කරමින්.",
+      liveStatusUpdated: "තවම පරීක්ෂා කර නැත",
+      videoTitle: "Telegram bot එක භාවිතා කරන ආකාරය",
+      videoSub: "Deposit, withdraw සහ tips සඳහා කෙටි මාර්ගෝපදේශයක්.",
+      videoComingSoon: "How-to video ඉක්මනින්",
+      videoHint: "සැබෑ tutorial link එක මෙහි එක් කරනු ඇත.",
+      testimonialsTitle: "පරිශීලක අදහස්",
+      testimonialsSub: "Demo layout එකක් පමණි — අනුමත customer reviews වලින් පසුව update කරන්න.",
+      demoReview: "Demo review",
       nextTipsLabel: "ඊළඟ Tips:",
       trustSpeedTitle: "වේගවත් සැකසුම් කාලය",
       trustSpeedSub: "Instant Player Account Credit",
@@ -2160,6 +2204,16 @@ summary:focus-visible {
       seeCmds: "📋 View Commands",
       statusText: "System Status: Online",
       statusSub: "Telegram Bot & Processing Active · Edge: ${colo}",
+      liveStatusTitle: "Worker status: checking...",
+      liveStatusDescription: "Checking the live Telegram service connection.",
+      liveStatusUpdated: "Not checked yet",
+      videoTitle: "How to use the Telegram bot",
+      videoSub: "A short walkthrough for deposits, withdrawals and tips.",
+      videoComingSoon: "How-to video coming soon",
+      videoHint: "A real tutorial link will be added here.",
+      testimonialsTitle: "What users say",
+      testimonialsSub: "Sample layout only — replace with approved customer reviews.",
+      demoReview: "Demo review",
       nextTipsLabel: "Next Tips:",
       trustSpeedTitle: "Fast Processing",
       trustSpeedSub: "Instant Player Account Credit",
@@ -2312,6 +2366,26 @@ summary:focus-visible {
   window.addEventListener("online", updateOnlineStatus);
   window.addEventListener("offline", updateOnlineStatus);
   updateOnlineStatus();
+
+  // ===== Live worker status =====
+  const liveStatusCard = document.getElementById("liveStatusCard");
+  const liveStatusDot = document.getElementById("liveStatusDot");
+  const liveStatusTitle = document.getElementById("live-status-title");
+  const liveStatusDescription = document.getElementById("liveStatusDescription");
+  const liveStatusChecked = document.getElementById("liveStatusChecked");
+  function setLiveStatus(online, checkedAt) {
+    if (!liveStatusCard || !liveStatusDot || !liveStatusTitle || !liveStatusDescription || !liveStatusChecked) return;
+    liveStatusCard.classList.toggle("offline", !online);
+    liveStatusDot.classList.toggle("offline", !online);
+    liveStatusCard.dataset.state = online ? "online" : "offline";
+    liveStatusTitle.textContent = online ? (currentLang === "en" ? "Worker status: Online" : "Worker status: Online") : (currentLang === "en" ? "Worker status: Unavailable" : "Worker status: දැනට ලබාගත නොහැක");
+    liveStatusDescription.textContent = online ? (currentLang === "en" ? "The Telegram service responded successfully." : "Telegram සේවාව සාර්ථකව ප්‍රතිචාර දැක්වීය.") : (currentLang === "en" ? "We could not confirm the worker right now. Please try again later." : "Worker තත්වය තහවුරු කළ නොහැක. පසුව නැවත උත්සාහ කරන්න.");
+    liveStatusChecked.textContent = checkedAt ? (currentLang === "en" ? "Checked just now" : "දැන් පරීක්ෂා කළා") : (currentLang === "en" ? "Not checked yet" : "තවම පරීක්ෂා කර නැත");
+  }
+  fetch("/api/status", { headers: { "Accept": "application/json" } }).then(function (response) {
+    if (!response.ok) throw new Error("status request failed");
+    return response.json();
+  }).then(function (data) { setLiveStatus(data.status === "online", data.checkedAt); }).catch(function () { setLiveStatus(false); });
 
   // ===== Step Tabs =====
   const tabDepBtn = document.getElementById("tabDepBtn");

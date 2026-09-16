@@ -201,6 +201,13 @@ export async function handleApiRequest(
     });
   }
 
+  // Public worker status endpoint for the landing page. A successful response means this worker is reachable now.
+  if (path === "/api/status" && (method === "GET" || method === "HEAD")) {
+    const headers = { "Cache-Control": "no-store", ...securityHeaders() };
+    if (method === "HEAD") return new Response(null, { status: 200, headers });
+    return json({ status: "online", service: "telegram-bot", runtime: options?.runtime || "cf-worker", checkedAt: new Date().toISOString() }, 200, headers);
+  }
+
   // Telegram webhook setup & status endpoint
   if ((path === "/api/telegram/webhook" || path === "/api/setup-webhook") && (method === "GET" || method === "POST")) {
     const isPost = method === "POST";
