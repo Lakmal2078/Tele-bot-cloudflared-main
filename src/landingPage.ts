@@ -257,7 +257,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
 
 html { scroll-behavior: smooth; }
 
-body {
+  body {
   margin: 0;
   font-family: 'Noto Sans Sinhala', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   background: var(--bg);
@@ -265,8 +265,7 @@ body {
   line-height: 1.65;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
-  padding-bottom: 72px; /* Space for mobile sticky CTA bar */
-}
+  }
 
 @media (min-width: 769px) {
   body { padding-bottom: 0; }
@@ -1388,47 +1387,16 @@ summary:focus-visible {
 .btn { min-height: 48px; transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease; }
 .btn:hover { transform: translateY(-2px); }
 .btn-primary { box-shadow: 0 10px 26px rgba(0, 230, 118, 0.18); }
-.mobile-cta {
-  display: none;
-}
-.trust-card, .tip-match-card, .feature-card, .faq-item { transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease; }
+  .trust-card, .tip-match-card, .feature-card, .faq-item { transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease; }
 .trust-card:hover, .tip-match-card:hover, .feature-card:hover, .faq-item:hover { transform: translateY(-3px); border-color: rgba(0, 230, 118, 0.3); }
 
 @keyframes riseIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes orbDrift { from { transform: translate3d(0, 0, 0) scale(1); } to { transform: translate3d(28px, -18px, 0) scale(1.12); } }
 
-@media (max-width: 768px) {
-  .mobile-cta {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 70;
-    display: grid;
-    grid-template-columns: 0.8fr 1.2fr;
-    gap: 8px;
-    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
-    border-top: 1px solid var(--line);
-    background: rgba(7, 11, 18, 0.94);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+  @media (max-width: 768px) {
   }
-  .mobile-cta a {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 44px;
-    padding: 8px 12px;
-    border: 1px solid var(--card-border);
-    border-radius: 12px;
-    color: var(--text);
-    font-size: 0.82rem;
-    font-weight: 700;
-  }
-  .mobile-cta-primary { color: #04130b !important; background: var(--accent); border-color: var(--accent) !important; }
-}
-
-@media (max-width: 520px) {
+  
+  @media (max-width: 520px) {
   .navbar { padding: 10px 14px; }
   .logo { font-size: 1rem; gap: 7px; }
   .logo-badge { width: 32px; height: 32px; }
@@ -2010,12 +1978,7 @@ summary:focus-visible {
   </p>
 </footer>
 
-<div class="mobile-cta" aria-label="Quick actions">
-  <a href="${channel}" target="_blank" rel="noopener" data-t="mobileChannel">View Tips</a>
-  <a href="${bot}" class="mobile-cta-primary" target="_blank" rel="noopener" data-t="mobileBot">Open Telegram Bot</a>
-</div>
-
-<!-- CLIENT JAVASCRIPT (WITH NONCE SUPPORT) -->
+  <!-- CLIENT JAVASCRIPT (WITH NONCE SUPPORT) -->
 <script${nonceAttr}>
 (function () {
   "use strict";
