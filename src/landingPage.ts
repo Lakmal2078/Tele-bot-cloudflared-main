@@ -380,6 +380,12 @@ summary:focus-visible {
 }
 .nav-links a:hover { color: var(--text); }
 
+.menu-toggle { display: none; min-width: 44px; min-height: 44px; padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 12px; background: rgba(255,255,255,.05); color: var(--text); cursor: pointer; font: inherit; font-size: 1.2rem; }
+.mobile-nav { display: none; position: absolute; top: calc(100% + 8px); right: 14px; width: min(280px, calc(100vw - 28px)); padding: 10px; background: rgba(8,21,37,.98); border: 1px solid var(--card-border); border-radius: 16px; box-shadow: 0 18px 40px rgba(0,0,0,.4); }
+.mobile-nav.open { display: grid; gap: 4px; }
+.mobile-nav a { padding: 12px; border-radius: 10px; color: var(--muted); font-weight: 700; }
+.mobile-nav a:hover, .mobile-nav a:focus-visible { color: var(--text); background: rgba(255,255,255,.06); }
+
 .langs {
   display: flex;
   gap: 5px;
@@ -1190,11 +1196,23 @@ summary:focus-visible {
 
 @media (max-width: 768px) {
   .nav-links { display: none; }
+  .menu-toggle { display: inline-flex; align-items: center; justify-content: center; }
   .hero { padding: 48px 16px 28px; }
   .hero h1 { font-size: 2.2rem; }
   .stats { gap: 18px; }
   .stat-num { font-size: 1.6rem; }
   .calc-container { padding: 22px 16px; }
+  .hero { text-align: center; }
+  .hero-inner { grid-template-columns: 1fr; gap: 30px; }
+  .hero p { margin-inline: auto; }
+  .hero-buttons { justify-content: center; }
+  .hero-proof { margin-inline: auto; }
+  .hero-visual { min-height: 280px; }
+  .edge-visual { max-width: 390px; }
+  .trust-grid { grid-template-columns: repeat(2, 1fr); }
+  .trust-card { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .trust-card:nth-child(2n) { border-right: 0; }
+  .trust-card:nth-last-child(-n+2) { border-bottom: 0; }
 }
 
 /* Telegram Bot Demo */
@@ -1207,7 +1225,7 @@ summary:focus-visible {
 .bot-demo-section h2 {
   font-size: 2rem;
   margin-bottom: 40px;
-  background: var(--gradient);
+  background: linear-gradient(135deg, #fff 15%, var(--accent) 65%, var(--accent2));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -1380,6 +1398,35 @@ summary:focus-visible {
 .hero-proof-item span { color: var(--muted); font-size: 0.72rem; white-space: nowrap; }
 .hero-proof-divider { width: 1px; height: 28px; background: var(--line); }
 
+/* Secure Edge Fintech v0: split editorial hero and capability-first proof rail. */
+.hero { text-align: left; padding: 76px 20px 44px; }
+.hero-inner { max-width: 1080px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(300px, .92fr); gap: 56px; align-items: center; }
+.hero-copy { min-width: 0; }
+.hero-copy .hero-badge { margin-bottom: 20px; }
+.hero h1 { max-width: 720px; font-size: clamp(2.7rem, 6vw, 5rem); }
+.hero p { margin-left: 0; max-width: 650px; }
+.hero-buttons { justify-content: flex-start; }
+.hero-proof { margin-left: 0; }
+.hero-visual { min-height: 340px; position: relative; display: grid; place-items: center; }
+.edge-visual { width: min(100%, 420px); aspect-ratio: 1 / .82; position: relative; border: 1px solid rgba(0,180,248,.34); border-radius: 24px; padding: 22px; background: linear-gradient(145deg, rgba(0,180,248,.12), rgba(166,248,0,.07) 55%, rgba(7,11,18,.86)); box-shadow: 0 24px 70px rgba(0,0,0,.42), inset 0 0 42px rgba(0,180,248,.08); overflow: hidden; }
+.edge-visual::before, .edge-visual::after { content: ""; position: absolute; border: 1px solid rgba(166,248,0,.22); border-radius: 50%; pointer-events: none; }
+.edge-visual::before { width: 280px; height: 280px; right: -85px; top: -95px; }
+.edge-visual::after { width: 180px; height: 180px; left: -80px; bottom: -70px; }
+.edge-visual-grid { position: absolute; inset: 0; opacity: .18; background-image: linear-gradient(rgba(145,164,184,.25) 1px, transparent 1px), linear-gradient(90deg, rgba(145,164,184,.25) 1px, transparent 1px); background-size: 32px 32px; mask-image: linear-gradient(to bottom, black, transparent); }
+.edge-node { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 18px var(--accent); }
+.edge-node.n1 { top: 24%; left: 18%; } .edge-node.n2 { top: 43%; right: 17%; background: var(--accent2); box-shadow: 0 0 18px var(--accent2); } .edge-node.n3 { bottom: 18%; left: 34%; }
+.edge-core { position: relative; z-index: 1; width: 132px; height: 132px; margin: 22px auto 24px; display: grid; place-items: center; border-radius: 34px; background: rgba(5,10,20,.82); border: 1px solid rgba(166,248,0,.35); box-shadow: 0 0 0 10px rgba(166,248,0,.04), 0 0 42px rgba(0,180,248,.24); }
+.edge-core svg { width: 82px; height: 82px; }
+.edge-label { position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: center; padding-top: 14px; border-top: 1px solid var(--line); font-size: .82rem; color: var(--muted); }
+.edge-label strong { color: var(--accent); font-family: ui-monospace, monospace; font-size: .78rem; }
+.trust-strip { max-width: 1080px; }
+.trust-grid { grid-template-columns: repeat(4, 1fr); gap: 0; border: 1px solid var(--card-border); border-radius: 16px; overflow: hidden; background: rgba(15,23,42,.42); }
+.trust-card { border: 0; border-right: 1px solid var(--line); border-radius: 0; background: transparent; text-align: left; padding: 18px 20px; }
+.trust-card:last-child { border-right: 0; }
+.trust-num { font-size: 1.12rem; }
+.trust-card:hover { transform: none; background: rgba(255,255,255,.03); }
+#testimonials { display: none; }
+
 .btn { min-height: 48px; transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease; }
 .btn:hover { transform: translateY(-2px); }
 .btn-primary { box-shadow: 0 10px 26px rgba(0, 230, 118, 0.18); }
@@ -1489,6 +1536,15 @@ summary:focus-visible {
     <a href="#faq" data-t="faqNav">FAQ</a>
   </nav>
 
+  <button type="button" class="menu-toggle" id="menuToggle" aria-expanded="false" aria-controls="mobileNav" aria-label="Open navigation menu">☰</button>
+  <nav class="mobile-nav" id="mobileNav" aria-label="Mobile Navigation">
+    <a href="#how-it-works" data-t="howNav">භාවිතා කරන්නේ කෙසේද</a>
+    <a href="#tips-preview" data-t="tipsNav">Free Tips 🔥</a>
+    <a href="#calculator" data-t="calcNav">Calculator</a>
+    <a href="#faq" data-t="faqNav">FAQ</a>
+    <a href="${bot}" target="_blank" rel="noopener" data-t="start">🚀 Bot එක පටන් ගන්න</a>
+  </nav>
+
   <div class="langs" role="group" aria-label="Language selector">
     <button type="button" id="btn-lang-si" data-lang="si" class="${initialLang === "si" ? "active" : ""}">සිං</button>
     <button type="button" id="btn-lang-en" data-lang="en" class="${initialLang === "en" ? "active" : ""}">EN</button>
@@ -1499,34 +1555,28 @@ summary:focus-visible {
 
 <!-- HERO -->
 <section class="hero">
-  <div class="hero-badge">
-    <span class="pulse"></span>
-    <span data-t="badge">🇱🇰 24/7 Active Bot &amp; Cash Agent · 🔞 18+ Only</span>
-  </div>
-
-  <h1>Fast xBet Cash 🇱🇰</h1>
-
-  <p data-t="hero">
-    ස්වයංක්‍රීය Free Betting Tips, වේගවත් Deposit &amp; Withdraw, Referral System — සියල්ල Telegram හරහා, ඔබේ දුරකථනයෙන්.
-  </p>
-
-  <div class="hero-buttons">
-    <a href="${bot}" class="btn btn-primary" target="_blank" rel="noopener" data-t="start">
-      🚀 Bot එක පටන් ගන්න
-    </a>
-    <a href="${channel}" class="btn btn-secondary" target="_blank" rel="noopener" data-t="channel">
-      📢 Tips Channel
-    </a>
-    <a href="#commands" class="btn btn-outline" data-t="seeCmds">
-      📋 Commands බලන්න
-    </a>
-  </div>
-  <div class="hero-proof" aria-label="Service highlights">
-    <div class="hero-proof-item"><strong>2–5 min</strong><span data-t="proofSpeed">සාමාන්‍ය processing</span></div>
-    <div class="hero-proof-divider" aria-hidden="true"></div>
-    <div class="hero-proof-item"><strong>24/7</strong><span data-t="proofSupport">Telegram support</span></div>
-    <div class="hero-proof-divider" aria-hidden="true"></div>
-    <div class="hero-proof-item"><strong>0%</strong><span data-t="proofFee">hidden fees</span></div>
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <div class="hero-badge"><span class="pulse"></span><span data-t="badge">🇱🇰 Telegram cash service &amp; free tips · 🔞 18+ Only</span></div>
+      <h1>Fast xBet Cash 🇱🇰</h1>
+      <p data-t="hero">Fast deposits, withdrawals and verified free tips — directly in Telegram.</p>
+      <div class="hero-buttons">
+        <a href="${bot}" class="btn btn-primary" target="_blank" rel="noopener" data-t="start">🚀 Bot එක පටන් ගන්න</a>
+        <a href="${channel}" class="btn btn-secondary" target="_blank" rel="noopener" data-t="channel">📢 Tips Channel</a>
+      </div>
+      <div class="hero-proof" aria-label="Service capabilities">
+        <div class="hero-proof-item"><strong>Telegram-first</strong><span data-t="proofSpeed">simple guided flows</span></div>
+        <div class="hero-proof-divider" aria-hidden="true"></div>
+        <div class="hero-proof-item"><strong>Traceable</strong><span data-t="proofSupport">status and support path</span></div>
+      </div>
+    </div>
+    <div class="hero-visual" aria-label="Secure Telegram operations visual">
+      <div class="edge-visual">
+        <div class="edge-visual-grid"></div><span class="edge-node n1"></span><span class="edge-node n2"></span><span class="edge-node n3"></span>
+        <div class="edge-core">${BRAND_LOGO_SVG_COMPACT}</div>
+        <div class="edge-label"><span>Secure Telegram operations</span><strong>EDGE / READY</strong></div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -1562,24 +1612,24 @@ summary:focus-visible {
 <section class="trust-strip">
   <div class="trust-grid">
     <div class="trust-card">
-      <div class="trust-num">⚡ 2–5 Min</div>
-      <div class="trust-label" data-t="trustSpeedTitle">වේගවත් සැකසුම් කාලය</div>
-      <div class="trust-sub" data-t="trustSpeedSub">Instant Player Account Credit</div>
+      <div class="trust-num">⚡ Guided</div>
+      <div class="trust-label" data-t="trustSpeedTitle">පියවරෙන් පියවර flows</div>
+      <div class="trust-sub" data-t="trustSpeedSub">Deposit සහ withdrawal guidance</div>
     </div>
     <div class="trust-card">
-      <div class="trust-num">👥 10,000+</div>
-      <div class="trust-label" data-t="trustUsersTitle">ක්‍රියාකාරී සාමාජිකයින්</div>
-      <div class="trust-sub" data-t="trustUsersSub">Sri Lanka Telegram Community</div>
+      <div class="trust-num">📲 Telegram</div>
+      <div class="trust-label" data-t="trustUsersTitle">එකම support channel එක</div>
+      <div class="trust-sub" data-t="trustUsersSub">Service access without extra apps</div>
     </div>
     <div class="trust-card">
-      <div class="trust-num">🛡️ 99.9%</div>
-      <div class="trust-label" data-t="trustSuccessTitle">සාර්ථකත්ව අනුපාතය</div>
-      <div class="trust-sub" data-t="trustSuccessSub">Automated Fraud Verification</div>
+      <div class="trust-num">🛡️ Logged</div>
+      <div class="trust-label" data-t="trustSuccessTitle">Status සහ audit trail</div>
+      <div class="trust-sub" data-t="trustSuccessSub">Verification before processing</div>
     </div>
     <div class="trust-card">
-      <div class="trust-num">💰 0% Fee</div>
-      <div class="trust-label" data-t="trustFeeTitle">අමතර ගාස්තු නැත</div>
-      <div class="trust-sub" data-t="trustFeeSub">Zero Hidden Deductions</div>
+      <div class="trust-num">💳 Local rails</div>
+      <div class="trust-label" data-t="trustFeeTitle">ගෙවීම් විකල්ප</div>
+      <div class="trust-sub" data-t="trustFeeSub">eZ Cash, mCash, bank options</div>
     </div>
   </div>
 </section>
@@ -2351,6 +2401,24 @@ summary:focus-visible {
     });
   });
 
+  // Compact mobile navigation: keyboard-friendly and closes after choosing an anchor.
+  const menuToggle = document.getElementById("menuToggle");
+  const mobileNav = document.getElementById("mobileNav");
+  function closeMobileNav() {
+    if (!menuToggle || !mobileNav) return;
+    mobileNav.classList.remove("open");
+    menuToggle.setAttribute("aria-expanded", "false");
+  }
+  if (menuToggle && mobileNav) {
+    menuToggle.addEventListener("click", function () {
+      const open = !mobileNav.classList.contains("open");
+      mobileNav.classList.toggle("open", open);
+      menuToggle.setAttribute("aria-expanded", String(open));
+    });
+    mobileNav.querySelectorAll("a").forEach(function (link) { link.addEventListener("click", closeMobileNav); });
+    document.addEventListener("keydown", function (event) { if (event.key === "Escape") closeMobileNav(); });
+  }
+
   // Apply initial language
   if (currentLang !== "si") {
     applyLanguage(currentLang);
@@ -2377,9 +2445,9 @@ summary:focus-visible {
     if (!liveStatusCard || !liveStatusDot || !liveStatusTitle || !liveStatusDescription || !liveStatusChecked) return;
     liveStatusCard.classList.toggle("offline", !online);
     liveStatusDot.classList.toggle("offline", !online);
-    liveStatusCard.dataset.state = online ? "online" : "offline";
-    liveStatusTitle.textContent = online ? (currentLang === "en" ? "Worker status: Online" : "Worker status: Online") : (currentLang === "en" ? "Worker status: Unavailable" : "Worker status: දැනට ලබාගත නොහැක");
-    liveStatusDescription.textContent = online ? (currentLang === "en" ? "The Telegram service responded successfully." : "Telegram සේවාව සාර්ථකව ප්‍රතිචාර දැක්වීය.") : (currentLang === "en" ? "We could not confirm the worker right now. Please try again later." : "Worker තත්වය තහවුරු කළ නොහැක. පසුව නැවත උත්සාහ කරන්න.");
+    liveStatusCard.dataset.state = online ? "online" : "checking";
+    liveStatusTitle.textContent = online ? (currentLang === "en" ? "Worker status: Online" : "Worker status: Online") : (currentLang === "en" ? "Worker status: Temporarily unavailable" : "Worker status: තාවකාලිකව ලබාගත නොහැක");
+    liveStatusDescription.textContent = online ? (currentLang === "en" ? "The Telegram service responded successfully." : "Telegram සේවාව සාර්ථකව ප්‍රතිචාර දැක්වීය.") : (currentLang === "en" ? "We could not confirm the service right now. Your Telegram CTA is still available." : "සේවාව මේ මොහොතේ තහවුරු කළ නොහැක. Telegram CTA එක තවමත් භාවිතා කළ හැක.");
     liveStatusChecked.textContent = checkedAt ? (currentLang === "en" ? "Checked just now" : "දැන් පරීක්ෂා කළා") : (currentLang === "en" ? "Not checked yet" : "තවම පරීක්ෂා කර නැත");
   }
   fetch("/api/status", { headers: { "Accept": "application/json" } }).then(function (response) {

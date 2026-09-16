@@ -140,13 +140,26 @@ describe("Landing Page Render & SEO", () => {
     const req = new Request("https://fast-xbet.lk/");
     const html = renderLandingPage(mockEnv, req);
 
-    expect(html).toContain("⚡ 2–5 Min");
-    expect(html).toContain("👥 10,000+");
-    expect(html).toContain("🛡️ 99.9%");
-    expect(html).toContain("0% Fee");
+    expect(html).toContain("⚡ Guided");
+    expect(html).toContain("📲 Telegram");
+    expect(html).toContain("🛡️ Logged");
+    expect(html).toContain("💳 Local rails");
     expect(html).toContain("eZ Cash");
     expect(html).toContain("mCash");
     expect(html).toContain("FriMi");
+  });
+
+  it("renders the v0 split hero, mobile navigation, and repaired gradient token", () => {
+    const req = new Request("https://fast-xbet.lk/");
+    const html = renderLandingPage(mockEnv, req);
+
+    expect(html).toContain('class="hero-inner"');
+    expect(html).toContain('id="mobileNav"');
+    expect(html).toContain('id="menuToggle"');
+    expect(html).toContain("edge-visual");
+    expect(html).not.toContain("var(--gradient)");
+    expect(html).not.toContain("10,000+");
+    expect(html).not.toContain("99.9%");
   });
 
   it("renders Today's Free Tips preview section", () => {
