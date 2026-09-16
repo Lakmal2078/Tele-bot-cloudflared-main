@@ -20,6 +20,33 @@ function parsePositiveNumber(name: string, value: unknown, errors: string[]): nu
   return parsed;
 }
 
+export interface TipQualityConfig {
+  minConsensus: number;
+  minValue: number;
+  minBookmakers: number;
+  maxStaleHours: number;
+}
+
+const TIP_QUALITY_DEFAULTS: TipQualityConfig = {
+  minConsensus: 0.55,
+  minValue: 0.02,
+  minBookmakers: 3,
+  maxStaleHours: 6,
+};
+
+function positiveEnvNumber(value: unknown, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+export function getTipQualityConfig(env: Partial<Env>): TipQualityConfig {
+  const minConsensus = positiveEnvNumber(env.TIPS_MIN_CONSENSUS, TIP_QUALITY_DEFAULTS.minConsensus);
+  const minValue = positiveEnvNumber(env.TIPS_MIN_VALUE, TIP_QUALITY_DEFAULTS.minValue);
+  const minBookmakers = Math.max(1, Math.floor(positiveEnvNumber(env.TIPS_MIN_BOOKMAKERS, TIP_QUALITY_DEFAULTS.minBookmakers)));
+  const maxStaleHours = positiveEnvNumber(env.TIPS_MAX_STALE_HOURS, TIP_QUALITY_DEFAULTS.maxStaleHours);
+  return { minConsensus, minValue, minBookmakers, maxStaleHours };
+}
+
 export function validateEnv(env: Partial<Env>): string[] {
   const errors: string[] = [];
 
