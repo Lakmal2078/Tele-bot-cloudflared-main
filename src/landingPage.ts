@@ -168,7 +168,11 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
 <html lang="${initialLang}">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+<meta name="format-detection" content="telephone=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Fast xBet Cash 🇱🇰 — Free Betting Tips &amp; Cash Agent</title>
 <meta name="description" content="ශ්‍රී ලංකාවේ වේගවත් Free Betting Tips &amp; Cash Agent සේවාව. Telegram හරහා deposit, withdraw, referral සහ ස්වයංක්‍රීය betting tips ලබාගන්න. Sinhala / English.">
 <meta name="robots" content="index, follow">
@@ -1333,6 +1337,119 @@ summary:focus-visible {
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
+/* Landing refresh: lightweight motion and mobile-first conversion polish */
+.hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.hero::before,
+.hero::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  filter: blur(12px);
+  opacity: 0.32;
+  pointer-events: none;
+  animation: orbDrift 12s ease-in-out infinite alternate;
+}
+.hero::before { background: var(--accent); left: -170px; top: 15%; }
+.hero::after { background: var(--accent2); right: -180px; top: 40%; animation-delay: -4s; }
+
+.hero-badge, .hero h1, .hero p, .hero-buttons, .hero-proof {
+  animation: riseIn 0.7s ease both;
+}
+.hero h1 { animation-delay: 0.08s; }
+.hero p { animation-delay: 0.16s; }
+.hero-buttons { animation-delay: 0.24s; }
+.hero-proof { animation-delay: 0.32s; }
+
+.hero-proof {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  max-width: 100%;
+  margin-top: 20px;
+  padding: 12px 18px;
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.62);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+}
+.hero-proof-item { display: grid; gap: 1px; text-align: left; }
+.hero-proof-item strong { color: var(--text); font-size: 0.95rem; }
+.hero-proof-item span { color: var(--muted); font-size: 0.72rem; white-space: nowrap; }
+.hero-proof-divider { width: 1px; height: 28px; background: var(--line); }
+
+.btn { min-height: 48px; transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease; }
+.btn:hover { transform: translateY(-2px); }
+.btn-primary { box-shadow: 0 10px 26px rgba(0, 230, 118, 0.18); }
+.mobile-cta {
+  display: none;
+}
+.trust-card, .tip-match-card, .feature-card, .faq-item { transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease; }
+.trust-card:hover, .tip-match-card:hover, .feature-card:hover, .faq-item:hover { transform: translateY(-3px); border-color: rgba(0, 230, 118, 0.3); }
+
+@keyframes riseIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes orbDrift { from { transform: translate3d(0, 0, 0) scale(1); } to { transform: translate3d(28px, -18px, 0) scale(1.12); } }
+
+@media (max-width: 768px) {
+  .mobile-cta {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 70;
+    display: grid;
+    grid-template-columns: 0.8fr 1.2fr;
+    gap: 8px;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line);
+    background: rgba(7, 11, 18, 0.94);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+  .mobile-cta a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 8px 12px;
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    color: var(--text);
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+  .mobile-cta-primary { color: #04130b !important; background: var(--accent); border-color: var(--accent) !important; }
+}
+
+@media (max-width: 520px) {
+  .navbar { padding: 10px 14px; }
+  .logo { font-size: 1rem; gap: 7px; }
+  .logo-badge { width: 32px; height: 32px; }
+  .badge-18 { font-size: 0.65rem; margin-left: 2px; padding: 3px 6px; }
+  .hero { padding: 38px 14px 24px; }
+  .hero h1 { font-size: clamp(2rem, 11vw, 2.7rem); line-height: 1.1; }
+  .hero p { font-size: 1rem; line-height: 1.55; margin-bottom: 20px; }
+  .hero-buttons { display: grid; width: 100%; gap: 9px; }
+  .hero-buttons .btn { width: 100%; }
+  .hero-proof { width: 100%; gap: 10px; padding: 11px 9px; }
+  .hero-proof-item { flex: 1; text-align: center; }
+  .hero-proof-item strong { font-size: 0.82rem; }
+  .hero-proof-item span { font-size: 0.62rem; white-space: normal; line-height: 1.25; }
+  .hero-proof-divider { height: 32px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
+
 .m-delay-1 { animation-delay: 0.5s; }
 .m-delay-2 { animation-delay: 1.5s; }
 .m-delay-3 { animation-delay: 3.5s; }
@@ -1397,6 +1514,13 @@ summary:focus-visible {
     <a href="#commands" class="btn btn-outline" data-t="seeCmds">
       📋 Commands බලන්න
     </a>
+  </div>
+  <div class="hero-proof" aria-label="Service highlights">
+    <div class="hero-proof-item"><strong>2–5 min</strong><span data-t="proofSpeed">සාමාන්‍ය processing</span></div>
+    <div class="hero-proof-divider" aria-hidden="true"></div>
+    <div class="hero-proof-item"><strong>24/7</strong><span data-t="proofSupport">Telegram support</span></div>
+    <div class="hero-proof-divider" aria-hidden="true"></div>
+    <div class="hero-proof-item"><strong>0%</strong><span data-t="proofFee">hidden fees</span></div>
   </div>
 </section>
 
@@ -1886,6 +2010,11 @@ summary:focus-visible {
   </p>
 </footer>
 
+<div class="mobile-cta" aria-label="Quick actions">
+  <a href="${channel}" target="_blank" rel="noopener" data-t="mobileChannel">View Tips</a>
+  <a href="${bot}" class="mobile-cta-primary" target="_blank" rel="noopener" data-t="mobileBot">Open Telegram Bot</a>
+</div>
+
 <!-- CLIENT JAVASCRIPT (WITH NONCE SUPPORT) -->
 <script${nonceAttr}>
 (function () {
@@ -1925,7 +2054,7 @@ summary:focus-visible {
       trustFeeSub: "Zero Hidden Deductions",
       supportedPay: "පිළිගත් ආරක්ෂිත ගෙවීම් ක්‍රම (Supported Payment Rails)",
       tipsPreviewTitle: "🔥 අද දවසේ විශේෂ Free Betting Tips",
-      tipsPreviewSub: "අපගේ AI සහ ක්‍රීඩා විශ්ලේෂණ පද්ධතිය මගින් දිනකට 3 වතාවක් (08:00, 12:00, 18:00 SL Time) නිකුත් කෙරෙන නොමිලේ Tips preview එකක්.",
+      tipsPreviewSub: "අපගේ AI සහ ක්‍රීඩා විශ්ලේෂණ පද්ධත���ය මගින් දිනකට 3 වතාවක් (08:00, 12:00, 18:00 SL Time) නිකුත් කෙරෙන නොමිලේ Tips preview එකක්.",
       joinChannelCta: "📢 සියලුම Betting Slips Telegram Channel එකෙන් නොමිලේ ගන්න",
       howTitle: "භාවිතා කරන්නේ කෙසේද?",
       howSub: "මිනිත්තු කිහිපයකින් ඉතා පහසුවෙන් ගනුදෙනු සිදුකරන්න",
