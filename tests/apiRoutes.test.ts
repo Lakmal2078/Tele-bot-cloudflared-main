@@ -63,6 +63,14 @@ describe("handleApiRequest", () => {
     expect(res?.status).toBe(401);
   });
 
+  it("returns JSON 404 for unknown API paths instead of the landing page", async () => {
+    const req = new Request("http://localhost/api/tips/performance");
+    const res = await handleApiRequest(req, mockEnv);
+    expect(res?.status).toBe(404);
+    expect(res?.headers.get("Content-Type")).toContain("application/json");
+    await expect(res?.json()).resolves.toMatchObject({ ok: false, error: "Not Found" });
+  });
+
   it("authorizes valid secret on /api/admin/status via Bearer token", async () => {
     const req = new Request("http://localhost/api/admin/status", {
       headers: { Authorization: `Bearer ${mockEnv.ADMIN_API_SECRET}` },

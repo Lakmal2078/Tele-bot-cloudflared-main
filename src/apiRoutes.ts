@@ -783,6 +783,11 @@ export async function handleApiRequest(
     });
   }
 
+  // Never fall through unknown API paths to the public landing page.
+  if (path === "/api" || path.startsWith("/api/")) {
+    return json({ ok: false, error: "Not Found" }, 404);
+  }
+
   // Not handled by API dispatcher
   return null;
 }

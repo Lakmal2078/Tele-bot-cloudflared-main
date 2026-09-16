@@ -1,180 +1,309 @@
-<div align="center">
-  <h1>🚀 1xBet Fast Cash - Telegram Bot</h1>
-  <p><b>A highly optimized, serverless Telegram Bot for automated 1xBet affiliate cash agent operations, built on Cloudflare Workers.</b></p>
+# XBet Telegram Bot (1xBet Fast Cash)
 
-  [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](#)
-  [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare_Workers-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)](#)
-  [![Telegram API](https://img.shields.io/badge/Telegram-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)](#)
-</div>
+Telegram bot එකක් ලෙස 1xBet affiliate services, financial agent operations සහ quality-first free sports tips සපයන Cloudflare Worker project එකකි.
 
----
+## Table of Contents
 
-## 📌 Overview
+- [Overview](#overview)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Configuration](#configuration)
+- [Environment Variables](#environment-variables)
+- [Deployment](#deployment)
+- [Free Tips System](#free-tips-system)
+- [API Endpoints](#api-endpoints)
+- [Testing](#testing)
+- [Security](#security)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
+- [Contact](#contact)
 
-This project is a production-ready, serverless Telegram Bot designed to handle deposits, withdrawals, support tickets, and automated sports betting tips for a 1xBet Cash Agent. 
+## Overview
 
-By leveraging **Cloudflare Workers** (Edge computing), **Cloudflare D1** (Serverless SQLite), and **Cloudflare R2** (Object Storage), this bot achieves **zero-downtime**, **infinite scalability**, and operates with **virtually zero server maintenance costs**.
+- **Worker:** `https://xbet-telegram-bot.agent-1xfast-srilanka.workers.dev`
+- **Bot:** `@fast_1xbetcash_bot`
+- **Tips channel:** `@fast_xbet_official_tips`
+- **Runtime:** Cloudflare Workers with TypeScript
+- **Database:** Cloudflare D1 (`fastxbetcash_bot-db`)
+- **Storage:** Cloudflare R2 (`chat-media`)
+- **Deployment:** GitHub Actions and Wrangler
 
-## ✨ Key Features
+The bot runs in webhook mode, handles deposits and withdrawals through configured agent channels, stores operational data in D1, stores media in R2, and publishes automated tips on the configured schedule. Tips are selected using no-vig market consensus, best available odds, value scoring, bookmaker coverage, and freshness filters.
 
-- **Serverless Architecture**: Runs entirely on Cloudflare Workers edge network. No VPS, Docker, or PM2 required.
-- **Automated Webhooks**: Automatically registers and syncs Telegram Webhooks securely.
-- **Robust Database (D1)**: Uses Cloudflare D1 with tracked database migrations.
-- **Media Storage (R2)**: Securely stores user receipt images in Cloudflare R2.
-- **Admin Dashboard**: Built-in web-based admin panel to view financial trends, ticket volumes, and system health.
-- **Automated Betting Tips**: Integrates with The Odds API to automatically post high-quality betting tips to a Telegram Channel via Cron Triggers.
-- **Fraud & Rate Limit Protection**: Built-in security layers to detect abuse and limit spam.
+## Features
 
----
+- Telegram Bot API webhook integration
+- 1xBet affiliate deep links and promotion support
+- Free sports tips from The Odds API
+- eZ Cash, mCash, FriMi, iPay and bank-transfer workflows
+- D1-backed admin dashboard and support tickets
+- R2 receipt and chat-media storage
+- Webhook-secret validation, admin authorization, rate limiting and fraud checks
+- Scheduled tips, hourly settlement and daily R2 cleanup
+- Sinhala, English and Tamil UI support where configured
 
-## 🛠️ Prerequisites
+## Tech Stack
 
-1. **Node.js** (v18 or higher) & **npm**
-2. **Cloudflare Account** (Free tier is sufficient)
-3. **Telegram Bot Token** (from [@BotFather](https://t.me/BotFather))
-4. **Cloudflare Wrangler CLI** (`npm install -g wrangler`)
+| Area | Technology |
+| --- | --- |
+| Runtime | Cloudflare Workers |
+| Language | TypeScript |
+| Database | Cloudflare D1 (SQLite) |
+| Object storage | Cloudflare R2 |
+| Bot | Telegram Bot API |
+| Odds provider | The Odds API |
+| CI/CD | GitHub Actions |
+| CLI | Wrangler `4.131.0` |
 
----
+## Project Structure
 
-## ⚙️ 1. Local Setup & Environment Variables
+```text
+src/
+├── worker.ts              # Cloudflare Worker entry point
+├── index.ts               # Node/local compatibility entry point
+├── bot.ts                 # Telegram update handling and bot flows
+├── apiRoutes.ts           # Health, admin, tips and storage routes
+├── config.ts              # Environment validation and configuration helpers
+├── types.ts               # Env and domain types
+├── db.ts                  # D1 queries
+├── sqlite-d1.ts           # D1/SQLite compatibility helpers
+├── tips.ts                # Candidate selection and tip formatting
+├── tipsProvider.ts        # The Odds API client
+├── tipsSettlement.ts      # Tip settlement and performance tracking
+├── landingPage.ts         # Public landing page renderer
+├── adminPage.ts           # Admin dashboard renderer
+├── storage.ts, r2.ts      # R2/storage helpers
+├── security.ts, rateLimit.ts, fraud.ts
+├── i18n.ts, utils.ts, logger.ts
+├── brandLogo.ts, ogImage.ts
+└── logCleanup.ts
+migrations/                # Ordered D1 migrations
+scripts/                   # Maintenance and setup scripts
+.github/workflows/ci-cd.yml
+wrangler.toml              # Worker, D1, R2 and cron configuration
+validate-migrations.mjs
+```
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/Lakmal2078/Tele-bot-cloudflared-main.git xbet-bot
-   cd xbet-bot
-   ```
+## Getting Started
 
-2. **Install dependencies**:
-   ```bash
-   npm ci
-   ```
+### Prerequisites
 
-3. **Configure Environment Variables**:
-   We provide an interactive script to effortlessly set up your `.env` file.
-   ```bash
-   npm run env:fix
-   ```
-   *This script will scan for missing variables (Bot Token, Admin IDs, Webhook Secrets, Payment Methods) and guide you through filling them securely.*
+- Node.js 18 or newer
+- npm
+- A Cloudflare account with Workers, D1 and R2 access
+- A Telegram bot token and an Odds API key
 
-4. **Verify Configuration**:
-   ```bash
-   npm run env:scan
-   ```
+### Installation
 
----
-
-## 🗄️ 2. Cloudflare D1 & R2 Setup
-
-Before deploying, you need to provision the database and storage bucket on Cloudflare.
-
-### Create D1 Database
 ```bash
-npx wrangler d1 create fastxbetcash_bot-db
+git clone https://github.com/Lakmal2078/Tele-bot-cloudflared-main.git
+cd Tele-bot-cloudflared-main
+npm ci
+cp .env.example .env
 ```
-*Note the `database_name` and `database_id` output from this command.*
 
-### Create R2 Bucket
+Fill local values in `.env`. Do not write `process.env.X` into `.env`; that text is not expanded by dotenv. Local `.env` is ignored by Git and should never be committed.
+
+## Configuration
+
+`wrangler.toml` contains non-secret Worker variables, bindings and cron schedules. Store credentials and tokens as Cloudflare Secrets:
+
 ```bash
-npx wrangler r2 bucket create chat-media
+npx wrangler login
+npx wrangler secret put BOT_TOKEN
+npx wrangler secret put WEBHOOK_SECRET
+npx wrangler secret put ADMIN_API_SECRET
+npx wrangler secret put ODDS_API_KEY
+npx wrangler secret put R2_ACCOUNT_ID
+npx wrangler secret put R2_ACCESS_KEY_ID
+npx wrangler secret put R2_SECRET_ACCESS_KEY
 ```
 
-### Update `wrangler.toml`
-Open `wrangler.toml` and update the `database_id` and `bucket_name` to match the resources you just created:
+Apply D1 migrations before the first deployment:
 
-```toml
-[[d1_databases]]
-binding = "DB"
-database_name = "fastxbetcash_bot-db"
-database_id = "YOUR-DATABASE-ID-HERE" # <--- Update this!
-
-[[r2_buckets]]
-binding = "CHAT_MEDIA"
-bucket_name = "chat-media"            # <--- Ensure this matches
+```bash
+npx wrangler d1 migrations apply fastxbetcash_bot-db --remote
 ```
 
----
+## Environment Variables
 
-## 🗃️ 3. Database Migrations
+| Variable | Description | Required | Secret |
+| --- | --- |:---:|:---:|
+| `BOT_TOKEN` | Telegram bot token | Yes | Yes |
+| `BOT_USERNAME` | Telegram username | Yes | No |
+| `BOT_MODE` | `production` or local mode | Yes | No |
+| `USE_POLLING` | Keep `false` for Worker deployment | Yes | No |
+| `ADMIN_IDS` | Comma-separated Telegram admin IDs | Yes | No |
+| `ADMIN_CHANNEL_ID` | Admin channel/chat ID | No | No |
+| `WEBHOOK_SECRET` | Telegram webhook secret | Yes | Yes |
+| `ADMIN_API_SECRET` | Admin API authorization secret | Yes | Yes |
+| `CHANNEL_URL` | Main Telegram channel URL | Yes | No |
+| `CHANNEL_USERNAME` | Main channel username | No | No |
+| `EZCASH_NUMBER`, `MCASH_NUMBER`, `FRIMI_NUMBER`, `IPAY_NUMBER` | Payment numbers | No | No |
+| `BANK_DETAILS` | Bank payment instructions | No | No |
+| `WHATSAPP_NUMBER` | Support contact | No | No |
+| `MIN_TRANSACTION_LKR`, `MAX_TRANSACTION_LKR` | Transaction limits | Yes | No |
+| `DEPOSIT_INSTRUCTIONS` | Deposit instructions | No | No |
+| `XBET_LINK` | Affiliate URL | No | No |
+| `XBET_PROMO_CODE` | Affiliate promo code | No | No |
+| `ODDS_API_KEY` | The Odds API key | Yes for tips | Yes |
+| `TIPS_CHANNEL_ID`, `TIPS_CHANNEL_URL` | Tips destination | Yes for tips | No |
+| `TIPS_SPORTS` | Comma-separated sport keys | Yes for tips | No |
+| `TIPS_ODDS_REGIONS` | Odds region; use `eu` for free tier | Yes for tips | No |
+| `TIPS_MIN_ODDS`, `TIPS_MAX_ODDS` | Decimal odds bounds | Yes | No |
+| `TIPS_HOURS_AHEAD` | Maximum event window | Yes | No |
+| `TIPS_PER_SLOT` | Maximum tips per cron slot | Yes | No |
+| `TIPS_MAX_FEEDS` | Maximum bounded feeds | Yes | No |
+| `TIPS_MIN_CONSENSUS` | Minimum consensus probability; default `0.55` | No | No |
+| `TIPS_MIN_VALUE` | Minimum value score; default `0.02` | No | No |
+| `TIPS_MIN_BOOKMAKERS` | Minimum bookmaker count; default `3` | No | No |
+| `TIPS_MAX_STALE_HOURS` | Maximum freshness window; default `6` | No | No |
+| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | R2 credentials | If R2 used | Yes |
+| `R2_BUCKET_NAME` | R2 bucket name | If R2 used | No |
+| `R2_PUBLIC_DOMAIN` | Optional public media domain | No | No |
 
-Cloudflare D1 uses SQL migrations to construct your database schema. The migration files are located in the `migrations/` directory.
+See `.env.example` for the complete local template.
 
-1. **Apply Migrations Locally (for testing)**:
-   ```bash
-   npx wrangler d1 migrations apply fastxbetcash_bot-db --local
-   ```
+## Deployment
 
-2. **Apply Migrations to Production**:
-   ```bash
-   npx wrangler d1 migrations apply fastxbetcash_bot-db --remote
-   ```
+### Local/manual deployment
 
-*(You can validate your migrations at any time by running `npm run validate:migrations`)*
-
----
-
-## 🚀 4. Deployment
-
-### Method A: Manual Deployment (Wrangler CLI)
-
-1. **Upload your Secrets to Cloudflare**:
-   Run the included secret sync script to push your `.env` variables to Cloudflare encrypted storage:
-   ```bash
-   npm run secrets:cf
-   ```
-
-2. **Deploy the Worker**:
-   ```bash
-   npm run deploy:cf
-   ```
-   *This script validates migrations, runs the linter/tests, deploys the worker, and automatically registers your Telegram Webhook.*
-
-### Method B: Automated CI/CD (GitHub Actions)
-
-This repository includes a production-ready GitHub Actions workflow (`.github/workflows/ci-cd.yml`).
-
-1. Go to your GitHub Repository **Settings > Secrets and variables > Actions**.
-2. Add the following **Repository Secrets**:
-   - `CLOUDFLARE_API_TOKEN`: Create this in your Cloudflare Dashboard (My Profile > API Tokens > Edit Cloudflare Workers template).
-   - `CLOUDFLARE_ACCOUNT_ID`: Found in your Cloudflare Dashboard URL or Overview page.
-3. Every push to the `main` branch will automatically run tests, apply pending D1 migrations, and deploy to Cloudflare.
-
----
-
-## ⏱️ Scheduled Tasks (Cron Jobs)
-
-Cloudflare Workers use Cron Triggers to execute scheduled tasks. These are configured in `wrangler.toml`:
-
-```toml
-[triggers]
-crons = [
-  "0 2 * * *",   # Daily trends update (2:00 AM UTC)
-  "30 2 * * *",  # Fraud sweep (2:30 AM UTC)
-  "30 6 * * *",  # Post Morning betting tips (6:30 AM UTC)
-  "30 12 * * *", # Post Afternoon betting tips (12:30 PM UTC)
-  "15 * * * *"   # Settlement loop (every hour at HH:15)
-]
+```bash
+npm run lint
+npm test
+npm run validate:migrations
+npm run deploy
 ```
-*No external cron services are required.*
 
----
+`deploy.sh` checks pinned Wrangler, validates migrations, applies pending remote migrations, deploys the Worker and performs a health check. Local deployment requires confirmation and authenticated Wrangler access.
 
-## 🧪 Testing & Quality Assurance
+### CI/CD deployment
 
-This project strictly enforces high code quality.
-- **Run Unit Tests**: `npm test` (Runs 120+ Vitest cases including D1 mocking).
-- **Run Linter**: `npm run lint` (ESLint & TypeScript type checking).
-- **All-in-one check**: `npm run check`
+Push to `main` to run `.github/workflows/ci-cd.yml`. The workflow runs typecheck/lint, tests and migration validation before `npm run deploy:cf:ci`. Configure `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as GitHub Actions secrets.
 
----
+### Telegram webhook
 
-## 🛡️ Architecture & Security
+The Worker receives Telegram updates at its Worker origin. Set the webhook after deployment:
 
-- **Webhook Secrets**: Telegram sends a secret token header with every request. The worker verifies this against `WEBHOOK_SECRET` to prevent unauthorized payloads.
-- **Edge Performance**: D1 queries are localized near the user, ensuring sub-50ms response times for database reads.
-- **No Long-Polling**: Unlike legacy bots, this uses Telegram Webhooks, saving compute time and guaranteeing immediate response delivery.
+```bash
+curl -X POST "https://api.telegram.org/bot<BOT_TOKEN>/setWebhook" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://xbet-telegram-bot.agent-1xfast-srilanka.workers.dev","secret_token":"<WEBHOOK_SECRET>","allowed_updates":["message","callback_query"]}'
+```
 
----
+Alternatively use `/api/setup-webhook?action=set` after setting the required secrets.
 
-<div align="center">
-  <sub>Built with ❤️ for Cloudflare Workers & Telegram</sub>
-</div>
+### Cron schedules
+
+| Cron (UTC) | Sri Lanka time | Purpose |
+| --- | --- | --- |
+| `0 2 * * *` | 07:30 | R2 cleanup |
+| `30 2 * * *` | 08:00 | Free tips slot 1 |
+| `30 6 * * *` | 12:00 | Free tips slot 2 |
+| `30 12 * * *` | 18:00 | Free tips slot 3 |
+| `15 * * * *` | Hourly | Tip settlement |
+
+## Free Tips System
+
+The tips pipeline uses one bounded odds request per configured sport/feed and does not add extra API calls for scoring:
+
+1. Normalize every bookmaker market and remove invalid prices.
+2. Calculate each bookmaker's no-vig fair probability: `(1 / price) / sum(1 / all outcomes)`.
+3. Use the median fair probability across bookmakers as consensus probability.
+4. Select the highest available decimal price as `bestPrice`.
+5. Calculate value: `(consensusProbability * bestPrice) - 1`.
+6. Reject weak, invalid, duplicate, or stale candidates.
+7. Rank by value, then consensus probability, bookmaker count and lower best price.
+
+Default quality thresholds are consensus `0.55`, value `0.02`, bookmaker count `3`, and stale limit `6` hours. Confidence is High at `0.70+`, Medium at `0.60+`, and Low at the configured minimum. The system posts fewer tips rather than force-filling a slot. Settlement stores the same best available odds used in the published candidate.
+
+Free-tier safeguards remain enabled: one region (`eu`), bounded feeds (`10`), retries with backoff, credit guard and no additional requests for consensus calculations.
+
+## API Endpoints
+
+### Public
+
+- `GET /` — public landing page
+- `GET /health` or `/api/health` — health/configuration status
+- `GET /api/status` — public Worker availability status
+- `GET /api/tips/stats?days=7` — tips performance summary
+- `GET /api/tips/click` — tracked affiliate redirect
+- `GET /og-image.jpg`, `/og-image.png`, `/og-image.svg` — social preview assets
+
+### Webhook and setup
+
+- `GET /api/setup-webhook` — current Telegram webhook information
+- `POST /api/setup-webhook` — register the current Worker webhook
+- `POST /webhook` — Telegram update endpoint
+
+### Admin-protected
+
+- `GET /api/admin/status`
+- `GET /api/admin/dashboard`
+- `GET /api/admin/trends`
+- `GET/PATCH /api/admin/tickets`
+- `POST /api/admin/schedule`
+- `GET /api/admin/receipts`
+- `POST /api/tips/settle`
+- `POST /api/cleanup/logs`
+- `GET /api/cleanup/logs/status`
+- `/admin`, `/admin/`, `/panel` — admin dashboard UI
+
+Unknown `/api/*` paths return JSON `404` and do not fall through to the public landing page.
+
+## Testing
+
+```bash
+npx tsc --noEmit
+npm run lint
+npm test
+npm run validate:migrations
+```
+
+The current baseline suite contains 16 test files and 128 passing tests. Tests cover bot flows, API authorization, tips scoring, settlement, storage, configuration, landing rendering and migrations.
+
+## Security
+
+- Keep `.env` and all tokens out of Git.
+- Use Cloudflare Secrets for credentials and API keys.
+- Telegram webhook requests use a secret token.
+- Admin routes require a constant-time checked admin secret and configured admin ID validation where applicable.
+- D1 queries use prepared statements and parameter binding.
+- Rate limiting and fraud checks protect sensitive flows.
+- Receipts require admin authorization and safe storage-key validation.
+- Do not expose admin secrets in client-side code or URLs.
+
+## Troubleshooting
+
+- **Bot does not respond:** check `BOT_TOKEN`, webhook status, Worker logs and that the webhook secret matches.
+- **Bot cannot post to the channel:** add the bot as an administrator and verify `TIPS_CHANNEL_ID`.
+- **No tips are posted:** check `ODDS_API_KEY`, `TIPS_SPORTS`, quota usage, event freshness and quality thresholds. A slot intentionally posts no tip when no candidate qualifies.
+- **Stuck tips:** inspect D1 rows with `status = 'PROCESSING'` and review settlement logs.
+- **D1 migration failure:** run `npm run validate:migrations`, then apply migrations with the exact database name.
+- **CI deployment failure:** verify `CLOUDFLARE_API_TOKEN` permissions and `CLOUDFLARE_ACCOUNT_ID`.
+- **Unknown API route returns HTML:** update to the current `apiRoutes.ts`; unknown `/api/*` paths now return JSON `404`.
+
+Example D1 diagnostic:
+
+```bash
+npx wrangler d1 execute fastxbetcash_bot-db --remote \
+  --command "SELECT * FROM tip_posts WHERE status='PROCESSING';"
+```
+
+## License
+
+MIT
+
+## Contact
+
+- Email: `lakmalsujith25@gmail.com`
+- Telegram channel: `@fast_xbet_official_tips`
+- Bot: `@fast_1xbetcash_bot`
+
+Betting involves risk. Tips are informational only; never stake more than you can afford to lose.
+
+## Responsible Gambling
+
+This service is intended for adults aged 18+. Follow local laws and use responsible gambling limits. No tip is a guaranteed outcome.
