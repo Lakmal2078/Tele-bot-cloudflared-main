@@ -1508,6 +1508,21 @@ summary:focus-visible {
 .m-delay-3 { animation-delay: 3.5s; }
 .m-delay-4 { animation-delay: 4.5s; }
 
+/* Final responsive overrides: keep the editorial hero readable on narrow devices. */
+@media (max-width: 768px) {
+  .hero { text-align: center; padding: 42px 16px 30px; }
+  .hero-inner { width: 100%; grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .hero-copy { width: 100%; min-width: 0; }
+  .hero-badge { max-width: 100%; white-space: normal; }
+  .hero h1 { width: 100%; max-width: none; font-size: clamp(2.25rem, 11vw, 3.2rem); overflow-wrap: anywhere; }
+  .hero p { width: 100%; max-width: 620px; margin-inline: auto; }
+  .hero-buttons { width: 100%; display: grid; grid-template-columns: 1fr; }
+  .hero-buttons .btn { width: 100%; }
+  .hero-proof { width: 100%; margin-inline: auto; }
+  .hero-visual { width: 100%; min-height: 0; }
+  .edge-visual { width: min(100%, 390px); }
+}
+
 </style>
 </head>
 
