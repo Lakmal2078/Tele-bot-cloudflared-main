@@ -7,7 +7,7 @@ import { getStats, getOperationsDashboard, getDailyFinancialTrends, getSupportTi
 import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
 import { getObject } from "./storage";
 import { settlePendingTips, getTipsPerformanceStats } from "./tipsSettlement";
-import { renderAdminPage } from "./adminPage";
+import { renderAdminPage, renderAdminLoginPage } from "./adminPage";
 
 export function adminAuthorized(request: Request, env: Env): boolean {
   const secret = (env.ADMIN_API_SECRET || "").trim();
@@ -594,6 +594,24 @@ export async function handleApiRequest(
   // Admin panel web interface (/admin, /admin/, /panel)
   if ((path === "/admin" || path === "/admin/" || path === "/panel") && (method === "GET" || method === "HEAD")) {
     const isAuth = adminAuthorized(request, env) || (!env.ADMIN_API_SECRET && !env.WEBHOOK_SECRET);
+
+    // Unauthenticated visitors never see business/financial data: no DB
+    // queries are run, and only a bare login form is rendered.
+    if (!isAuth) {
+      const nonce = crypto.randomUUID().replace(/-/g, "");
+      const html = renderAdminLoginPage(env, nonce);
+      const headers: Record<string, string> = {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store, must-revalidate",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+        "Content-Security-Policy": `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}' 'unsafe-inline'; img-src 'self' data: https:; font-src https://fonts.gstatic.com;`,
+      };
+      if (method === "HEAD") return new Response(null, { status: 200, headers });
+      return new Response(html, { status: 200, headers });
+    }
+
     const daysParam = parseInt(url.searchParams.get("days") || "7", 10);
     const safeDays = Math.max(1, Math.min(daysParam, 90));
     const metricParam = url.searchParams.get("metric") === "count" ? "count" : "volume";

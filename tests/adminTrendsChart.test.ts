@@ -142,8 +142,23 @@ describe("Admin Page Renderer", () => {
 });
 
 describe("Admin Trends & Panel Routes", () => {
-  it("serves the /admin panel interface with 200 OK and D3 chart", async () => {
+  it("does NOT leak dashboard data to unauthenticated /admin requests", async () => {
     const req = new Request("http://localhost/admin");
+    const res = await handleApiRequest(req, mockEnv);
+    expect(res).not.toBeNull();
+    expect(res?.status).toBe(200);
+    const text = await res?.text();
+    // No stats, chart, or trend data should be present pre-auth.
+    expect(text).toContain("Admin Login");
+    expect(text).not.toContain("d3-trends-svg");
+    expect(text).not.toContain("425,000");
+    expect(text).not.toContain("210,000");
+  });
+
+  it("serves the full /admin dashboard with D3 chart once authenticated", async () => {
+    const req = new Request("http://localhost/admin", {
+      headers: { "x-admin-secret": "admin_secret_token_123" },
+    });
     const res = await handleApiRequest(req, mockEnv);
     expect(res).not.toBeNull();
     expect(res?.status).toBe(200);

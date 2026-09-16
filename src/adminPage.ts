@@ -33,6 +33,68 @@ export interface AdminPageData {
   };
 }
 
+/**
+ * Rendered for unauthenticated /admin visitors. Deliberately contains no
+ * stats, trends, tickets, alerts, or payment-method data — only a secret
+ * entry form — so that anonymous visitors cannot view business/financial
+ * information just by navigating to /admin.
+ */
+export function renderAdminLoginPage(env: Env, nonce?: string): string {
+  const nonceAttr = nonce ? ` nonce="${escapeAttribute(nonce)}"` : "";
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Admin Login — Fast xBet Cash</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#070b12">
+  <link rel="icon" type="image/svg+xml" href="${BRAND_LOGO_FAVICON_DATA_URI}">
+  <style${nonceAttr}>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: #070b12; color: #f1f5f9;
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+    .login-card {
+      width: min(100% - 32px, 380px);
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 32px 28px;
+      text-align: center;
+    }
+    .login-card h1 { font-size: 18px; font-weight: 800; margin: 12px 0 4px; }
+    .login-card p { font-size: 13px; color: #94a3b8; margin: 0 0 20px; }
+    .login-card input {
+      width: 100%; padding: 12px 14px; border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04);
+      color: #f1f5f9; font-size: 14px; margin-bottom: 12px;
+    }
+    .login-card button {
+      width: 100%; padding: 12px 14px; border-radius: 10px; border: none;
+      background: #00e676; color: #04130b; font-weight: 800; font-size: 14px; cursor: pointer;
+    }
+    .login-card a { display: inline-block; margin-top: 16px; font-size: 12px; color: #64748b; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <span style="width:40px; height:40px; display:inline-flex; border-radius:10px; overflow:hidden;">${BRAND_LOGO_SVG_COMPACT}</span>
+    <h1>Admin Login</h1>
+    <p>Enter the admin secret to view the dashboard.</p>
+    <form id="admin-secret-form" method="GET" action="/admin">
+      <input type="password" name="secret" class="auth-input" id="admin-secret-input" placeholder="Enter ADMIN_API_SECRET..." autocomplete="current-password">
+      <button type="submit" id="btn-apply-secret">Sign In</button>
+    </form>
+    <a href="/">← Back to public website</a>
+  </div>
+</body>
+</html>`;
+}
+
 export function renderAdminPage(
   env: Env,
   request: Request,
