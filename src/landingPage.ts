@@ -267,10 +267,6 @@ html { scroll-behavior: smooth; }
   -webkit-font-smoothing: antialiased;
   }
 
-@media (min-width: 769px) {
-  body { padding-bottom: 0; }
-}
-
 a { color: inherit; text-decoration: none; }
 
 a:focus-visible,
@@ -1411,6 +1407,45 @@ summary:focus-visible {
   .hero-proof-item strong { font-size: 0.82rem; }
   .hero-proof-item span { font-size: 0.62rem; white-space: normal; line-height: 1.25; }
   .hero-proof-divider { height: 32px; }
+  .navbar { min-height: 56px; }
+  .logo-text { gap: 3px; }
+  .logo-text .flag { font-size: 0.95rem; }
+  .nav-links { gap: 8px; }
+  .langs { margin-left: 0; }
+  .langs button { min-width: 42px; min-height: 40px; padding: 6px 9px; }
+  .hero-badge { max-width: 100%; margin-bottom: 14px; padding: 6px 12px; font-size: 0.74rem; }
+  .hero h1 { max-width: 100%; margin-inline: auto; letter-spacing: -0.03em; }
+  .live-ticker { margin-bottom: 20px; padding-inline: 14px; }
+  .ticker-card { gap: 8px; padding: 12px 14px; }
+  .ticker-left, .ticker-right { min-width: 0; }
+  .ticker-left { overflow: hidden; }
+  .ticker-left span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ticker-right { flex-shrink: 0; }
+  .section { padding: 48px 14px; }
+  .section-title { font-size: clamp(1.65rem, 7vw, 2.2rem); }
+  .section-sub { font-size: 0.95rem; }
+  .trust-grid, .grid, .tips-preview-grid, .steps-grid, .commands-grid { grid-template-columns: 1fr; gap: 12px; }
+  .trust-strip { padding-inline: 14px; }
+  .trust-card, .card, .tip-match-card, .step-card, .cmd-item, .faq-item { padding: 18px 16px; }
+  .payment-strip { padding-inline: 14px; }
+  .payment-pill-list { gap: 8px; overflow-x: auto; justify-content: flex-start; padding-bottom: 4px; scrollbar-width: none; }
+  .payment-pill-list::-webkit-scrollbar { display: none; }
+  .payment-pill { flex: 0 0 auto; }
+  .calc-container { border-radius: 16px; padding: 18px 14px; }
+  .calc-toggle { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .calc-btn { min-height: 44px; padding-inline: 8px; }
+  .calc-presets { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+  .calc-preset { min-height: 40px; padding-inline: 6px; }
+  .calc-input-group input { min-height: 48px; font-size: 1rem; }
+  .promo-box { align-items: flex-start; gap: 10px; }
+  .promo-code { overflow-wrap: anywhere; }
+  .bot-demo-section { padding: 52px 14px; }
+  .bot-demo-section h2 { font-size: 1.65rem; margin-bottom: 28px; }
+  .phone-frame { max-width: min(320px, 100%); }
+  .cta { margin-inline: 14px; padding: 28px 18px; border-radius: 18px; }
+  .footer { padding: 40px 14px 28px; }
+  .footer-links { gap: 10px 18px; }
+  .footer-disclaimer { font-size: 0.82rem; line-height: 1.6; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1938,7 +1973,7 @@ summary:focus-visible {
     </details>
     <details class="faq-item">
       <summary data-t="faq6q">භාෂාව වෙනස් කරන්නේ කෙසේද?</summary>
-      <p data-t="faq6a">Bot එකේ /language command එක හෝ මෙම වෙබ් අඩවියේ ඉහළ ඇති සිං / EN buttons භාවිතා කරන්න.</p>
+      <p data-t="faq6a">Bot එකේ /language command එක හෝ මෙම ව��බ් අඩවියේ ඉහළ ඇති සිං / EN buttons භාවිතා කරන්න.</p>
     </details>
   </div>
 </section>
@@ -2090,7 +2125,7 @@ summary:focus-visible {
       faq1q: "Deposit කරන්නේ කෙසේද?",
       faq1a: "Bot එක විවෘත කර /deposit භාවිතා කරන්න. Player ID ඇතුළත් කර, මුදල් ගෙවා receipt ඡායාරූපය upload කරන්න. Admin තහවුරු කළ පසු මුදල් ගිණුමට බැර වේ.",
       faq2q: "Withdraw කොපමණ කාලයක් ගතවේද?",
-      faq2a: "සාමාන්‍යයෙන් මිනිත්තු 2–5ක් ඇතුළත. ඉහළ මුදල් හෝ verification අවශ්‍ය විට තවත් කාලයක් ගතවිය හැක.",
+      faq2a: "සාමාන්‍යයෙන් මිනිත්තු 2–5ක් ඇතුළත. ඉහළ මුදල් හෝ verification අවශ්‍ය විට තවත් කාලයක් ගතවි�� හැක.",
       faq3q: "Free Tips මොනවාද?",
       faq3a: "දිනකට 3 වතාවක් (08:00, 12:00, 18:00 SL time) EPL, UCL, NBA, ATP සඳහා automatic tips channel එකට publish වේ.",
       faq4q: "Referral bonus ලබාගන්නේ කෙසේද?",
