@@ -4,6 +4,7 @@ import { logBotError } from "./logger";
 import { cleanupOldR2Logs } from "./logCleanup";
 import { runScheduledTip, TIPS_CRONS } from "./tips";
 import { settlePendingTips } from "./tipsSettlement";
+import { getPublicTips, publicTipsClientScript } from "./publicTips";
 import { assertValidEnv, constantTimeEqual } from "./config";
 import { landingPageSecurityHeaders, securityHeaders, webhookRequestAllowed } from "./security";
 import { renderLandingPage } from "./landingPage";
@@ -75,12 +76,20 @@ export default {
       const path = url.pathname;
       const method = request.method.toUpperCase();
 
-      // Public status is handled before the shared router so the public contract
-      // cannot be confused with the older lightweight route implementation.
       if (path === "/api/status" && (method === "GET" || method === "HEAD")) {
         const headers = { "Cache-Control": "no-store", ...securityHeaders() };
         if (method === "HEAD") return finish(new Response(null, { status: 200, headers }));
         return finish(json(getPublicStatus(env, "cf-worker"), 200, headers));
+      }
+
+      // Public read-only landing-page feed. Only sanitized tip fields and a 7-day
+      // settlement summary are exposed; no Telegram IDs, payment data, or secrets.
+      if (path === "/api/tips/preview" && (method === "GET" || method === "HEAD")) {
+        const headers = { "Cache-Control": "no-store", ...securityHeaders() };
+        if (method === "HEAD") return finish(new Response(null, { status: 200, headers }));
+        const requestedLimit = Number.parseInt(url.searchParams.get("limit") || "12", 10);
+        const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(requestedLimit, 20)) : 12;
+        return finish(json(await getPublicTips(env, limit), 200, headers));
       }
 
       const apiResponse = await handleApiRequest(request, env, { runtime: "cf-worker" });
@@ -88,7 +97,12 @@ export default {
 
       if (request.method !== "POST") {
         const nonce = crypto.randomUUID().replace(/-/g, "");
-        return finish(new Response(renderLandingPage(env, request, nonce), {
+        const channel = env.CHANNEL_URL?.trim() || "https://t.me/fast_xbet_official_tips";
+        const html = renderLandingPage(env, request, nonce).replace(
+          "</body>",
+          publicTipsClientScript(channel, nonce) + "</body>"
+        );
+        return finish(new Response(html, {
           headers: { "Content-Type": "text/html; charset=utf-8", ...landingPageSecurityHeaders(nonce) },
         }));
       }
