@@ -8,6 +8,7 @@ import { validateEnv } from "./config";
 import { landingPageSecurityHeaders } from "./security";
 import { renderLandingPage } from "./landingPage";
 import { handleApiRequest } from "./apiRoutes";
+import { getPublicStatus } from "./publicStatus";
 import type { Env } from "./types";
 
 // Load .env file with explicit override support
@@ -24,9 +25,7 @@ try {
       if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
         val = val.slice(1, -1);
       }
-      if (key) {
-        process.env[key] = val;
-      }
+      if (key) process.env[key] = val;
     }
   } else if (typeof (process as any).loadEnvFile === "function") {
     (process as any).loadEnvFile();
@@ -101,25 +100,17 @@ if (env.BOT_TOKEN && env.BOT_TOKEN.trim().length > 0) {
     if (usePolling) {
       bot.api
         .deleteWebhook({ drop_pending_updates: false })
-        .then(() => {
-          console.log("[Bot] Cleared existing webhook; Telegram updates will be received via Long Polling.");
-        })
+        .then(() => console.log("[Bot] Cleared existing webhook; Telegram updates will be received via Long Polling."))
         .catch((err) => console.warn("[Bot] Notice deleting webhook:", err?.message || err))
         .finally(() => {
           if (!bot) return;
-          bot
-            .start({
-              drop_pending_updates: false,
-              onStart: (botInfo) => {
-                console.log(`[Bot] Long Polling started successfully as @${botInfo.username}`);
-              },
-            })
-            .catch((err) => console.error("[Bot] Long Polling error:", err));
+          bot.start({
+            drop_pending_updates: false,
+            onStart: (botInfo) => console.log(`[Bot] Long Polling started successfully as @${botInfo.username}`),
+          }).catch((err) => console.error("[Bot] Long Polling error:", err));
         });
     } else {
-      webhookHandler = webhookCallback(bot, "http", {
-        secretToken: env.WEBHOOK_SECRET,
-      });
+      webhookHandler = webhookCallback(bot, "http", { secretToken: env.WEBHOOK_SECRET });
     }
   } catch (err) {
     console.error("[Bot] Could not initialize bot with provided token:", err);
@@ -133,47 +124,29 @@ async function nodeToWebRequest(req: http.IncomingMessage, hostHeader: string): 
   const headers = new Headers();
   for (const [k, v] of Object.entries(req.headers)) {
     if (v === undefined) continue;
-    if (Array.isArray(v)) {
-      for (const item of v) headers.append(k, item);
-    } else {
-      headers.set(k, v);
-    }
+    if (Array.isArray(v)) for (const item of v) headers.append(k, item);
+    else headers.set(k, v);
   }
-
   const method = (req.method || "GET").toUpperCase();
   const init: RequestInit = { method, headers };
-
   if (method !== "GET" && method !== "HEAD") {
     const chunks: Buffer[] = [];
-    for await (const chunk of req) {
-      chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
-    }
+    for await (const chunk of req) chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
     init.body = Buffer.concat(chunks);
   }
-
   return new Request(url.toString(), init);
 }
 
 async function sendWebResponse(res: http.ServerResponse, webRes: Response): Promise<void> {
   res.statusCode = webRes.status;
   res.statusMessage = webRes.statusText;
-  webRes.headers.forEach((val, key) => {
-    res.setHeader(key, val);
-  });
-  if (webRes.body) {
-    const buf = Buffer.from(await webRes.arrayBuffer());
-    res.end(buf);
-  } else {
-    res.end();
-  }
+  webRes.headers.forEach((val, key) => res.setHeader(key, val));
+  if (webRes.body) res.end(Buffer.from(await webRes.arrayBuffer()));
+  else res.end();
 }
 
 function writeJson(res: http.ServerResponse, body: unknown, status = 200): void {
-  res.writeHead(status, {
-    "Content-Type": "application/json",
-    "Cache-Control": "no-store",
-    "X-Content-Type-Options": "nosniff",
-  });
+  res.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" });
   res.end(JSON.stringify(body));
 }
 
@@ -183,12 +156,24 @@ const server = http.createServer(async (req, res) => {
 
   try {
     const webReq = await nodeToWebRequest(req, host);
+    const url = new URL(webReq.url);
+
+    // Keep the node preview/runtime contract identical to the deployed Worker.
+    if (url.pathname === "/api/status" && (method === "GET" || method === "HEAD")) {
+      const status = getPublicStatus(env, "node");
+      const headers = { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" };
+      if (method === "HEAD") {
+        res.writeHead(200, headers);
+        res.end();
+      } else {
+        res.writeHead(200, headers);
+        res.end(JSON.stringify(status));
+      }
+      return;
+    }
 
     // 1. Dispatch shared API routes (health, dashboard, tickets, schedule, receipts, cleanup)
-    const apiResponse = await handleApiRequest(webReq, env, {
-      runtime: "node",
-      isPolling: usePolling,
-    });
+    const apiResponse = await handleApiRequest(webReq, env, { runtime: "node", isPolling: usePolling });
     if (apiResponse) {
       await sendWebResponse(res, apiResponse);
       return;
@@ -205,17 +190,11 @@ const server = http.createServer(async (req, res) => {
         writeJson(res, { ok: false, error: "Webhook is not configured" }, 503);
         return;
       }
-
       try {
         await webhookHandler(req, res);
       } catch (err) {
         console.error("[Webhook Error]:", err);
-        logBotError(env, {
-          source: "NodeWebhookServer",
-          message: err instanceof Error ? err.message : String(err),
-          stack: err instanceof Error ? err.stack : undefined,
-          context: { flow: "node_http_webhook" },
-        });
+        logBotError(env, { source: "NodeWebhookServer", message: err instanceof Error ? err.message : String(err), stack: err instanceof Error ? err.stack : undefined, context: { flow: "node_http_webhook" } });
         if (!res.writableEnded) writeJson(res, { ok: true });
       }
       return;
@@ -226,18 +205,10 @@ const server = http.createServer(async (req, res) => {
       const nonce = crypto.randomUUID().replace(/-/g, "");
       const html = renderLandingPage(env, webReq, nonce);
       const headers = landingPageSecurityHeaders(nonce);
-      // Allow embedding in AI Studio workspace preview iframe
       delete headers["X-Frame-Options"];
       headers["Content-Security-Policy"] = headers["Content-Security-Policy"].replace(/;\s*frame-ancestors\s+'none'/, "");
-      res.writeHead(200, {
-        "Content-Type": "text/html; charset=utf-8",
-        ...headers,
-      });
-      if (method === "HEAD") {
-        res.end();
-      } else {
-        res.end(html);
-      }
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", ...headers });
+      if (method === "HEAD") res.end(); else res.end(html);
       return;
     }
 
@@ -252,24 +223,17 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, HOST, () => {
-  console.log(`[XBet Bot Server] Running on http://${HOST}:${PORT}`);
-});
+server.listen(PORT, HOST, () => console.log(`[XBet Bot Server] Running on http://${HOST}:${PORT}`));
 
 const shutdown = (signal: string) => {
   console.log(`[XBet Bot Server] Received ${signal}. Shutting down gracefully...`);
-  if (bot && usePolling) {
-    bot.stop().catch(() => {});
-  }
+  if (bot && usePolling) bot.stop().catch(() => {});
   server.close(() => {
     console.log("[XBet Bot Server] HTTP server closed cleanly.");
     process.exit(0);
   });
-  setTimeout(() => {
-    process.exit(0);
-  }, 5000).unref();
+  setTimeout(() => process.exit(0), 5000).unref();
 };
 
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
-
