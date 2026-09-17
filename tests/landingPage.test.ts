@@ -149,11 +149,11 @@ describe("Landing Page Render & SEO", () => {
     expect(html).toContain("FriMi");
   });
 
-  it("renders the v0 split hero, mobile navigation, and repaired gradient token", () => {
+  it("renders the current split hero, mobile navigation, and repaired gradient token", () => {
     const req = new Request("https://fast-xbet.lk/");
     const html = renderLandingPage(mockEnv, req);
 
-    expect(html).toContain('class="hero-inner"');
+    expect(html).toContain('class="heroGrid"');
     expect(html).toContain('id="mobileNav"');
     expect(html).toContain('id="menuToggle"');
     expect(html).toContain("edge-visual");
@@ -187,11 +187,9 @@ describe("Landing Page Render & SEO", () => {
   });
 
   it("serves landing page through worker fetch even when secrets are unconfigured", async () => {
-    // Import worker
     const workerModule = await import("../src/worker");
     const worker = workerModule.default;
 
-    // Simulate empty/partial environment in Cloudflare
     const bareEnv = {
       CHANNEL_URL: "https://t.me/fast_xbet_official_tips",
       CHANNEL_USERNAME: "@fast_xbet_official_tips",
