@@ -17,10 +17,15 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4  # v7 සිට v4 වලට නිවැරදි කරන ලදි
         with:
           ref: main
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: \${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4 # Node environment එක සුදානම් කිරීම
+        with:
+          node-version: '20'
 
       - name: Apply source-level security fixes
         run: |
@@ -52,3 +57,4 @@ jobs:
           git add src/utils.ts src/tips.ts src/r2.ts src/bot.ts
           git commit -m "fix: resolve CodeQL security alerts"
           git push origin main
+          
