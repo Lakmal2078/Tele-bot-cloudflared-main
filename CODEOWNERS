@@ -1,0 +1,9 @@
+# Default ownership for production code and infrastructure.
+* @Lakmal2078
+
+# Security-sensitive paths
+/src/security.ts @Lakmal2078
+/src/config.ts @Lakmal2078
+/src/apiRoutes.ts @Lakmal2078
+/wrangler.toml @Lakmal2078
+/.github/workflows/ @Lakmal2078
