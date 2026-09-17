@@ -84,7 +84,7 @@ export default {
         assertValidEnv(env, "Cloudflare Worker");
       } catch (err) {
         console.error("[Worker Config Error]", err instanceof Error ? err.message : String(err));
-        return finish(json({ ok: false, error: "Service configuration error", details: err instanceof Error ? err.message : String(err) }, 503));
+        return finish(json({ ok: false, error: "Service configuration error" }, 503));
       }
 
       if (!webhookRequestAllowed(request)) return finish(new Response("bad request", { status: 400, headers: securityHeaders() }));

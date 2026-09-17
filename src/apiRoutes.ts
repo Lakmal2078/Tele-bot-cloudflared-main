@@ -251,7 +251,7 @@ export async function handleApiRequest(
           telegramResponse: tgData,
         });
       } catch (err) {
-        return json({ ok: false, error: String(err) }, 500);
+        return json({ ok: false, error: "Internal server error" }, 500);
       }
     }
 
@@ -266,7 +266,7 @@ export async function handleApiRequest(
         instruction: "To register or update this worker URL as Telegram webhook, visit /api/setup-webhook?action=set or send POST to /api/setup-webhook",
       });
     } catch (err) {
-      return json({ ok: false, error: String(err) }, 500);
+      return json({ ok: false, error: "Internal server error" }, 500);
     }
   }
 
@@ -466,7 +466,7 @@ export async function handleApiRequest(
       const summary = await settlePendingTips(env);
       return json({ ok: true, summary });
     } catch (err) {
-      return json({ ok: false, error: String(err) }, 500);
+      return json({ ok: false, error: "Internal server error" }, 500);
     }
   }
   if (path === "/api/cleanup/logs/status" && (method === "GET" || method === "HEAD")) {
