@@ -1,0 +1,114 @@
+name: One-time Landing Page Upgrade
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Apply landing page content upgrades
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/landingPage.ts')
+          s = p.read_text()
+
+          # Use the uploaded PNG favicon as the public site icon.
+          s = s.replace(
+              'import { BRAND_LOGO_SVG_COMPACT, BRAND_LOGO_FAVICON_DATA_URI } from "./brandLogo";',
+              'import { BRAND_LOGO_SVG_COMPACT } from "./brandLogo";'
+          )
+          s = s.replace(
+              '<link rel="icon" type="image/svg+xml" href="${BRAND_LOGO_FAVICON_DATA_URI}">',
+              '<link rel="icon" type="image/png" href="/favicon.png"><link rel="apple-touch-icon" href="/favicon.png">'
+          )
+
+          # Replace the generic FAQ schema answer with service-specific answers.
+          old = '''  const faq=c.faq.map((q:string)=>({"@type":"Question",name:q,acceptedAnswer:{"@type":"Answer",text:"Use the Telegram bot guided flow for this service. Sports outcomes are uncertain and no tip guarantees a win or profit."}}));'''
+          new = '''  const faqAnswers: Record<Lang,string[]> = {
+    si: [
+      "Telegram bot එක විවෘත කර Deposit service එක තෝරන්න. Bot එක පෙන්වන payment method සහ exact instructions පමණක් අනුගමනය කර, අවශ්‍ය නම් receipt එක upload කරන්න. Exact payment details public page එකේ නොපෙන්වයි.",
+      "Telegram bot එකේ Withdrawal service එක තෝරා request එක submit කරන්න. Verification අවශ්‍ය නම් bot එකෙන් ඉල්ලා සිටින තොරතුරු පමණක් ලබා දෙන්න. Processing time එක request එක අනුව වෙනස් විය හැක.",
+      "Free Tips යනු informational sports previews/tips වේ. ඒවා win, profit හෝ guaranteed outcome එකක් පොරොන්දු නොකරයි. නවතම tips සඳහා official tips channel එක හෝ Telegram bot එක බලන්න.",
+      "Referral option එක තිබේ නම් Telegram bot එකේ Referral section එකෙන් ඔබගේ referral instructions බලන්න. Bonus terms සහ eligibility bot එකේ පෙන්වන current terms අනුව වෙනස් විය හැක.",
+      "Telegram bot එකේ Support option එක තෝරා issue එක පැහැදිලිව සඳහන් කරන්න. Transaction issue එකක් නම් bot එක ඉල්ලා සිටින request/reference details පමණක් ලබා දෙන්න.",
+      "සිංහල, English හෝ தமிழ் තෝරාගැනීමට page එකේ language buttons භාවිතා කරන්න. Telegram bot එක තුළත් available language flow එක තෝරාගත හැක."
+    ],
+    en: [
+      "Open the Telegram bot and choose Deposit. Follow only the payment method and exact instructions shown by the bot, and upload a receipt when requested. Exact payment credentials are not exposed on this public page.",
+      "Choose Withdrawal in the Telegram bot and submit your request. If verification is required, provide only the information requested by the bot. Processing time can vary by request.",
+      "Free Tips are informational sports previews/tips. They do not guarantee a win, profit, or any specific outcome. Check the official tips channel or Telegram bot for the latest published tips.",
+      "If the Referral option is available, open the Referral section in the Telegram bot for the current instructions. Bonus terms and eligibility can change and are determined by the current bot flow.",
+      "Choose Support in the Telegram bot and describe your issue clearly. For transaction issues, provide only the request/reference information asked for by the bot.",
+      "Use the visible language buttons to switch between Sinhala, English, and Tamil. Select the available language flow inside Telegram as well."
+    ],
+    ta: [
+      "Telegram bot-ஐ திறந்து Deposit சேவையைத் தேர்ந்தெடுக்கவும். Bot காட்டும் payment method மற்றும் exact instructions-ஐ மட்டும் பின்பற்றவும்; கேட்கப்பட்டால் receipt-ஐ upload செய்யவும். Exact payment details இந்த public page-ல் காட்டப்படாது.",
+      "Telegram bot-ல் Withdrawal சேவையைத் தேர்ந்தெடுத்து request-ஐ submit செய்யவும். Verification தேவைப்பட்டால் bot கேட்கும் தகவல்களை மட்டும் வழங்கவும். Processing time request-ஐப் பொறுத்து மாறலாம்.",
+      "Free Tips என்பது informational sports previews/tips ஆகும். அவை win, profit அல்லது guaranteed outcome-ஐ உறுதி செய்யாது. சமீபத்திய tips-க்கு official tips channel அல்லது Telegram bot-ஐப் பார்க்கவும்.",
+      "Referral option கிடைத்தால் Telegram bot-இன் Referral section-ல் தற்போதைய instructions-ஐப் பார்க்கவும். Bonus terms மற்றும் eligibility தற்போதைய bot flow-க்கு ஏற்ப மாறலாம்.",
+      "Telegram bot-ல் Support option-ஐத் தேர்ந்தெடுத்து உங்கள் issue-ஐ தெளிவாகக் குறிப்பிடவும். Transaction issue என்றால் bot கேட்கும் request/reference தகவல்களை மட்டும் வழங்கவும்.",
+      "Page-ல் உள்ள language buttons மூலம் Sinhala, English, Tamil ஆகியவற்றுக்கு மாறலாம். Telegram bot-லும்கூட கிடைக்கும் language flow-ஐத் தேர்ந்தெடுக்கவும்."
+    ]
+  };
+  const faq = c.faq.map((q:string,i:number)=>({"@type":"Question",name:q,acceptedAnswer:{"@type":"Answer",text:faqAnswers[lang][i]}}));'''
+          if old not in s:
+              raise SystemExit('FAQ source pattern not found')
+          s = s.replace(old, new)
+
+          # Use the same real answers in the visible FAQ instead of one generic answer.
+          old_visible = '${c.faq.map((q:string)=>`<details><summary>${q}</summary><div class="answer">Use the Telegram bot guided flow for this service. Sports outcomes are uncertain and no tip guarantees a win or profit.</div></details>`).join("")}'
+          new_visible = '${c.faq.map((q:string,i:number)=>`<details><summary>${q}</summary><div class="answer">${esc(faqAnswers[lang][i])}</div></details>`).join("")}'
+          if old_visible not in s:
+              raise SystemExit('Visible FAQ source pattern not found')
+          s = s.replace(old_visible, new_visible)
+
+          # Make the public tips section clearly channel-oriented while keeping
+          # illustrative fixtures honest until a verified live feed is wired in.
+          s = s.replace(
+              '<h2>Today’s Free Tips Preview</h2><p>Sample fixtures retained for the public preview. They are not presented as live tips.</p>',
+              '<h2>Free Tips Preview</h2><p>Public preview only. For the latest published tips, use the official tips channel or Telegram bot. These fixtures are illustrative and are not live data.</p>'
+          )
+          s = s.replace(
+              '<div class="disclaimer">These previews are illustrative. Sports outcomes are uncertain. No tip guarantees a win or profit.</div>',
+              '<div class="disclaimer">Illustrative preview only — not live odds or a guaranteed tip. <a href="${ec}">Open official tips channel →</a></div>'
+          )
+
+          # Add a clear independent-service disclaimer in the footer.
+          s = s.replace(
+              '<b>18+ only · Gamble responsibly</b>',
+              '<b>18+ only · Gamble responsibly</b><p>Independent support service. Not the official 1xBet website. 1xBet is a separate third-party brand.</p>'
+          )
+
+          p.write_text(s)
+          PY
+
+      - name: Validate changed source
+        run: |
+          grep -q 'href="/favicon.png"' src/landingPage.ts
+          grep -q 'faqAnswers' src/landingPage.ts
+          grep -q 'Open official tips channel' src/landingPage.ts
+          npm ci
+          npm run typecheck
+          npm test -- --run tests/landingPage.test.ts
+
+      - name: Commit and remove temporary workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/landingPage.ts .github/workflows/landing-page-upgrade-once.yml
+          git commit -m "feat: improve landing page content and favicon"
+          git push origin main
+          git rm .github/workflows/landing-page-upgrade-once.yml
+          git commit -m "chore: remove one-time landing page workflow"
+          git push origin main
