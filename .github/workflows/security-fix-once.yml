@@ -3,6 +3,8 @@ name: Apply CodeQL security fixes once
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -50,5 +52,3 @@ jobs:
           git add src/utils.ts src/tips.ts src/r2.ts src/bot.ts
           git commit -m "fix: resolve CodeQL security alerts"
           git push origin main
-
-# One-shot remediation workflow; removed automatically after the fix commit.
