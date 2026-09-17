@@ -52,15 +52,15 @@ describe("Landing Page Render & SEO", () => {
     const html = renderLandingPage(mockEnv, req);
 
     expect(html).toContain('<meta property="og:site_name" content="Fast xBet Cash">');
-    expect(html).toContain('<meta property="og:image" content="https://fast-xbet.lk/og-image.jpg?v=2">');
-    expect(html).toContain('<meta property="og:image:secure_url" content="https://fast-xbet.lk/og-image.jpg?v=2">');
+    expect(html).toContain('<meta property="og:image" content="https://fast-xbet.lk/og-image.jpg?v=3">');
+    expect(html).toContain('<meta property="og:image:secure_url" content="https://fast-xbet.lk/og-image.jpg?v=3">');
     expect(html).toContain('<meta property="og:image:type" content="image/jpeg">');
     expect(html).toContain('<meta property="og:image:width" content="1200">');
     expect(html).toContain('<meta property="og:image:height" content="630">');
-    expect(html).toContain('<link rel="image_src" href="https://fast-xbet.lk/og-image.jpg?v=2">');
-    expect(html).toContain('<meta itemprop="image" content="https://fast-xbet.lk/og-image.jpg?v=2">');
+    expect(html).toContain('<link rel="image_src" href="https://fast-xbet.lk/og-image.jpg?v=3">');
+    expect(html).toContain('<meta itemprop="image" content="https://fast-xbet.lk/og-image.jpg?v=3">');
     expect(html).toContain('<meta name="twitter:card" content="summary_large_image">');
-    expect(html).toContain('<meta name="twitter:image" content="https://fast-xbet.lk/og-image.jpg?v=2">');
+    expect(html).toContain('<meta name="twitter:image" content="https://fast-xbet.lk/og-image.jpg?v=3">');
   });
 
   it("serves JPEG OG Image at /og-image.jpg via handleApiRequest", async () => {
