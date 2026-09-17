@@ -1,0 +1,60 @@
+name: Landing content fix
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: ${{ github.event.head_commit.message != 'feat: upgrade landing page customer content' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Patch landing page
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/landingPage.ts')
+          s=p.read_text()
+          s=s.replace('import { BRAND_LOGO_SVG_COMPACT, BRAND_LOGO_FAVICON_DATA_URI } from "./brandLogo";','import { BRAND_LOGO_SVG_COMPACT } from "./brandLogo";')
+          s=s.replace('<link rel="icon" type="image/svg+xml" href="${BRAND_LOGO_FAVICON_DATA_URI}">','<link rel="icon" type="image/png" href="/favicon.png"><link rel="apple-touch-icon" href="/favicon.png">')
+          old='  const faq=c.faq.map((q:string)=>({"@type":"Question",name:q,acceptedAnswer:{"@type":"Answer",text:"Use the Telegram bot guided flow for this service. Sports outcomes are uncertain and no tip guarantees a win or profit."}}));'
+          new='''  const faqAnswers:Record<Lang,string[]>={si:["Deposit කිරීමට bot එකේ Deposit option එක තෝරන්න. Payment method සහ amount තහවුරු කර bot එක ඉල්ලා සිටින receipt/reference details පමණක් submit කරන්න.","Withdrawal සඳහා bot එකේ Withdrawal option එක තෝරා verification steps පසුව request status එක bot flow එකෙන් පරීක්ෂා කරන්න.","Free Tips යනු football සහ cricket සඳහා public informational preview එකකි. කිසිදු tip එකක් guaranteed win හෝ guaranteed profit නොවේ.","Referral bonus තිබේ නම් bot එකේ Referral option එකෙන් current referral link, eligibility සහ qualifying conditions පරීක්ෂා කරන්න.","Telegram bot එකේ Support option එක භාවිතා කරන්න. WHATSAPP_NUMBER configure කර ඇත්නම් page එකේ WhatsApp support එකද භාවිතා කළ හැක.","Header එකේ සිං / EN / தமிழ் තෝරන්න හෝ URL එකට ?lang=si, ?lang=en, ?lang=ta එක් කරන්න."],en:["Choose Deposit in the Telegram bot, confirm the payment method and amount, and submit only the receipt/reference details requested by the guided flow.","Choose Withdrawal in the bot, complete the requested verification steps, and check the request status through the bot flow.","Free Tips are public informational previews for football and cricket. No tip is a guaranteed win or guaranteed-profit claim.","If a referral bonus is available, use Referral in the bot to get the current link, eligibility and qualifying conditions.","Use Support in the Telegram bot. If WHATSAPP_NUMBER is configured, the WhatsApp support button is also available on this page.","Use the Sinhala, English or Tamil controls, or add ?lang=si, ?lang=en or ?lang=ta to the URL."],ta:["Telegram bot-ல் Deposit option-ஐ தேர்ந்தெடுத்து payment method மற்றும் amount-ஐ உறுதிப்படுத்தி, bot கேட்கும் receipt/reference details மட்டும் submit செய்யுங்கள்.","Bot-ல் Withdrawal option-ஐ தேர்ந்தெடுத்து verification steps-ஐ பின்பற்றி request status-ஐ bot flow மூலம் பார்க்கவும்.","Free Tips என்பது football மற்றும் cricket selections-க்கான public informational preview. எந்த tip-மும் guaranteed win அல்லது guaranteed profit அல்ல.","Referral bonus கிடைத்தால் bot-ன் Referral option மூலம் current link, eligibility மற்றும் qualifying conditions-ஐ சரிபார்க்கவும்.","Telegram bot-ன் Support option-ஐ பயன்படுத்தவும். WHATSAPP_NUMBER configure செய்யப்பட்டிருந்தால் WhatsApp support button-ஐ பயன்படுத்தலாம்.","Sinhala, English அல்லது Tamil controls-ஐ பயன்படுத்தவும் அல்லது URL-க்கு ?lang=si, ?lang=en, ?lang=ta சேர்க்கவும்."]};
+  const faq=c.faq.map((q:string,i:number)=>({"@type":"Question",name:q,acceptedAnswer:{"@type":"Answer",text:faqAnswers[lang][i]||faqAnswers.en[i]}}));'''
+          if old in s: s=s.replace(old,new)
+          else: raise SystemExit('FAQ schema anchor not found')
+          oldv='${c.faq.map((q:string)=>`<details><summary>${q}</summary><div class="answer">Use the Telegram bot guided flow for this service. Sports outcomes are uncertain and no tip guarantees a win or profit.</div></details>`).join("")}'
+          newv='${c.faq.map((q:string,i:number)=>`<details><summary>${q}</summary><div class="answer">${esc(faqAnswers[lang][i]||faqAnswers.en[i])}</div></details>`).join("")}'
+          if oldv in s: s=s.replace(oldv,newv)
+          else: raise SystemExit('Visible FAQ anchor not found')
+          marker='const c=T[lang], ea=esc(url), eb=esc(bot), ec=esc(channel), promo=esc(env.XBET_PROMO_CODE?.trim()||"VGSL");'
+          add=marker+'\n  const whatsappNumber=env.WHATSAPP_NUMBER?.trim()||""; const whatsappUrl=whatsappNumber?`https://wa.me/${whatsappNumber.replace(/[^0-9]/g,"")}`:""; const xbetLink=esc(env.XBET_LINK?.trim()||"");'
+          if marker in s and 'const whatsappNumber=' not in s: s=s.replace(marker,add)
+          if 'id="customerGuides"' not in s:
+            section='''<section class="section" id="customerGuides"><div class="wrap"><div class="head"><div class="eyebrow">Customer guide</div><h2>Free Tips, registration &amp; payment support</h2><p>Use the Telegram bot for current request status. Processing time depends on verification, payment rail and operational conditions.</p></div><div class="cards"><article class="card"><h3>Free Tips</h3><div id="publicTips"><div class="tip"><strong>Loading recent public tips…</strong></div><p>New football and cricket tips appear here after successful publication.</p></div><a class="btn secondary" href="${ec}" rel="noopener noreferrer">Open official tips channel →</a></article><article class="card"><h3>1xBet registration &amp; promo</h3><p>Use the configured registration link and promo code only where the current offer accepts it.</p><ol><li>Open the registration link.</li><li>Register or sign in.</li><li>Enter promo code <b>${promo}</b> where applicable.</li></ol>${xbetLink?`<a class="btn primary" href="${xbetLink}" target="_blank" rel="nofollow noopener noreferrer">Open registration →</a>`:""}</article><article class="card"><h3>Deposit &amp; withdrawal</h3><ol><li>Select Deposit or Withdrawal in the bot.</li><li>Follow the displayed payment and verification instructions.</li><li>Submit only requested receipt/reference details.</li><li>Check the bot status before assuming completion.</li></ol><p>No fixed processing time is guaranteed; timing varies by verification, payment method and operational conditions.</p></article><article class="card"><h3>Referral &amp; support</h3><p>Use Referral in the bot for current eligibility and instructions. Telegram Support is the primary support path.</p>${whatsappUrl?`<a class="btn secondary" href="${whatsappUrl}" target="_blank" rel="noopener noreferrer">WhatsApp Support</a>`:""}</article></div></div></section>'''
+            s=s.replace('</main>',section+'</main>',1)
+          s=s.replace('18+ only · Gamble responsibly','18+ only · Gamble responsibly · Not the official 1xBet website. 1xBet is a separate third-party brand.')
+          p.write_text(s)
+          PY
+          npm ci
+          npm run typecheck
+          npm run lint
+          npm test -- --run tests/landingPage.test.ts
+          grep -q 'href="/favicon.png"' src/landingPage.ts
+          grep -q 'faqAnswers' src/landingPage.ts
+          grep -q 'id="publicTips"' src/landingPage.ts
+          grep -q 'WhatsApp Support' src/landingPage.ts
+          grep -q '1xBet registration' src/landingPage.ts
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/landingPage.ts
+          git diff --cached --quiet && exit 0
+          git commit -m 'feat: upgrade landing page customer content'
+          git push origin main
