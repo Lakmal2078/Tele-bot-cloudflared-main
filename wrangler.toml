@@ -4,6 +4,14 @@ compatibility_date = "2026-09-09"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
+# Cloudflare Workers Static Assets.
+# public/og-image.jpg is the canonical OpenGraph image asset.
+# Assets are served before Worker code by default, so /og-image.jpg is
+# delivered directly from Cloudflare's asset layer.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
 [vars]
 BOT_MODE = "production"
 BOT_USERNAME = "fast_1xbetcash_bot"
