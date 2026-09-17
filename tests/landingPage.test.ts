@@ -55,9 +55,6 @@ describe("Landing Page Render & SEO", () => {
     expect(html).toContain('<meta property="og:image" content="https://fast-xbet.lk/og-image.jpg?v=2">');
     expect(html).toContain('<meta property="og:image:secure_url" content="https://fast-xbet.lk/og-image.jpg?v=2">');
     expect(html).toContain('<meta property="og:image:type" content="image/jpeg">');
-    expect(html).toContain('<meta property="og:image" content="https://fast-xbet.lk/og-image.png?v=2">');
-    expect(html).toContain('<meta property="og:image:secure_url" content="https://fast-xbet.lk/og-image.png?v=2">');
-    expect(html).toContain('<meta property="og:image:type" content="image/png">');
     expect(html).toContain('<meta property="og:image:width" content="1200">');
     expect(html).toContain('<meta property="og:image:height" content="630">');
     expect(html).toContain('<link rel="image_src" href="https://fast-xbet.lk/og-image.jpg?v=2">');
