@@ -1,14 +1,10 @@
-/** Phase 4 security primitives for request validation and lightweight abuse protection. */
+/** Request validation and defense-in-depth security primitives. */
 
 const MAX_WEBHOOK_BODY_BYTES = 512 * 1024;
 const ADMIN_FAILURE_WINDOW_MS = 60_000;
 const ADMIN_FAILURE_LIMIT = 10;
 
-interface FailureBucket {
-  count: number;
-  resetAt: number;
-}
-
+interface FailureBucket { count: number; resetAt: number; }
 const adminFailures = new Map<string, FailureBucket>();
 
 export function securityHeaders(): Record<string, string> {
@@ -17,25 +13,18 @@ export function securityHeaders(): Record<string, string> {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "no-referrer",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
     "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
-    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
   };
 }
 
-/**
- * HTML-only headers; the landing page intentionally embeds its CSS/JS inline
- * (no external script host, so 'unsafe-inline' script-src is required for the
- * language switcher / promo-copy button to run at all) and loads the Sinhala
- * webfont + a data-URI favicon from a tightly scoped allowlist.
- *
- * connect-src 'self' is required so the landing page can fetch /api/status
- * for the live worker status indicator.
- */
 export function landingPageSecurityHeaders(nonce?: string): Record<string, string> {
   const headers = { ...securityHeaders() };
   headers["Cache-Control"] = "public, max-age=1800, s-maxage=86400, stale-while-revalidate=86400";
   headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-  headers["X-Frame-Options"] = "DENY";
   const scriptPolicy = nonce ? `'nonce-${nonce}'` : "'unsafe-inline'";
   const stylePolicy = nonce ? `'nonce-${nonce}' https://fonts.googleapis.com` : "'unsafe-inline' https://fonts.googleapis.com";
   return {
@@ -55,13 +44,11 @@ export function landingPageSecurityHeaders(nonce?: string): Record<string, strin
 
 export function webhookRequestAllowed(request: Request): boolean {
   if (request.method !== "POST") return false;
-
   const contentLength = request.headers.get("Content-Length");
   if (contentLength) {
     const length = Number(contentLength);
     if (!Number.isFinite(length) || length < 0 || length > MAX_WEBHOOK_BODY_BYTES) return false;
   }
-
   const contentType = request.headers.get("Content-Type")?.split(";", 1)[0].trim().toLowerCase();
   return contentType === "application/json";
 }
@@ -69,16 +56,13 @@ export function webhookRequestAllowed(request: Request): boolean {
 function clientKey(request: Request): string {
   return request.headers.get("CF-Connecting-IP")?.trim() || "unknown-client";
 }
-
 function normalizeNodeHeader(value: string | string[] | undefined): string {
   if (Array.isArray(value)) return value[0]?.trim() || "";
   return value?.trim() || "";
 }
-
 function clientKeyFromNodeHeaders(headers: Record<string, string | string[] | undefined>): string {
   return normalizeNodeHeader(headers["cf-connecting-ip"]) || "unknown-client";
 }
-
 function adminAttemptAllowedForKey(key: string, now: number): boolean {
   const bucket = adminFailures.get(key);
   if (!bucket || bucket.resetAt <= now) {
@@ -87,52 +71,21 @@ function adminAttemptAllowedForKey(key: string, now: number): boolean {
   }
   return bucket.count < ADMIN_FAILURE_LIMIT;
 }
-
 function recordAdminFailureForKey(key: string, now: number): void {
   const bucket = adminFailures.get(key);
-  if (!bucket || bucket.resetAt <= now) {
-    adminFailures.set(key, { count: 1, resetAt: now + ADMIN_FAILURE_WINDOW_MS });
-  } else {
-    bucket.count += 1;
-  }
-
+  if (!bucket || bucket.resetAt <= now) adminFailures.set(key, { count: 1, resetAt: now + ADMIN_FAILURE_WINDOW_MS });
+  else bucket.count += 1;
   if (adminFailures.size > 5000) {
-    for (const [entryKey, entry] of adminFailures) {
-      if (entry.resetAt <= now) adminFailures.delete(entryKey);
-    }
+    for (const [entryKey, entry] of adminFailures) if (entry.resetAt <= now) adminFailures.delete(entryKey);
   }
 }
-
-/**
- * Lightweight per-isolate protection against repeated invalid admin credentials.
- * This is defense-in-depth; production should also use Cloudflare WAF/Rate Limiting
- * for a distributed limit across Worker isolates.
- */
-export function adminAttemptAllowed(request: Request, now = Date.now()): boolean {
-  return adminAttemptAllowedForKey(clientKey(request), now);
-}
-
-export function recordAdminFailure(request: Request, now = Date.now()): void {
-  recordAdminFailureForKey(clientKey(request), now);
-}
-
-/** Node.js runtime parity for the same admin credential throttle. */
-export function adminAttemptAllowedNode(
-  headers: Record<string, string | string[] | undefined>,
-  now = Date.now()
-): boolean {
+export function adminAttemptAllowed(request: Request, now = Date.now()): boolean { return adminAttemptAllowedForKey(clientKey(request), now); }
+export function recordAdminFailure(request: Request, now = Date.now()): void { recordAdminFailureForKey(clientKey(request), now); }
+export function adminAttemptAllowedNode(headers: Record<string, string | string[] | undefined>, now = Date.now()): boolean {
   return adminAttemptAllowedForKey(clientKeyFromNodeHeaders(headers), now);
 }
-
-export function recordAdminFailureNode(
-  headers: Record<string, string | string[] | undefined>,
-  now = Date.now()
-): void {
+export function recordAdminFailureNode(headers: Record<string, string | string[] | undefined>, now = Date.now()): void {
   recordAdminFailureForKey(clientKeyFromNodeHeaders(headers), now);
 }
 
-export const SECURITY_LIMITS = {
-  MAX_WEBHOOK_BODY_BYTES,
-  ADMIN_FAILURE_WINDOW_MS,
-  ADMIN_FAILURE_LIMIT,
-} as const;
+export const SECURITY_LIMITS = { MAX_WEBHOOK_BODY_BYTES, ADMIN_FAILURE_WINDOW_MS, ADMIN_FAILURE_LIMIT } as const;
