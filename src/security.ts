@@ -27,6 +27,9 @@ export function securityHeaders(): Record<string, string> {
  * (no external script host, so 'unsafe-inline' script-src is required for the
  * language switcher / promo-copy button to run at all) and loads the Sinhala
  * webfont + a data-URI favicon from a tightly scoped allowlist.
+ *
+ * connect-src 'self' is required so the landing page can fetch /api/status
+ * for the live worker status indicator.
  */
 export function landingPageSecurityHeaders(nonce?: string): Record<string, string> {
   const headers = { ...securityHeaders() };
@@ -43,6 +46,7 @@ export function landingPageSecurityHeaders(nonce?: string): Record<string, strin
       `style-src ${stylePolicy}; ` +
       "font-src https://fonts.gstatic.com; " +
       "img-src 'self' data: https:; " +
+      "connect-src 'self'; " +
       "base-uri 'none'; " +
       "form-action 'none'; " +
       "frame-ancestors 'none'",
