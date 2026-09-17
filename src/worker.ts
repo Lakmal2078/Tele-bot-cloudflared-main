@@ -8,6 +8,7 @@ import { assertValidEnv, constantTimeEqual } from "./config";
 import { landingPageSecurityHeaders, securityHeaders, webhookRequestAllowed } from "./security";
 import { renderLandingPage } from "./landingPage";
 import { handleApiRequest, json } from "./apiRoutes";
+import { getPublicStatus } from "./publicStatus";
 import { logEvent, requestId, withRequestId } from "./observability";
 import type { Env } from "./types";
 
@@ -70,6 +71,18 @@ export default {
     };
 
     try {
+      const url = new URL(request.url);
+      const path = url.pathname;
+      const method = request.method.toUpperCase();
+
+      // Public status is handled before the shared router so the public contract
+      // cannot be confused with the older lightweight route implementation.
+      if (path === "/api/status" && (method === "GET" || method === "HEAD")) {
+        const headers = { "Cache-Control": "no-store", ...securityHeaders() };
+        if (method === "HEAD") return finish(new Response(null, { status: 200, headers }));
+        return finish(json(getPublicStatus(env, "cf-worker"), 200, headers));
+      }
+
       const apiResponse = await handleApiRequest(request, env, { runtime: "cf-worker" });
       if (apiResponse) return finish(apiResponse);
 
