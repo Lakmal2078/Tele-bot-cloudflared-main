@@ -1138,7 +1138,7 @@ export function createBot(env: Env) {
             reply_markup: adminKb,
           });
         }
-      } catch (err) {
+      } catch {
         console.error("[Admin] Deposit alert delivery failed.");
       }
     }
@@ -3137,7 +3137,7 @@ export function createBot(env: Env) {
               parse_mode: "Markdown",
               reply_markup: adminKb,
             });
-          } catch (err) {
+          } catch {
             console.error("[Admin] Deposit alert delivery failed.");
           }
         }
