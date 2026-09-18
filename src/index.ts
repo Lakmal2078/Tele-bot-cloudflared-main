@@ -204,7 +204,7 @@ const server = http.createServer(async (req, res) => {
     if (method === "GET" || method === "HEAD") {
       const nonce = crypto.randomUUID().replace(/-/g, "");
       const html = renderLandingPage(env, webReq, nonce);
-      const headers = landingPageSecurityHeaders(nonce);
+      const headers = landingPageSecurityHeaders(nonce, { isHttps: webReq.url.startsWith("https://") });
       delete headers["X-Frame-Options"];
       headers["Content-Security-Policy"] = headers["Content-Security-Policy"].replace(/;\s*frame-ancestors\s+'none'/, "");
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", ...headers });
