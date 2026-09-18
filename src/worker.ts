@@ -106,7 +106,7 @@ export default {
           publicTipsClientScript(channel, nonce) + "</body>"
         );
         return finish(new Response(html, {
-          headers: { "Content-Type": "text/html; charset=utf-8", ...landingPageSecurityHeaders(nonce) },
+          headers: { "Content-Type": "text/html; charset=utf-8", ...landingPageSecurityHeaders(nonce, { isHttps: new URL(request.url).protocol === "https:" }) },
         }));
       }
 
