@@ -44,6 +44,18 @@ describe("webhook security", () => {
       )
     ).toBe(false);
   });
+
+  it("omits upgrade-insecure-requests for HTTP landing pages", () => {
+    const headers = landingPageSecurityHeaders("abcdef1234567890", { isHttps: false });
+    expect(headers["Content-Security-Policy"]).not.toContain("upgrade-insecure-requests");
+    expect(headers["Content-Security-Policy"]).toContain("object-src 'none'");
+  });
+
+  it("keeps upgrade-insecure-requests for HTTPS landing pages", () => {
+    const headers = landingPageSecurityHeaders("abcdef1234567890", { isHttps: true });
+    expect(headers["Content-Security-Policy"]).toContain("upgrade-insecure-requests");
+  });
+
 });
 
 describe("admin abuse protection", () => {
