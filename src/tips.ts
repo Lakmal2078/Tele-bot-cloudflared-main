@@ -1,6 +1,6 @@
 import type { Env } from "./types";
 import { getTipQualityConfig, type TipQualityConfig } from "./config";
-import { escapeMarkdown, escapeCode } from "./utils";
+import { escapeMarkdown } from "./utils";
 
 const ODDS_API_BASE = "https://api.the-odds-api.com/v4";
 export const TIPS_CRONS = {
