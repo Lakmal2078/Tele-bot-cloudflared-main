@@ -171,7 +171,7 @@ git push origin main
 ### පියවර 5: Telegram Webhook ලියාපදිංචි කිරීම
 Deploy වීමෙන් පසු Telegram Webhook එක සක්‍රිය කරන්න:
 ```bash
-curl "https://api.telegram.org/bot8641165815:AAGUf_HRoSrXi1dGaDySwB4x9chZ7YR6UqE/setWebhook?url=https://<YOUR_WORKER_URL>/&secret_token=7ed3d675d55d6ba23a90596dd3f93126"
+curl "https://api.telegram.org/bot<REDACTED_BOT_TOKEN>/setWebhook?url=https://<YOUR_WORKER_URL>/&secret_token=<REDACTED_WEBHOOK_SECRET>"
 ```
 
 ### පියවර 6: අවසන් සෞඛ්‍ය පරීක්ෂාව (Health Check)

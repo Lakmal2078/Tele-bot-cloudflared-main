@@ -35,7 +35,7 @@ XBET_PROMO_CODE=VGSL
 
   it("detects formatting errors for short WEBHOOK_SECRET and invalid ADMIN_IDS", () => {
     const invalidEnv = {
-      BOT_TOKEN: "8641165815:AAGUf_HRoSrXi1dGaDySwB4x9chZ7YR6UqE",
+      BOT_TOKEN: "000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
       ADMIN_IDS: "not_a_number,7990858914",
       WEBHOOK_SECRET: "short", // less than 16 chars
       CHANNEL_URL: "https://t.me/test_channel",
@@ -50,7 +50,7 @@ XBET_PROMO_CODE=VGSL
 
   it("warns when TIPS_CHANNEL_ID contains 'ID: ' prefix", () => {
     const envWithPrefix = {
-      BOT_TOKEN: "8641165815:AAGUf_HRoSrXi1dGaDySwB4x9chZ7YR6UqE",
+      BOT_TOKEN: "000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
       ADMIN_IDS: "7990858914",
       WEBHOOK_SECRET: "123456789012345678",
       CHANNEL_URL: "https://t.me/test_channel",
@@ -65,9 +65,9 @@ XBET_PROMO_CODE=VGSL
 
   it("validates successfully when all mandatory and payment keys are valid", () => {
     const validEnv = {
-      BOT_TOKEN: "8641165815:AAGUf_HRoSrXi1dGaDySwB4x9chZ7YR6UqE",
+      BOT_TOKEN: "000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
       ADMIN_IDS: "7990858914",
-      WEBHOOK_SECRET: "7ed3d675d55d6ba23a90596dd3f93126",
+      WEBHOOK_SECRET: "REDACTED_WEBHOOK_SECRET_12345",
       CHANNEL_URL: "https://t.me/fast_xbet_official_tips",
       CHANNEL_USERNAME: "@fast_xbet_official_tips",
       IPAY_NUMBER: "0740452530",

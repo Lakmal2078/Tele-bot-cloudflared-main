@@ -166,7 +166,7 @@ Production configuration includes:
 - R2 binding `CHAT_MEDIA`
 - five cron triggers
 
-Non-secret runtime configuration belongs in `[vars]`. Credentials such as `BOT_TOKEN`, `WEBHOOK_SECRET`, `ADMIN_API_SECRET`, and `ODDS_API_KEY` must be Cloudflare Secrets instead.
+Non-secret runtime configuration belongs in `[vars]`. Set `PUBLIC_BASE_URL` to the real public HTTPS origin without a trailing slash; production refuses to render the landing page when it is missing or invalid. Credentials such as `BOT_TOKEN`, `WEBHOOK_SECRET`, `ADMIN_API_SECRET`, and `ODDS_API_KEY` must be Cloudflare Secrets instead.
 
 ### `.env`
 
@@ -181,6 +181,7 @@ The canonical variable template is `.env.example`.
 | `BOT_TOKEN` | Telegram Bot API token | ✅ |
 | `BOT_USERNAME` | Telegram bot username | |
 | `BOT_MODE` | Local bot mode | |
+| `PUBLIC_BASE_URL` | Trusted canonical/SEO origin, e.g. `https://your-real-domain` | |
 | `USE_POLLING` | Enable local long polling | |
 | `ADMIN_IDS` | Comma-separated Telegram admin IDs | ⚠️ |
 | `ADMIN_CHANNEL_ID` | Admin/audit notification channel | |

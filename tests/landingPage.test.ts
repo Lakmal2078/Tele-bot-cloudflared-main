@@ -6,6 +6,7 @@ import type { Env } from "../src/types";
 const mockEnv: Env = {
   DB: {} as any,
   BOT_TOKEN: "mock_token",
+  PUBLIC_BASE_URL: "https://fast-xbet.lk",
   ADMIN_IDS: "123456789",
   ADMIN_CHANNEL_ID: "-100123456789",
   CHANNEL_USERNAME: "@fast_xbet_official_tips",
@@ -30,7 +31,23 @@ describe("Landing Page Render & SEO", () => {
 
     expect(html).toContain('<html lang="si">');
     expect(html).toContain(`nonce="${nonce}"`);
+    expect(html).toContain('<link rel="icon" type="image/png" href="/favicon.png">');
+    expect(html).toContain('<link rel="apple-touch-icon" href="/favicon.png">');
     expect(html).toContain("Fast xBet Cash 🇱🇰");
+  });
+
+  it("uses PUBLIC_BASE_URL and ignores attacker-controlled host headers", () => {
+    const req = new Request("https://attacker.example/?lang=en", { headers: { Host: "attacker.example", "X-Forwarded-Host": "attacker.example" } });
+    const html = renderLandingPage(mockEnv, req);
+    expect(html).toContain('<link rel="canonical" href="https://fast-xbet.lk/">');
+    expect(html).toContain('property="og:url" content="https://fast-xbet.lk/"');
+    expect(html).not.toContain("attacker.example");
+  });
+
+  it("fails closed for production without PUBLIC_BASE_URL", async () => {
+    const workerModule = await import("../src/worker");
+    const res = await workerModule.default.fetch(new Request("https://attacker.example/"), { ...mockEnv, BOT_MODE: "production", PUBLIC_BASE_URL: undefined } as Env);
+    expect(res.status).toBe(503);
   });
 
   it("detects language from ?lang=en query parameter", () => {
@@ -101,7 +118,7 @@ describe("Landing Page Render & SEO", () => {
   });
 
   it("includes JSON-LD schema with Organization, WebSite, and FAQPage", () => {
-    const req = new Request("https://fast-xbet.lk/");
+    const req = new Request("https://fast-xbet.lk/?lang=en");
     const html = renderLandingPage(mockEnv, req);
 
     expect(html).toContain('application/ld+json');
@@ -109,6 +126,8 @@ describe("Landing Page Render & SEO", () => {
     expect(html).toContain('"@type":"WebSite"');
     expect(html).toContain('"@type":"FAQPage"');
     expect(html).toContain('"@type":"Question"');
+    expect(html).toContain("Follow the deposit steps shown by the Telegram bot");
+    expect(html).not.toContain("Use the Telegram bot guided flow for this service");
   });
 
   it("renders 18+ Responsible Gaming notices and badges", () => {

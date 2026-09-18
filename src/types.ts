@@ -36,6 +36,9 @@ export interface Env {
   /** Optional bucket name label when only the binding is available. */
   R2_BUCKET_NAME_BINDING?: string;
   BOT_TOKEN: string;
+  /** Trusted production origin used for canonical and absolute SEO URLs. */
+  PUBLIC_BASE_URL?: string;
+  BOT_MODE?: string;
   BOT_USERNAME?: string;      // Telegram Bot Username (e.g. fast_1xbetcash_bot)
   ADMIN_IDS: string;          // comma-separated Telegram numeric IDs
   ADMIN_CHANNEL_ID?: string;  // Admin / Audit log channel (e.g. -100xxx or @channel)

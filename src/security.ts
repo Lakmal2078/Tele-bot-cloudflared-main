@@ -26,14 +26,14 @@ export function landingPageSecurityHeaders(nonce?: string): Record<string, strin
   headers["Cache-Control"] = "public, max-age=1800, s-maxage=86400, stale-while-revalidate=86400";
   headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
   const scriptPolicy = nonce ? `'nonce-${nonce}'` : "'unsafe-inline'";
-  const stylePolicy = nonce ? `'nonce-${nonce}' https://fonts.googleapis.com` : "'unsafe-inline' https://fonts.googleapis.com";
+  const stylePolicy = nonce ? `'nonce-${nonce}'` : "'unsafe-inline'";
   return {
     ...headers,
     "Content-Security-Policy":
       "default-src 'none'; " +
       `script-src ${scriptPolicy}; ` +
       `style-src ${stylePolicy}; ` +
-      "font-src https://fonts.gstatic.com; " +
+      "font-src 'self'; " +
       "img-src 'self' data: https:; " +
       "connect-src 'self'; " +
       "base-uri 'none'; " +

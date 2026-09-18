@@ -7,7 +7,7 @@ import { settlePendingTips } from "./tipsSettlement";
 import { getPublicTips, publicTipsClientScript } from "./publicTips";
 import { assertValidEnv, constantTimeEqual } from "./config";
 import { landingPageSecurityHeaders, securityHeaders, webhookRequestAllowed } from "./security";
-import { renderLandingPage } from "./landingPage";
+import { renderLandingPage, trustedPublicBaseUrl } from "./landingPage";
 import { handleApiRequest, json } from "./apiRoutes";
 import { getPublicStatus } from "./publicStatus";
 import { logEvent, requestId, withRequestId } from "./observability";
@@ -96,6 +96,9 @@ export default {
       if (apiResponse) return finish(apiResponse);
 
       if (request.method !== "POST") {
+        if (env.BOT_MODE === "production" && !trustedPublicBaseUrl(env, request)) {
+          return finish(new Response("Service configuration error", { status: 503, headers: securityHeaders() }));
+        }
         const nonce = crypto.randomUUID().replace(/-/g, "");
         const channel = env.CHANNEL_URL?.trim() || "https://t.me/fast_xbet_official_tips";
         const html = renderLandingPage(env, request, nonce).replace(
