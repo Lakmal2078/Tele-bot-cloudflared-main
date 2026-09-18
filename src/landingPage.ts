@@ -173,7 +173,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
 :root{--bg:#070b12;--bg2:#081525;--surface:#101720;--surface2:#151e2b;--fg:#f1f5f9;--muted:#94a3b8;--faint:#64748b;--signal:#a6f800;--cyan:#00b4f8;--pink:#ff477e;--border:#ffffff12;--shadow:0 25px 70px #0008}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{margin:0;min-width:320px;background:radial-gradient(circle at 85% 10%,#00b4f814,transparent 32%),radial-gradient(circle at 12% 42%,#ff477e0d,transparent 30%),var(--bg);color:var(--fg);font-family:"Plus Jakarta Sans","Noto Sans Sinhala","Noto Sans Tamil",system-ui,sans-serif;line-height:1.6;overflow-x:hidden}
+body{margin:0;min-width:320px;background:radial-gradient(circle at 85% 10%,#00b4f814,transparent 32%),radial-gradient(circle at 12% 42%,#ff477e0d,transparent 30%),var(--bg);color:var(--fg);font-family:system-ui,"Noto Sans Sinhala","Noto Sans Tamil",sans-serif;line-height:1.6;overflow-x:hidden}
 a{color:inherit;text-decoration:none}
 button,a,summary{font:inherit}
 a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
@@ -198,117 +198,68 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .menu{display:none;margin-left:auto;width:44px;height:44px;border:1px solid var(--border);background:#ffffff08;color:var(--fg);border-radius:12px}
 .mobile{display:none}
 .hero{padding:82px 0 52px}
-.heroGrid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(360px,.95fr);gap:70px;align-items:center}
+.heroGrid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(280px,.95fr);gap:40px;align-items:center}
 .eyebrow{color:#e5edf7;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.68rem;font-weight:800;letter-spacing:.22em;text-transform:uppercase}
-.hero h1{max-width:620px;margin:20px 0 24px;font-size:clamp(3.3rem,7vw,6.2rem);line-height:.98;letter-spacing:-.065em;font-weight:800}
+.hero h1{max-width:620px;margin:20px 0 24px;font-size:clamp(2.6rem,6vw,4.5rem);line-height:1.05;letter-spacing:-.04em;font-weight:800}
 .hero p{max-width:610px;color:var(--muted);font-size:1rem;margin:0}
 .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px}
-.pills{display:flex;gap:7px;flex-wrap:wrap;margin-top:18px}
-.pill{padding:6px 10px;border:1px solid var(--border);background:#ffffff05;border-radius:999px;color:var(--muted);font-size:.66rem;font-weight:700}
-#edge-visual{position:relative}
-.phone{width:min(380px,100%);margin:0 auto;padding:2px;border:1px solid #dbeafeaa;border-radius:34px;background:#0b121d;box-shadow:var(--shadow)}
-.phoneInner{overflow:hidden;border-radius:30px;background:var(--bg2)}
-.phoneTop{display:flex;justify-content:space-between;align-items:center;padding:12px 24px 7px;color:var(--muted);font:600 .62rem ui-monospace,SFMono-Regular,Menlo,monospace}
-.notch{width:96px;height:16px;border-radius:999px;background:#ffffff10}
-.chatHead{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--border)}
-.chatHead .brand{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:#050c14;border:1px solid #00b4f855;overflow:hidden}
-.chatHead .brand svg{width:27px;height:27px}
-.chatTitle{min-width:0}
-.chatTitle b{display:block;font-size:.75rem}
-.chatTitle span{display:block;color:var(--muted);font-size:.6rem}
-.online{margin-left:auto;display:flex;align-items:center;gap:5px;padding:5px 9px;border-radius:999px;background:#a6f80016;color:var(--signal);font-size:.6rem;font-weight:800}
-.online i{width:7px;height:7px;border-radius:50%;background:var(--signal);box-shadow:0 0 10px var(--signal)}
-.chat{display:flex;flex-direction:column;gap:10px;padding:16px 18px 20px;min-height:390px}
-.bubble{max-width:88%;padding:10px 13px;border-radius:22px;background:#151d29;border:1px solid #ffffff0b;font-size:.78rem;line-height:1.35}
-.bubble.bot{border-bottom-left-radius:5px;align-self:flex-start}
-.bubble.user{border-bottom-right-radius:5px;align-self:flex-end;background:#101923;color:#d9e7f4;text-align:right}
-.chatChips{display:flex;flex-wrap:wrap;gap:5px;margin-top:auto}
-.chatChip{padding:6px 9px;border-radius:999px;background:#ffffff06;border:1px solid #ffffff0c;color:var(--muted);font-size:.6rem}
-.trust{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:12px 0 25px}
-.trust div{padding:17px;border:1px solid var(--border);border-radius:22px;background:#ffffff03;text-align:center}
-.trust b{display:block;font:700 .62rem ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--fg)}
-.trust span{display:block;margin-top:5px;color:var(--muted);font-size:.7rem}
-.section{padding:70px 0}
-.head{max-width:740px;margin-bottom:28px}
-.kicker{color:var(--cyan);font:800 .68rem ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.2em;text-transform:uppercase}
-.head h2{margin:10px 0 8px;font-size:clamp(2rem,4.3vw,3.4rem);line-height:1.05;letter-spacing:-.045em}
-.head p{margin:0;color:var(--muted);font-size:.9rem}
+.trust{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:24px 0}
+.trust div{padding:14px;border:1px solid var(--border);border-radius:16px;background:#ffffff05}
+.trust b{display:block;font-size:.78rem}
+.trust span{color:var(--muted);font-size:.65rem}
+.statsStrip{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0 0}
+.statsStrip .stat{padding:12px;border:1px solid var(--border);border-radius:14px;background:#ffffff05;text-align:center}
+.statsStrip .stat b{display:block;font-size:1.1rem;color:var(--signal)}
+.statsStrip .stat span{font-size:.6rem;color:var(--muted);font-weight:700}
+.section{padding:48px 0}
+.head{margin-bottom:22px}
+.kicker{color:var(--cyan);font-size:.7rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.head h2{margin:6px 0;font-size:clamp(1.5rem,3vw,2.2rem)}
+.head p{color:var(--muted);max-width:640px}
 .services{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.service{display:flex;flex-direction:column;min-height:215px;padding:21px;border:1px solid var(--border);border-radius:22px;background:linear-gradient(145deg,#151d29,#0d131d);box-shadow:0 12px 40px #0004}
-.icon{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:#a6f80010;color:var(--signal);font-size:1.05rem}
-.service h3{margin:15px 0 7px;font-size:.9rem}
-.service p{flex:1;margin:0;color:var(--muted);font-size:.72rem}
-.tag{display:inline-flex;align-self:flex-start;margin-top:16px;padding:6px 9px;border:1px solid #00b4f833;border-radius:999px;background:#00b4f80b;color:#ccefff;font-size:.61rem;font-weight:800}
-.tips{overflow:hidden;border:1px solid var(--border);border-radius:24px;background:var(--surface);padding-bottom:8px}
-.tipHead{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:17px 20px;border-bottom:1px solid var(--border)}
-.tipHead b{font-size:.8rem}
-.previewBadge{padding:5px 10px;border-radius:999px;background:#3b82f618;border:1px solid #3b82f644;color:#93c5fd;font-size:.6rem;font-weight:800}
-.tipTabs{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px 0}
-.tipTab{appearance:none;border:1px solid var(--border);background:#ffffff06;color:var(--muted);border-radius:999px;padding:7px 12px;font-size:.65rem;font-weight:700;cursor:pointer}
-.tipTab.active{border-color:#00b4f855;background:#00b4f812;color:#ccefff}
-.tipSummary{display:flex;gap:14px;flex-wrap:wrap;padding:10px 16px 4px;color:var(--muted);font-size:.65rem}
-.tipSummary b{color:var(--text)}
-.tipCardGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:14px 16px 8px}
-.tipCard{display:flex;flex-direction:column;gap:12px;padding:16px;border:1px solid #1e2a3d;border-radius:18px;background:linear-gradient(160deg,#121a26 0%,#0c131c 100%);box-shadow:0 10px 30px #0004;min-height:210px}
-.tipCardTop{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.tipLeague{display:inline-flex;align-items:center;gap:6px;color:#9fb0c7;font-size:.62rem;font-weight:700}
-.tipStatus{padding:4px 9px;border-radius:999px;font-size:.58rem;font-weight:800;border:1px solid transparent}
-.tipStatus.pending{background:#3b82f618;border-color:#3b82f644;color:#93c5fd}
-.tipStatus.won{background:#22c55e18;border-color:#22c55e44;color:#86efac}
-.tipStatus.lost{background:#ef444418;border-color:#ef444444;color:#fca5a5}
-.tipStatus.void,.tipStatus.partial{background:#f59e0b18;border-color:#f59e0b44;color:#fcd34d}
-.tipTeams{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center}
-.tipTeam{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
-.tipTeam b{font-size:.72rem;line-height:1.2;font-weight:700}
-.tipAvatar{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;border:2px solid #334155;color:#e2e8f0;font-size:.72rem;font-weight:900;letter-spacing:.02em}
-.tipVs{color:#64748b;font-size:.7rem;font-weight:800;letter-spacing:.08em}
-.tipWhen{text-align:center;color:#94a3b8;font-size:.68rem;font-weight:600}
-.tipPickRow{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;background:#0a1018;border:1px solid #1e293b}
-.tipMarketTag{flex-shrink:0;padding:4px 8px;border-radius:8px;background:#22c55e22;color:#86efac;font-size:.58rem;font-weight:800}
-.tipPickName{flex:1;color:#e2e8f0;font-size:.68rem;font-weight:700}
-.tipOdds{color:#4ade80;font:900 .85rem ui-monospace,SFMono-Regular,Menlo,monospace}
-.tipFoot{color:#64748b;font-size:.58rem;text-align:left}
-.tipEmpty{grid-column:1/-1;padding:28px 16px;text-align:center;color:var(--muted)}
-.tipEmpty b{display:block;margin-bottom:6px;color:var(--text)}
-.tip{display:none}
-.disclaimer{padding:13px 20px;background:#ff477e07;color:var(--muted);font-size:.65rem}
-@media (max-width:980px){.tipCardGrid{grid-template-columns:1fr}}
+.service{padding:18px;border:1px solid var(--border);border-radius:18px;background:#ffffff03}
+.service .icon{font-size:1.3rem}
+.service h3{margin:8px 0 6px;font-size:.9rem}
+.service p{margin:0;color:var(--muted);font-size:.72rem}
+.tag{display:inline-block;margin-top:10px;padding:4px 8px;border-radius:8px;background:#ffffff08;font-size:.6rem;font-weight:700;color:var(--muted)}
+.tips{border:1px solid var(--border);border-radius:22px;overflow:hidden;background:#0b121d}
+.tipHead{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border)}
+.previewBadge{padding:4px 9px;border-radius:999px;background:#3b82f618;color:#93c5fd;font-size:.58rem;font-weight:800}
+.tipSummary{display:flex;flex-wrap:wrap;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);color:var(--muted);font-size:.7rem}
+.tipSummary b{color:var(--fg)}
+.tipSkeleton{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:14px 16px}
+.tipSkeleton .sk{height:160px;border-radius:18px;background:#121a26}
+.tipTabs{display:flex;gap:6px;padding:10px 16px;border-bottom:1px solid var(--border)}
+.tipTab{padding:6px 12px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:.7rem;font-weight:700;cursor:pointer}
+.tipTab.active{background:#ffffff0b;color:var(--fg)}
+.tipCardGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:14px 16px}
+.tipCard{display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid #1e2a3d;border-radius:18px;background:#121a26}
+.disclaimer{padding:12px 16px;color:var(--muted);font-size:.65rem}
 .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.step{padding:23px;border:1px solid var(--border);border-radius:22px;background:#ffffff03}
-.num{display:grid;place-items:center;width:43px;height:43px;border-radius:50%;background:#151e2b;border:1px solid #00b4f855;color:var(--cyan);font:800 .75rem ui-monospace,SFMono-Regular,Menlo,monospace}
-.step h3{margin:16px 0 6px;font-size:.88rem}
+.step{padding:20px;border:1px solid var(--border);border-radius:18px;background:#ffffff03}
+.num{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--signal);color:#071006;font-weight:800;font-size:.75rem}
+.step h3{margin:10px 0 6px;font-size:.85rem}
 .step p{margin:0;color:var(--muted);font-size:.72rem}
 .payments{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
-.payment{padding:17px;border:1px solid var(--border);border-radius:18px;background:#ffffff03}
+.payment{padding:14px;border:1px solid var(--border);border-radius:16px;background:#ffffff03}
 .payment b{font-size:.75rem}
-.payment span{display:block;margin-top:10px;color:#ccefff;font-size:.6rem;font-weight:700}
-.limits{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
-.limit{padding:9px 12px;border:1px solid var(--border);border-radius:15px;background:#ffffff03}
-.limit small{display:block;color:var(--faint);font-size:.57rem}
-.limit b{font-size:.72rem}
-.responsible-gaming-box{display:grid;grid-template-columns:.8fr 1.2fr;gap:25px;padding:27px;border:1px solid #ff477e3d;border-radius:25px;background:linear-gradient(145deg,#ff477e0b,#ff6b5706)}
-.responsible-gaming-box h2{margin:7px 0 8px;font-size:1.6rem;letter-spacing:-.03em}
+.payment span{display:block;margin-top:8px;color:#ccefff;font-size:.6rem;font-weight:700}
+.responsible-gaming-box{display:grid;grid-template-columns:.8fr 1.2fr;gap:20px;padding:24px;border:1px solid #ff477e3d;border-radius:22px;background:linear-gradient(145deg,#ff477e0b,#ff6b5706)}
+.responsible-gaming-box h2{margin:6px 0;font-size:1.4rem}
 .responsible-gaming-box p,.responsible-gaming-box li{color:var(--muted);font-size:.72rem}
-.responsible-gaming-box ul{margin:0;padding:0;list-style:none;display:grid;gap:7px}
-.responsible-gaming-box li{padding:9px 11px;border-radius:10px;background:#ffffff04}
-.notice{grid-column:1/-1;padding-top:13px;border-top:1px solid #ff477e1c;color:#ffb5c4;font-size:.65rem}
-.faq{display:grid;grid-template-columns:.8fr 1.2fr;gap:45px}
-.faqs{display:grid;gap:8px}
-.faqs details{border:1px solid var(--border);border-radius:15px;background:#ffffff03}
-.faqs summary{cursor:pointer;padding:14px;font-weight:800;font-size:.74rem}
-.answer{padding:0 14px 14px;color:var(--muted);font-size:.7rem}
-.final{padding:15px 0 75px}
-.finalBox{text-align:center;padding:48px 25px;border:1px solid #00b4f833;border-radius:28px;background:radial-gradient(circle at 78% 15%,#ff477e18,transparent 30%),linear-gradient(135deg,#111a27,#0b121d)}
-.finalBox h2{margin:0;font-size:clamp(2rem,4.5vw,3.5rem);letter-spacing:-.05em}
-.finalBox p{max-width:650px;margin:10px auto 20px;color:var(--muted);font-size:.85rem}
-.footer{padding:36px 0;border-top:1px solid var(--border)}
-.foot{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:30px}
+.faqs details{border:1px solid var(--border);border-radius:14px;background:#ffffff03;margin-bottom:8px}
+.faqs summary{cursor:pointer;padding:12px;font-weight:800;font-size:.74rem}
+.answer{padding:0 12px 12px;color:var(--muted);font-size:.7rem}
+.finalBox{text-align:center;padding:40px 20px;border:1px solid #00b4f833;border-radius:24px;background:#111a27}
+.footer{padding:32px 0;border-top:1px solid var(--border)}
+.foot{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:24px}
 .footer p,.footer a{color:var(--muted);font-size:.67rem}
 .footerLinks{display:grid;gap:6px;margin-top:8px}
-.bottom{display:flex;justify-content:space-between;gap:10px;margin-top:25px;padding-top:15px;border-top:1px solid var(--border);color:var(--faint);font-size:.61rem}
-@media(max-width:980px){.heroGrid{grid-template-columns:1fr;gap:45px}.hero h1{max-width:760px}.phone{margin:0 auto}.services{grid-template-columns:1fr 1fr}.payments{grid-template-columns:repeat(3,1fr)}.links a:nth-child(n+4){display:none}}
-@media(max-width:720px){.wrap{width:calc(100% - 24px)}.navin{min-height:62px}.links,.langs,.desktop{display:none}.menu{display:grid;place-items:center}.mobile.open{display:grid;position:absolute;right:12px;top:calc(100% + 7px);width:min(320px,calc(100vw - 24px));padding:9px;background:#0a101af7;border:1px solid var(--border);border-radius:17px;box-shadow:0 20px 50px #000b}.mobile a{padding:11px;color:var(--muted);font-weight:700}.mobile .btn{margin-top:4px;color:#071006}.hero{padding:52px 0 35px}.heroGrid{gap:30px}.hero h1{font-size:clamp(2.8rem,14vw,4.2rem)}.actions{display:grid}.actions .btn{width:100%}.trust,.services,.steps,.faq{grid-template-columns:1fr}.payments{grid-template-columns:1fr 1fr}.tip{grid-template-columns:1fr auto}.tip .market{grid-column:1}.tip .odds{grid-column:2;grid-row:1}.tip .cta{grid-column:1/-1;width:100%}.responsible-gaming-box{grid-template-columns:1fr}.notice{grid-column:auto}.foot{grid-template-columns:1fr 1fr}.bottom{display:grid}}
-@media(max-width:430px){.payments{grid-template-columns:1fr}.foot{grid-template-columns:1fr}.phone{border-radius:29px}.phoneInner{border-radius:25px}.chat{min-height:340px}}
+.bottom{display:flex;justify-content:space-between;margin-top:20px;padding-top:14px;border-top:1px solid var(--border);color:var(--faint);font-size:.61rem}
+.stickyCta{display:none;position:fixed;left:0;right:0;bottom:0;z-index:40;padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:#070b12ee;border-top:1px solid var(--border)}
+.stickyCta .btn{width:100%}
+@media(max-width:980px){.heroGrid,.services,.payments,.trust,.statsStrip,.tipSkeleton,.tipCardGrid,.steps{grid-template-columns:1fr 1fr}.responsible-gaming-box,.faq{grid-template-columns:1fr}}
+@media(max-width:720px){.links,.langs,.desktop{display:none}.menu{display:grid;place-items:center}.mobile.open{display:grid;position:absolute;right:12px;top:calc(100% + 7px);width:min(320px,calc(100vw - 24px));padding:9px;background:#0a101af7;border:1px solid var(--border);border-radius:16px}.mobile a{padding:11px;color:var(--muted);font-weight:700}.hero h1{font-size:clamp(2.2rem,10vw,3.2rem)}.trust,.services,.steps,.payments,.statsStrip,.tipSkeleton,.tipCardGrid,.foot{grid-template-columns:1fr}.stickyCta{display:block}body{padding-bottom:72px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn{transition:none}}
 </style>
 </head>
@@ -342,34 +293,20 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
       <h1>${esc(c.hero[1])}</h1>
       <p>${esc(c.hero[2])}</p>
       <div class="actions"><a class="btn primary" href="${eb}">✈ ${esc(c.hero[3])}</a><a class="btn secondary" href="#tips-preview">${esc(c.hero[4])}</a></div>
-      <div class="pills"><span class="pill">🔞 18+ only</span><span class="pill">🌐 Sinhala / English / Tamil</span><span class="pill">⚡ Guided Telegram flow</span></div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:18px"><span style="padding:6px 10px;border:1px solid var(--border);border-radius:999px;color:var(--muted);font-size:.66rem;font-weight:700">18+</span><span style="padding:6px 10px;border:1px solid var(--border);border-radius:999px;color:var(--muted);font-size:.66rem;font-weight:700">Promo ${promo}</span></div>
     </div>
-
-    <div id="edge-visual">
-      <div class="phone" aria-label="Illustrative Telegram bot preview">
-        <div class="phoneInner">
-          <div class="phoneTop"><span>09:24</span><span class="notch"></span><span>LTE</span></div>
-          <div class="chatHead">
-            <div class="brand"><span>${BRAND_LOGO_SVG_COMPACT}</span></div>
-            <div class="chatTitle"><b>Fast xBet Cash</b><span>bot · replies in minutes</span></div>
-            <div class="online"><i></i> Bot online</div>
-          </div>
-          <div class="chat">
-            <div class="bubble bot">Welcome. Choose a service to continue.</div>
-            <div class="bubble user">Deposit</div>
-            <div class="bubble bot">Send your 1xBet Player ID, then pick a local rail.</div>
-            <div class="bubble user">Player ID 88410231</div>
-            <div class="bubble bot">Limits LKR ${min.toLocaleString("en-LK")}–${max.toLocaleString("en-LK")}. Typical completion 2–5 minutes after receipt.</div>
-            <div class="chatChips"><span class="chatChip">Tips</span><span class="chatChip">Deposit</span><span class="chatChip">Withdraw</span><span class="chatChip">Support</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <div id="edge-visual"><div style="max-width:340px;margin:0 auto;padding:16px;border:1px solid #dbeafeaa;border-radius:28px;background:#0b121d;color:var(--muted);font-size:.75rem">Telegram-first cash desk · Open the bot for guided deposit &amp; tips.</div></div>
   </div>
 </section>
 
 <section class="wrap" aria-label="Trust signals">
   <div class="trust"><div><b>⚡ Guided</b><span>Clear flow</span></div><div><b>📲 Telegram</b><span>One place</span></div><div><b>🛡️ Logged</b><span>Request trail</span></div><div><b>💳 Local rails</b><span>Responsible use</span></div></div>
+  <div class="statsStrip" id="live-stats" aria-live="polite">
+    <div class="stat"><b id="stat-total">—</b><span>Settled (7d)</span></div>
+    <div class="stat"><b id="stat-won">—</b><span>Won</span></div>
+    <div class="stat"><b id="stat-lost">—</b><span>Lost</span></div>
+    <div class="stat"><b id="stat-rate">—</b><span>Win rate</span></div>
+  </div>
 </section>
 
 <section class="section" id="services"><div class="wrap">
@@ -378,45 +315,12 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 </div></section>
 
 <section class="section" id="tips-preview"><div class="wrap">
-  <div class="head"><div class="kicker">Free Tips</div><h2>Today’s Free Tips Preview</h2><p>Sample fixtures are shown only as a public preview. They are not presented as live predictions.</p></div>
-  <div class="tips">
-    <div class="tipHead"><b>Sample fixtures</b><span class="previewBadge">Preview only</span></div>
-    <div class="tipCardGrid">
-      <article class="tipCard">
-        <div class="tipCardTop"><span class="tipLeague">Premier League</span><span class="tipStatus pending">Preview</span></div>
-        <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar" style="background:hsl(0 55% 28%);border-color:hsl(0 60% 42%)">AR</span><b>Arsenal</b></div>
-          <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar" style="background:hsl(220 55% 28%);border-color:hsl(220 60% 42%)">CH</span><b>Chelsea</b></div>
-        </div>
-        <div class="tipWhen">Today, 17:30</div>
-        <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Arsenal Win</span><b class="tipOdds">1.94</b></div>
-        <div class="tipFoot">Preview · Odds are illustrative</div>
-      </article>
-      <article class="tipCard">
-        <div class="tipCardTop"><span class="tipLeague">La Liga</span><span class="tipStatus pending">Preview</span></div>
-        <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar" style="background:hsl(45 55% 28%);border-color:hsl(45 60% 42%)">RM</span><b>Real Madrid</b></div>
-          <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar" style="background:hsl(0 60% 32%);border-color:hsl(0 65% 45%)">AT</span><b>Atletico Madrid</b></div>
-        </div>
-        <div class="tipWhen">Today, 20:00</div>
-        <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Real Madrid Win</span><b class="tipOdds">1.78</b></div>
-        <div class="tipFoot">Preview · Odds are illustrative</div>
-      </article>
-      <article class="tipCard">
-        <div class="tipCardTop"><span class="tipLeague">Bundesliga</span><span class="tipStatus pending">Preview</span></div>
-        <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar" style="background:hsl(0 50% 30%);border-color:hsl(0 55% 42%)">BM</span><b>Bayern Munich</b></div>
-          <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar" style="background:hsl(210 55% 28%);border-color:hsl(210 60% 42%)">PS</span><b>PSG</b></div>
-        </div>
-        <div class="tipWhen">Today, 22:00</div>
-        <div class="tipPickRow"><span class="tipMarketTag">O/U</span><span class="tipPickName">Over 2.5 Goals</span><b class="tipOdds">1.85</b></div>
-        <div class="tipFoot">Preview · Odds are illustrative</div>
-      </article>
-    </div>
-    <div class="disclaimer">These previews are illustrative. Sports outcomes are uncertain. No tip guarantees a win or profit.</div>
+  <div class="head"><div class="kicker">Free Tips</div><h2>Today’s Free Tips Preview</h2><p>Live tips load from the API. Informational previews only.</p></div>
+  <div class="tips" id="tips-root">
+    <div class="tipHead"><b>Loading tips…</b><span class="previewBadge">Preview only</span></div>
+    <div class="tipSkeleton" aria-hidden="true"><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
+    <noscript><div class="disclaimer">With JavaScript off, view live tips on the <a href="${ec}" rel="noopener noreferrer">Telegram channel</a>.</div></noscript>
+    <div class="disclaimer">Informational preview only. Sports outcomes are uncertain. No tip guarantees a win or profit. 18+ only.</div>
   </div>
 </div></section>
 
@@ -426,31 +330,29 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 </div></section>
 
 <section class="section" id="payments"><div class="wrap">
-  <div class="head"><div class="kicker">Payments</div><h2>${esc(c.pay[0])}</h2><p>Confirm availability and exact instructions inside the bot. Sensitive payment credentials are not exposed on this page.</p></div>
+  <div class="head"><div class="kicker">Payments</div><h2>${esc(c.pay[0])}</h2><p>Confirm availability and exact instructions inside the bot.</p></div>
   <div class="payments">${payments}</div>
-  <div class="limits"><div class="limit"><small>Minimum</small><b>LKR ${min.toLocaleString("en-LK")}</b></div><div class="limit"><small>Maximum</small><b>LKR ${max.toLocaleString("en-LK")}</b></div><div class="limit"><small>Promo</small><b>${promo}</b></div></div>
-  <div class="actions">${env.DEPOSIT_INSTRUCTIONS?.trim() ? `<details class="limit"><summary>Deposit instructions</summary><div style="color:var(--muted);font-size:.7rem;margin-top:7px">${esc(env.DEPOSIT_INSTRUCTIONS.trim())}</div></details>` : ""}</div>
 </div></section>
 
-<section class="section"><div class="wrap"><div class="responsible-gaming-box">
+<section class="section" id="responsible"><div class="wrap"><div class="responsible-gaming-box">
   <div><div class="kicker">Play responsibly</div><h2>🔞 18+ Responsible Gaming Notice</h2><p>Free tips and previews are informational only. No guaranteed outcome, profit, or risk-free betting claim is made.</p></div>
-  <ul><li>✓ 18+ users only.</li><li>✓ Gambling involves risk and losses can occur.</li><li>✓ Set limits and do not chase losses.</li><li>✓ Never use money needed for essential expenses.</li><li>✓ If gambling stops feeling controlled, take a break and seek appropriate support.</li></ul>
-  <div class="notice">Responsible use is your responsibility. Do not chase losses or use essential-expense money for gambling.</div>
+  <ul><li>✓ 18+ only.</li><li>✓ Never gamble with money you cannot afford to lose.</li><li>✓ If gambling stops feeling controlled, take a break.</li></ul>
 </div></div></section>
 
-<section class="section" id="faq"><div class="wrap faq">
-  <div class="head"><div class="kicker">FAQ</div><h2>Frequently Asked Questions</h2><p>Clear answers for the public workflow.</p></div>
+<section class="section" id="faq"><div class="wrap">
+  <div class="head"><div class="kicker">FAQ</div><h2>FAQ</h2></div>
   <div class="faqs">${faqHtml}</div>
 </div></section>
 
-<section class="final"><div class="wrap"><div class="finalBox"><h2>${esc(c.final[0])}</h2><p>${esc(c.final[1])}</p><div class="actions" style="justify-content:center"><a class="btn primary" href="${eb}">✈ ${esc(c.hero[3])}</a><a class="btn secondary" href="#tips-preview">${esc(c.hero[4])}</a></div></div></div></section>
+<section class="section"><div class="wrap"><div class="finalBox"><h2>${esc(c.final[0])}</h2><p>${esc(c.final[1])}</p><div class="actions" style="justify-content:center"><a class="btn primary" href="${eb}">✈ ${esc(c.hero[3])}</a></div></div></div></section>
 </main>
 
 <footer class="footer"><div class="wrap foot">
-  <div><a class="logo" href="${ea}"><span>${BRAND_LOGO_SVG_COMPACT}</span>Fast <span>xBet</span> Cash 🇱🇰</a><p>Telegram-first service for public sports previews, guided support and multilingual assistance.</p><b>18+ only · Gamble responsibly</b></div>
+  <div><a class="logo" href="${ea}"><span>${BRAND_LOGO_SVG_COMPACT}</span>Fast <span>xBet</span> Cash 🇱🇰</a><p>Telegram-first service for public sports previews and guided support.</p><b>18+ only · Gamble responsibly</b></div>
   <div><b>Quick links</b><div class="footerLinks"><a href="#tips-preview">${esc(c.nav[1])}</a><a href="#payments">${esc(c.nav[3])}</a><a href="#faq">${esc(c.nav[4])}</a></div></div>
-  <div><b>Access</b><div class="footerLinks"><a href="${ec}">Tips Channel</a><a href="${eb}">Telegram Bot</a><a href="#faq">Responsible gaming</a></div></div>
-</div><div class="wrap bottom"><span>© ${new Date().getFullYear()} Fast xBet Cash</span><span>18+ · Telegram-first · Edge service</span></div></footer>
+  <div><b>Access</b><div class="footerLinks"><a href="${ec}">Tips Channel</a><a href="${eb}">Telegram Bot</a><a href="#responsible">Responsible Gaming</a><a href="#faq">Terms</a><a href="#faq">Privacy</a></div></div>
+</div><div class="wrap bottom"><span>© ${new Date().getFullYear()} Fast xBet Cash</span><span>18+ · Telegram-first</span></div></footer>
+<div class="stickyCta"><a class="btn primary" href="${eb}">✈ ${esc(c.hero[3])}</a></div>
 
 <script${n}>
 (function(){
@@ -462,6 +364,16 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
     document.addEventListener("keydown",function(e){if(e.key==="Escape")close()});
     document.addEventListener("click",function(e){if(m.classList.contains("open")&&!m.contains(e.target)&&e.target!==b)close()});
   }
+  document.querySelectorAll(".langs a").forEach(function(a){
+    a.addEventListener("click",function(e){
+      e.preventDefault();
+      var href=a.getAttribute("href")||"";
+      var u=new URL(window.location.href);
+      var m2=href.match(/lang=(\w+)/);
+      if(m2)u.searchParams.set("lang",m2[1]);
+      window.location.href=u.pathname+u.search+(window.location.hash||"");
+    });
+  });
 })();
 </script>
 </body></html>`;
