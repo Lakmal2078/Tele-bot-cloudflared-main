@@ -187,11 +187,9 @@ describe("Admin Trends & Panel Routes", () => {
     expect(typeof data.summary.totalDepositVolume).toBe("number");
   });
 
-  it("authorizes /api/admin/trends via query param secret", async () => {
+  it("rejects /api/admin/trends when the secret is passed in the query string", async () => {
     const req = new Request(`http://localhost/api/admin/trends?secret=${mockEnv.ADMIN_API_SECRET}`);
     const res = await handleApiRequest(req, mockEnv);
-    expect(res?.status).toBe(200);
-    const data = (await res?.json()) as any;
-    expect(data.ok).toBe(true);
+    expect(res?.status).toBe(401);
   });
 });
