@@ -376,7 +376,7 @@ export function formatTipMessage(candidates: TipCandidate[], slot: string, joinU
       : candidate.selection;
 
     return [
-      `${badge} ⚽ *${escapeMarkdown(sportName)}*`,
+      `${badge} ${candidate.emoji} *${escapeMarkdown(sportName)}*`,
       `*${escapeMarkdown(candidate.event.home_team)}*  vs  *${escapeMarkdown(candidate.event.away_team)}*`,
       `🕒 ${escapeMarkdown(formatKickoff(candidate.event.commence_time))}`,
       `🏷 *${escapeMarkdown(marketTag)}* · ${escapeMarkdown(pickLabel)} · *${bestPrice.toFixed(2)}*`,
