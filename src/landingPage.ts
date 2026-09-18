@@ -239,18 +239,40 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .service h3{margin:15px 0 7px;font-size:.9rem}
 .service p{flex:1;margin:0;color:var(--muted);font-size:.72rem}
 .tag{display:inline-flex;align-self:flex-start;margin-top:16px;padding:6px 9px;border:1px solid #00b4f833;border-radius:999px;background:#00b4f80b;color:#ccefff;font-size:.61rem;font-weight:800}
-.tips{overflow:hidden;border:1px solid var(--border);border-radius:24px;background:var(--surface)}
-.tipHead{display:flex;justify-content:space-between;gap:12px;padding:17px 20px;border-bottom:1px solid var(--border)}
+.tips{overflow:hidden;border:1px solid var(--border);border-radius:24px;background:var(--surface);padding-bottom:8px}
+.tipHead{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:17px 20px;border-bottom:1px solid var(--border)}
 .tipHead b{font-size:.8rem}
-.previewBadge{padding:5px 8px;border-radius:999px;background:#ff477e12;border:1px solid #ff477e33;color:#ff9db7;font-size:.6rem;font-weight:800}
-.tip{display:grid;grid-template-columns:1fr 1.5fr .8fr .5fr auto;gap:12px;align-items:center;padding:15px 20px;border-bottom:1px solid #ffffff0b}
-.tip:last-of-type{border-bottom:0}
-.tip small{color:var(--faint);font-size:.59rem}
-.tip strong{font-size:.72rem}
-.market{color:var(--muted);font-size:.65rem}
-.odds{color:var(--signal);font:900 .75rem ui-monospace,SFMono-Regular,Menlo,monospace}
-.tip .btn{min-height:38px;font-size:.63rem;padding:8px 12px}
+.previewBadge{padding:5px 10px;border-radius:999px;background:#3b82f618;border:1px solid #3b82f644;color:#93c5fd;font-size:.6rem;font-weight:800}
+.tipTabs{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px 0}
+.tipTab{appearance:none;border:1px solid var(--border);background:#ffffff06;color:var(--muted);border-radius:999px;padding:7px 12px;font-size:.65rem;font-weight:700;cursor:pointer}
+.tipTab.active{border-color:#00b4f855;background:#00b4f812;color:#ccefff}
+.tipSummary{display:flex;gap:14px;flex-wrap:wrap;padding:10px 16px 4px;color:var(--muted);font-size:.65rem}
+.tipSummary b{color:var(--text)}
+.tipCardGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:14px 16px 8px}
+.tipCard{display:flex;flex-direction:column;gap:12px;padding:16px;border:1px solid #1e2a3d;border-radius:18px;background:linear-gradient(160deg,#121a26 0%,#0c131c 100%);box-shadow:0 10px 30px #0004;min-height:210px}
+.tipCardTop{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tipLeague{display:inline-flex;align-items:center;gap:6px;color:#9fb0c7;font-size:.62rem;font-weight:700}
+.tipStatus{padding:4px 9px;border-radius:999px;font-size:.58rem;font-weight:800;border:1px solid transparent}
+.tipStatus.pending{background:#3b82f618;border-color:#3b82f644;color:#93c5fd}
+.tipStatus.won{background:#22c55e18;border-color:#22c55e44;color:#86efac}
+.tipStatus.lost{background:#ef444418;border-color:#ef444444;color:#fca5a5}
+.tipStatus.void,.tipStatus.partial{background:#f59e0b18;border-color:#f59e0b44;color:#fcd34d}
+.tipTeams{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center}
+.tipTeam{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.tipTeam b{font-size:.72rem;line-height:1.2;font-weight:700}
+.tipAvatar{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;border:2px solid #334155;color:#e2e8f0;font-size:.72rem;font-weight:900;letter-spacing:.02em}
+.tipVs{color:#64748b;font-size:.7rem;font-weight:800;letter-spacing:.08em}
+.tipWhen{text-align:center;color:#94a3b8;font-size:.68rem;font-weight:600}
+.tipPickRow{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;background:#0a1018;border:1px solid #1e293b}
+.tipMarketTag{flex-shrink:0;padding:4px 8px;border-radius:8px;background:#22c55e22;color:#86efac;font-size:.58rem;font-weight:800}
+.tipPickName{flex:1;color:#e2e8f0;font-size:.68rem;font-weight:700}
+.tipOdds{color:#4ade80;font:900 .85rem ui-monospace,SFMono-Regular,Menlo,monospace}
+.tipFoot{color:#64748b;font-size:.58rem;text-align:left}
+.tipEmpty{grid-column:1/-1;padding:28px 16px;text-align:center;color:var(--muted)}
+.tipEmpty b{display:block;margin-bottom:6px;color:var(--text)}
+.tip{display:none}
 .disclaimer{padding:13px 20px;background:#ff477e07;color:var(--muted);font-size:.65rem}
+@media (max-width:980px){.tipCardGrid{grid-template-columns:1fr}}
 .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .step{padding:23px;border:1px solid var(--border);border-radius:22px;background:#ffffff03}
 .num{display:grid;place-items:center;width:43px;height:43px;border-radius:50%;background:#151e2b;border:1px solid #00b4f855;color:var(--cyan);font:800 .75rem ui-monospace,SFMono-Regular,Menlo,monospace}
@@ -359,9 +381,41 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
   <div class="head"><div class="kicker">Free Tips</div><h2>Today’s Free Tips Preview</h2><p>Sample fixtures are shown only as a public preview. They are not presented as live predictions.</p></div>
   <div class="tips">
     <div class="tipHead"><b>Sample fixtures</b><span class="previewBadge">Preview only</span></div>
-    <div class="tip"><small>Premier League</small><strong>Arsenal vs Chelsea</strong><span class="market">Preview market</span><b class="odds">1.82</b><a class="btn secondary cta" href="${eb}">${esc(c.hero[3])}</a></div>
-    <div class="tip"><small>La Liga</small><strong>Real Madrid vs Atletico</strong><span class="market">Preview market</span><b class="odds">1.74</b><a class="btn secondary cta" href="${eb}">${esc(c.hero[3])}</a></div>
-    <div class="tip"><small>Champions League</small><strong>Bayern Munich vs PSG</strong><span class="market">Preview market</span><b class="odds">1.91</b><a class="btn secondary cta" href="${eb}">${esc(c.hero[3])}</a></div>
+    <div class="tipCardGrid">
+      <article class="tipCard">
+        <div class="tipCardTop"><span class="tipLeague">Premier League</span><span class="tipStatus pending">Preview</span></div>
+        <div class="tipTeams">
+          <div class="tipTeam"><span class="tipAvatar" style="background:hsl(0 55% 28%);border-color:hsl(0 60% 42%)">AR</span><b>Arsenal</b></div>
+          <div class="tipVs">VS</div>
+          <div class="tipTeam"><span class="tipAvatar" style="background:hsl(220 55% 28%);border-color:hsl(220 60% 42%)">CH</span><b>Chelsea</b></div>
+        </div>
+        <div class="tipWhen">Today, 17:30</div>
+        <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Arsenal Win</span><b class="tipOdds">1.94</b></div>
+        <div class="tipFoot">Preview · Odds are illustrative</div>
+      </article>
+      <article class="tipCard">
+        <div class="tipCardTop"><span class="tipLeague">La Liga</span><span class="tipStatus pending">Preview</span></div>
+        <div class="tipTeams">
+          <div class="tipTeam"><span class="tipAvatar" style="background:hsl(45 55% 28%);border-color:hsl(45 60% 42%)">RM</span><b>Real Madrid</b></div>
+          <div class="tipVs">VS</div>
+          <div class="tipTeam"><span class="tipAvatar" style="background:hsl(0 60% 32%);border-color:hsl(0 65% 45%)">AT</span><b>Atletico Madrid</b></div>
+        </div>
+        <div class="tipWhen">Today, 20:00</div>
+        <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Real Madrid Win</span><b class="tipOdds">1.78</b></div>
+        <div class="tipFoot">Preview · Odds are illustrative</div>
+      </article>
+      <article class="tipCard">
+        <div class="tipCardTop"><span class="tipLeague">Bundesliga</span><span class="tipStatus pending">Preview</span></div>
+        <div class="tipTeams">
+          <div class="tipTeam"><span class="tipAvatar" style="background:hsl(0 50% 30%);border-color:hsl(0 55% 42%)">BM</span><b>Bayern Munich</b></div>
+          <div class="tipVs">VS</div>
+          <div class="tipTeam"><span class="tipAvatar" style="background:hsl(210 55% 28%);border-color:hsl(210 60% 42%)">PS</span><b>PSG</b></div>
+        </div>
+        <div class="tipWhen">Today, 22:00</div>
+        <div class="tipPickRow"><span class="tipMarketTag">O/U</span><span class="tipPickName">Over 2.5 Goals</span><b class="tipOdds">1.85</b></div>
+        <div class="tipFoot">Preview · Odds are illustrative</div>
+      </article>
+    </div>
     <div class="disclaimer">These previews are illustrative. Sports outcomes are uncertain. No tip guarantees a win or profit.</div>
   </div>
 </div></section>
