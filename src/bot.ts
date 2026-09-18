@@ -1139,7 +1139,7 @@ export function createBot(env: Env) {
           });
         }
       } catch (err) {
-        console.error(`Failed to alert admin ${adminId}:`, err);
+        console.error("[Admin] Deposit alert delivery failed.");
       }
     }
   }
@@ -3138,7 +3138,7 @@ export function createBot(env: Env) {
               reply_markup: adminKb,
             });
           } catch (err) {
-            console.error(`Failed to alert admin ${adminId}:`, err);
+            console.error("[Admin] Deposit alert delivery failed.");
           }
         }
 
