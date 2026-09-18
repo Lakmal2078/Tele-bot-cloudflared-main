@@ -28,10 +28,11 @@ export interface TipQualityConfig {
 }
 
 const TIP_QUALITY_DEFAULTS: TipQualityConfig = {
-  minConsensus: 0.55,
-  minValue: 0.02,
-  minBookmakers: 3,
-  maxStaleHours: 6,
+  // Free-plan tuned: wider kickoff window + slightly softer bookmaker floor
+  minConsensus: 0.52,
+  minValue: 0.01,
+  minBookmakers: 2,
+  maxStaleHours: 24,
 };
 
 function positiveEnvNumber(value: unknown, fallback: number): number {

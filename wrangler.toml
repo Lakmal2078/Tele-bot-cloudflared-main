@@ -34,22 +34,23 @@ WHATSAPP_NUMBER = "94776763093"
 
 # Automated Free Tips — Sri Lanka time (UTC+05:30)
 # 08:00 = 02:30 UTC, 12:00 = 06:30 UTC, 18:00 = 12:30 UTC.
-# Free-plan budget: at most 3 odds feeds per slot and 1 region.
-# 3 feeds x 3 slots/day = max 9 paid odds requests/day (~270/month).
-# /sports discovery is quota-free and can discover special-sport feeds.
+# Free-plan (500 credits/mo) budget:
+#   3 feeds x 3 slots/day = max 9 paid odds requests/day (~270/month).
+#   /sports discovery + /scores settlement are quota-free on free plans.
+#   1 market (h2h) x 1 region (eu) = 1 credit per sport feed.
 TIPS_CHANNEL_ID = "-1004336999467"
 TIPS_CHANNEL_URL = "https://t.me/fast_xbet_official_tips"
 TIPS_PER_SLOT = "3"
-TIPS_SPORTS = "soccer_epl,soccer_uefa_champs_league,basketball_nba,tennis_atp"
+TIPS_SPORTS = "soccer_epl,soccer_uefa_champs_league,soccer_spain_la_liga,basketball_nba,tennis_atp"
 TIPS_ODDS_REGIONS = "eu"
-TIPS_MIN_ODDS = "1.40"
-TIPS_MAX_ODDS = "2.50"
+TIPS_MIN_ODDS = "1.30"
+TIPS_MAX_ODDS = "3.00"
 TIPS_HOURS_AHEAD = "48"
-TIPS_MAX_FEEDS = "10"
-TIPS_MIN_CONSENSUS = "0.55"
-TIPS_MIN_VALUE = "0.02"
-TIPS_MIN_BOOKMAKERS = "3"
-TIPS_MAX_STALE_HOURS = "6"
+TIPS_MAX_FEEDS = "3"
+TIPS_MIN_CONSENSUS = "0.52"
+TIPS_MIN_VALUE = "0.01"
+TIPS_MIN_BOOKMAKERS = "2"
+TIPS_MAX_STALE_HOURS = "24"
 
 [[d1_databases]]
 binding = "DB"
