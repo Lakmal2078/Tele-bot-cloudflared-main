@@ -183,9 +183,14 @@ describe("Landing Page Render & SEO", () => {
     const html = renderLandingPage(mockEnv, req);
 
     expect(html).toContain('id="tips-preview"');
-    expect(html).toContain("Arsenal vs Chelsea");
-    expect(html).toContain("Real Madrid vs Atletico");
-    expect(html).toContain("Bayern Munich vs PSG");
+    expect(html).toContain("Arsenal");
+    expect(html).toContain("Chelsea");
+    expect(html).toContain("Real Madrid");
+    expect(html).toContain("Atletico Madrid");
+    expect(html).toContain("Bayern Munich");
+    expect(html).toContain("PSG");
+    expect(html).toContain("tipCard");
+    expect(html).toContain("1X2");
   });
 
   it("serves vector OG Image at /og-image.svg via handleApiRequest", async () => {
