@@ -24,7 +24,8 @@ export function securityHeaders(): Record<string, string> {
   };
 }
 
-export function landingPageSecurityHeaders(nonce?: string): Record<string, string> {
+export function landingPageSecurityHeaders(nonce?: string, options: { isHttps?: boolean } = {}): Record<string, string> {
+  const isHttps = options.isHttps ?? true;
   const headers = { ...securityHeaders() };
   headers["Cache-Control"] = "public, max-age=1800, s-maxage=86400, stale-while-revalidate=86400";
   headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
@@ -41,7 +42,7 @@ export function landingPageSecurityHeaders(nonce?: string): Record<string, strin
       "connect-src 'self'; " +
       "base-uri 'none'; " +
       "object-src 'none'; " +
-      "upgrade-insecure-requests; " +
+      (isHttps ? "upgrade-insecure-requests; " : "") +
       "form-action 'none'; " +
       "frame-ancestors 'none'",
   };
