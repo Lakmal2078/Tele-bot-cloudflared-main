@@ -369,7 +369,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
       e.preventDefault();
       var href=a.getAttribute("href")||"";
       var u=new URL(window.location.href);
-      var m2=href.match(/lang=(\w+)/);
+      var m2=href.match(/lang=([a-z]+)/);
       if(m2)u.searchParams.set("lang",m2[1]);
       window.location.href=u.pathname+u.search+(window.location.hash||"");
     });
