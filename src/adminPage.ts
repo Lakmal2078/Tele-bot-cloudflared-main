@@ -39,7 +39,11 @@ export interface AdminPageData {
  * entry form — so that anonymous visitors cannot view business/financial
  * information just by navigating to /admin.
  */
-export function renderAdminLoginPage(env: Env, nonce?: string): string {
+export function renderAdminLoginPage(
+  env: Env,
+  nonce?: string,
+  options: { error?: string } = {}
+): string {
   const nonceAttr = nonce ? ` nonce="${escapeAttribute(nonce)}"` : "";
   return `<!doctype html>
 <html lang="en">
@@ -85,7 +89,8 @@ export function renderAdminLoginPage(env: Env, nonce?: string): string {
     <span style="width:40px; height:40px; display:inline-flex; border-radius:10px; overflow:hidden;">${BRAND_LOGO_SVG_COMPACT}</span>
     <h1>Admin Login</h1>
     <p>Enter the admin secret to view the dashboard.</p>
-    <form id="admin-secret-form" method="GET" action="/admin">
+    ${options.error ? `<p style="color:#f87171; font-size:13px;">${escapeAttribute(options.error)}</p>` : ""}
+    <form id="admin-secret-form" method="POST" action="/admin/login">
       <input type="password" name="secret" class="auth-input" id="admin-secret-input" placeholder="Enter ADMIN_API_SECRET..." autocomplete="current-password">
       <button type="submit" id="btn-apply-secret">Sign In</button>
     </form>
@@ -383,11 +388,9 @@ export function renderAdminPage(
         <strong style="color: #38bdf8;">Admin API Access:</strong> 
         ${isAuthorized ? '<span style="color: #10b981; font-weight: 600;">Authenticated Session Active</span>' : 'Preview Mode Active. Enter secret for direct API write controls.'}
       </div>
-      <form id="admin-secret-form" style="display: flex; gap: 8px;" method="GET" action="/admin">
-        <input type="hidden" name="days" value="${days}">
-        <input type="hidden" name="metric" value="${metric}">
-        <input type="password" name="secret" class="auth-input" id="admin-secret-input" placeholder="Enter ADMIN_API_SECRET..." value="" autocomplete="current-password">
-        <button type="submit" class="btn btn-secondary" id="btn-apply-secret">Set Secret</button>
+      <form id="admin-secret-form" style="display: flex; gap: 8px;" method="POST" action="${isAuthorized ? "/admin/logout" : "/admin/login"}">
+        ${isAuthorized ? "" : `<input type="password" name="secret" class="auth-input" id="admin-secret-input" placeholder="Enter ADMIN_API_SECRET..." value="" autocomplete="current-password">`}
+        <button type="submit" class="btn btn-secondary" id="btn-apply-secret">${isAuthorized ? "Sign Out" : "Sign In"}</button>
       </form>
     </div>
 
@@ -550,23 +553,6 @@ export function renderAdminPage(
     </div>
   </div>
 
-  <script${nonceAttr}>
-    // Remember admin secret in sessionStorage if supplied
-    (function() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const secretParam = urlParams.get('secret');
-      if (secretParam) {
-        sessionStorage.setItem('x-admin-secret', secretParam);
-      }
-      const stored = sessionStorage.getItem('x-admin-secret');
-      if (stored) {
-        const input = document.getElementById('admin-secret-input');
-        if (input && !input.value) {
-          input.value = stored;
-        }
-      }
-    })();
-  </script>
 </body>
 </html>`;
 }

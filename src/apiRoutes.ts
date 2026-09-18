@@ -2,13 +2,28 @@ import type { Env } from "./types";
 import { OG_IMAGE_PNG, OG_IMAGE_JPEG } from "./ogImage";
 import { BRAND_LOGO_SVG, BRAND_FAVICON_PNG, BRAND_LOGO_PNG_192 } from "./brandLogo";
 import { constantTimeEqual, isConfiguredAdminId, validateEnv } from "./config";
-import { securityHeaders } from "./security";
+import { securityHeaders, adminAttemptAllowed, recordAdminFailure } from "./security";
+import {
+  ADMIN_SESSION_COOKIE,
+  adminSessionCookieHeader,
+  clearedAdminSessionCookieHeader,
+  createAdminSessionToken,
+  hasValidAdminSession,
+  readCookie,
+} from "./adminSession";
 import { getStats, getOperationsDashboard, getDailyFinancialTrends, getSupportTickets, updateSupportTicket, createScheduledChannelPost } from "./db";
 import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
 import { getObject } from "./storage";
 import { settlePendingTips, getTipsPerformanceStats } from "./tipsSettlement";
 import { renderAdminPage, renderAdminLoginPage } from "./adminPage";
 
+/**
+ * Header-only admin credential check.
+ *
+ * The secret is accepted from `Authorization: Bearer ...` or `X-Admin-Secret`
+ * only. It is deliberately NOT read from the URL query string: query strings
+ * leak into access logs, browser history and intermediary caches.
+ */
 export function adminAuthorized(request: Request, env: Env): boolean {
   const secret = (env.ADMIN_API_SECRET || "").trim();
   if (!secret) return false;
@@ -17,19 +32,9 @@ export function adminAuthorized(request: Request, env: Env): boolean {
   const directHeader = request.headers.get("x-admin-secret");
 
   let candidate = "";
-  try {
-    const url = new URL(request.url);
-    const querySecret = url.searchParams.get("secret");
-    if (querySecret) {
-      candidate = querySecret.trim();
-    }
-  } catch {
-    // Ignore invalid URL
-  }
-
-  if (!candidate && directHeader) {
+  if (directHeader) {
     candidate = directHeader.trim();
-  } else if (!candidate && authHeader?.toLowerCase().startsWith("bearer ")) {
+  } else if (authHeader?.toLowerCase().startsWith("bearer ")) {
     candidate = authHeader.slice(7).trim();
   }
 
@@ -37,16 +42,70 @@ export function adminAuthorized(request: Request, env: Env): boolean {
     return false;
   }
 
-  // If client identifies as a specific admin via X-Admin-Id, verify against ADMIN_IDS
-  const adminIdHeader = request.headers.get("x-admin-id");
-  if (adminIdHeader) {
-    const adminId = parseInt(adminIdHeader, 10);
-    if (!Number.isInteger(adminId) || !isConfiguredAdminId(adminId, env)) {
-      return false;
-    }
-  }
+  return adminIdHeaderValid(request, env);
+}
 
-  return true;
+/** If the client identifies as a specific admin via X-Admin-Id, verify it. */
+function adminIdHeaderValid(request: Request, env: Env): boolean {
+  const adminIdHeader = request.headers.get("x-admin-id");
+  if (!adminIdHeader) return true;
+  const adminId = parseInt(adminIdHeader, 10);
+  return Number.isInteger(adminId) && isConfiguredAdminId(adminId, env);
+}
+
+/** True when credentials arrive in a header OR a valid admin session cookie. */
+export async function adminRequestAuthorized(request: Request, env: Env): Promise<boolean> {
+  if (adminAuthorized(request, env)) return true;
+  if (!(await hasValidAdminSession(request, env))) return false;
+  return adminIdHeaderValid(request, env);
+}
+
+function adminCredentialSupplied(request: Request): boolean {
+  return Boolean(
+    request.headers.get("Authorization") ||
+      request.headers.get("x-admin-secret") ||
+      readCookie(request, ADMIN_SESSION_COOKIE)
+  );
+}
+
+function tooManyAttemptsResponse(): Response {
+  return new Response(JSON.stringify({ ok: false, error: "Too many attempts. Try again later." }), {
+    status: 429,
+    headers: { "Content-Type": "application/json", "Retry-After": "60", ...securityHeaders() },
+  });
+}
+
+/**
+ * Brute-force protected admin gate. Returns a Response to send back when the
+ * caller is not allowed, or null when the request may proceed.
+ */
+export async function requireAdmin(request: Request, env: Env): Promise<Response | null> {
+  if (!adminAttemptAllowed(request)) return tooManyAttemptsResponse();
+  if (await adminRequestAuthorized(request, env)) return null;
+  if (adminCredentialSupplied(request)) recordAdminFailure(request);
+  return unauthorizedResponse();
+}
+
+/**
+ * Salted HMAC-SHA256 of the client IP, truncated. Used only to spot repeated
+ * clicks from the same client without storing the raw IP.
+ */
+export async function hashClientIp(rawIp: string, env: Env): Promise<string | null> {
+  const salt = (env.ADMIN_API_SECRET || env.WEBHOOK_SECRET || "").trim();
+  if (!salt) return null;
+  try {
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(salt),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+    const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawIp.trim()));
+    return [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
+  } catch {
+    return null;
+  }
 }
 
 export function renderOgImageSvg(env: Env): string {
@@ -164,6 +223,17 @@ export function json(data: unknown, status = 200, extraHeaders: Record<string, s
 
 export function unauthorizedResponse(): Response {
   return json({ ok: false, error: "Unauthorized" }, 401);
+}
+
+function adminHtmlHeaders(nonce: string): Record<string, string> {
+  return {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-store, must-revalidate",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "Content-Security-Policy": `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}' 'unsafe-inline'; img-src 'self' data: https:; font-src https://fonts.gstatic.com;`,
+  };
 }
 
 export async function handleApiRequest(
@@ -401,7 +471,7 @@ export async function handleApiRequest(
       const userAgent = request.headers.get("user-agent") || "";
       const referer = request.headers.get("referer") || "";
       const rawIp = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "";
-      const ipHash = rawIp ? crypto.randomUUID().slice(0, 8) : null;
+      const ipHash = rawIp ? await hashClientIp(rawIp, env) : null;
 
       env.DB.prepare(`
         INSERT INTO tip_clicks (tip_post_id, event_id, selection, target_url, user_agent, referer, ip_hash, clicked_at)
@@ -461,7 +531,10 @@ export async function handleApiRequest(
 
   // Trigger manual or admin tips settlement (/api/tips/settle)
   if (path === "/api/tips/settle" && method === "POST") {
-    if (!adminAuthorized(request, env)) return unauthorizedResponse();
+    {
+      const denied = await requireAdmin(request, env);
+      if (denied) return denied;
+    }
     try {
       const summary = await settlePendingTips(env);
       return json({ ok: true, summary });
@@ -470,7 +543,10 @@ export async function handleApiRequest(
     }
   }
   if (path === "/api/cleanup/logs/status" && (method === "GET" || method === "HEAD")) {
-    if (!adminAuthorized(request, env)) return unauthorizedResponse();
+    {
+      const denied = await requireAdmin(request, env);
+      if (denied) return denied;
+    }
     if (method === "HEAD") {
       return new Response(null, {
         status: 200,
@@ -488,7 +564,10 @@ export async function handleApiRequest(
 
   // Cleanup logs run
   if (path === "/api/cleanup/logs" && method === "POST") {
-    if (!adminAuthorized(request, env)) return unauthorizedResponse();
+    {
+      const denied = await requireAdmin(request, env);
+      if (denied) return denied;
+    }
     let days = 30;
     try {
       const body = (await request.json()) as { retentionDays?: number };
@@ -510,7 +589,10 @@ export async function handleApiRequest(
 
   // Admin status
   if (path === "/api/admin/status" && (method === "GET" || method === "HEAD")) {
-    if (!adminAuthorized(request, env)) return unauthorizedResponse();
+    {
+      const denied = await requireAdmin(request, env);
+      if (denied) return denied;
+    }
     if (method === "HEAD") {
       return new Response(null, {
         status: 200,
@@ -536,7 +618,10 @@ export async function handleApiRequest(
 
   // Admin dashboard
   if (path === "/api/admin/dashboard" && (method === "GET" || method === "HEAD")) {
-    if (!adminAuthorized(request, env)) return unauthorizedResponse();
+    {
+      const denied = await requireAdmin(request, env);
+      if (denied) return denied;
+    }
     if (method === "HEAD") {
       return new Response(null, {
         status: 200,
@@ -554,7 +639,10 @@ export async function handleApiRequest(
 
   // Admin financial trends API (/api/admin/trends)
   if (path === "/api/admin/trends" && (method === "GET" || method === "HEAD")) {
-    if (!adminAuthorized(request, env)) return unauthorizedResponse();
+    {
+      const denied = await requireAdmin(request, env);
+      if (denied) return denied;
+    }
     if (method === "HEAD") {
       return new Response(null, {
         status: 200,
@@ -591,23 +679,62 @@ export async function handleApiRequest(
     }
   }
 
+  // Admin login: the secret is POSTed once and exchanged for a signed,
+  // HttpOnly session cookie so it never appears in a URL.
+  if ((path === "/admin/login" || path === "/panel/login") && method === "POST") {
+    if (!adminAttemptAllowed(request)) return tooManyAttemptsResponse();
+    const secret = (env.ADMIN_API_SECRET || "").trim();
+    let supplied: string;
+    try {
+      const form = await request.formData();
+      supplied = String(form.get("secret") || "").trim();
+    } catch {
+      supplied = "";
+    }
+
+    if (!secret || !supplied || !constantTimeEqual(supplied, secret)) {
+      recordAdminFailure(request);
+      const nonce = crypto.randomUUID().replace(/-/g, "");
+      return new Response(renderAdminLoginPage(env, nonce, { error: "Invalid admin secret." }), {
+        status: 401,
+        headers: adminHtmlHeaders(nonce),
+      });
+    }
+
+    const token = await createAdminSessionToken(secret);
+    return new Response(null, {
+      status: 303,
+      headers: {
+        Location: "/admin",
+        "Cache-Control": "no-store",
+        "Set-Cookie": adminSessionCookieHeader(request, token),
+      },
+    });
+  }
+
+  if ((path === "/admin/logout" || path === "/panel/logout") && method === "POST") {
+    return new Response(null, {
+      status: 303,
+      headers: {
+        Location: "/admin",
+        "Cache-Control": "no-store",
+        "Set-Cookie": clearedAdminSessionCookieHeader(request),
+      },
+    });
+  }
+
   // Admin panel web interface (/admin, /admin/, /panel)
   if ((path === "/admin" || path === "/admin/" || path === "/panel") && (method === "GET" || method === "HEAD")) {
-    const isAuth = adminAuthorized(request, env) || (!env.ADMIN_API_SECRET && !env.WEBHOOK_SECRET);
+    // Fail closed: with no ADMIN_API_SECRET configured nobody is authorized.
+    if (!adminAttemptAllowed(request)) return tooManyAttemptsResponse();
+    const isAuth = await adminRequestAuthorized(request, env);
 
     // Unauthenticated visitors never see business/financial data: no DB
     // queries are run, and only a bare login form is rendered.
     if (!isAuth) {
       const nonce = crypto.randomUUID().replace(/-/g, "");
       const html = renderAdminLoginPage(env, nonce);
-      const headers: Record<string, string> = {
-        "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "no-store, must-revalidate",
-        "X-Content-Type-Options": "nosniff",
-        "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
-        "Content-Security-Policy": `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}' 'unsafe-inline'; img-src 'self' data: https:; font-src https://fonts.gstatic.com;`,
-      };
+      const headers: Record<string, string> = adminHtmlHeaders(nonce);
       if (method === "HEAD") return new Response(null, { status: 200, headers });
       return new Response(html, { status: 200, headers });
     }
@@ -667,7 +794,10 @@ export async function handleApiRequest(
 
   // Admin tickets
   if (path === "/api/admin/tickets") {
-    if (!adminAuthorized(request, env)) return unauthorizedResponse();
+    {
+      const denied = await requireAdmin(request, env);
+      if (denied) return denied;
+    }
 
     if (method === "GET") {
       const statusParam = url.searchParams.get("status") as "OPEN" | "PENDING" | "CLOSED" | null;
@@ -714,7 +844,10 @@ export async function handleApiRequest(
 
   // Admin schedule
   if (path === "/api/admin/schedule") {
-    if (!adminAuthorized(request, env)) return unauthorizedResponse();
+    {
+      const denied = await requireAdmin(request, env);
+      if (denied) return denied;
+    }
 
     if (method !== "POST") {
       return json({ ok: false, error: "Method Not Allowed" }, 405);
@@ -766,7 +899,10 @@ export async function handleApiRequest(
 
   // Admin receipts (P0 #2: Authenticated receipt viewing)
   if ((path === "/api/admin/receipts" || path === "/api/receipts/get") && (method === "GET" || method === "HEAD")) {
-    if (!adminAuthorized(request, env)) return unauthorizedResponse();
+    {
+      const denied = await requireAdmin(request, env);
+      if (denied) return denied;
+    }
 
     const key = url.searchParams.get("key");
     if (!key || !key.startsWith("receipts/") || key.includes("..")) {

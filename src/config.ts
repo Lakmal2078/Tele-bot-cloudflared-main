@@ -152,18 +152,6 @@ export function constantTimeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-export function isAuthorizedAdminRequest(request: Request, env: Partial<Env>): boolean {
-  const expected = env.ADMIN_API_SECRET?.trim() || env.WEBHOOK_SECRET?.trim() || "";
-  if (!expected) return false;
-
-  const authorization = request.headers.get("Authorization") || "";
-  const bearer = authorization.match(/^Bearer\s+(.+)$/i)?.[1]?.trim() || "";
-  const headerSecret = request.headers.get("X-Admin-Secret")?.trim() || "";
-  const supplied = bearer || headerSecret;
-
-  return Boolean(supplied) && constantTimeEqual(supplied, expected);
-}
-
 export function unauthorizedResponse(): Response {
   return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), {
     status: 401,
