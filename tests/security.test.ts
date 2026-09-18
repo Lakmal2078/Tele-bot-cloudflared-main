@@ -82,6 +82,9 @@ describe("security headers", () => {
     expect(headers["X-Content-Type-Options"]).toBe("nosniff");
     expect(headers["X-Frame-Options"]).toBe("DENY");
     expect(headers["Content-Security-Policy"]).toContain("default-src 'none'");
+    expect(headers["X-DNS-Prefetch-Control"]).toBe("off");
+    expect(headers["X-Permitted-Cross-Domain-Policies"]).toBe("none");
+    expect(headers["Origin-Agent-Cluster"]).toBe("?1");
   });
 
   it("returns strict landing page CSP with frame-ancestors none and nonce support", () => {
@@ -92,5 +95,7 @@ describe("security headers", () => {
     const testNonce = "abcdef1234567890";
     const headersWithNonce = landingPageSecurityHeaders(testNonce);
     expect(headersWithNonce["Content-Security-Policy"]).toContain(`'nonce-${testNonce}'`);
+    expect(headersWithNonce["Content-Security-Policy"]).toContain("object-src 'none'");
+    expect(headersWithNonce["Content-Security-Policy"]).toContain("upgrade-insecure-requests");
   });
 });
