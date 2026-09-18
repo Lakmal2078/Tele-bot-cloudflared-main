@@ -382,8 +382,7 @@ export function formatTipMessage(candidates: TipCandidate[], slot: string, joinU
       `🏷 *${escapeMarkdown(marketTag)}* · ${escapeMarkdown(pickLabel)} · *${bestPrice.toFixed(2)}*`,
       `📈 Consensus ${probPercent}% · 💎 Value +${(valueScore * 100).toFixed(1)}% · 🏪 ${candidate.bookmakerCount} books`,
       `🎯 Confidence: ${candidate.confidence ?? confidenceFor(consensusProbability)}`,
-    ].join("
-");
+    ].join("\n");
   });
 
   const matchesContent = matchBlocks.join("\n\n─────────────────────────\n\n");
