@@ -369,18 +369,21 @@ export function formatTipMessage(candidates: TipCandidate[], slot: string, joinU
     const consensusProbability = candidate.consensusProbability ?? candidate.impliedProbability ?? 0;
     const valueScore = candidate.valueScore ?? (consensusProbability * bestPrice - 1);
     const probPercent = (consensusProbability * 100).toFixed(1);
-    const valuePercent = (valueScore * 100).toFixed(1);
+    const marketKey = (candidate.market || "h2h").toLowerCase();
+    const marketTag = marketKey === "h2h" || marketKey === "1x2" ? "1X2" : marketKey.includes("over") || marketKey.includes("under") || marketKey === "totals" ? "O/U" : candidate.market.toUpperCase();
+    const pickLabel = marketTag === "1X2"
+      ? (/draw/i.test(candidate.selection) ? "Draw" : `${candidate.selection} Win`)
+      : candidate.selection;
 
     return [
-      `${badge} ${candidate.emoji} *${escapeMarkdown(sportName)}*`,
-      `⚔️ *${escapeMarkdown(candidate.event.home_team)}* vs *${escapeMarkdown(candidate.event.away_team)}*`,
-      `🗓️ ${escapeMarkdown(formatKickoff(candidate.event.commence_time))}`,
-      `🎯 *Pick:* \`${escapeCode(candidate.selection)}\``,
-      `📊 *Market:* ${escapeMarkdown(candidate.market.toUpperCase())}`,
-      `💹 *Best Odds:* *${bestPrice.toFixed(2)}*  |  📈 *Consensus Prob:* ${probPercent}%`,
-      `💎 *Value:* +${valuePercent}%  |  🏪 *Bookmakers:* ${candidate.bookmakerCount}`,
-      `🎯 *Confidence:* ${candidate.confidence ?? confidenceFor(consensusProbability)}`,
-    ].join("\n");
+      `${badge} ⚽ *${escapeMarkdown(sportName)}*`,
+      `*${escapeMarkdown(candidate.event.home_team)}*  vs  *${escapeMarkdown(candidate.event.away_team)}*`,
+      `🕒 ${escapeMarkdown(formatKickoff(candidate.event.commence_time))}`,
+      `🏷 *${escapeMarkdown(marketTag)}* · ${escapeMarkdown(pickLabel)} · *${bestPrice.toFixed(2)}*`,
+      `📈 Consensus ${probPercent}% · 💎 Value +${(valueScore * 100).toFixed(1)}% · 🏪 ${candidate.bookmakerCount} books`,
+      `🎯 Confidence: ${candidate.confidence ?? confidenceFor(consensusProbability)}`,
+    ].join("
+");
   });
 
   const matchesContent = matchBlocks.join("\n\n─────────────────────────\n\n");
