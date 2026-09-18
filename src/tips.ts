@@ -19,7 +19,7 @@ const TIP_LEASE_MINUTES = 15;
 const ODDS_API_RETRIES = 2;
 const DEFAULT_TIPS_PER_SLOT = 3;
 const MAX_ODDS_FEEDS_PER_SLOT = 6;
-const MIN_REMAINING_CREDITS = 50;
+const MIN_REMAINING_CREDITS = 5; // free-plan friendly: allow tips until nearly exhausted
 const MAX_DISCOVERED_SPORTS_PER_GROUP = 3;
 
 interface OddsOutcome { name: string; price: number; }
@@ -55,18 +55,22 @@ function confidenceFor(probability: number): TipCandidate["confidence"] { return
 
 export function chooseCandidates(
   events: OddsEvent[], minOdds: number, maxOdds: number, limit = DEFAULT_TIPS_PER_SLOT,
-  minBookmakers: number | undefined = undefined, excludeEventIds: ReadonlySet<string> = new Set(), quality: Partial<TipQualityConfig> = {}
+  minBookmakers: number | undefined = undefined, excludeEventIds: ReadonlySet<string> = new Set(), quality: Partial<TipQualityConfig> = {},
+  hoursAhead = 48
 ): TipCandidate[] {
   const qualityMode = Object.keys(quality).length > 0;
   const effectiveMinBookmakers = minBookmakers ?? 2;
   const thresholds: TipQualityConfig = qualityMode
-    ? { minConsensus: 0.55, minValue: 0.02, minBookmakers: effectiveMinBookmakers, maxStaleHours: 24, ...quality }
+    ? { minConsensus: 0.52, minValue: 0.01, minBookmakers: effectiveMinBookmakers, maxStaleHours: 24, ...quality }
     : { minConsensus: 0, minValue: -Infinity, minBookmakers: effectiveMinBookmakers, maxStaleHours: 72 };
+  // Look-ahead for kickoff must use hoursAhead (TIPS_HOURS_AHEAD), NOT maxStaleHours
+  // (maxStaleHours is odds-freshness semantics; misusing it as a 24h kickoff window drops most weekend fixtures).
+  const kickoffWindowMs = Math.max(2, hoursAhead) * 3600000;
   const candidates: TipCandidate[] = [];
   for (const event of events) {
     if (!event.id || excludeEventIds.has(event.id)) continue;
     const start = new Date(event.commence_time).getTime();
-    if (!event.commence_time || !Number.isFinite(start) || (qualityMode && (start <= Date.now() || start > Date.now() + thresholds.maxStaleHours * 3600000))) continue;
+    if (!event.commence_time || !Number.isFinite(start) || start <= Date.now() || start > Date.now() + kickoffWindowMs) continue;
     const meta = sportMeta(event.sport_key, event.sport_title);
     const marketRows: Array<{ prices: Map<string, number>; fair: Map<string, number> }> = [];
     for (const bookmaker of event.bookmakers || []) {
@@ -169,7 +173,7 @@ async function getJson<T>(url: URL, timeoutMs: number, guard?: OddsCreditGuard, 
 
 export function slotForCron(cron: string): "08:00" | "12:00" | "18:00" | null { if (cron === "30 2 * * *") return "08:00"; if (cron === "30 6 * * *") return "12:00"; if (cron === "30 12 * * *") return "18:00"; return null; }
 export function sriLankaDate(date = new Date()): string { const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Colombo", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date); const get = (type: string) => parts.find((part) => part.type === type)?.value || "00"; return `${get("year")}-${get("month")}-${get("day")}`; }
-function tipCount(env: Env): number { const parsed = Number(env.TIPS_PER_SLOT || DEFAULT_TIPS_PER_SLOT); return Number.isInteger(parsed) && parsed >= 3 && parsed <= 5 ? parsed : DEFAULT_TIPS_PER_SLOT; }
+function tipCount(env: Env): number { const parsed = Number(env.TIPS_PER_SLOT || DEFAULT_TIPS_PER_SLOT); return Number.isInteger(parsed) && parsed >= 1 && parsed <= 5 ? parsed : DEFAULT_TIPS_PER_SLOT; }
 function sportMatchesGroup(sport: OddsSport, group: string): boolean { const haystack = `${sport.key} ${sport.group || ""} ${sport.title || ""} ${sport.description || ""}`.toLowerCase(); if (group === "table_tennis") return haystack.includes("table tennis") || haystack.includes("table_tennis") || haystack.includes("table-tennis"); if (group === "esports") return haystack.includes("esport") || /(^|[._-])(cs2|csgo|dota2|valorant|lol)([._-]|$)/.test(haystack); if (group === "cricket") return haystack.includes("cricket"); return false; }
 
 async function discoverSpecialSports(apiKey: string, requested: string[], guard: OddsCreditGuard): Promise<string[]> {
@@ -274,7 +278,7 @@ async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
   const maxOdds = Number(env.TIPS_MAX_ODDS || "2.50");
   const hoursAhead = Math.max(2, Number(env.TIPS_HOURS_AHEAD || "48"));
   const quality = getTipQualityConfig(env);
-  const targetCount = Math.max(3, tipCount(env));
+  const targetCount = Math.max(1, tipCount(env));
 
   const allEvents: OddsEvent[] = [];
 
@@ -315,7 +319,7 @@ async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
     return start <= now + hoursAhead * 60 * 60 * 1000;
   });
 
-  const selected = chooseCandidates(primaryEvents, minOdds, maxOdds, targetCount, quality.minBookmakers, todayPostedIds, quality);
+  const selected = chooseCandidates(primaryEvents, minOdds, maxOdds, targetCount, quality.minBookmakers, todayPostedIds, quality, hoursAhead);
 
   const usage = guard.snapshot();
   console.log(`[Tips] Credit guard: paid_requests=${usage.paidRequestAttempts}/${maxFeeds}, remaining=${usage.remaining ?? "unknown"}, used=${usage.usedFromHeader ?? "unknown"}, selected=${selected.length} tip(s)`);
