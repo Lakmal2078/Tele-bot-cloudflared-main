@@ -167,10 +167,11 @@ describe("scheduled tips", () => {
     expect(message).toContain("2️⃣ ⚽ *La Liga*");
     expect(message).toContain("3️⃣ 🏀 *NBA*");
 
-    // Markdown inline code for picks
-    expect(message).toContain("`Leeds United`");
-    expect(message).toContain("`Real Madrid`");
-    expect(message).toContain("`Boston Celtics`");
+    // Card-style pick rows (1X2 · Team Win · odds)
+    expect(message).toContain("Leeds United Win");
+    expect(message).toContain("Real Madrid Win");
+    expect(message).toContain("Boston Celtics Win");
+    expect(message).toContain("*1X2*");
 
     // Visual separators between matches
     const separatorCount = (message.match(/─────────────────────────/g) || []).length;
