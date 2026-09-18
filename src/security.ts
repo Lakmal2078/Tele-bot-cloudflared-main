@@ -17,6 +17,9 @@ export function securityHeaders(): Record<string, string> {
     "Cross-Origin-Opener-Policy": "same-origin",
     "Cross-Origin-Resource-Policy": "same-origin",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+    "X-DNS-Prefetch-Control": "off",
+    "X-Permitted-Cross-Domain-Policies": "none",
+    "Origin-Agent-Cluster": "?1",
     "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
   };
 }
@@ -37,6 +40,8 @@ export function landingPageSecurityHeaders(nonce?: string): Record<string, strin
       "img-src 'self' data: https:; " +
       "connect-src 'self'; " +
       "base-uri 'none'; " +
+      "object-src 'none'; " +
+      "upgrade-insecure-requests; " +
       "form-action 'none'; " +
       "frame-ancestors 'none'",
   };
