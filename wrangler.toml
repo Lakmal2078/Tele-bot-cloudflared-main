@@ -14,8 +14,8 @@ binding = "ASSETS"
 
 [vars]
 BOT_MODE = "production"
-# Required in production; use the public HTTPS origin without a trailing slash.
-# PUBLIC_BASE_URL = "https://your-real-domain.example"
+# Trusted public HTTPS origin used for canonical and absolute SEO URLs.
+PUBLIC_BASE_URL = "https://xbet-telegram-bot.agent-1xfast-srilanka.workers.dev"
 BOT_USERNAME = "fast_1xbetcash_bot"
 CHANNEL_URL = "https://t.me/fast_xbet_official_tips"
 CHANNEL_USERNAME = "@fast_xbet_official_tips"
