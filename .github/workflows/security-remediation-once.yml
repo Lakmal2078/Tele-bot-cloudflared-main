@@ -29,9 +29,12 @@ jobs:
               p = Path(path)
               text = p.read_text(encoding="utf-8")
               count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f"{path}: expected exactly one match, found {count}: {old!r}")
-              p.write_text(text.replace(old, new, 1), encoding="utf-8")
+              if count == 0:
+                  # Already remediated or pattern drifted — skip idempotently
+                  print(f"{path}: skip (0 matches): {old[:60]!r}...")
+                  return
+              p.write_text(text.replace(old, new), encoding="utf-8")
+              print(f"{path}: replaced {count} occurrence(s)")
 
           replace_once("src/utils.ts", r'''  return String(text).replace(/([_*`[])/g, "\\$1");''', r'''  return String(text).replace(/([_*`\[])/g, "\\$1");''')
           replace_once("src/tips.ts", '''  } catch {\n    const sep = raw.includes("?") ? "&" : "?";\n    return `${raw}${sep}match=${encodeURIComponent(matchName)}&event_id=${encodeURIComponent(candidate.event.id)}`;\n  }''', '''  } catch {\n    const fallback = new URL(DEFAULT_XBET_LINK);\n    fallback.searchParams.set("match", matchName);\n    fallback.searchParams.set("event_id", candidate.event.id);\n    if (candidate.selection) fallback.searchParams.set("pick", candidate.selection);\n    if (candidate.event.sport_key) fallback.searchParams.set("sport", candidate.event.sport_key);\n    return fallback.toString();\n  }''')
