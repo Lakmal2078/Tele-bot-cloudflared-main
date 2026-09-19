@@ -45,11 +45,11 @@
          </div>
          <a class="btn primary calcBtn" id="calcCtaBtn" href="${eb}">✈ Deposit LKR 5,000 via Telegram</a>
 @@ -552,7 +551,7 @@
+ </div></section>
  
  <section class="section"><div class="wrap"><div class="responsible-gaming-box">
-   <div><div class="kicker">Play responsibly</div><h2>🔞 18+ Responsible Gaming Notice</h2>
--  <p>Free tips and previews are informational only. No guaranteed outcome, profit, or risk-free betting claim is made.</p></div>
-+  <p>Free tips and previews are informational only. No guaranteed outcome, profit, or risk-free betting claim is made. This site is a Telegram cash-desk helper — not a bookmaker.</p></div>
+-  <div><div class="kicker">Play responsibly</div><h2>🔞 18+ Responsible Gaming Notice</h2><p>Free tips and previews are informational only. No guaranteed outcome, profit, or risk-free betting claim is made.</p></div>
++  <div><div class="kicker">Play responsibly</div><h2>🔞 18+ Responsible Gaming Notice</h2><p>Free tips and previews are informational only. No guaranteed outcome, profit, or risk-free betting claim is made. This site is a Telegram cash-desk helper — not a bookmaker.</p></div>
    <ul><li>✓ 18+ users only.</li><li>✓ Gambling involves risk and losses can occur.</li><li>✓ Set limits and do not chase losses.</li><li>✓ Never use money needed for essential expenses.</li><li>✓ If gambling stops feeling controlled, take a break and seek appropriate support.</li></ul>
    <div class="notice">Responsible use is your responsibility. Do not chase losses or use essential-expense money for gambling.</div>
  </div></div></section>
