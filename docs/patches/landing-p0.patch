@@ -34,16 +34,16 @@
  </div></section>
  
 @@ -540,8 +539,8 @@
-         <div class="finalCta">
-           <a class="btn primary" href="${eb}">✈ ${esc(c.final[0])}</a>
-           <div class="finalMeta">
+         <div class="calcStat bonusStat"><span>Bonus (${promo}):</span><b id="summaryBonus">+ LKR 5,000 (100%)</b></div>
+         <div class="calcStat totalStat"><span>Playable Balance:</span><b id="summaryTotal">LKR 10,000</b></div>
+         <div class="calcMeta">
 -          <span>⚡ 2–5 Mins</span>
 -          <span>🛡️ 0% Fee</span>
 +          <span>⚡ After verification</span>
 +          <span>🛡️ No service fee</span>
-           </div>
+           <span>💳 Local rails</span>
          </div>
-       </div>
+         <a class="btn primary calcBtn" id="calcCtaBtn" href="${eb}">✈ Deposit LKR 5,000 via Telegram</a>
 @@ -552,7 +551,7 @@
  
  <section class="section"><div class="wrap"><div class="responsible-gaming-box">
