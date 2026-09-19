@@ -1,5 +1,5 @@
 import type { Env } from "./types";
-import { buildPublicUrl, getBucketName, isR2Configured, putObject } from "./storage";
+import { getBucketName, isR2Configured, putObject } from "./storage";
 
 export interface R2FileMetadata {
   r2Url: string;
@@ -72,12 +72,12 @@ export async function backupReceiptToR2(
     const stored = await putObject(env, key, arrayBuffer, mimeType);
     if (!stored) return null;
 
-    // Prefer authenticated Worker proxy URL so receipts are never public.
-    // Admins load via GET /api/admin/receipts?key=... (ADMIN_API_SECRET / session).
+    // Never expose a public R2/object URL for receipts.
+    // Always point at the authenticated Worker proxy (ADMIN_API_SECRET / session).
     const base = (env.PUBLIC_BASE_URL || "").replace(/\/$/, "");
     const r2Url = base
       ? `${base}/api/admin/receipts?key=${encodeURIComponent(key)}`
-      : buildPublicUrl(env, key);
+      : `/api/admin/receipts?key=${encodeURIComponent(key)}`;
     const fileSize = arrayBuffer.byteLength || fileInfo.result.file_size || 0;
 
     console.log(`[R2] Receipt stored (proxy): key=${key} (${fileSize} bytes)`);

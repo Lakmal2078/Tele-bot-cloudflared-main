@@ -95,3 +95,26 @@ export function recordAdminFailureNode(headers: Record<string, string | string[]
 }
 
 export const SECURITY_LIMITS = { MAX_WEBHOOK_BODY_BYTES, ADMIN_FAILURE_WINDOW_MS, ADMIN_FAILURE_LIMIT } as const;
+
+/**
+ * Optional admin IP allowlist (Cloudflare `CF-Connecting-IP`).
+ * When ADMIN_IP_ALLOWLIST is empty/unset, all IPs are allowed (secret still required).
+ * When set, only listed IPs may call admin routes — defense in depth behind ADMIN_API_SECRET.
+ */
+export function isAdminIpAllowed(
+  request: Request,
+  env: { ADMIN_IP_ALLOWLIST?: string }
+): boolean {
+  const raw = env.ADMIN_IP_ALLOWLIST?.trim() || "";
+  if (!raw) return true;
+  const allowed = new Set(
+    raw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+  );
+  if (allowed.size === 0) return true;
+  const ip = request.headers.get("CF-Connecting-IP")?.trim() || "";
+  if (!ip) return false;
+  return allowed.has(ip);
+}
