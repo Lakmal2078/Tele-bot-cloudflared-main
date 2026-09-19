@@ -24,9 +24,12 @@ function mapDepositRow(row: any): DepositRow | null {
 
 function mapWithdrawalRow(row: any): WithdrawalRow | null {
   if (!row) return null;
-  // Never expose stored security codes (they are hashed). Mask any residual plaintext.
-  const masked = row.security_code
-    ? (String(row.security_code).startsWith("sha256:") ? "[REDACTED]" : "****")
+  // Never expose stored security codes (HMAC/hash). Mask any residual plaintext.
+  const raw = row.security_code != null ? String(row.security_code) : "";
+  const masked = raw
+    ? raw.startsWith("hmac-sha256:") || raw.startsWith("sha256:")
+      ? "[REDACTED]"
+      : "****"
     : null;
   return {
     ...row,
@@ -35,12 +38,26 @@ function mapWithdrawalRow(row: any): WithdrawalRow | null {
   };
 }
 
-/** Hash a withdrawal security code before persistence (never store plaintext). */
-export async function hashSecurityCode(code: string, salt: string): Promise<string> {
-  const payload = new TextEncoder().encode(`${salt}:${code.trim()}`);
-  const digest = await crypto.subtle.digest("SHA-256", payload);
-  const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
-  return `sha256:${hex}`;
+/**
+ * HMAC-SHA-256 of a withdrawal security code using a dedicated pepper.
+ * Never store plaintext. Prefix allows future algorithm rotation.
+ * Throws if pepper is missing or too short (callers must provision SECURITY_CODE_PEPPER).
+ */
+export async function hashSecurityCode(code: string, pepper: string): Promise<string> {
+  const keyMaterial = (pepper || "").trim();
+  if (keyMaterial.length < 16) {
+    throw new Error("SECURITY_CODE_PEPPER must be at least 16 characters");
+  }
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(keyMaterial),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(code.trim()));
+  const hex = [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `hmac-sha256:${hex}`;
 }
 
 export async function saveUser(

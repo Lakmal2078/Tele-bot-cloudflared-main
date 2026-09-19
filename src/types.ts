@@ -46,6 +46,12 @@ export interface Env {
   ADMIN_CHANNEL_ID?: string;  // Admin / Audit log channel (e.g. -100xxx or @channel)
   WEBHOOK_SECRET: string;     // Telegram webhook secret token
   ADMIN_API_SECRET: string;   // Dedicated secret for private operational endpoints
+  /**
+   * Dedicated pepper for HMAC-SHA-256 of withdrawal security codes.
+   * Set with `wrangler secret put SECURITY_CODE_PEPPER` (minimum 16 characters).
+   * Do not reuse ADMIN_API_SECRET or WEBHOOK_SECRET.
+   */
+  SECURITY_CODE_PEPPER?: string;
   /** Optional comma-separated client IPs allowed for admin API (CF-Connecting-IP). Empty = no IP gate. */
   ADMIN_IP_ALLOWLIST?: string;
   CHANNEL_USERNAME: string;
