@@ -2433,12 +2433,48 @@ export function createBot(env: Env) {
     const lang = await getUserLang(env.DB, user.id);
     const dict = t(lang);
 
+    const rawText = ctx.message.text?.trim() || "";
+    const normalizedText = rawText.toLowerCase().replace(/^\//, "").replace(/@\w+$/, "").trim();
+
     // Cancel text check
-    if (ctx.message.text && ["/cancel", "cancel", "අවලංගු", "ரத்து"].includes(ctx.message.text.trim().toLowerCase())) {
+    if (["cancel", "අවලංගු", "அவலங்கு", "ரத்து", "ரத்துசெய்"].includes(normalizedText)) {
       await db.clearUserState(env.DB, user.id);
       await ctx.reply(dict.cancelled, {
         reply_markup: mainMenu(user.id, adminIds, lang),
       });
+      return;
+    }
+
+    // Telegram Menu button / command list often sends "Menu" or "Help" as plain text
+    // (no leading slash). Route those explicitly so Menu never opens the FAQ.
+    const menuAliases = new Set([
+      "menu",
+      "main",
+      "mainmenu",
+      "main menu",
+      "මෙනු",
+      "ප්‍රධාන මෙනුව",
+      "முதன்மை மெனு",
+      "மெனு",
+    ]);
+    const helpAliases = new Set([
+      "help",
+      "support",
+      "faq",
+      "සහාය",
+      "උදව්",
+      "உதவி",
+    ]);
+    if (menuAliases.has(normalizedText) || normalizedText === dict.mainMenuHeader.replace(/^[^\s]+\s/, "").trim().toLowerCase()) {
+      await db.clearUserState(env.DB, user.id);
+      await ctx.reply(dict.mainMenuHeader, {
+        reply_markup: mainMenu(user.id, adminIds, lang),
+      });
+      return;
+    }
+    if (helpAliases.has(normalizedText)) {
+      await db.clearUserState(env.DB, user.id);
+      await showFaqMenu(ctx, lang, false);
       return;
     }
 
