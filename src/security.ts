@@ -27,7 +27,8 @@ export function securityHeaders(): Record<string, string> {
 export function landingPageSecurityHeaders(nonce?: string, options: { isHttps?: boolean } = {}): Record<string, string> {
   const isHttps = options.isHttps ?? true;
   const headers = { ...securityHeaders() };
-  headers["Cache-Control"] = "public, max-age=1800, s-maxage=86400, stale-while-revalidate=86400";
+  headers["Cache-Control"] = "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400";
+  headers["Vary"] = "Accept-Language";
   headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
   const scriptPolicy = nonce ? `'nonce-${nonce}'` : "'unsafe-inline'";
   const stylePolicy = nonce ? `'nonce-${nonce}'` : "'unsafe-inline'";
