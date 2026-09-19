@@ -126,7 +126,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
     ]
   }));
 
-  const payments = c.pay.slice(1).map((p) => `<article class="payment"><b>${esc(p)}</b><span>${paymentConfigured(env, p) ? "Configured" : "Bot flow"}</span></article>`).join("");
+  const payments = c.pay.slice(1).map((p) => `<article class="payment"><b>${esc(p)}</b><span>${paymentConfigured(env, p) ? "Instant" : "Via bot"}</span></article>`).join("");
 
   const serviceCards = [
     ["🎯", c.services[2], "Automated sports analysis and selected informational previews.", "View preview"],
@@ -170,7 +170,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
 <meta name="twitter:image" content="${esc(url + "og-image.jpg?v=3")}">
 <script type="application/ld+json"${n}>${ld}</script>
 <style${n}>
-:root{--bg:#070b12;--bg2:#081525;--surface:#101720;--surface2:#151e2b;--fg:#f1f5f9;--muted:#94a3b8;--faint:#64748b;--signal:#a6f800;--cyan:#00b4f8;--pink:#ff477e;--border:#ffffff12;--shadow:0 25px 70px #0008}
+:root{--bg:#070b12;--bg2:#081525;--surface:#101720;--surface2:#151e2b;--fg:#f1f5f9;--muted:#94a3b8;--faint:#8b9bb0;--signal:#a6f800;--cyan:#00b4f8;--pink:#ff477e;--border:#ffffff12;--shadow:0 25px 70px #0008}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;min-width:320px;background:radial-gradient(circle at 85% 10%,#00b4f814,transparent 32%),radial-gradient(circle at 12% 42%,#ff477e0d,transparent 30%),var(--bg);color:var(--fg);font-family:system-ui,"Noto Sans Sinhala","Noto Sans Tamil",sans-serif;line-height:1.6;overflow-x:hidden}
@@ -186,12 +186,12 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .logo svg{width:36px;height:36px}
 .logo span{color:var(--signal)}
 .links{display:flex;gap:2px;margin-left:auto}
-.links a{padding:8px 11px;border-radius:10px;color:var(--muted);font-size:.78rem;font-weight:700}
+.links a{padding:8px 11px;border-radius:10px;color:var(--muted);font-size:.875rem;font-weight:700}
 .links a:hover{background:#ffffff08;color:var(--fg)}
 .langs{display:flex;gap:3px;padding:3px;border:1px solid var(--border);border-radius:999px;background:#ffffff05}
-.langs a{padding:5px 8px;color:var(--muted);font-size:.72rem;font-weight:800;border-radius:999px}
+.langs a{padding:5px 8px;color:var(--muted);font-size:.75rem;font-weight:800;border-radius:999px}
 .langs a[aria-current=page]{background:#ffffff0b;color:var(--fg)}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 16px;border-radius:999px;border:1px solid transparent;font-size:.82rem;font-weight:800;transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 16px;border-radius:999px;border:1px solid transparent;font-size:.875rem;font-weight:800;transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
 .btn:hover{transform:translateY(-1px)}
 .primary{background:var(--signal);color:#071006;box-shadow:0 12px 32px #a6f80022}
 .secondary{background:transparent;border-color:#dbeafe88;color:var(--fg)}
@@ -199,65 +199,76 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .mobile{display:none}
 .hero{padding:82px 0 52px}
 .heroGrid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(280px,.95fr);gap:40px;align-items:center}
-.eyebrow{color:#e5edf7;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.68rem;font-weight:800;letter-spacing:.22em;text-transform:uppercase}
-.hero h1{max-width:620px;margin:20px 0 24px;font-size:clamp(2.6rem,6vw,4.5rem);line-height:1.05;letter-spacing:-.04em;font-weight:800}
+.eyebrow{color:#e5edf7;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.75rem;font-weight:800;letter-spacing:.22em;text-transform:uppercase}
+.hero h1{max-width:620px;margin:20px 0 24px;font-size:clamp(2.4rem,5.5vw,4.2rem);line-height:1.12;letter-spacing:-.03em;font-weight:800}
+html[lang=si] .hero h1,html[lang=ta] .hero h1{letter-spacing:0;line-height:1.28}
 .hero p{max-width:610px;color:var(--muted);font-size:1rem;margin:0}
 .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px}
 .trust{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:24px 0}
 .trust div{padding:14px;border:1px solid var(--border);border-radius:16px;background:#ffffff05}
-.trust b{display:block;font-size:.78rem}
-.trust span{color:var(--muted);font-size:.65rem}
+.trust b{display:block;font-size:.875rem}
+.trust span{color:var(--muted);font-size:.75rem}
 .statsStrip{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0 0}
 .statsStrip .stat{padding:12px;border:1px solid var(--border);border-radius:14px;background:#ffffff05;text-align:center}
 .statsStrip .stat b{display:block;font-size:1.1rem;color:var(--signal)}
-.statsStrip .stat span{font-size:.6rem;color:var(--muted);font-weight:700}
+.statsStrip .stat span{font-size:.75rem;color:var(--muted);font-weight:700}
 .section{padding:48px 0}
 .head{margin-bottom:22px}
-.kicker{color:var(--cyan);font-size:.7rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.kicker{color:var(--cyan);font-size:.75rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
 .head h2{margin:6px 0;font-size:clamp(1.5rem,3vw,2.2rem)}
 .head p{color:var(--muted);max-width:640px}
 .services{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 .service{padding:18px;border:1px solid var(--border);border-radius:18px;background:#ffffff03}
 .service .icon{font-size:1.3rem}
-.service h3{margin:8px 0 6px;font-size:.9rem}
-.service p{margin:0;color:var(--muted);font-size:.72rem}
-.tag{display:inline-block;margin-top:10px;padding:4px 8px;border-radius:8px;background:#ffffff08;font-size:.6rem;font-weight:700;color:var(--muted)}
+.service h3{margin:8px 0 6px;font-size:.875rem}
+.service p{margin:0;color:var(--muted);font-size:.875rem}
+.tag{display:inline-block;margin-top:10px;padding:4px 8px;border-radius:8px;background:#ffffff08;font-size:.75rem;font-weight:700;color:var(--muted)}
 .tips{border:1px solid var(--border);border-radius:22px;overflow:hidden;background:#0b121d}
 .tipHead{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border)}
-.previewBadge{padding:4px 9px;border-radius:999px;background:#3b82f618;color:#93c5fd;font-size:.58rem;font-weight:800}
-.tipSummary{display:flex;flex-wrap:wrap;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);color:var(--muted);font-size:.7rem}
+.previewBadge{padding:4px 9px;border-radius:999px;background:#3b82f618;color:#93c5fd;font-size:.75rem;font-weight:800}
+.tipSummary{display:flex;flex-wrap:wrap;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);color:var(--muted);font-size:.875rem}
 .tipSummary b{color:var(--fg)}
 .tipSkeleton{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:14px 16px}
 .tipSkeleton .sk{height:160px;border-radius:18px;background:#121a26}
 .tipTabs{display:flex;gap:6px;padding:10px 16px;border-bottom:1px solid var(--border)}
-.tipTab{padding:6px 12px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:.7rem;font-weight:700;cursor:pointer}
+.tipTab{padding:6px 12px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:.75rem;font-weight:700;cursor:pointer}
 .tipTab.active{background:#ffffff0b;color:var(--fg)}
 .tipCardGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:14px 16px}
 .tipCard{display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid #1e2a3d;border-radius:18px;background:#121a26}
-.disclaimer{padding:12px 16px;color:var(--muted);font-size:.65rem}
+.disclaimer{padding:12px 16px;color:var(--muted);font-size:.75rem}
 .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .step{padding:20px;border:1px solid var(--border);border-radius:18px;background:#ffffff03}
 .num{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--signal);color:#071006;font-weight:800;font-size:.75rem}
-.step h3{margin:10px 0 6px;font-size:.85rem}
-.step p{margin:0;color:var(--muted);font-size:.72rem}
+.step h3{margin:10px 0 6px;font-size:.875rem}
+.step p{margin:0;color:var(--muted);font-size:.875rem}
 .payments{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
 .payment{padding:14px;border:1px solid var(--border);border-radius:16px;background:#ffffff03}
 .payment b{font-size:.75rem}
-.payment span{display:block;margin-top:8px;color:#ccefff;font-size:.6rem;font-weight:700}
+.payment span{display:block;margin-top:8px;color:#ccefff;font-size:.75rem;font-weight:700}
 .responsible-gaming-box{display:grid;grid-template-columns:.8fr 1.2fr;gap:20px;padding:24px;border:1px solid #ff477e3d;border-radius:22px;background:linear-gradient(145deg,#ff477e0b,#ff6b5706)}
 .responsible-gaming-box h2{margin:6px 0;font-size:1.4rem}
-.responsible-gaming-box p,.responsible-gaming-box li{color:var(--muted);font-size:.72rem}
+.responsible-gaming-box p,.responsible-gaming-box li{color:var(--muted);font-size:.875rem}
 .faqs details{border:1px solid var(--border);border-radius:14px;background:#ffffff03;margin-bottom:8px}
-.faqs summary{cursor:pointer;padding:12px;font-weight:800;font-size:.74rem}
-.answer{padding:0 12px 12px;color:var(--muted);font-size:.7rem}
+.faqs summary{cursor:pointer;padding:12px;font-weight:800;font-size:.875rem}
+.answer{padding:0 12px 12px;color:var(--muted);font-size:.875rem}
 .finalBox{text-align:center;padding:40px 20px;border:1px solid #00b4f833;border-radius:24px;background:#111a27}
 .footer{padding:32px 0;border-top:1px solid var(--border)}
 .foot{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:24px}
-.footer p,.footer a{color:var(--muted);font-size:.67rem}
+.footer p,.footer a{color:var(--muted);font-size:.75rem}
 .footerLinks{display:grid;gap:6px;margin-top:8px}
-.bottom{display:flex;justify-content:space-between;margin-top:20px;padding-top:14px;border-top:1px solid var(--border);color:var(--faint);font-size:.61rem}
+.bottom{display:flex;justify-content:space-between;margin-top:20px;padding-top:14px;border-top:1px solid var(--border);color:var(--faint);font-size:.75rem}
 .stickyCta{display:none;position:fixed;left:0;right:0;bottom:0;z-index:40;padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:#070b12ee;border-top:1px solid var(--border)}
 .stickyCta .btn{width:100%}
+.phone{max-width:320px;margin:0 auto;border:1px solid #dbeafe66;border-radius:28px;background:#0b121d;overflow:hidden;box-shadow:0 24px 60px #0006}
+.phoneBar{display:flex;align-items:center;gap:6px;padding:12px 14px;background:#111a27;border-bottom:1px solid var(--border);font-size:.75rem}
+.phoneBar .dot{width:8px;height:8px;border-radius:50%;background:#334155}
+.phoneBar b{margin-left:6px;font-size:.875rem}
+.phoneBar em{margin-left:auto;color:var(--signal);font-style:normal;font-size:.75rem;font-weight:700}
+.chat{padding:14px;display:flex;flex-direction:column;gap:10px;min-height:220px}
+.bubble{max-width:88%;padding:10px 12px;border-radius:14px;font-size:.875rem;line-height:1.45}
+.bubble.me{align-self:flex-end;background:#1d4ed8;color:#eff6ff;border-bottom-right-radius:4px}
+.bubble.bot{align-self:flex-start;background:#1e293b;color:var(--fg);border-bottom-left-radius:4px}
+.phoneCta{margin:0 14px 14px;padding:10px;text-align:center;border-radius:12px;background:var(--signal);color:#071006;font-size:.875rem;font-weight:800}
 @media(max-width:980px){.heroGrid,.services,.payments,.trust,.statsStrip,.tipSkeleton,.tipCardGrid,.steps{grid-template-columns:1fr 1fr}.responsible-gaming-box,.faq{grid-template-columns:1fr}}
 @media(max-width:720px){.links,.langs,.desktop{display:none}.menu{display:grid;place-items:center}.mobile.open{display:grid;position:absolute;right:12px;top:calc(100% + 7px);width:min(320px,calc(100vw - 24px));padding:9px;background:#0a101af7;border:1px solid var(--border);border-radius:16px}.mobile a{padding:11px;color:var(--muted);font-weight:700}.hero h1{font-size:clamp(2.2rem,10vw,3.2rem)}.trust,.services,.steps,.payments,.statsStrip,.tipSkeleton,.tipCardGrid,.foot{grid-template-columns:1fr}.stickyCta{display:block}body{padding-bottom:72px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn{transition:none}}
@@ -293,9 +304,21 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
       <h1>${esc(c.hero[1])}</h1>
       <p>${esc(c.hero[2])}</p>
       <div class="actions"><a class="btn primary" href="${eb}">✈ ${esc(c.hero[3])}</a><a class="btn secondary" href="#tips-preview">${esc(c.hero[4])}</a></div>
-      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:18px"><span style="padding:6px 10px;border:1px solid var(--border);border-radius:999px;color:var(--muted);font-size:.66rem;font-weight:700">18+</span><span style="padding:6px 10px;border:1px solid var(--border);border-radius:999px;color:var(--muted);font-size:.66rem;font-weight:700">Promo ${promo}</span></div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:18px"><span style="padding:6px 10px;border:1px solid var(--border);border-radius:999px;color:var(--muted);font-size:.75rem;font-weight:700">18+</span><span style="padding:6px 10px;border:1px solid var(--border);border-radius:999px;color:var(--muted);font-size:.75rem;font-weight:700">Promo ${promo}</span></div>
     </div>
-    <div id="edge-visual"><div style="max-width:340px;margin:0 auto;padding:16px;border:1px solid #dbeafeaa;border-radius:28px;background:#0b121d;color:var(--muted);font-size:.75rem">Telegram-first cash desk · Open the bot for guided deposit &amp; tips.</div></div>
+    <div id="edge-visual">
+      <div class="phone" aria-hidden="true">
+        <div class="phoneBar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><b>Fast xBet Cash Bot</b><em>online</em></div>
+        <div class="chat">
+          <div class="bubble me">/start</div>
+          <div class="bubble bot">Welcome! Choose Tips, Deposit or Withdraw.</div>
+          <div class="bubble me">🎯 Free Tips</div>
+          <div class="bubble me">💳 Deposit</div>
+          <div class="bubble bot">Deposit flow is open. Follow the instructions.</div>
+        </div>
+        <div class="phoneCta">✈ Open Telegram Bot</div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -337,7 +360,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 <section class="section" id="responsible"><div class="wrap"><div class="responsible-gaming-box">
   <div><div class="kicker">Play responsibly</div><h2>🔞 18+ Responsible Gaming Notice</h2><p>Free tips and previews are informational only. No guaranteed outcome, profit, or risk-free betting claim is made.</p></div>
   <ul><li>✓ 18+ only.</li><li>✓ Never gamble with money you cannot afford to lose.</li><li>✓ If gambling stops feeling controlled, take a break.</li></ul>
-</div></div></section>
+</div><p class="disclaimer" style="margin-top:12px">We are an affiliate partner of 1xBet. We may earn a commission on deposits. Outcomes are not guaranteed.</p></div></section>
 
 <section class="section" id="faq"><div class="wrap">
   <div class="head"><div class="kicker">FAQ</div><h2>FAQ</h2></div>
