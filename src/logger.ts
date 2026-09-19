@@ -1,6 +1,29 @@
 import { isR2Configured, putObject } from "./storage";
 import type { Env } from "./types";
 
+/** Keys that must never appear in logs in cleartext. */
+const SENSITIVE_KEY_RE = /^(security_code|password|token|secret|destination_account|account_number|otp|pin)$/i;
+
+/**
+ * Shallow redaction of sensitive fields before serialization.
+ * Nested objects are walked one level; arrays are left intact.
+ */
+export function redactSensitiveFields<T>(input: T): T {
+  if (input == null || typeof input !== "object") return input;
+  if (Array.isArray(input)) return input.map((item) => redactSensitiveFields(item)) as T;
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
+    if (SENSITIVE_KEY_RE.test(key)) {
+      out[key] = "[REDACTED]";
+    } else if (value && typeof value === "object" && !Array.isArray(value)) {
+      out[key] = redactSensitiveFields(value);
+    } else {
+      out[key] = value;
+    }
+  }
+  return out as T;
+}
+
 export type TransactionCategory = "DEPOSIT" | "WITHDRAWAL";
 export type TransactionAction = "CREATED" | "APPROVED" | "REJECTED";
 
@@ -94,16 +117,16 @@ export async function logTransactionAudit(
   const eventId = generateEventId();
   const { year, month, day } = getDateFolder(now);
 
-  const fullRecord: TransactionAuditRecord = {
+  const fullRecord: TransactionAuditRecord = redactSensitiveFields({
     type: "TRANSACTION_AUDIT",
     eventId,
     timestamp: now.toISOString(),
     colomboTime: getColomboTime(now),
     currency: data.currency || "LKR",
     ...data,
-  };
+  });
 
-  // Structured console log for local / container monitoring
+  // Structured console log for local / container monitoring (no sensitive fields).
   console.log(
     `[AUDIT_TRANSACTION] ${fullRecord.category} ${fullRecord.action} #${fullRecord.transactionId} ` +
       `User:${fullRecord.userId} Player:${fullRecord.playerId} LKR:${fullRecord.amount} Method:${fullRecord.method}`
@@ -147,14 +170,14 @@ export async function logBotError(
   const eventId = generateEventId();
   const { year, month, day } = getDateFolder(now);
 
-  const fullRecord: BotErrorRecord = {
+  const fullRecord: BotErrorRecord = redactSensitiveFields({
     type: "BOT_ERROR",
     eventId,
     timestamp: now.toISOString(),
     colomboTime: getColomboTime(now),
     severity: data.severity || "ERROR",
     ...data,
-  };
+  });
 
   // Structured error log for local / container monitoring
   console.error(

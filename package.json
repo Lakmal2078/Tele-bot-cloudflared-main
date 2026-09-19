@@ -26,7 +26,6 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1133.0",
-    "@grammyjs/conversations": "^2.0.0",
     "d3": "^7.9.0",
     "grammy": "^1.35.0"
   },

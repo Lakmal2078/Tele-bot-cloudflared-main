@@ -14,7 +14,7 @@ function decodeBase64(base64: string): Uint8Array {
 
 const PUBLIC_FAVICON_PNG: Uint8Array = decodeBase64(FAVICON_PNG_BASE64);
 import { constantTimeEqual, isConfiguredAdminId, validateEnv } from "./config";
-import { securityHeaders, adminAttemptAllowed, recordAdminFailure } from "./security";
+import { securityHeaders, adminAttemptAllowed, recordAdminFailure, isAdminIpAllowed } from "./security";
 import {
   ADMIN_SESSION_COOKIE,
   adminSessionCookieHeader,
@@ -93,6 +93,13 @@ function tooManyAttemptsResponse(): Response {
  */
 export async function requireAdmin(request: Request, env: Env): Promise<Response | null> {
   if (!adminAttemptAllowed(request)) return tooManyAttemptsResponse();
+  // Enforce optional IP allowlist before accepting credentials.
+  if (!isAdminIpAllowed(request, env)) {
+    return new Response(JSON.stringify({ ok: false, error: "Forbidden" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    });
+  }
   if (await adminRequestAuthorized(request, env)) return null;
   if (adminCredentialSupplied(request)) recordAdminFailure(request);
   return unauthorizedResponse();
@@ -257,30 +264,32 @@ export async function handleApiRequest(
   const path = url.pathname;
   const method = request.method.toUpperCase();
 
-  // Health check
+  // Health / readiness check — returns 503 when configuration is invalid so
+  // deployment health gates and load balancers treat the worker as unhealthy.
   if ((path === "/health" || path === "/api/health") && (method === "GET" || method === "HEAD")) {
+    const envErrors = validateEnv(env);
+    const healthy = envErrors.length === 0;
+    const statusCode = healthy ? 200 : 503;
     if (method === "HEAD") {
       return new Response(null, {
-        status: 200,
+        status: statusCode,
         headers: { "Cache-Control": "no-store", ...securityHeaders() },
       });
     }
-    const envErrors = validateEnv(env);
-    return json({
-      status: "ok",
-      service: "telegram-bot",
-      runtime: options?.runtime || "cf-worker",
-      timestamp: new Date().toISOString(),
-      configuration: {
-        healthy: envErrors.length === 0,
-        issues: envErrors,
-        hasBotToken: Boolean(env.BOT_TOKEN && env.BOT_TOKEN.length > 10),
-        hasWebhookSecret: Boolean(env.WEBHOOK_SECRET && env.WEBHOOK_SECRET.length >= 16),
-        hasAdminIds: Boolean(env.ADMIN_IDS),
-        hasAdminApiSecret: Boolean(env.ADMIN_API_SECRET || env.WEBHOOK_SECRET),
-        hasOddsApiKey: Boolean(env.ODDS_API_KEY),
+    // Public response is coarse; detailed credential flags are admin-only.
+    return json(
+      {
+        status: healthy ? "ok" : "error",
+        service: "telegram-bot",
+        runtime: options?.runtime || "cf-worker",
+        timestamp: new Date().toISOString(),
+        configuration: {
+          healthy,
+          issues: envErrors,
+        },
       },
-    });
+      statusCode
+    );
   }
 
   // Public worker status endpoint for the landing page. A successful response means this worker is reachable now.
@@ -290,28 +299,46 @@ export async function handleApiRequest(
     return json({ status: "online", service: "telegram-bot", runtime: options?.runtime || "cf-worker", checkedAt: new Date().toISOString() }, 200, headers);
   }
 
-  // Telegram webhook setup & status endpoint
-  if ((path === "/api/telegram/webhook" || path === "/api/setup-webhook") && (method === "GET" || method === "POST")) {
-    const isPost = method === "POST";
-    const autoSet = url.searchParams.get("action") === "set" || isPost;
+  // Telegram webhook management (authenticated, mutation via POST only).
+  // GET returns a sanitized status summary; setWebhook requires admin auth + POST.
+  if (path === "/api/telegram/webhook" || path === "/api/setup-webhook") {
+    if (method !== "GET" && method !== "POST") {
+      return json({ ok: false, error: "Method not allowed" }, 405);
+    }
+
+    // All management actions require admin authentication.
+    const denied = await requireAdmin(request, env);
+    if (denied) return denied;
+
+    // Enforce optional admin IP allowlist (defense in depth).
+    if (!isAdminIpAllowed(request, env)) {
+      return json({ ok: false, error: "Forbidden" }, 403);
+    }
 
     if (!env.BOT_TOKEN) {
       return json({
         ok: false,
         error: "BOT_TOKEN is not configured",
-        help: "Set BOT_TOKEN in Cloudflare Secrets: npx wrangler secret put BOT_TOKEN",
       }, 400);
     }
 
-    const workerOrigin = url.origin;
+    const configuredBase = (env.PUBLIC_BASE_URL || "").trim().replace(/\/$/, "");
+    const workerOrigin = configuredBase || url.origin;
     const webhookSecret = env.WEBHOOK_SECRET?.trim() || "";
+    const wantsSet = method === "POST" && (url.searchParams.get("action") === "set" || method === "POST");
 
-    if (autoSet) {
+    // Mutations (setWebhook) are POST-only and must target the configured public origin.
+    if (method === "POST" && (url.searchParams.get("action") === "set" || !url.searchParams.has("action"))) {
       if (!webhookSecret) {
         return json({
           ok: false,
           error: "WEBHOOK_SECRET is not configured",
-          help: "Set WEBHOOK_SECRET (minimum 16 characters) in Cloudflare Secrets: npx wrangler secret put WEBHOOK_SECRET",
+        }, 400);
+      }
+      if (!configuredBase) {
+        return json({
+          ok: false,
+          error: "PUBLIC_BASE_URL is required to register a webhook",
         }, 400);
       }
       try {
@@ -319,33 +346,40 @@ export async function handleApiRequest(
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            url: workerOrigin,
+            url: configuredBase,
             secret_token: webhookSecret,
             drop_pending_updates: false,
             allowed_updates: ["message", "callback_query"],
           }),
         });
-        const tgData = await tgRes.json();
+        const tgData = (await tgRes.json()) as { ok?: boolean; description?: string };
+        // Sanitize: do not leak full Telegram error payloads to callers.
         return json({
-          ok: true,
+          ok: Boolean(tgData?.ok),
           action: "setWebhook",
-          targetUrl: workerOrigin,
-          telegramResponse: tgData,
+          targetUrl: configuredBase,
+          telegramOk: Boolean(tgData?.ok),
         });
       } catch {
         return json({ ok: false, error: "Internal server error" }, 500);
       }
     }
 
+    // GET (or non-set POST) returns sanitized webhook status only.
     try {
       const tgRes = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/getWebhookInfo`);
-      const tgData = await tgRes.json();
+      const tgData = (await tgRes.json()) as {
+        ok?: boolean;
+        result?: { url?: string; has_custom_certificate?: boolean; pending_update_count?: number; last_error_message?: string };
+      };
+      const result = tgData?.result || {};
       return json({
         ok: true,
         action: "getWebhookInfo",
-        currentWorkerUrl: workerOrigin,
-        telegramWebhook: tgData,
-        instruction: "To register or update this worker URL as Telegram webhook, visit /api/setup-webhook?action=set or send POST to /api/setup-webhook",
+        configuredPublicUrl: configuredBase || null,
+        webhookUrlSet: Boolean(result.url),
+        pendingUpdateCount: typeof result.pending_update_count === "number" ? result.pending_update_count : null,
+        hasLastError: Boolean(result.last_error_message),
       });
     } catch {
       return json({ ok: false, error: "Internal server error" }, 500);
@@ -914,7 +948,18 @@ export async function handleApiRequest(
         createdBy: body.createdBy,
       });
 
-      return json({ ok: true, id }, 201);
+      // Channel scheduling is currently draft-only: no worker publishes these rows.
+      // Return 201 with an explicit status so operators are not misled into
+      // believing the post will be delivered automatically.
+      return json(
+        {
+          ok: true,
+          id,
+          status: "DRAFT",
+          note: "Channel schedule is draft-only; automatic publishing is not yet implemented. Posts will not be sent to Telegram until a publisher job is added.",
+        },
+        201
+      );
     } catch {
       return json({ ok: false, error: "Invalid JSON" }, 400);
     }

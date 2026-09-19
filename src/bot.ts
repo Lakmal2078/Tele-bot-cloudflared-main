@@ -3082,13 +3082,16 @@ export function createBot(env: Env) {
       }
 
       try {
+        // Hash security code before persistence — never store plaintext in D1.
+        const salt = (env.ADMIN_API_SECRET || env.WEBHOOK_SECRET || "default-salt").trim();
+        const hashedCode = code ? await db.hashSecurityCode(code, salt) : null;
         const requestId = await db.addWithdrawal(
           env.DB,
           user.id,
           user.username || user.first_name || null,
           playerId,
           amount,
-          code,
+          hashedCode,
           method,
           destinationAccount
         );
@@ -3097,7 +3100,7 @@ export function createBot(env: Env) {
         // 🛡️ Fraud check: player ID already used by another Telegram account (non-blocking)
         const wdFraud = await fraud.checkWithdrawalFraud(env.DB, user.id, playerId);
 
-        // Audit log withdrawal creation to Cloudflare R2
+        // Audit log withdrawal creation to Cloudflare R2 (do not log the security code).
         logTransactionAudit(
           env,
           {
@@ -3115,6 +3118,8 @@ export function createBot(env: Env) {
           ctx.waitUntil
         );
         const fraudBanner = fraud.formatFraudBanner(wdFraud.flags);
+        // Mask security code in admin alerts (show last 2 characters only).
+        const maskedCode = code && code.length > 2 ? `****${code.slice(-2)}` : "****";
         const alert =
           `🔔 *NEW WITHDRAWAL REQUEST #${requestId}*\n\n` +
           (fraudBanner ? `${fraudBanner}\n` : "") +
@@ -3124,7 +3129,7 @@ export function createBot(env: Env) {
           `🏦 *Destination Account:* \`${escapeCode(destinationAccount)}\`\n` +
           `🎮 *Player ID:* \`${escapeCode(playerId)}\`\n` +
           `💰 *Amount:* LKR *${amount.toLocaleString()}*\n` +
-          `🔐 *Security Code:* \`${escapeCode(code)}\`\n` +
+          `🔐 *Security Code:* \`${escapeCode(maskedCode)}\`\n` +
           `📅 *Time:* ${new Date().toLocaleString("si-LK", { timeZone: "Asia/Colombo" })}`;
 
         const adminKb = new InlineKeyboard()
