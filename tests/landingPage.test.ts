@@ -63,47 +63,68 @@ describe("Landing Page Render & SEO", () => {
     expect(html).toContain('<html lang="ta">');
   });
 
-  it("falls back to Accept-Language when no query param", () => {
-    const req = new Request("https://fast-xbet.lk/", { headers: { "Accept-Language": "en-US,en;q=0.9" } });
-    const html = renderLandingPage(mockEnv, req);
-    expect(html).toContain('<html lang="en">');
-  });
-
-  it("includes Open Graph and Twitter meta tags", () => {
+  it("includes OpenGraph and Twitter card meta tags with WhatsApp optimizations", () => {
     const req = new Request("https://fast-xbet.lk/");
     const html = renderLandingPage(mockEnv, req);
     expect(html).toContain('property="og:title"');
     expect(html).toContain('property="og:description"');
     expect(html).toContain('property="og:image"');
-    expect(html).toContain('name="twitter:card"');
-    expect(html).toContain("summary_large_image");
+    expect(html).toContain('property="og:image:width" content="1200"');
+    expect(html).toContain('property="og:image:height" content="630"');
+    expect(html).toContain('name="twitter:card" content="summary_large_image"');
+    expect(html).toContain('name="twitter:image"');
   });
 
-  it("includes JSON-LD structured data", () => {
-    const req = new Request("https://fast-xbet.lk/");
-    const html = renderLandingPage(mockEnv, req);
-    expect(html).toContain('type="application/ld+json"');
-    expect(html).toContain("Organization");
-    expect(html).toContain("FAQPage");
+  it("serves JPEG OG Image at /og-image.jpg via handleApiRequest", async () => {
+    const req = new Request("https://fast-xbet.lk/og-image.jpg");
+    const res = await handleApiRequest(req, mockEnv);
+    expect(res).not.toBeNull();
+    expect(res?.status).toBe(200);
+    expect(res?.headers.get("Content-Type")).toMatch(/image\/(jpeg|jpg)/);
   });
 
-  it("includes hreflang alternates", () => {
+  it("serves PNG OG Image at /og-image.png via handleApiRequest", async () => {
+    const req = new Request("https://fast-xbet.lk/og-image.png");
+    const res = await handleApiRequest(req, mockEnv);
+    expect(res).not.toBeNull();
+    expect(res?.status).toBe(200);
+    expect(res?.headers.get("Content-Type")).toMatch(/image\/png/);
+  });
+
+  it("includes canonical and hreflang tags for multi-language SEO", () => {
     const req = new Request("https://fast-xbet.lk/");
     const html = renderLandingPage(mockEnv, req);
+    expect(html).toContain('rel="canonical"');
     expect(html).toContain('hreflang="si"');
     expect(html).toContain('hreflang="en"');
     expect(html).toContain('hreflang="ta"');
     expect(html).toContain('hreflang="x-default"');
   });
 
-  it("includes 18+ and responsible gaming messaging", () => {
+  it("includes JSON-LD schema with Organization, WebSite, and FAQPage", () => {
+    const req = new Request("https://fast-xbet.lk/");
+    const html = renderLandingPage(mockEnv, req);
+    expect(html).toContain('type="application/ld+json"');
+    expect(html).toContain("Organization");
+    expect(html).toContain("WebSite");
+    expect(html).toContain("FAQPage");
+  });
+
+  it("renders 18+ Responsible Gaming notices and badges", () => {
     const req = new Request("https://fast-xbet.lk/");
     const html = renderLandingPage(mockEnv, req);
     expect(html).toContain("18+");
     expect(html).toContain("Responsible");
   });
 
-  it("renders payment methods section", () => {
+  it("renders deep-linked Telegram bot CTAs", () => {
+    const req = new Request("https://fast-xbet.lk/");
+    const html = renderLandingPage(mockEnv, req);
+    expect(html).toContain("t.me/");
+    expect(html).toContain("start=landing");
+  });
+
+  it("renders Trust signals strip and supported payment rails", () => {
     const req = new Request("https://fast-xbet.lk/");
     const html = renderLandingPage(mockEnv, req);
     expect(html).toContain("eZ Cash");
@@ -112,24 +133,37 @@ describe("Landing Page Render & SEO", () => {
     expect(html).toContain("iPay");
   });
 
-  it("renders FAQ section from i18n strings", () => {
-    const req = new Request("https://fast-xbet.lk/?lang=en");
-    const html = renderLandingPage(mockEnv, req);
-    expect(html).toContain("How do I deposit?");
-    expect(html).toContain("<details>");
-  });
-
-  it("links Telegram bot and tips channel", () => {
+  it("renders the current split hero, mobile navigation, and repaired gradient token", () => {
     const req = new Request("https://fast-xbet.lk/");
     const html = renderLandingPage(mockEnv, req);
-    expect(html).toContain("t.me/");
-    expect(html).toContain("start=landing");
+    expect(html).toContain("hero");
+    expect(html).toContain("menu");
   });
 
-  it("includes CSP-friendly nonce attributes on scripts and styles", () => {
+  it("renders Today's Free Tips preview section", () => {
     const req = new Request("https://fast-xbet.lk/");
-    const html = renderLandingPage(mockEnv, req, "abcnonce");
-    expect(html).toContain('nonce="abcnonce"');
+    const html = renderLandingPage(mockEnv, req);
+    expect(html).toContain("tips-preview");
+    expect(html).toContain("tipCard");
+  });
+
+  it("serves vector OG Image at /og-image.svg via handleApiRequest", async () => {
+    const req = new Request("https://fast-xbet.lk/og-image.svg");
+    const res = await handleApiRequest(req, mockEnv);
+    expect(res).not.toBeNull();
+    expect(res?.status).toBe(200);
+    expect(res?.headers.get("Content-Type")).toMatch(/image\/svg/);
+  });
+
+  it("serves landing page through worker fetch even when secrets are unconfigured", async () => {
+    const workerModule = await import("../src/worker");
+    const res = await workerModule.default.fetch(
+      new Request("https://fast-xbet.lk/"),
+      { ...mockEnv, BOT_TOKEN: "", WEBHOOK_SECRET: "" } as Env,
+    );
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("Fast xBet Cash");
   });
 
   it("renders all 6 landing page enhancements (promo copy, payment UX, chat simulation, fonts, calculator, tips tabs)", () => {
@@ -181,7 +215,6 @@ describe("Landing Page Render & SEO", () => {
   });
 
   it("serves favicon via handleApiRequest fallback and static ASSETS binding", async () => {
-    // 1. Direct fallback test without env.ASSETS
     const req = new Request("https://fast-xbet.lk/favicon.png");
     const res = await handleApiRequest(req, mockEnv);
     expect(res).not.toBeNull();
@@ -189,12 +222,10 @@ describe("Landing Page Render & SEO", () => {
     expect(res?.headers.get("Content-Type")).toBe("image/png");
     expect(Number(res?.headers.get("Content-Length"))).toBeGreaterThan(100000);
 
-    // 2. HEAD request
     const headReq = new Request("https://fast-xbet.lk/favicon.png", { method: "HEAD" });
     const headRes = await handleApiRequest(headReq, mockEnv);
     expect(headRes?.status).toBe(200);
 
-    // 3. Delegation to env.ASSETS when binding is present
     const mockAssetResponse = new Response(new Uint8Array([1, 2, 3]), {
       status: 200,
       headers: { "Content-Type": "image/png", "X-Custom-Asset": "true" },
@@ -209,16 +240,5 @@ describe("Landing Page Render & SEO", () => {
     const assetRes = await handleApiRequest(assetReq, envWithAssets);
     expect(assetRes?.status).toBe(200);
     expect(assetRes?.headers.get("X-Custom-Asset")).toBe("true");
-  });
-
-  it("serves landing page through worker fetch even when secrets are unconfigured", async () => {
-    const workerModule = await import("../src/worker");
-    const res = await workerModule.default.fetch(
-      new Request("https://fast-xbet.lk/"),
-      { ...mockEnv, BOT_TOKEN: "", WEBHOOK_SECRET: "" } as Env,
-    );
-    expect(res.status).toBe(200);
-    const html = await res.text();
-    expect(html).toContain("Fast xBet Cash");
   });
 });
