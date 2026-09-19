@@ -5,12 +5,13 @@
 /**
  * Escapes characters for Telegram Markdown (V1 / legacy).
  * Characters that break parse_mode Markdown: _, *, `, [
+ * Only the opening '[' starts a link entity, so ']' is left unescaped.
  * Always apply to any user-controlled or external string before embedding
  * in a Markdown message.
  */
 export function escapeMarkdown(text: string | null | undefined): string {
   if (text === null || text === undefined) return "";
-  return String(text).replace(/([_*`[\]])/g, "\\$1");
+  return String(text).replace(/([_*`[])/g, "\\$1");
 }
 
 /**
