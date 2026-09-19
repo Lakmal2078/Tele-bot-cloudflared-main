@@ -25,10 +25,14 @@ export function escapeCode(text: string | null | undefined): string {
 /**
  * Escape for Telegram MarkdownV2 (stricter). Use when parse_mode is MarkdownV2.
  * @see https://core.telegram.org/bots/api#markdownv2-style
+ *
+ * Character class avoids unnecessary escapes that trip eslint no-useless-escape
+ * (e.g. `[` does not need backslash inside `[]`).
  */
 export function escapeMarkdownV2(text: string | null | undefined): string {
   if (text === null || text === undefined) return "";
-  return String(text).replace(/([_*\[\]()~`>#+\-=|{}.!\\])/g, "\\$1");
+  // MarkdownV2 special chars: _ * [ ] ( ) ~ ` > # + - = | { } . ! \
+  return String(text).replace(/([_*[\]()~`>#+=|{}.!\\-])/g, "\\$1");
 }
 
 export interface TransactionLimits {
