@@ -23,6 +23,7 @@
  */
 
 import type { StorageAdapter } from "grammy";
+import type { D1Database } from "./types";
 
 /** Default session TTL (hours) — keep in sync with user_state cleanup. */
 const DEFAULT_SESSION_TTL_HOURS = 24;
