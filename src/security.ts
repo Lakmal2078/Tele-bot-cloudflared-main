@@ -27,7 +27,8 @@ export function securityHeaders(): Record<string, string> {
 export function landingPageSecurityHeaders(nonce?: string, options: { isHttps?: boolean } = {}): Record<string, string> {
   const isHttps = options.isHttps ?? true;
   const headers = { ...securityHeaders() };
-  headers["Cache-Control"] = "public, max-age=1800, s-maxage=86400, stale-while-revalidate=86400";
+  headers["Cache-Control"] = "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400";
+  headers["Vary"] = "Accept-Language";
   headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
   const scriptPolicy = nonce ? `'nonce-${nonce}'` : "'unsafe-inline'";
   const stylePolicy = nonce ? `'nonce-${nonce}'` : "'unsafe-inline'";
@@ -48,50 +49,27 @@ export function landingPageSecurityHeaders(nonce?: string, options: { isHttps?: 
   };
 }
 
-export function webhookRequestAllowed(request: Request): boolean {
-  if (request.method !== "POST") return false;
-  const contentLength = request.headers.get("Content-Length");
-  if (contentLength) {
-    const length = Number(contentLength);
-    if (!Number.isFinite(length) || length < 0 || length > MAX_WEBHOOK_BODY_BYTES) return false;
-  }
-  const contentType = request.headers.get("Content-Type")?.split(";", 1)[0].trim().toLowerCase();
-  return contentType === "application/json";
+export function isAdminFailureLimited(ip: string): boolean {
+  const now = Date.now();
+  const bucket = adminFailures.get(ip);
+  if (!bucket || now > bucket.resetAt) return false;
+  return bucket.count >= ADMIN_FAILURE_LIMIT;
 }
 
-function clientKey(request: Request): string {
-  return request.headers.get("CF-Connecting-IP")?.trim() || "unknown-client";
-}
-function normalizeNodeHeader(value: string | string[] | undefined): string {
-  if (Array.isArray(value)) return value[0]?.trim() || "";
-  return value?.trim() || "";
-}
-function clientKeyFromNodeHeaders(headers: Record<string, string | string[] | undefined>): string {
-  return normalizeNodeHeader(headers["cf-connecting-ip"]) || "unknown-client";
-}
-function adminAttemptAllowedForKey(key: string, now: number): boolean {
-  const bucket = adminFailures.get(key);
-  if (!bucket || bucket.resetAt <= now) {
-    adminFailures.set(key, { count: 0, resetAt: now + ADMIN_FAILURE_WINDOW_MS });
-    return true;
+export function recordAdminFailure(ip: string): void {
+  const now = Date.now();
+  const bucket = adminFailures.get(ip);
+  if (!bucket || now > bucket.resetAt) {
+    adminFailures.set(ip, { count: 1, resetAt: now + ADMIN_FAILURE_WINDOW_MS });
+    return;
   }
-  return bucket.count < ADMIN_FAILURE_LIMIT;
-}
-function recordAdminFailureForKey(key: string, now: number): void {
-  const bucket = adminFailures.get(key);
-  if (!bucket || bucket.resetAt <= now) adminFailures.set(key, { count: 1, resetAt: now + ADMIN_FAILURE_WINDOW_MS });
-  else bucket.count += 1;
-  if (adminFailures.size > 5000) {
-    for (const [entryKey, entry] of adminFailures) if (entry.resetAt <= now) adminFailures.delete(entryKey);
-  }
-}
-export function adminAttemptAllowed(request: Request, now = Date.now()): boolean { return adminAttemptAllowedForKey(clientKey(request), now); }
-export function recordAdminFailure(request: Request, now = Date.now()): void { recordAdminFailureForKey(clientKey(request), now); }
-export function adminAttemptAllowedNode(headers: Record<string, string | string[] | undefined>, now = Date.now()): boolean {
-  return adminAttemptAllowedForKey(clientKeyFromNodeHeaders(headers), now);
-}
-export function recordAdminFailureNode(headers: Record<string, string | string[] | undefined>, now = Date.now()): void {
-  recordAdminFailureForKey(clientKeyFromNodeHeaders(headers), now);
+  bucket.count += 1;
 }
 
-export const SECURITY_LIMITS = { MAX_WEBHOOK_BODY_BYTES, ADMIN_FAILURE_WINDOW_MS, ADMIN_FAILURE_LIMIT } as const;
+export function clearAdminFailures(ip: string): void {
+  adminFailures.delete(ip);
+}
+
+export function maxWebhookBodyBytes(): number {
+  return MAX_WEBHOOK_BODY_BYTES;
+}
