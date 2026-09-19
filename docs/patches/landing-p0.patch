@@ -1,0 +1,100 @@
+--- a/src/landingPage.ts
++++ b/src/landingPage.ts
+@@ -1,5 +1,4 @@
+ import type { Env } from "./types";
+-import { BRAND_LOGO_SVG_COMPACT } from "./brandLogo";
+ 
+ const BOT_FALLBACK = "fast_1xbetcash_bot";
+ const CHANNEL_FALLBACK = "https://t.me/fast_xbet_official_tips";
+@@ -142,7 +141,7 @@
+     ]
+   }));
+ 
+-  const payments = c.pay.slice(1).map((p) => `<article class="payment"><div class="payTop"><span class="payIcon">${paymentIcon(p)}</span><span class="payBadge">⚡ 2–5 Mins</span></div><b>${esc(p)}</b><div class="payBottom"><span class="payFee">0% Fee</span><span>${paymentConfigured(env, p) ? "Configured" : "Bot flow"}</span></div></article>`).join("");
++  const payments = c.pay.slice(1).map((p) => `<article class="payment"><div class="payTop"><span class="payIcon">${paymentIcon(p)}</span><span class="payBadge">⚡ After verify</span></div><b>${esc(p)}</b><div class="payBottom"><span class="payFee">No service fee</span><span>${paymentConfigured(env, p) ? "Available" : "via Telegram"}</span></div></article>`).join("");
+ 
+   const serviceCards = [
+     ["🎯", c.services[2], "Automated sports analysis and selected informational previews.", "View preview"],
+@@ -428,7 +427,7 @@
+             <div class="bubble user">Deposit</div>
+             <div class="bubble bot">Send your 1xBet Player ID, then pick a local rail.</div>
+             <div class="bubble user">Player ID 88410231</div>
+-            <div class="bubble bot">Limits LKR ${min.toLocaleString("en-LK")}–${max.toLocaleString("en-LK")}. Typical completion 2–5 minutes after receipt.</div>
++            <div class="bubble bot">Limits LKR ${min.toLocaleString("en-LK")}–${max.toLocaleString("en-LK")}. Processed after receipt verification (times vary).</div>
+             <div class="chatChips">
+               <button type="button" class="chatChip active" data-scenario="deposit">Deposit</button>
+               <button type="button" class="chatChip" data-scenario="tips">Tips</button>
+@@ -499,7 +498,7 @@
+         <div class="tipFoot">Preview · Odds are illustrative</div>
+       </article>
+     </div>
+-    <div class="disclaimer">These previews are illustrative. Sports outcomes are uncertain. No tip guarantees a win or profit.</div>
++    <div class="disclaimer" role="note">🔞 18+ only. Previews are informational — not live betting advice. Sports outcomes are uncertain; no tip guarantees a win or profit. Gamble responsibly.</div>
+   </div>
+ </div></section>
+ 
+@@ -540,8 +539,8 @@
+         <div class="finalCta">
+           <a class="btn primary" href="${eb}">✈ ${esc(c.final[0])}</a>
+           <div class="finalMeta">
+-          <span>⚡ 2–5 Mins</span>
+-          <span>🛡️ 0% Fee</span>
++          <span>⚡ After verification</span>
++          <span>🛡️ No service fee</span>
+           </div>
+         </div>
+       </div>
+@@ -552,7 +551,7 @@
+ 
+ <section class="section"><div class="wrap"><div class="responsible-gaming-box">
+   <div><div class="kicker">Play responsibly</div><h2>🔞 18+ Responsible Gaming Notice</h2>
+-  <p>Free tips and previews are informational only. No guaranteed outcome, profit, or risk-free betting claim is made.</p></div>
++  <p>Free tips and previews are informational only. No guaranteed outcome, profit, or risk-free betting claim is made. This site is a Telegram cash-desk helper — not a bookmaker.</p></div>
+   <ul><li>✓ 18+ users only.</li><li>✓ Gambling involves risk and losses can occur.</li><li>✓ Set limits and do not chase losses.</li><li>✓ Never use money needed for essential expenses.</li><li>✓ If gambling stops feeling controlled, take a break and seek appropriate support.</li></ul>
+   <div class="notice">Responsible use is your responsibility. Do not chase losses or use essential-expense money for gambling.</div>
+ </div></div></section>
+@@ -723,7 +722,7 @@
+           { role: "user", text: "Deposit" },
+           { role: "bot", text: "Send your 1xBet Player ID, then pick a local rail." },
+           { role: "user", text: "Player ID 88410231" },
+-          { role: "bot", text: "Limits LKR ${min.toLocaleString("en-LK")}–${max.toLocaleString("en-LK")}. Typical completion 2–5 minutes after receipt." }
++          { role: "bot", text: "Limits LKR ${min.toLocaleString("en-LK")}–${max.toLocaleString("en-LK")}. Processed after receipt verification (times vary)." }
+         ],
+         tips: [
+           { role: "bot", text: "🎯 Today's Selected Free Tips (Combined Odds: 3.45)" },
+@@ -796,9 +795,18 @@
+     fetch("/api/tips/preview", { headers: { Accept: "application/json" }, cache: "no-store" })
+       .then(function(r){ return r.ok ? r.json() : null; })
+       .then(function(data){
+-        if (!data || !Array.isArray(data.tips) || data.tips.length === 0) return;
++        if (!data || !Array.isArray(data.tips) || data.tips.length === 0) {
++          if (liveBadge) {
++            liveBadge.textContent = "Sample preview";
++          }
++          if (liveSummary) {
++            liveSummary.style.display = "flex";
++            liveSummary.innerHTML = "<span>Live feed unavailable — showing sample fixtures. Open Telegram for today’s tips.</span>";
++          }
++          return;
++        }
+         if (liveBadge) {
+-          liveBadge.textContent = "● Live D1 Feed (" + data.tips.length + ")";
++          liveBadge.textContent = "● Live feed (" + data.tips.length + ")";
+           liveBadge.style.background = "#22c55e18";
+           liveBadge.style.borderColor = "#22c55e44";
+           liveBadge.style.color = "#86efac";
+@@ -835,7 +843,15 @@
+           if (activeTab) applySportFilter(activeTab.getAttribute("data-sport") || "all");
+         }
+       })
+-      .catch(function(){});
++      .catch(function(){
++        if (liveBadge) {
++          liveBadge.textContent = "Preview only";
++        }
++        if (liveSummary) {
++          liveSummary.style.display = "flex";
++          liveSummary.innerHTML = "<span>Could not load live tips. Sample fixtures remain below — open Telegram for the latest.</span>";
++        }
++      });
+   } catch(e){}
