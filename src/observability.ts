@@ -1,5 +1,14 @@
+export type LogEventName =
+  | "request"
+  | "error"
+  | "cron"
+  | "bot"
+  | "security"
+  | "storage"
+  | "fsm";
+
 export interface RequestLog {
-  event: "request" | "error" | "cron";
+  event: LogEventName;
   requestId?: string;
   method?: string;
   route?: string;
@@ -8,15 +17,20 @@ export interface RequestLog {
   cron?: string;
   message?: string;
   error?: string;
+  /** Non-PII structured fields only (ids as opaque numbers, never tokens). */
+  meta?: Record<string, string | number | boolean | null>;
 }
 
 /** Emits machine-readable logs without credentials, tokens, request bodies, or user PII. */
 export function logEvent(record: RequestLog): void {
-  console.log(JSON.stringify({
-    ts: new Date().toISOString(),
-    service: "xbet-telegram-worker",
-    ...record,
-  }));
+  console.log(
+    JSON.stringify({
+      ts: new Date().toISOString(),
+      service: "xbet-telegram-worker",
+      level: record.event === "error" ? "error" : "info",
+      ...record,
+    })
+  );
 }
 
 export function requestId(): string {
