@@ -201,8 +201,8 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .skip:focus{left:0}
 .nav{position:sticky;top:0;z-index:50;background:#070b12e8;backdrop-filter:blur(18px);border-bottom:1px solid var(--border)}
 .navin{min-height:70px;display:flex;align-items:center;gap:18px}
-.logo{display:flex;align-items:center;gap:8px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
-.logo svg{width:36px;height:36px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+.logo img,.logo svg{width:36px;height:36px;border-radius:10px;object-fit:cover}
 .logo span{color:var(--signal)}
 .links{display:flex;gap:2px;margin-left:auto}
 .links a{padding:8px 11px;border-radius:10px;color:var(--muted);font-size:.78rem;font-weight:700}
@@ -231,7 +231,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .notch{width:96px;height:16px;border-radius:999px;background:#ffffff10}
 .chatHead{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--border)}
 .chatHead .brand{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:#050c14;border:1px solid #00b4f855;overflow:hidden}
-.chatHead .brand svg{width:27px;height:27px}
+.chatHead .brand img,.chatHead .brand svg{width:100%;height:100%;object-fit:cover}
 .chatTitle{min-width:0}
 .chatTitle b{display:block;font-size:.75rem}
 .chatTitle span{display:block;color:var(--muted);font-size:.6rem}
@@ -375,7 +375,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 <a class="skip" href="#main">Skip to content</a>
 <header class="nav">
   <div class="wrap navin">
-    <a class="logo" href="${ea}" aria-label="Fast xBet Cash home"><span>${BRAND_LOGO_SVG_COMPACT}</span>Fast <span>xBet</span> Cash 🇱🇰</a>
+    <a class="logo" href="${ea}" aria-label="Fast xBet Cash home"><img src="/favicon.png" alt="Fast xBet Cash" width="36" height="36" decoding="async">Fast <span>xBet</span> Cash 🇱🇰</a>
     <nav class="links" aria-label="Primary navigation">
       <a href="#home">${esc(c.nav[0])}</a><a href="#tips-preview">${esc(c.nav[1])}</a><a href="#how-it-works">${esc(c.nav[2])}</a><a href="#payments">${esc(c.nav[3])}</a><a href="#faq">${esc(c.nav[4])}</a>
     </nav>
@@ -419,7 +419,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
         <div class="phoneInner">
           <div class="phoneTop"><span>09:24</span><span class="notch"></span><span>LTE</span></div>
           <div class="chatHead">
-            <div class="brand"><span>${BRAND_LOGO_SVG_COMPACT}</span></div>
+            <div class="brand"><img src="/favicon.png" alt="Fast xBet Cash Bot" width="34" height="34" decoding="async"></div>
             <div class="chatTitle"><b>Fast xBet Cash</b><span>bot · replies in minutes</span></div>
             <div class="online"><i></i> Bot online</div>
           </div>
@@ -566,7 +566,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 </main>
 
 <footer class="footer"><div class="wrap foot">
-  <div><a class="logo" href="${ea}"><span>${BRAND_LOGO_SVG_COMPACT}</span>Fast <span>xBet</span> Cash 🇱🇰</a><p>Telegram-first service for public sports previews, guided support and multilingual assistance.</p><b>18+ only · Gamble responsibly</b></div>
+  <div><a class="logo" href="${ea}"><img src="/favicon.png" alt="Fast xBet Cash" width="36" height="36" decoding="async">Fast <span>xBet</span> Cash 🇱🇰</a><p>Telegram-first service for public sports previews, guided support and multilingual assistance.</p><b>18+ only · Gamble responsibly</b></div>
   <div><b>Quick links</b><div class="footerLinks"><a href="#tips-preview">${esc(c.nav[1])}</a><a href="#payments">${esc(c.nav[3])}</a><a href="#faq">${esc(c.nav[4])}</a></div></div>
   <div><b>Access</b><div class="footerLinks"><a href="${ec}">Tips Channel</a><a href="${eb}">Telegram Bot</a><a href="#faq">Responsible gaming</a></div></div>
 </div><div class="wrap bottom"><span>© ${new Date().getFullYear()} Fast xBet Cash</span><span>18+ · Telegram-first · Edge service</span></div></footer>

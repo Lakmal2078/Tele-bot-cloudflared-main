@@ -275,4 +275,35 @@ describe("Landing Page Render & SEO", () => {
     expect(html).toContain('id="summaryTotal"');
     expect(html).toContain('id="calcCtaBtn"');
   });
+
+  it("serves favicon via handleApiRequest fallback and static ASSETS binding", async () => {
+    // 1. Direct fallback test without env.ASSETS
+    const req = new Request("https://fast-xbet.lk/favicon.png");
+    const res = await handleApiRequest(req, mockEnv);
+    expect(res).not.toBeNull();
+    expect(res?.status).toBe(200);
+    expect(res?.headers.get("Content-Type")).toBe("image/png");
+    expect(Number(res?.headers.get("Content-Length"))).toBeGreaterThan(100000);
+
+    // 2. HEAD request
+    const headReq = new Request("https://fast-xbet.lk/favicon.png", { method: "HEAD" });
+    const headRes = await handleApiRequest(headReq, mockEnv);
+    expect(headRes?.status).toBe(200);
+
+    // 3. Delegation to env.ASSETS when binding is present
+    const mockAssetResponse = new Response(new Uint8Array([1, 2, 3]), {
+      status: 200,
+      headers: { "Content-Type": "image/png", "X-Custom-Asset": "true" },
+    });
+    const envWithAssets: Env = {
+      ...mockEnv,
+      ASSETS: {
+        fetch: async () => mockAssetResponse,
+      },
+    };
+    const assetReq = new Request("https://fast-xbet.lk/favicon.png");
+    const assetRes = await handleApiRequest(assetReq, envWithAssets);
+    expect(assetRes?.status).toBe(200);
+    expect(assetRes?.headers.get("X-Custom-Asset")).toBe("true");
+  });
 });

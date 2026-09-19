@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import path from "node:path";
 import http from "node:http";
 import { webhookCallback } from "grammy";
 import { createBot } from "./bot";
@@ -39,8 +40,33 @@ const HOST = "0.0.0.0";
 const dbPath = process.env.DB_PATH || "data/bot.db";
 const db = createD1Database(dbPath);
 
+const localAssetsFetcher = {
+  async fetch(request: Request | string): Promise<Response> {
+    const rawUrl = typeof request === "string" ? request : request.url;
+    const url = new URL(rawUrl, "http://localhost");
+    const safePath = path.normalize(url.pathname).replace(/^(\.\.[/\\])+/, "");
+    const filePath = path.join(process.cwd(), "public", safePath);
+
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+      const buffer = fs.readFileSync(filePath);
+      const ext = path.extname(filePath).toLowerCase();
+      const contentType = ext === ".png" ? "image/png" : ext === ".ico" ? "image/x-icon" : ext === ".svg" ? "image/svg+xml" : "application/octet-stream";
+      return new Response(buffer, {
+        status: 200,
+        headers: {
+          "Content-Type": contentType,
+          "Content-Length": String(buffer.byteLength),
+          "Cache-Control": "public, max-age=86400",
+        },
+      });
+    }
+    return new Response("Not found", { status: 404 });
+  },
+};
+
 const env: Env = {
   DB: db,
+  ASSETS: localAssetsFetcher,
   BOT_TOKEN: process.env.BOT_TOKEN || "",
   ADMIN_IDS: process.env.ADMIN_IDS || "",
   ADMIN_CHANNEL_ID: (process.env.ADMIN_CHANNEL_ID || "").replace(/^id:\s*/i, "").trim(),

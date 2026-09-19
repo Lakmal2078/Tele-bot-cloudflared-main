@@ -1,6 +1,18 @@
 import type { Env } from "./types";
 import { OG_IMAGE_PNG, OG_IMAGE_JPEG } from "./ogImage";
-import { BRAND_LOGO_SVG, BRAND_FAVICON_PNG, BRAND_LOGO_PNG_192 } from "./brandLogo";
+import { BRAND_LOGO_SVG, BRAND_LOGO_PNG_192 } from "./brandLogo";
+import { FAVICON_PNG_BASE64 } from "./brandFaviconData";
+
+function decodeBase64(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+const PUBLIC_FAVICON_PNG: Uint8Array = decodeBase64(FAVICON_PNG_BASE64);
 import { constantTimeEqual, isConfiguredAdminId, validateEnv } from "./config";
 import { securityHeaders, adminAttemptAllowed, recordAdminFailure } from "./security";
 import {
@@ -385,19 +397,30 @@ export async function handleApiRequest(
     return new Response(svg, { status: 200, headers });
   }
 
-  // Official Brand Favicon (.ico / .png) - Dollar + Lightning circular badge
+  // Official Brand Favicon (.ico / .png) - Served via Cloudflare Static Assets (public/favicon.png)
   if ((path === "/favicon.ico" || path === "/favicon.png") && (method === "GET" || method === "HEAD")) {
+    if (env.ASSETS && typeof env.ASSETS.fetch === "function") {
+      try {
+        const assetRes = await env.ASSETS.fetch(request);
+        if (assetRes && assetRes.status === 200) {
+          return assetRes;
+        }
+      } catch {
+        // Fall back to embedded buffer if asset fetch is not available in mock/testing environments
+      }
+    }
+
     const headers: Record<string, string> = {
       "Content-Type": "image/png",
-      "Content-Length": String(BRAND_FAVICON_PNG.byteLength),
-      "Content-Disposition": "inline; filename=\"favicon.ico\"",
+      "Content-Length": String(PUBLIC_FAVICON_PNG.byteLength),
+      "Content-Disposition": "inline; filename=\"favicon.png\"",
       "Access-Control-Allow-Origin": "*",
       "Accept-Ranges": "bytes",
       "Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
       "X-Content-Type-Options": "nosniff",
     };
     if (method === "HEAD") return new Response(null, { status: 200, headers });
-    return new Response(BRAND_FAVICON_PNG, { status: 200, headers });
+    return new Response(PUBLIC_FAVICON_PNG, { status: 200, headers });
   }
 
   // Official Brand Logo / Favicon SVG (/favicon.svg, /logo.svg)

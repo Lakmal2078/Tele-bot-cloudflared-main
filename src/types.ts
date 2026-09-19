@@ -31,6 +31,8 @@ export interface R2BucketBinding {
 
 export interface Env {
   DB: D1Database;
+  /** Cloudflare Workers Static Assets binding */
+  ASSETS?: { fetch(request: Request | string): Promise<Response> };
   /** Native Cloudflare R2 bucket binding (preferred on Workers). */
   CHAT_MEDIA?: R2BucketBinding;
   /** Optional bucket name label when only the binding is available. */
