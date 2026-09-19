@@ -23,10 +23,12 @@
  */
 
 import type { StorageAdapter } from "grammy";
-import { USER_STATE_TTL_HOURS } from "./db";
+
+/** Default session TTL (hours) — keep in sync with user_state cleanup. */
+const DEFAULT_SESSION_TTL_HOURS = 24;
 
 export interface D1SessionStorageOptions {
-  /** Max age of a session row in hours (default: USER_STATE_TTL_HOURS). */
+  /** Max age of a session row in hours (default: 24). */
   ttlHours?: number;
   /** Optional table name override (default: bot_sessions). */
   table?: string;
@@ -40,7 +42,7 @@ export function createD1SessionStorage<T>(
   db: D1Database,
   options: D1SessionStorageOptions = {}
 ): StorageAdapter<T> {
-  const ttlHours = options.ttlHours ?? USER_STATE_TTL_HOURS;
+  const ttlHours = options.ttlHours ?? DEFAULT_SESSION_TTL_HOURS;
   const table = options.table ?? "bot_sessions";
 
   return {
