@@ -32,6 +32,14 @@ const mockEnv: Env = {
   TIPS_CHANNEL_ID: "-100987654321",
   TIPS_CHANNEL_URL: "https://t.me/tips_test",
   ODDS_API_KEY: "mock_odds_key",
+  // Required when automated tips are enabled (TIPS_CHANNEL_ID + ODDS_API_KEY).
+  TIPS_SPORTS: "soccer_epl",
+  TIPS_ODDS_REGIONS: "eu",
+  TIPS_MIN_ODDS: "1.30",
+  TIPS_MAX_ODDS: "3.00",
+  TIPS_HOURS_AHEAD: "72",
+  TIPS_PER_SLOT: "3",
+  PUBLIC_BASE_URL: "https://example.workers.dev",
   XBET_LINK: "https://example.com",
   XBET_PROMO_CODE: "TEST",
   MIN_TRANSACTION_LKR: "100",
@@ -48,6 +56,7 @@ describe("handleApiRequest", () => {
     const data = (await res?.json()) as any;
     expect(data.status).toBe("ok");
     expect(data.service).toBe("telegram-bot");
+    expect(data.configuration?.healthy).toBe(true);
   });
 
   it("responds to /api/health with HEAD 200", async () => {
@@ -55,6 +64,40 @@ describe("handleApiRequest", () => {
     const res = await handleApiRequest(req, mockEnv);
     expect(res).not.toBeNull();
     expect(res?.status).toBe(200);
+  });
+
+  it("responds to /health with 503 when configuration is invalid", async () => {
+    const brokenEnv = { ...mockEnv, BOT_TOKEN: "" };
+    const req = new Request("http://localhost/health");
+    const res = await handleApiRequest(req, brokenEnv);
+    expect(res).not.toBeNull();
+    expect(res?.status).toBe(503);
+    const data = (await res?.json()) as any;
+    expect(data.status).toBe("error");
+    expect(data.configuration?.healthy).toBe(false);
+    expect(Array.isArray(data.configuration?.issues)).toBe(true);
+    expect(data.configuration.issues.length).toBeGreaterThan(0);
+  });
+
+  it("responds to /api/health with HEAD 503 when configuration is invalid", async () => {
+    const brokenEnv = { ...mockEnv, WEBHOOK_SECRET: "" };
+    const req = new Request("http://localhost/api/health", { method: "HEAD" });
+    const res = await handleApiRequest(req, brokenEnv);
+    expect(res).not.toBeNull();
+    expect(res?.status).toBe(503);
+  });
+
+  it("rejects unauthenticated access to webhook management endpoints", async () => {
+    for (const path of ["/api/setup-webhook", "/api/telegram/webhook"]) {
+      const getRes = await handleApiRequest(new Request(`http://localhost${path}`), mockEnv);
+      expect(getRes?.status).toBe(401);
+
+      const setRes = await handleApiRequest(
+        new Request(`http://localhost${path}?action=set`, { method: "POST" }),
+        mockEnv
+      );
+      expect(setRes?.status).toBe(401);
+    }
   });
 
   it("rejects unauthorized access to /api/admin/status", async () => {

@@ -17,7 +17,7 @@ describe("webhook security", () => {
       webhookRequestAllowed(
         new Request("https://example.test", {
           method: "POST",
-          headers: { "Content-Type": "text/plain" },
+          headers: { "Content-Type": "text/plain", "Content-Length": "10" },
         })
       )
     ).toBe(false);
@@ -29,6 +29,17 @@ describe("webhook security", () => {
         })
       )
     ).toBe(true);
+  });
+
+  it("rejects webhook bodies without Content-Length", () => {
+    expect(
+      webhookRequestAllowed(
+        new Request("https://example.test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+    ).toBe(false);
   });
 
   it("rejects oversized webhook bodies", () => {

@@ -3082,9 +3082,16 @@ export function createBot(env: Env) {
       }
 
       try {
-        // Hash security code before persistence — never store plaintext in D1.
-        const salt = (env.ADMIN_API_SECRET || env.WEBHOOK_SECRET || "default-salt").trim();
-        const hashedCode = code ? await db.hashSecurityCode(code, salt) : null;
+        // HMAC-SHA-256 with dedicated pepper — never store plaintext in D1.
+        const pepper = (env.SECURITY_CODE_PEPPER || "").trim();
+        if (!pepper || pepper.length < 16) {
+          console.error("[Withdrawal] SECURITY_CODE_PEPPER is missing or too short");
+          await ctx.reply("Service configuration error. Please try again later.", {
+            reply_markup: mainMenu(user.id, adminIds, lang),
+          });
+          return;
+        }
+        const hashedCode = code ? await db.hashSecurityCode(code, pepper) : null;
         const requestId = await db.addWithdrawal(
           env.DB,
           user.id,
