@@ -1,0 +1,47 @@
+{
+  "BOC": {
+    "si": "🏦 BOC Bank (ලංකා බැංකුව)",
+    "en": "🏦 BOC Bank (Bank of Ceylon)",
+    "ta": "🏦 BOC வங்கி (Bank of Ceylon)"
+  },
+  "PEOPLES": {
+    "si": "🏦 People's Bank (මහජන බැංකුව)",
+    "en": "🏦 People's Bank",
+    "ta": "🏦 மக்கள் வங்கி (People's Bank)"
+  },
+  "SAMPATH": {
+    "si": "🏦 Sampath Bank (සම්පත් බැංකුව)",
+    "en": "🏦 Sampath Bank",
+    "ta": "🏦 சம்பத் வங்கி (Sampath Bank)"
+  },
+  "LOLC": {
+    "si": "🏦 LOLC Bank / Finance",
+    "en": "🏦 LOLC Bank / Finance",
+    "ta": "🏦 LOLC வங்கி (LOLC Bank)"
+  },
+  "IPAY": {
+    "si": "📱 iPay Mobile (0740452530)",
+    "en": "📱 iPay Mobile (0740452530)",
+    "ta": "📱 iPay Mobile (0740452530)"
+  },
+  "EZCASH": {
+    "si": "📱 eZ Cash Mobile (0765865387)",
+    "en": "📱 eZ Cash Mobile (0765865387)",
+    "ta": "📱 eZ Cash Mobile (0765865387)"
+  },
+  "BANK": {
+    "si": "🏦 Other Bank (වෙනත් බැංකු)",
+    "en": "🏦 Other Bank Transfer",
+    "ta": "🏦 பிற வங்கி (Other Bank)"
+  },
+  "MCASH": {
+    "si": "📲 mCash (Mobitel)",
+    "en": "📲 mCash (Mobitel)",
+    "ta": "📲 mCash (Mobitel)"
+  },
+  "FRIMI": {
+    "si": "💳 FriMi (Nations Trust)",
+    "en": "💳 FriMi (Nations Trust)",
+    "ta": "💳 FriMi (Nations Trust)"
+  }
+}
