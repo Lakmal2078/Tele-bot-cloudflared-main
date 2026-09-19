@@ -227,4 +227,52 @@ describe("Landing Page Render & SEO", () => {
     expect(html).toContain("Fast xBet Cash 🇱🇰");
     expect(html).toContain("VGSL");
   });
+
+  it("renders all 6 landing page enhancements (promo copy, payment UX, chat simulation, fonts, calculator, tips tabs)", () => {
+    const req = new Request("https://fast-xbet.lk/");
+    const html = renderLandingPage(mockEnv, req, "testnonce123");
+
+    // 1. Live tips feed with filter tabs and live badge
+    expect(html).toContain('id="tipsLiveBadge"');
+    expect(html).toContain('class="tipTabs"');
+    expect(html).toContain('data-sport="football"');
+    expect(html).toContain('data-sport="cricket"');
+    expect(html).toContain("/api/tips/preview");
+
+    // 2. Promo Code one-click copy component
+    expect(html).toContain('id="promoCopyBtn"');
+    expect(html).toContain('id="promoCodeVal"');
+    expect(html).toContain("VGSL");
+
+    // 3. Local payment rails with badges and processing speeds
+    expect(html).toContain("payBadge");
+    expect(html).toContain("⚡ 2–5 Mins");
+    expect(html).toContain("0% Fee");
+    expect(html).toContain("eZ Cash");
+    expect(html).toContain("mCash");
+    expect(html).toContain("FriMi");
+    expect(html).toContain("iPay");
+
+    // 4. Interactive Telegram bot chat preview simulation
+    expect(html).toContain('id="chatContainer"');
+    expect(html).toContain('data-scenario="deposit"');
+    expect(html).toContain('data-scenario="tips"');
+    expect(html).toContain('data-scenario="withdraw"');
+    expect(html).toContain('data-scenario="support"');
+
+    // 5. Typography and font preloading for Sinhala, Tamil, and English
+    expect(html).toContain("fonts.googleapis.com");
+    expect(html).toContain("Noto+Sans+Sinhala");
+    expect(html).toContain("Noto+Sans+Tamil");
+    expect(html).toContain("Plus+Jakarta+Sans");
+    expect(html).toContain("fast_xbet_lang");
+
+    // 6. Deposit & Bonus Calculator (LKR Quick Calculator)
+    expect(html).toContain('id="deposit-calculator"');
+    expect(html).toContain('id="calcRange"');
+    expect(html).toContain('id="calcAmountDisplay"');
+    expect(html).toContain('id="summaryBonus"');
+    expect(html).toContain('id="summaryTotal"');
+    expect(html).toContain('id="calcCtaBtn"');
+  });
 });

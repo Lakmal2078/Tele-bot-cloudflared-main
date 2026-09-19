@@ -84,6 +84,22 @@ function paymentConfigured(env: Env, name: string): boolean {
   return Boolean(env.BANK_DETAILS?.trim());
 }
 
+function paymentIcon(name: string): string {
+  if (name === "eZ Cash") {
+    return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#008037"/><path d="M6 12h12M12 6v12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/><circle cx="18" cy="6" r="3.5" fill="#ED1C24"/></svg>`;
+  }
+  if (name === "mCash") {
+    return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#005696"/><path d="M6 17l4-10 2 6 2-6 4 10" stroke="#FF6A00" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  }
+  if (name === "FriMi") {
+    return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#E60028"/><text x="12" y="16" fill="#fff" font-size="11" font-weight="900" text-anchor="middle" font-family="system-ui,sans-serif">Fr</text></svg>`;
+  }
+  if (name === "iPay") {
+    return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#1C2E60"/><path d="M7 12a5 5 0 0110 0 5 5 0 01-10 0" stroke="#00C4FE" stroke-width="2.5"/></svg>`;
+  }
+  return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#0F172A"/><path d="M4 10h16M5 10v7M9 10v7M15 10v7M19 10v7M12 5l8 4H4l8-4zM3 19h18" stroke="#38BDF8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
 export function renderLandingPage(env: Env, request: Request, nonce?: string): string {
   const n = nonce ? ` nonce="${esc(nonce)}"` : "";
   const channel = env.CHANNEL_URL?.trim() || CHANNEL_FALLBACK;
@@ -126,7 +142,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
     ]
   }));
 
-  const payments = c.pay.slice(1).map((p) => `<article class="payment"><b>${esc(p)}</b><span>${paymentConfigured(env, p) ? "Configured" : "Bot flow"}</span></article>`).join("");
+  const payments = c.pay.slice(1).map((p) => `<article class="payment"><div class="payTop"><span class="payIcon">${paymentIcon(p)}</span><span class="payBadge">⚡ 2–5 Mins</span></div><b>${esc(p)}</b><div class="payBottom"><span class="payFee">0% Fee</span><span>${paymentConfigured(env, p) ? "Configured" : "Bot flow"}</span></div></article>`).join("");
 
   const serviceCards = [
     ["🎯", c.services[2], "Automated sports analysis and selected informational previews.", "View preview"],
@@ -147,6 +163,9 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
 <meta name="robots" content="index,follow">
 <meta name="theme-color" content="#070B12">
 <meta name="color-scheme" content="dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600;700;800&family=Noto+Sans+Tamil:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="canonical" href="${ea}">
 <link rel="alternate" hreflang="si" href="${ea}?lang=si">
 <link rel="alternate" hreflang="en" href="${ea}?lang=en">
@@ -279,9 +298,49 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .step h3{margin:16px 0 6px;font-size:.88rem}
 .step p{margin:0;color:var(--muted);font-size:.72rem}
 .payments{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
-.payment{padding:17px;border:1px solid var(--border);border-radius:18px;background:#ffffff03}
-.payment b{font-size:.75rem}
-.payment span{display:block;margin-top:10px;color:#ccefff;font-size:.6rem;font-weight:700}
+.payment{padding:17px;border:1px solid var(--border);border-radius:18px;background:#ffffff03;display:flex;flex-direction:column;justify-content:space-between;min-height:115px}
+.payment b{font-size:.78rem}
+.payment span{color:#ccefff;font-size:.6rem;font-weight:700}
+.payTop{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.payIcon{display:grid;place-items:center}
+.payBadge{font-size:.56rem;font-weight:800;padding:2px 6px;border-radius:6px;background:#a6f80015;color:var(--signal);border:1px solid #a6f80033}
+.payBottom{display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:.6rem}
+.payFee{color:#4ade80;font-weight:700}
+
+.promoBar{display:inline-flex;align-items:center;gap:10px;margin-top:16px;padding:8px 14px;border:1px solid #a6f80033;border-radius:999px;background:#a6f8000b;flex-wrap:wrap}
+.promoTag{font-size:.6rem;font-weight:900;letter-spacing:.1em;color:var(--signal);background:#a6f80018;padding:3px 7px;border-radius:6px}
+.promoCodeWrap{display:inline-flex;align-items:center;gap:8px}
+.promoCodeWrap strong{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem;color:#fff;letter-spacing:.05em}
+.promoCopyBtn{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;border:1px solid #ffffff22;background:#ffffff10;color:var(--fg);font-size:.65rem;font-weight:700;cursor:pointer;transition:background .2s,border-color .2s,transform .15s}
+.promoCopyBtn:hover{background:#ffffff20;border-color:var(--signal);transform:translateY(-1px)}
+.promoCopyBtn.copied{background:#22c55e22;border-color:#22c55e;color:#86efac}
+.promoNote{font-size:.64rem;color:var(--muted)}
+
+.chatChips button.chatChip{border:1px solid #ffffff14;background:#ffffff08;color:var(--muted);cursor:pointer;transition:all .15s}
+.chatChips button.chatChip:hover{background:#ffffff18;color:var(--fg)}
+.chatChips button.chatChip.active{background:var(--cyan);color:#071018;font-weight:800;border-color:var(--cyan)}
+
+.calcBox{margin-top:28px;padding:24px;border:1px solid #00b4f833;border-radius:24px;background:linear-gradient(145deg,#0d1522,#09101a);box-shadow:0 15px 40px #0005}
+.calcHead{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.calcIcon{font-size:1.6rem;width:48px;height:48px;display:grid;place-items:center;background:#00b4f815;border:1px solid #00b4f844;border-radius:14px}
+.calcHead h3{margin:0;font-size:1.1rem;color:var(--fg)}
+.calcHead p{margin:4px 0 0;font-size:.74rem;color:var(--muted)}
+.calcBody{display:grid;grid-template-columns:1.2fr 1fr;gap:24px;align-items:center}
+.calcSliderLabel{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:.78rem;color:var(--muted)}
+.calcSliderLabel strong{font-size:1.1rem;color:var(--signal);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.calcSlider{width:100%;height:8px;border-radius:4px;background:#1e293b;outline:none;accent-color:var(--signal);cursor:pointer}
+.calcPresets{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
+.presetBtn{padding:5px 9px;border:1px solid var(--border);border-radius:8px;background:#ffffff06;color:var(--muted);font-size:.65rem;font-weight:700;cursor:pointer;transition:background .15s}
+.presetBtn:hover{background:#ffffff15;color:var(--fg)}
+.calcRight{padding:18px;border-radius:18px;background:#060c14;border:1px solid var(--border);display:flex;flex-direction:column;gap:10px}
+.calcStat{display:flex;justify-content:space-between;align-items:center;font-size:.72rem;color:var(--muted)}
+.calcStat b{color:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.bonusStat b{color:#4ade80}
+.totalStat{padding-top:8px;border-top:1px solid var(--border);font-size:.82rem}
+.totalStat b{font-size:1.15rem;color:var(--signal)}
+.calcMeta{display:flex;gap:12px;font-size:.62rem;color:var(--muted);padding-top:4px}
+.calcBtn{width:100%;margin-top:4px}
+@media(max-width:768px){.calcBody{grid-template-columns:1fr}}
 .limits{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
 .limit{padding:9px 12px;border:1px solid var(--border);border-radius:15px;background:#ffffff03}
 .limit small{display:block;color:var(--faint);font-size:.57rem}
@@ -342,6 +401,16 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
       <h1>${esc(c.hero[1])}</h1>
       <p>${esc(c.hero[2])}</p>
       <div class="actions"><a class="btn primary" href="${eb}">✈ ${esc(c.hero[3])}</a><a class="btn secondary" href="#tips-preview">${esc(c.hero[4])}</a></div>
+      <div class="promoBar">
+        <span class="promoTag">1XBET PROMO</span>
+        <div class="promoCodeWrap">
+          <strong id="promoCodeVal">${promo}</strong>
+          <button type="button" class="promoCopyBtn" id="promoCopyBtn" aria-label="Copy promo code ${promo}">
+            <span id="promoCopyIcon">📋</span> <span id="promoCopyLabel">Copy Code</span>
+          </button>
+        </div>
+        <span class="promoNote">+100% First Deposit Bonus</span>
+      </div>
       <div class="pills"><span class="pill">🔞 18+ only</span><span class="pill">🌐 Sinhala / English / Tamil</span><span class="pill">⚡ Guided Telegram flow</span></div>
     </div>
 
@@ -354,13 +423,18 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
             <div class="chatTitle"><b>Fast xBet Cash</b><span>bot · replies in minutes</span></div>
             <div class="online"><i></i> Bot online</div>
           </div>
-          <div class="chat">
+          <div class="chat" id="chatContainer">
             <div class="bubble bot">Welcome. Choose a service to continue.</div>
             <div class="bubble user">Deposit</div>
             <div class="bubble bot">Send your 1xBet Player ID, then pick a local rail.</div>
             <div class="bubble user">Player ID 88410231</div>
             <div class="bubble bot">Limits LKR ${min.toLocaleString("en-LK")}–${max.toLocaleString("en-LK")}. Typical completion 2–5 minutes after receipt.</div>
-            <div class="chatChips"><span class="chatChip">Tips</span><span class="chatChip">Deposit</span><span class="chatChip">Withdraw</span><span class="chatChip">Support</span></div>
+            <div class="chatChips">
+              <button type="button" class="chatChip active" data-scenario="deposit">Deposit</button>
+              <button type="button" class="chatChip" data-scenario="tips">Tips</button>
+              <button type="button" class="chatChip" data-scenario="withdraw">Withdraw</button>
+              <button type="button" class="chatChip" data-scenario="support">Support</button>
+            </div>
           </div>
         </div>
       </div>
@@ -380,9 +454,18 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 <section class="section" id="tips-preview"><div class="wrap">
   <div class="head"><div class="kicker">Free Tips</div><h2>Today’s Free Tips Preview</h2><p>Sample fixtures are shown only as a public preview. They are not presented as live predictions.</p></div>
   <div class="tips">
-    <div class="tipHead"><b>Sample fixtures</b><span class="previewBadge">Preview only</span></div>
-    <div class="tipCardGrid">
-      <article class="tipCard">
+    <div class="tipHead">
+      <b>Sample fixtures</b>
+      <span id="tipsLiveBadge" class="previewBadge">Preview only</span>
+    </div>
+    <div class="tipTabs" role="tablist">
+      <button type="button" data-sport="all" class="tipTab active">All</button>
+      <button type="button" data-sport="football" class="tipTab">Football</button>
+      <button type="button" data-sport="cricket" class="tipTab">Cricket</button>
+    </div>
+    <div id="tipLiveSummary" class="tipSummary" style="display:none"></div>
+    <div class="tipCardGrid" id="tipCardGrid">
+      <article class="tipCard" data-sport="football">
         <div class="tipCardTop"><span class="tipLeague">Premier League</span><span class="tipStatus pending">Preview</span></div>
         <div class="tipTeams">
           <div class="tipTeam"><span class="tipAvatar" style="background:hsl(0 55% 28%);border-color:hsl(0 60% 42%)">AR</span><b>Arsenal</b></div>
@@ -393,7 +476,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
         <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Arsenal Win</span><b class="tipOdds">1.94</b></div>
         <div class="tipFoot">Preview · Odds are illustrative</div>
       </article>
-      <article class="tipCard">
+      <article class="tipCard" data-sport="football">
         <div class="tipCardTop"><span class="tipLeague">La Liga</span><span class="tipStatus pending">Preview</span></div>
         <div class="tipTeams">
           <div class="tipTeam"><span class="tipAvatar" style="background:hsl(45 55% 28%);border-color:hsl(45 60% 42%)">RM</span><b>Real Madrid</b></div>
@@ -404,7 +487,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
         <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Real Madrid Win</span><b class="tipOdds">1.78</b></div>
         <div class="tipFoot">Preview · Odds are illustrative</div>
       </article>
-      <article class="tipCard">
+      <article class="tipCard" data-sport="football">
         <div class="tipCardTop"><span class="tipLeague">Bundesliga</span><span class="tipStatus pending">Preview</span></div>
         <div class="tipTeams">
           <div class="tipTeam"><span class="tipAvatar" style="background:hsl(0 50% 30%);border-color:hsl(0 55% 42%)">BM</span><b>Bayern Munich</b></div>
@@ -429,6 +512,42 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
   <div class="head"><div class="kicker">Payments</div><h2>${esc(c.pay[0])}</h2><p>Confirm availability and exact instructions inside the bot. Sensitive payment credentials are not exposed on this page.</p></div>
   <div class="payments">${payments}</div>
   <div class="limits"><div class="limit"><small>Minimum</small><b>LKR ${min.toLocaleString("en-LK")}</b></div><div class="limit"><small>Maximum</small><b>LKR ${max.toLocaleString("en-LK")}</b></div><div class="limit"><small>Promo</small><b>${promo}</b></div></div>
+  <div class="calcBox" id="deposit-calculator">
+    <div class="calcHead">
+      <div class="calcIcon">🧮</div>
+      <div>
+        <h3 style="margin:0;font-size:1.05rem;color:var(--fg)">Deposit &amp; Bonus Calculator (LKR)</h3>
+        <p style="margin:3px 0 0;font-size:.72rem;color:var(--muted)">Instant bonus estimate with promo code ${promo}</p>
+      </div>
+    </div>
+    <div class="calcBody">
+      <div class="calcLeft">
+        <div class="calcSliderLabel">
+          <span>Deposit Amount:</span>
+          <strong id="calcAmountDisplay">LKR 5,000</strong>
+        </div>
+        <input type="range" id="calcRange" min="${min}" max="${Math.min(max, 100000)}" step="500" value="5000" class="calcSlider" aria-label="Deposit amount slider">
+        <div class="calcPresets">
+          <button type="button" class="presetBtn" data-val="1000">+ LKR 1,000</button>
+          <button type="button" class="presetBtn" data-val="5000">+ LKR 5,000</button>
+          <button type="button" class="presetBtn" data-val="10000">+ LKR 10,000</button>
+          <button type="button" class="presetBtn" data-val="25000">+ LKR 25,000</button>
+          <button type="button" class="presetBtn" data-val="50000">+ LKR 50,000</button>
+        </div>
+      </div>
+      <div class="calcRight">
+        <div class="calcStat"><span>Your Deposit:</span><b id="summaryDeposit">LKR 5,000</b></div>
+        <div class="calcStat bonusStat"><span>Bonus (${promo}):</span><b id="summaryBonus">+ LKR 5,000 (100%)</b></div>
+        <div class="calcStat totalStat"><span>Playable Balance:</span><b id="summaryTotal">LKR 10,000</b></div>
+        <div class="calcMeta">
+          <span>⚡ 2–5 Mins</span>
+          <span>🛡️ 0% Fee</span>
+          <span>💳 Local rails</span>
+        </div>
+        <a class="btn primary calcBtn" id="calcCtaBtn" href="${eb}">✈ Deposit LKR 5,000 via Telegram</a>
+      </div>
+    </div>
+  </div>
   <div class="actions">${env.DEPOSIT_INSTRUCTIONS?.trim() ? `<details class="limit"><summary>Deposit instructions</summary><div style="color:var(--muted);font-size:.7rem;margin-top:7px">${esc(env.DEPOSIT_INSTRUCTIONS.trim())}</div></details>` : ""}</div>
 </div></section>
 
@@ -454,6 +573,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 
 <script${n}>
 (function(){
+  // 1. Mobile navigation menu toggle
   var b=document.getElementById("menuToggle"),m=document.getElementById("mobileNav");
   if(b&&m){
     function close(){m.classList.remove("open");m.setAttribute("aria-hidden","true");m.setAttribute("inert","");b.setAttribute("aria-expanded","false")}
@@ -462,6 +582,261 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
     document.addEventListener("keydown",function(e){if(e.key==="Escape")close()});
     document.addEventListener("click",function(e){if(m.classList.contains("open")&&!m.contains(e.target)&&e.target!==b)close()});
   }
+
+  // 2. UTM & Campaign tracking pass-through to Telegram deep links
+  try {
+    var params = new URLSearchParams(window.location.search);
+    var source = params.get("utm_source") || params.get("utm_campaign") || params.get("ref") || params.get("tag");
+    if (source) {
+      var clean = source.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 32);
+      if (clean) {
+        var startPayload = "landing_" + clean;
+        document.querySelectorAll('a[href*="t.me/"]').forEach(function(a){
+          try {
+            var u = new URL(a.href);
+            if (u.searchParams.has("start")) {
+              u.searchParams.set("start", startPayload);
+              a.href = u.toString();
+            }
+          } catch(err){}
+        });
+      }
+    }
+  } catch(e){}
+
+  // 3. Language preference persistence
+  try {
+    var qLang = new URLSearchParams(window.location.search).get("lang");
+    if (qLang && (qLang === "si" || qLang === "en" || qLang === "ta")) {
+      localStorage.setItem("fast_xbet_lang", qLang);
+    } else {
+      var savedLang = localStorage.getItem("fast_xbet_lang");
+      if (savedLang && (savedLang === "si" || savedLang === "en" || savedLang === "ta")) {
+        if (savedLang !== document.documentElement.lang && window.location.pathname === "/") {
+          var targetUrl = new URL(window.location.href);
+          targetUrl.searchParams.set("lang", savedLang);
+          window.location.replace(targetUrl.toString());
+        }
+      }
+    }
+    document.querySelectorAll(".langs a, #mobileNav a[href*='lang=']").forEach(function(la){
+      la.addEventListener("click", function(){
+        try {
+          var target = new URL(la.href, window.location.origin).searchParams.get("lang");
+          if (target) localStorage.setItem("fast_xbet_lang", target);
+        } catch(err){}
+      });
+    });
+  } catch(e){}
+
+  // 4. Promo Code One-Click Copy
+  try {
+    var copyBtn = document.getElementById("promoCopyBtn");
+    var codeEl = document.getElementById("promoCodeVal");
+    var copyLabel = document.getElementById("promoCopyLabel");
+    var copyIcon = document.getElementById("promoCopyIcon");
+    if (copyBtn && codeEl) {
+      copyBtn.addEventListener("click", function(){
+        var code = codeEl.textContent ? codeEl.textContent.trim() : "${promo}";
+        function setSuccess(){
+          if (copyLabel) copyLabel.textContent = "Copied! ✓";
+          if (copyIcon) copyIcon.textContent = "✓";
+          copyBtn.classList.add("copied");
+          setTimeout(function(){
+            if (copyLabel) copyLabel.textContent = "Copy Code";
+            if (copyIcon) copyIcon.textContent = "📋";
+            copyBtn.classList.remove("copied");
+          }, 2500);
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(code).then(setSuccess).catch(function(){
+            var ta = document.createElement("textarea");
+            ta.value = code;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand("copy");
+            document.body.removeChild(ta);
+            setSuccess();
+          });
+        } else {
+          setSuccess();
+        }
+      });
+    }
+  } catch(e){}
+
+  // 5. Deposit & Bonus Calculator (LKR Quick Calculator)
+  try {
+    var calcRange = document.getElementById("calcRange");
+    var calcDisp = document.getElementById("calcAmountDisplay");
+    var sumDep = document.getElementById("summaryDeposit");
+    var sumBonus = document.getElementById("summaryBonus");
+    var sumTotal = document.getElementById("summaryTotal");
+    var calcCta = document.getElementById("calcCtaBtn");
+    var presetBtns = document.querySelectorAll(".presetBtn");
+    var baseBotUrl = "${eb}".split("?")[0];
+    var minLimit = ${min};
+    var maxLimit = ${max};
+
+    function updateCalc(amount) {
+      var val = Math.max(minLimit, Math.min(Number(amount) || minLimit, maxLimit));
+      if (calcRange) calcRange.value = String(val);
+      var formatted = "LKR " + val.toLocaleString("en-LK");
+      if (calcDisp) calcDisp.textContent = formatted;
+      if (sumDep) sumDep.textContent = formatted;
+
+      var bonus = Math.min(val, 35000);
+      var bonusFormatted = "+ LKR " + bonus.toLocaleString("en-LK") + " (100%)";
+      if (sumBonus) sumBonus.textContent = bonusFormatted;
+
+      var total = val + bonus;
+      if (sumTotal) sumTotal.textContent = "LKR " + total.toLocaleString("en-LK");
+
+      if (calcCta) {
+        calcCta.textContent = "✈ Deposit " + formatted + " via Telegram";
+        calcCta.href = baseBotUrl + "?start=dep_" + val;
+      }
+    }
+
+    if (calcRange) {
+      calcRange.addEventListener("input", function(){
+        updateCalc(Number(this.value));
+      });
+    }
+    presetBtns.forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var pVal = Number(btn.getAttribute("data-val"));
+        var current = Number(calcRange ? calcRange.value : minLimit);
+        updateCalc(current + pVal);
+      });
+    });
+  } catch(e){}
+
+  // 6. Interactive Telegram Bot Chat Preview Simulation
+  try {
+    var chips = document.querySelectorAll(".chatChips button.chatChip");
+    var chat = document.getElementById("chatContainer");
+    if (chat && chips.length) {
+      var scenarios = {
+        deposit: [
+          { role: "bot", text: "Welcome to Fast xBet Cash 🇱🇰. Choose a service to continue." },
+          { role: "user", text: "Deposit" },
+          { role: "bot", text: "Send your 1xBet Player ID, then pick a local rail." },
+          { role: "user", text: "Player ID 88410231" },
+          { role: "bot", text: "Limits LKR ${min.toLocaleString("en-LK")}–${max.toLocaleString("en-LK")}. Typical completion 2–5 minutes after receipt." }
+        ],
+        tips: [
+          { role: "bot", text: "🎯 Today's Selected Free Tips (Combined Odds: 3.45)" },
+          { role: "user", text: "Free Tips Preview" },
+          { role: "bot", text: "⚽ Arsenal vs Chelsea — Arsenal Win @ 1.94<br>⚽ Real Madrid vs Atletico — Real Win @ 1.78" },
+          { role: "user", text: "Where are new tips posted?" },
+          { role: "bot", text: "Free analysis is published 3x daily in our official Telegram channel!" }
+        ],
+        withdraw: [
+          { role: "bot", text: "↗ Fast Cash Withdrawal Assistance" },
+          { role: "user", text: "Withdraw to FriMi" },
+          { role: "bot", text: "Enter your 1xBet Account ID & withdrawal code to confirm." },
+          { role: "user", text: "ID 88410231 · Code 7819" },
+          { role: "bot", text: "🔒 Request logged. Verified and transferred in 5–15 minutes." }
+        ],
+        support: [
+          { role: "bot", text: "🌐 භාෂාව තෝරන්න / Select Language / மொழியைத் தேர்ந்தெடுக்கவும்" },
+          { role: "user", text: "සිංහල (Sinhala)" },
+          { role: "bot", text: "✅ භාෂාව සාර්ථකව යාවත්කාලීන විය! 24/7 සහය සඳහා අප සූදානම්." },
+          { role: "user", text: "eZ Cash සහය අවශ්‍යයි" },
+          { role: "bot", text: "ඔබගේ eZ Cash wallet එකෙන් ක්ෂණිකව ගෙවීම් සිදු කළ හැක. 0% ගාස්තු." }
+        ]
+      };
+
+      chips.forEach(function(btn){
+        btn.addEventListener("click", function(){
+          chips.forEach(function(c){ c.classList.remove("active"); });
+          btn.classList.add("active");
+          var sKey = btn.getAttribute("data-scenario") || "deposit";
+          var dialog = scenarios[sKey] || scenarios.deposit;
+          var bubbles = chat.querySelectorAll(".bubble");
+          bubbles.forEach(function(bubble, idx){
+            if (dialog[idx]) {
+              bubble.className = "bubble " + dialog[idx].role;
+              bubble.innerHTML = dialog[idx].text;
+              bubble.style.display = "block";
+            } else {
+              bubble.style.display = "none";
+            }
+          });
+        });
+      });
+    }
+  } catch(e){}
+
+  // 7. Dynamic Live Tips with D1 Database API & Sport Filter Tabs
+  try {
+    var tipTabs = document.querySelectorAll(".tipTab");
+    var tipGrid = document.getElementById("tipCardGrid");
+    var liveBadge = document.getElementById("tipsLiveBadge");
+    var liveSummary = document.getElementById("tipLiveSummary");
+
+    function applySportFilter(sport) {
+      if (!tipGrid) return;
+      tipGrid.querySelectorAll(".tipCard").forEach(function(card){
+        var cardSport = card.getAttribute("data-sport") || "football";
+        card.style.display = (sport === "all" || cardSport === sport) ? "flex" : "none";
+      });
+    }
+
+    tipTabs.forEach(function(tab){
+      tab.addEventListener("click", function(){
+        tipTabs.forEach(function(t){ t.classList.remove("active"); });
+        tab.classList.add("active");
+        var sport = tab.getAttribute("data-sport") || "all";
+        applySportFilter(sport);
+      });
+    });
+
+    fetch("/api/tips/preview", { headers: { Accept: "application/json" }, cache: "no-store" })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(data){
+        if (!data || !Array.isArray(data.tips) || data.tips.length === 0) return;
+        if (liveBadge) {
+          liveBadge.textContent = "● Live D1 Feed (" + data.tips.length + ")";
+          liveBadge.style.background = "#22c55e18";
+          liveBadge.style.borderColor = "#22c55e44";
+          liveBadge.style.color = "#86efac";
+        }
+        if (liveSummary && data.summary) {
+          liveSummary.style.display = "flex";
+          liveSummary.innerHTML = "<span><b>" + (data.summary.total || 0) + "</b> settled (7d)</span><span><b>" + (data.summary.won || 0) + "</b> won</span><span><b>" + (data.summary.lost || 0) + "</b> lost</span><span><b>" + (data.summary.winRate || 0) + "%</b> win rate</span>";
+        }
+
+        var liveHtml = data.tips.map(function(t){
+          var resClass = t.result === "WON" ? "won" : (t.result === "LOST" ? "lost" : "pending");
+          var resText = t.result || "Live";
+          var mTag = (t.market || "1X2").toUpperCase();
+          var oVal = t.odds ? Number(t.odds).toFixed(2) : "—";
+          var hName = t.homeTeam || "Home";
+          var aName = t.awayTeam || "Away";
+          var sportKey = t.sport || "football";
+          return '<article class="tipCard" data-sport="' + sportKey + '">' +
+            '<div class="tipCardTop"><span class="tipLeague">' + (t.sportTitle || "Sports") + '</span><span class="tipStatus ' + resClass + '">' + resText + '</span></div>' +
+            '<div class="tipTeams">' +
+              '<div class="tipTeam"><b>' + hName + '</b></div>' +
+              '<div class="tipVs">VS</div>' +
+              '<div class="tipTeam"><b>' + aName + '</b></div>' +
+            '</div>' +
+            '<div class="tipWhen">' + (t.commenceTime ? t.commenceTime.slice(0, 16).replace("T", " ") : "Upcoming") + '</div>' +
+            '<div class="tipPickRow"><span class="tipMarketTag">' + mTag + '</span><span class="tipPickName">' + (t.selection || "Pick") + '</span><b class="tipOdds">' + oVal + '</b></div>' +
+            '<div class="tipFoot">Verified D1 Feed \u00b7 Informational only</div>' +
+          '</article>';
+        }).join("");
+
+        if (tipGrid && liveHtml) {
+          tipGrid.innerHTML = liveHtml;
+          var activeTab = document.querySelector(".tipTab.active");
+          if (activeTab) applySportFilter(activeTab.getAttribute("data-sport") || "all");
+        }
+      })
+      .catch(function(){});
+  } catch(e){}
 })();
 </script>
 </body></html>`;

@@ -1,0 +1,6 @@
+{
+  "name": "1xBet Telegram Affiliate & Tips Bot",
+  "description": "Cloudflare Workers edge Telegram bot and affiliate operations dashboard for 1xBet sports betting tips with D1 database and R2 analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
