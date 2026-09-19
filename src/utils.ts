@@ -3,12 +3,14 @@
  */
 
 /**
- * Escapes characters for Telegram Markdown (V1).
- * In Telegram Markdown V1, the following characters must be escaped: _, *, `, [
+ * Escapes characters for Telegram Markdown (V1 / legacy).
+ * Characters that break parse_mode Markdown: _, *, `, [
+ * Always apply to any user-controlled or external string before embedding
+ * in a Markdown message.
  */
 export function escapeMarkdown(text: string | null | undefined): string {
-  if (!text) return "";
-  return String(text).replace(/([_*`[])/g, "\\$1");
+  if (text === null || text === undefined) return "";
+  return String(text).replace(/([_*`[\]])/g, "\\$1");
 }
 
 /**
@@ -16,8 +18,17 @@ export function escapeMarkdown(text: string | null | undefined): string {
  * Replaces backticks with single quotes to prevent breaking the code delimiter.
  */
 export function escapeCode(text: string | null | undefined): string {
-  if (!text) return "";
+  if (text === null || text === undefined) return "";
   return String(text).replace(/`/g, "'");
+}
+
+/**
+ * Escape for Telegram MarkdownV2 (stricter). Use when parse_mode is MarkdownV2.
+ * @see https://core.telegram.org/bots/api#markdownv2-style
+ */
+export function escapeMarkdownV2(text: string | null | undefined): string {
+  if (text === null || text === undefined) return "";
+  return String(text).replace(/([_*\[\]()~`>#+\-=|{}.!\\])/g, "\\$1");
 }
 
 export interface TransactionLimits {
