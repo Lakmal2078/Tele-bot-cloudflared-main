@@ -4,7 +4,8 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+      day: monday
+    open-pull-requests-limit: 8
     labels:
       - dependencies
       - security
@@ -13,10 +14,13 @@ updates:
         dependency-type: production
       development-dependencies:
         dependency-type: development
+
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
+      day: monday
     open-pull-requests-limit: 5
     labels:
       - dependencies
+      - github-actions

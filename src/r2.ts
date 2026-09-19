@@ -72,10 +72,15 @@ export async function backupReceiptToR2(
     const stored = await putObject(env, key, arrayBuffer, mimeType);
     if (!stored) return null;
 
-    const r2Url = buildPublicUrl(env, key);
+    // Prefer authenticated Worker proxy URL so receipts are never public.
+    // Admins load via GET /api/admin/receipts?key=... (ADMIN_API_SECRET / session).
+    const base = (env.PUBLIC_BASE_URL || "").replace(/\/$/, "");
+    const r2Url = base
+      ? `${base}/api/admin/receipts?key=${encodeURIComponent(key)}`
+      : buildPublicUrl(env, key);
     const fileSize = arrayBuffer.byteLength || fileInfo.result.file_size || 0;
 
-    console.log(`[R2] Receipt stored: ${r2Url} (${fileSize} bytes)`);
+    console.log(`[R2] Receipt stored (proxy): key=${key} (${fileSize} bytes)`);
     return {
       r2Url,
       r2Key: key,
