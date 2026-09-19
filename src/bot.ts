@@ -154,7 +154,7 @@ function faqMenuKeyboard(lang: Language, env: Env): InlineKeyboard {
   }
   const officialFaqChannel = normalizeChannelUrl(env.CHANNEL_URL, env.CHANNEL_USERNAME);
   if (officialFaqChannel) {
-    kb.row().url("📢 Official Channel", officialFaqChannel);
+    kb.row().url(dict.btnOfficialChannel, officialFaqChannel);
   }
   kb.row().text(dict.btnBack, "back");
   return kb;
@@ -3276,21 +3276,21 @@ function mainMenu(userId: number, adminIds: Set<number>, lang: Language = "si") 
     .text(dict.btnLanguage, "choose_lang")
     .text(dict.btnHelp, "help")
     .row()
-    .text("📊 Dashboard", "user_dashboard")
-    .text("🎯 Free Tips", "view_free_tips")
+    .text(dict.btnDashboard, "user_dashboard")
+    .text(dict.btnFreeTips, "view_free_tips")
     .row()
-    .text("🎫 Support Ticket", "support_ticket_help")
-    .text("🛡️ Responsible Gaming", "safety_info")
+    .text(dict.btnSupportTicket, "support_ticket_help")
+    .text(dict.btnResponsibleGaming, "safety_info")
     .row()
-    .text("🆔 My ID", "id_info")
-    .text("📣 Share Bot", "share_bot");
+    .text(dict.btnMyId, "id_info")
+    .text(dict.btnShareBot, "share_bot");
 
   if (mainMenuChannelUrl.startsWith("http")) {
-    kb.row().url("📢 Official Channel", mainMenuChannelUrl);
+    kb.row().url(dict.btnOfficialChannel, mainMenuChannelUrl);
   }
 
   if (adminIds.has(userId)) {
-    kb.row().text("🧑‍💼 Admin Panel", "admin_panel");
+    kb.row().text(dict.btnAdminPanel, "admin_panel");
   }
   return kb;
 }
