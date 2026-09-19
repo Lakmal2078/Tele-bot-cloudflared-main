@@ -25,7 +25,7 @@
     "deploy:cf:dry": "SKIP_MIGRATION=1 SKIP_HEALTHCHECK=1 ALLOW_DIRTY=1 bash deploy.sh"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1127.0",
+    "@aws-sdk/client-s3": "^3.1133.0",
     "@grammyjs/conversations": "^2.0.0",
     "d3": "^7.9.0",
     "grammy": "^1.35.0"
