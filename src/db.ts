@@ -24,10 +24,23 @@ function mapDepositRow(row: any): DepositRow | null {
 
 function mapWithdrawalRow(row: any): WithdrawalRow | null {
   if (!row) return null;
+  // Never expose stored security codes (they are hashed). Mask any residual plaintext.
+  const masked = row.security_code
+    ? (String(row.security_code).startsWith("sha256:") ? "[REDACTED]" : "****")
+    : null;
   return {
     ...row,
     amount: fromCents(Number(row.amount)),
+    security_code: masked,
   };
+}
+
+/** Hash a withdrawal security code before persistence (never store plaintext). */
+export async function hashSecurityCode(code: string, salt: string): Promise<string> {
+  const payload = new TextEncoder().encode(`${salt}:${code.trim()}`);
+  const digest = await crypto.subtle.digest("SHA-256", payload);
+  const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `sha256:${hex}`;
 }
 
 export async function saveUser(
@@ -311,9 +324,10 @@ export async function updateWithdrawalStatus(
   id: number,
   status: "APPROVED" | "REJECTED"
 ): Promise<boolean> {
+  // Clear security_code on terminal status so residual hashes/plaintext are not retained.
   const result = await db
     .prepare(
-      `UPDATE withdrawals SET status = ?, updated_at = datetime('now') WHERE id = ? AND status = 'PENDING' AND deleted_at IS NULL`
+      `UPDATE withdrawals SET status = ?, security_code = NULL, updated_at = datetime('now') WHERE id = ? AND status = 'PENDING' AND deleted_at IS NULL`
     )
     .bind(status, id)
     .run();

@@ -50,11 +50,11 @@ export function landingPageSecurityHeaders(nonce?: string, options: { isHttps?: 
 
 export function webhookRequestAllowed(request: Request): boolean {
   if (request.method !== "POST") return false;
+  // Require Content-Length so chunked/unknown-length bodies cannot bypass the cap.
   const contentLength = request.headers.get("Content-Length");
-  if (contentLength) {
-    const length = Number(contentLength);
-    if (!Number.isFinite(length) || length < 0 || length > MAX_WEBHOOK_BODY_BYTES) return false;
-  }
+  if (!contentLength) return false;
+  const length = Number(contentLength);
+  if (!Number.isFinite(length) || length < 0 || length > MAX_WEBHOOK_BODY_BYTES) return false;
   const contentType = request.headers.get("Content-Type")?.split(";", 1)[0].trim().toLowerCase();
   return contentType === "application/json";
 }

@@ -24,13 +24,16 @@ MAX_TRANSACTION_LKR = "500000"
 MIN_TRANSACTION_LKR = "1000"
 R2_BUCKET_NAME = "chat-media"
 USE_POLLING = "false"
-XBET_LINK = "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622"
-XBET_PROMO_CODE = "VGSL"
-EZCASH_NUMBER = "0765865387"
-MCASH_NUMBER = "0765865387"
-FRIMI_NUMBER = "0765865387"
-IPAY_NUMBER = "0740452530"
-WHATSAPP_NUMBER = "94776763093"
+# Affiliate / payment contact values are environment-specific operational data.
+# Prefer setting them via `wrangler secret put` or per-environment [vars] rather
+# than committing live phone numbers and affiliate tags to public source.
+XBET_LINK = ""
+XBET_PROMO_CODE = ""
+EZCASH_NUMBER = ""
+MCASH_NUMBER = ""
+FRIMI_NUMBER = ""
+IPAY_NUMBER = ""
+WHATSAPP_NUMBER = ""
 
 # Automated Free Tips — Sri Lanka time (UTC+05:30)
 # 08:00 = 02:30 UTC, 12:00 = 06:30 UTC, 18:00 = 12:30 UTC.

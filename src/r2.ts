@@ -47,17 +47,58 @@ export async function backupReceiptToR2(
     }
 
     const filePath = fileInfo.result.file_path;
+    const declaredSize = fileInfo.result.file_size ?? 0;
+    const MAX_RECEIPT_BYTES = 5 * 1024 * 1024; // 5 MiB
+    if (declaredSize > MAX_RECEIPT_BYTES) {
+      console.warn(`[R2] Receipt rejected: declared size ${declaredSize} exceeds ${MAX_RECEIPT_BYTES}`);
+      return null;
+    }
 
-    // 2. Download the file
+    // 2. Download the file (size-bounded after download)
     const fileRes = await fetch(`https://api.telegram.org/file/bot${botToken}/${filePath}`);
     if (!fileRes.ok) {
       console.warn(`[R2] Failed to download image from Telegram: ${fileRes.statusText}`);
       return null;
     }
     const arrayBuffer = await fileRes.arrayBuffer();
+    if (arrayBuffer.byteLength > MAX_RECEIPT_BYTES) {
+      console.warn(`[R2] Receipt rejected: actual size ${arrayBuffer.byteLength} exceeds ${MAX_RECEIPT_BYTES}`);
+      return null;
+    }
 
-    // 3. Store in R2 with unguessable random token to prevent public enumeration
-    const extension = filePath.split(".").pop()?.toLowerCase() || "jpg";
+    // Validate magic bytes (JPEG / PNG / WebP / PDF only).
+    const bytes = new Uint8Array(arrayBuffer);
+    const isJpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+    const isPng =
+      bytes.length >= 8 &&
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x4e &&
+      bytes[3] === 0x47;
+    const isWebp =
+      bytes.length >= 12 &&
+      bytes[0] === 0x52 &&
+      bytes[1] === 0x49 &&
+      bytes[2] === 0x46 &&
+      bytes[3] === 0x46 &&
+      bytes[8] === 0x57 &&
+      bytes[9] === 0x45 &&
+      bytes[10] === 0x42 &&
+      bytes[11] === 0x50;
+    const isPdf =
+      bytes.length >= 5 &&
+      bytes[0] === 0x25 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x44 &&
+      bytes[3] === 0x46 &&
+      bytes[4] === 0x2d;
+    if (!isJpeg && !isPng && !isWebp && !isPdf) {
+      console.warn("[R2] Receipt rejected: unsupported or unrecognised file signature");
+      return null;
+    }
+
+    // 3. Store in R2 with unguessable random token; extension from verified type.
+    const extension = isPng ? "png" : isWebp ? "webp" : isPdf ? "pdf" : "jpg";
     const randomToken = crypto.randomUUID().replace(/-/g, "");
     const key = `receipts/deposit_${depositId}_${Date.now()}_${randomToken}.${extension}`;
     const mimeType =

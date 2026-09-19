@@ -287,22 +287,47 @@ else
     fi
   else
     HEALTH_RESPONSE="$(cat "$HEALTH_RESPONSE_FILE" 2>/dev/null || echo '')"
+    # Require both HTTP 200 and configuration.healthy === true (and status=ok).
     if [[ -n "$HEALTH_RESPONSE" ]]; then
-      grep -qE '"status"[[:space:]]*:[[:space:]]*"ok"' <<< "$HEALTH_RESPONSE" \
-        || warn "Health endpoint did not report status=ok. Response: $HEALTH_RESPONSE"
+      if ! grep -qE '"status"[[:space:]]*:[[:space:]]*"ok"' <<< "$HEALTH_RESPONSE"; then
+        if $IS_CI; then
+          die "Health endpoint did not report status=ok. Response: $HEALTH_RESPONSE"
+        else
+          warn "Health endpoint did not report status=ok. Response: $HEALTH_RESPONSE"
+        fi
+      elif ! grep -qE '"healthy"[[:space:]]*:[[:space:]]*true' <<< "$HEALTH_RESPONSE"; then
+        if $IS_CI; then
+          die "Health endpoint reported configuration.healthy=false. Response: $HEALTH_RESPONSE"
+        else
+          warn "Health endpoint reported configuration.healthy=false. Response: $HEALTH_RESPONSE"
+        fi
+      else
+        success "Post-deployment health check passed."
+      fi
+    else
+      success "Post-deployment health check passed (empty body, HTTP 200)."
     fi
-    success "Post-deployment health check passed."
   fi
 fi
 
-# ── Auto-register Telegram webhook ─────────────────────────────────────
+# ── Auto-register Telegram webhook (authenticated; requires ADMIN_API_SECRET) ─
+# Public unauthenticated setWebhook has been removed. Registration must use
+# an admin credential via header. Skip automatically when secret is unavailable.
 if [[ -n "$WORKER_URL" ]] && command -v curl >/dev/null 2>&1; then
-  info "Synchronizing Telegram webhook..."
-  WEBHOOK_RES="$(curl --silent --show-error --max-time 15 "${WORKER_URL%/}/api/setup-webhook?action=set" 2>/dev/null || true)"
-  if grep -q '"ok":true' <<< "$WEBHOOK_RES"; then
-    success "Telegram webhook registered: $WORKER_URL"
+  if [[ -n "${ADMIN_API_SECRET:-}" ]]; then
+    info "Synchronizing Telegram webhook (authenticated)..."
+    WEBHOOK_RES="$(curl --silent --show-error --max-time 15 \
+      -X POST \
+      -H "X-Admin-Secret: ${ADMIN_API_SECRET}" \
+      "${WORKER_URL%/}/api/setup-webhook?action=set" 2>/dev/null || true)"
+    if grep -q '"ok":true' <<< "$WEBHOOK_RES"; then
+      success "Telegram webhook registered: $WORKER_URL"
+    else
+      warn "Webhook auto-registration response: $WEBHOOK_RES"
+    fi
   else
-    warn "Webhook auto-registration response: $WEBHOOK_RES"
+    warn "ADMIN_API_SECRET not set in environment — skipping automatic webhook registration."
+    warn "Register manually with an authenticated POST to /api/setup-webhook."
   fi
 fi
 
