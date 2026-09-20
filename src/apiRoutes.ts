@@ -323,9 +323,7 @@ export async function handleApiRequest(
     }
 
     const configuredBase = (env.PUBLIC_BASE_URL || "").trim().replace(/\/$/, "");
-    const workerOrigin = configuredBase || url.origin;
     const webhookSecret = env.WEBHOOK_SECRET?.trim() || "";
-    const wantsSet = method === "POST" && (url.searchParams.get("action") === "set" || method === "POST");
 
     // Mutations (setWebhook) are POST-only and must target the configured public origin.
     if (method === "POST" && (url.searchParams.get("action") === "set" || !url.searchParams.has("action"))) {
