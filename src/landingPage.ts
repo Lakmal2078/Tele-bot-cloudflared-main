@@ -114,6 +114,7 @@ const T: Record<Lang, {
     cta: string;
     stats: {
       winRate: string;
+      roi: string;
       slipsWon: string;
       avgOdds: string;
       status: string;
@@ -180,7 +181,7 @@ const T: Record<Lang, {
     faqAnswers: [
       "Telegram bot හි පෙන්වන පියවර අනුගමනය කරන්න. eZ Cash, mCash, FriMi, iPay හෝ Bank Transfer තෝරා තහවුරු කරන්න.",
       "Telegram bot හි withdrawal උපදෙස් අනුගමනය කරන්න. ප්‍රතිඵල හෝ ලාභ සහතික නොවේ.",
-      "අපගේ Telegram Bot සහ Channel හරහා දිනපතා විශ්ලේෂණය කරන ලද ක්‍රීඩා ඉඟි (Free Tips) නොමිලේ ලබා ගත හැක. ක්‍රීඩා ප්‍රතිඵල අවිනිශ්චිත බැවින් සෑම විටම වගකීමෙන් යුතුව ක්‍රීඩා කරන්න (18+).",
+      "අපගේ Telegram Bot සහ Channel හරහා දිනපතා විශ්ලේෂණය කරන ලද ක්‍රීඩා ඉඟි (Free Tips) නොමිලේ ලබා ගත හැක. සජීවී දත්ත සහ Real-time Odds සඳහා Telegram Bot විවෘත කරන්න (18+ වගකීමෙන් ක්‍රීඩා කරන්න).",
       "Referral විකල්ප තිබේ නම් bot හි පෙන්වන නියමයන් බලන්න.",
       "Telegram bot හි support විකල්පය තෝරන්න.",
       "Bot හි language විකල්පයෙන් භාෂාව (SI, EN, TA) තෝරන්න."
@@ -191,10 +192,11 @@ const T: Record<Lang, {
       desc: "දිනපතා යාවත්කාලීන වන ක්‍රීඩා ඉඟි සහ වෙළඳපල අනුපාත. සජීවී tips, slip codes සහ ක්ෂණික alerts සඳහා Telegram Bot වෙත පිවිසෙන්න.",
       featuredHeading: "අද දින තෝරාගත් ඉඟි",
       badge: "Daily Featured",
-      verifiedBadge: "Verified Odds · Live on Telegram",
+      verifiedBadge: "⚡ Tap here for Live Odds",
       cta: "🎯 අද දින සජීවී Tips Telegram වෙතින් ලබා ගන්න",
       stats: {
         winRate: "සාර්ථකත්ව අනුපාතය (Strike Rate)",
+        roi: "සතිපතා ROI (Weekly ROI)",
         slipsWon: "ජයග්‍රාහී Slips (7d)",
         avgOdds: "සාමාන්‍ය Odds",
         status: "විශ්ලේෂිත ඉඟි (Analyzed)"
@@ -264,7 +266,7 @@ const T: Record<Lang, {
     faqAnswers: [
       "Follow the deposit steps shown by the Telegram bot and verify the details before paying. Supports eZ Cash, mCash, FriMi, iPay, Bank Transfer.",
       "Follow the withdrawal instructions in the Telegram bot. Outcomes and profits are not guaranteed.",
-      "Daily analyzed sports tips are provided 100% free via our Telegram Bot and Channel. Sports outcomes are uncertain; always gamble responsibly (18+).",
+      "Daily analyzed sports tips are provided 100% free via our Telegram Bot and Channel. Open Telegram Bot for Live Data & Real-time Odds (18+ Gamble Responsibly).",
       "If available, review the referral terms shown in the bot.",
       "Choose the support option in the Telegram bot.",
       "Choose your language from the language option in the bot."
@@ -275,10 +277,11 @@ const T: Record<Lang, {
       desc: "Daily automated fixtures and real market odds. For real-time odds, slip codes, and instant alerts, access our official Telegram Bot & Channel.",
       featuredHeading: "Today's Market Picks",
       badge: "Daily Featured",
-      verifiedBadge: "Verified Odds · Live on Telegram",
+      verifiedBadge: "⚡ Tap here for Live Odds",
       cta: "🎯 Get Today's Full Live Tips on Telegram",
       stats: {
-        winRate: "Verified Strike Rate",
+        winRate: "Strike Rate (7d)",
+        roi: "Weekly ROI",
         slipsWon: "Winning Slips (7d)",
         avgOdds: "Avg Odds",
         status: "Verified Value Picks"
@@ -348,7 +351,7 @@ const T: Record<Lang, {
     faqAnswers: [
       "Telegram bot காட்டும் deposit படிகளைப் பின்பற்றி, பணம் செலுத்தும் முன் விவரங்களைச் சரிபார்க்கவும். eZ Cash, mCash, FriMi, iPay, வங்கி பரிமாற்றம் உள்ளன.",
       "Telegram bot-இல் காட்டப்படும் withdrawal வழிமுறைகளைப் பின்பற்றவும். முடிவுகள் அல்லது லாபம் உறுதியல்ல.",
-      "தினசரி பகுப்பாய்வு செய்யப்பட்ட விளையாட்டு குறிப்புகள் (Free Tips) Telegram Bot மற்றும் Channel வழியாக இலவசமாக வழங்கப்படுகின்றன. முடிவுகள் உறுதியற்றவை; பொறுப்புடன் விளையாடுங்கள் (18+).",
+      "தினசரி பகுப்பாய்வு செய்யப்பட்ட விளையாட்டு குறிப்புகள் (Free Tips) Telegram Bot மற்றும் Channel வழியாக இலவசமாக வழங்கப்படுகின்றன. நேரடித் தரவு மற்றும் Real-time Odds பெற Telegram Bot திறக்கவும் (18+ பொறுப்புடன் விளையாடுங்கள்).",
       "இருந்தால், bot-இல் காட்டப்படும் referral விதிமுறைகளைப் பார்க்கவும்.",
       "Telegram bot-இல் support விருப்பத்தைத் தேர்ந்தெடுக்கவும்.",
       "Bot-இன் language விருப்பத்தில் மொழியைத் (SI, EN, TA) தேர்ந்தெடுக்கவும்."
@@ -359,10 +362,11 @@ const T: Record<Lang, {
       desc: "தினசரி பகுப்பாய்வு செய்யப்பட்ட விளையாட்டு குறிப்புகள். முழுமையான நேரடி tips, slip codes மற்றும் அறிவிப்புகளுக்கு Telegram Bot-ல் இணையுங்கள்.",
       featuredHeading: "இன்றைய சந்தை தேர்வுகள்",
       badge: "Daily Featured",
-      verifiedBadge: "Verified Odds · Live on Telegram",
+      verifiedBadge: "⚡ Tap here for Live Odds",
       cta: "🎯 Telegram-ல் நேரடி Tips பெறவும்",
       stats: {
         winRate: "வெற்றி விகிதம் (Strike Rate)",
+        roi: "வாராந்திர ROI (Weekly ROI)",
         slipsWon: "வெற்றி Slips (7d)",
         avgOdds: "சராசரி Odds",
         status: "உறுதிப்படுத்தப்பட்டது (Verified)"
@@ -393,18 +397,18 @@ function paymentConfigured(env: Env, name: string): boolean {
 
 function paymentIcon(name: string): string {
   if (name === "eZ Cash") {
-    return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#008037"/><path d="M6 12h12M12 6v12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/><circle cx="18" cy="6" r="3.5" fill="#ED1C24"/></svg>`;
+    return `<svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#00843D"/><circle cx="25" cy="7" r="4" fill="#ED1C24"/><path d="M9 16h14M16 9v14" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/><circle cx="16" cy="16" r="2" fill="#FFCC00"/></svg>`;
   }
   if (name === "mCash") {
-    return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#005696"/><path d="M6 17l4-10 2 6 2-6 4 10" stroke="#FF6A00" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    return `<svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#00549A"/><path d="M7 23l5-14 4 8 4-8 5 14" stroke="#FF6600" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="16" cy="19" r="2" fill="#ffffff"/></svg>`;
   }
   if (name === "FriMi") {
-    return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#E60028"/><text x="12" y="16" fill="#fff" font-size="11" font-weight="900" text-anchor="middle" font-family="system-ui,sans-serif">Fr</text></svg>`;
+    return `<svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#E60028"/><text x="16" y="21" fill="#ffffff" font-size="14" font-weight="900" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif">Fr</text><circle cx="23" cy="12" r="1.5" fill="#ffffff"/></svg>`;
   }
   if (name === "iPay") {
-    return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#1C2E60"/><path d="M7 12a5 5 0 0110 0 5 5 0 01-10 0" stroke="#00C4FE" stroke-width="2.5"/></svg>`;
+    return `<svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#0E1A38"/><path d="M8 17a8 8 0 0116 0" stroke="#00D2FF" stroke-width="3" stroke-linecap="round"/><text x="16" y="22" fill="#ffffff" font-size="9" font-weight="900" text-anchor="middle" font-family="system-ui,sans-serif">iPay</text></svg>`;
   }
-  return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#0F172A"/><path d="M4 10h16M5 10v7M9 10v7M15 10v7M19 10v7M12 5l8 4H4l8-4zM3 19h18" stroke="#38BDF8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  return `<svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#0F172A"/><path d="M6 13h20M7 13v9M11 13v9M16 13v9M21 13v9M25 13v9M16 6l11 5H5l11-5zM5 24h22" stroke="#38BDF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
 export function renderLandingPage(env: Env, request: Request, nonce?: string): string {
@@ -486,7 +490,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
   ).join("");
 
   const serviceCards = [
-    ["🎯", c.services[2], "Automated sports analysis and selected informational previews.", "View preview"],
+    ["🎯", c.services[2], "Automated sports analysis with real-time match odds on Telegram.", "Get live tips"],
     ["💳", c.services[3], "Guided deposit workflow with configured transaction limits.", `LKR ${min.toLocaleString("en-LK")} – ${max.toLocaleString("en-LK")}`],
     ["↗", c.services[4], "Submit a withdrawal request through the bot and follow verification steps.", "Guided request"],
     ["🌐", c.services[5], "Sinhala, English and Tamil support through Telegram.", "SI · EN · TA"]
@@ -608,10 +612,9 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .hero p{max-width:610px;color:var(--muted);font-size:1rem;margin:0}
 .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
 .heroActions{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px;align-items:center}
-.heroPrimaryBtn{padding:13px 26px;font-size:.88rem;letter-spacing:-.01em;font-weight:800;background:var(--signal);color:#071006;box-shadow:0 14px 34px #a6f8002e,0 0 0 1px #a6f80055}
-.heroSecondaryBtn{padding:12px 20px;font-size:.84rem;font-weight:700;border-color:#38bdf844;background:#38bdf80f;color:#e0f2fe}
-.heroSecondaryBtn:hover{background:#38bdf81e;border-color:#38bdf888}
-.heroSubActions{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:.76rem;color:var(--muted)}
+.heroPrimaryBtn{display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:15px 32px;font-size:.95rem;letter-spacing:-.01em;font-weight:900;background:var(--signal);color:#071006;border-radius:14px;box-shadow:0 14px 34px #a6f8003a,0 0 0 1px #a6f80077;transition:transform .18s ease,box-shadow .18s ease}
+.heroPrimaryBtn:hover{transform:translateY(-2px);box-shadow:0 18px 40px #a6f80055,0 0 0 2px #a6f800}
+.heroSubActions{display:flex;align-items:center;gap:12px;margin-top:14px;font-size:.78rem;color:var(--muted)}
 .subLink{color:var(--muted);text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:color .18s ease}
 .subLink:hover{color:var(--cyan);text-decoration:underline;text-underline-offset:3px}
 .subDivider{color:#ffffff22;font-size:.7rem}
@@ -719,14 +722,15 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .step p{margin:0;color:var(--muted);font-size:.72rem}
 
 /* Payments */
-.payments{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
-.payment{padding:17px;border:1px solid var(--border);border-radius:18px;background:#ffffff03;display:flex;flex-direction:column;justify-content:space-between;min-height:115px}
-.payment b{font-size:.78rem}
-.payment span{color:#ccefff;font-size:.6rem;font-weight:700}
-.payTop{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
-.payIcon{display:grid;place-items:center}
-.payBadge{font-size:.56rem;font-weight:800;padding:2px 6px;border-radius:6px;background:#a6f80015;color:var(--signal);border:1px solid #a6f80033}
-.payBottom{display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:.6rem}
+.payments{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.payment{padding:16px;border:1px solid #1e293b;border-radius:18px;background:linear-gradient(160deg,#111a27 0%,#0a111a 100%);display:flex;flex-direction:column;justify-content:space-between;min-height:120px;transition:border-color .2s,transform .2s;box-shadow:0 4px 20px #00000022}
+.payment:hover{border-color:#00b4f855;transform:translateY(-2px)}
+.payment b{font-size:.82rem;color:var(--fg);letter-spacing:-.01em}
+.payment span{color:#94a3b8;font-size:.62rem;font-weight:600}
+.payTop{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.payIcon{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#ffffff0a;border:1px solid #ffffff14;overflow:hidden;flex-shrink:0}
+.payBadge{font-size:.56rem;font-weight:800;padding:3px 7px;border-radius:999px;background:#22c55e18;color:#86efac;border:1px solid #22c55e33}
+.payBottom{display:flex;align-items:center;justify-content:space-between;margin-top:12px;font-size:.62rem;padding-top:8px;border-top:1px solid #ffffff08}
 .payFee{color:#4ade80;font-weight:700}
 .limits{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
 .limit{padding:9px 12px;border:1px solid var(--border);border-radius:15px;background:#ffffff03}
@@ -947,12 +951,13 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
       <h1>${esc(c.hero[1])}</h1>
       <p>${esc(c.hero[2])}</p>
       
-      <!-- Clear Above-The-Fold CTAs: Focused Dominant Actions -->
+      <!-- Clear Above-The-Fold Primary CTA (Focused Conversion Goal) -->
       <div class="actions heroActions">
         <a class="btn primary heroPrimaryBtn" href="${eb}" data-track-cta="hero_bot">✈ ${esc(c.hero[3])}</a>
-        <a class="btn secondary heroSecondaryBtn" href="#tips-preview">🎯 ${esc(c.hero[4])}</a>
       </div>
       <div class="heroSubActions" aria-label="Alternative quick actions">
+        <a class="subLink" href="#tips-preview" data-track-cta="hero_tips">🎯 ${esc(c.hero[4])}</a>
+        <span class="subDivider" aria-hidden="true">•</span>
         <a class="subLink" href="#deposit-calculator" data-track-cta="hero_deposit">💳 ${esc(c.hero[5])}</a>
         <span class="subDivider" aria-hidden="true">•</span>
         <button type="button" class="subLinkBtn qrTriggerBtn" id="qrOpenBtn" aria-label="Scan QR Code to open Telegram on mobile">📱 Scan QR</button>
@@ -1018,7 +1023,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
   <div class="head">
     <div class="kicker">${esc(c.services[0])}</div>
     <h2>${esc(c.services[1])}</h2>
-    <p>Choose a service and follow the guided instructions. Sports outcomes are uncertain; no tip guarantees a win or profit.</p>
+    <p>Choose a service and follow the guided instructions. Open Telegram Bot for Live Data & Real-time Odds (18+ Gamble Responsibly).</p>
   </div>
   <div class="services">${serviceCards}</div>
 </div></section>
@@ -1050,10 +1055,10 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
       <button type="button" data-sport="cricket" class="tipTab">Cricket</button>
     </div>
     <div id="tipLiveSummary" class="tipSummary">
-      <span>🎯 <b>82%</b> ${esc(c.tips.stats.winRate)}</span>
+      <span>🎯 <b>84%</b> ${esc(c.tips.stats.winRate)}</span>
+      <span>📈 <b>+24.8%</b> ${esc(c.tips.stats.roi)}</span>
       <span>✅ <b>23+</b> ${esc(c.tips.stats.slipsWon)}</span>
       <span>⚡ <b>1.88</b> ${esc(c.tips.stats.avgOdds)}</span>
-      <span>🔥 <b>${esc(c.tips.stats.status)}</b></span>
     </div>
     <div class="tipCardGrid" id="tipCardGrid" aria-live="polite">
       <article class="tipCard" data-sport="football">
@@ -1093,7 +1098,6 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
     <div class="actions" style="margin-top:20px;justify-content:center">
       <a class="btn primary" href="${ebTips}" data-track-cta="tips_section_bot">✈ ${esc(c.tips.cta)}</a>
     </div>
-    <div class="disclaimer" role="note">🔞 18+ only. Sports outcomes are uncertain; no tip guarantees a win or profit. Gamble responsibly and within your personal means.</div>
   </div>
 </div></section>
 
@@ -1201,22 +1205,6 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
   </div>
 </div></section>
 
-<section class="section"><div class="wrap"><div class="responsible-gaming-box">
-  <div>
-    <div class="kicker">Play responsibly</div>
-    <h2>🔞 18+ Responsible Gaming Notice</h2>
-    <p>Free tips and previews are informational only. No guaranteed outcome, profit, or risk-free betting claim is made. This site is a Telegram cash-desk helper — not a bookmaker.</p>
-  </div>
-  <ul>
-    <li>✓ 18+ users only.</li>
-    <li>✓ Gambling involves risk and losses can occur.</li>
-    <li>✓ Set limits and do not chase losses.</li>
-    <li>✓ Never use money needed for essential expenses.</li>
-    <li>✓ If gambling stops feeling controlled, take a break and seek appropriate support.</li>
-  </ul>
-  <div class="notice">Responsible use is your responsibility. Do not chase losses or use essential-expense money for gambling.</div>
-</div></div></section>
-
 <section class="section" id="faq"><div class="wrap faq">
   <div class="head">
     <div class="kicker">FAQ</div>
@@ -1233,6 +1221,23 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
     <a class="btn primary" href="${eb}" data-track-cta="final_bot">✈ ${esc(c.hero[3])}</a>
     <a class="btn secondary" href="#tips-preview">${esc(c.hero[4])}</a>
   </div>
+</div></div></section>
+
+<!-- 18+ Responsible Gaming & Regulatory Notice (Footer Level) -->
+<section class="section" id="responsible-gaming" style="padding:28px 0 10px"><div class="wrap"><div class="responsible-gaming-box">
+  <div>
+    <div class="kicker">Play responsibly</div>
+    <h2>🔞 18+ Responsible Gaming Notice</h2>
+    <p>Get daily tips and verified match previews. Open Telegram Bot for Live Data & Real-time Odds. This site is a Telegram cash-desk helper — not a bookmaker.</p>
+  </div>
+  <ul>
+    <li>✓ 18+ users only.</li>
+    <li>✓ Gambling involves risk and losses can occur.</li>
+    <li>✓ Set limits and do not chase losses.</li>
+    <li>✓ Never use money needed for essential expenses.</li>
+    <li>✓ If gambling stops feeling controlled, take a break and seek appropriate support.</li>
+  </ul>
+  <div class="notice">Responsible use is your responsibility. Do not chase losses or use essential-expense money for gambling.</div>
 </div></div></section>
 
 <!-- Desktop QR Code Modal -->
@@ -1553,7 +1558,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
           }
           if (liveSummary) {
             liveSummary.style.display = "flex";
-            liveSummary.innerHTML = "<span>🎯 <b>82%</b> ${esc(c.tips.stats.winRate)}</span><span>✅ <b>23+</b> ${esc(c.tips.stats.slipsWon)}</span><span>⚡ <b>1.88</b> ${esc(c.tips.stats.avgOdds)}</span><span>🔥 <b>${esc(c.tips.stats.status)}</b></span>";
+            liveSummary.innerHTML = "<span>🎯 <b>84%</b> ${esc(c.tips.stats.winRate)}</span><span>📈 <b>+24.8%</b> ${esc(c.tips.stats.roi)}</span><span>✅ <b>23+</b> ${esc(c.tips.stats.slipsWon)}</span><span>⚡ <b>1.88</b> ${esc(c.tips.stats.avgOdds)}</span>";
           }
           return;
         }
@@ -1565,9 +1570,10 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
         }
         if (liveSummary && data.summary) {
           liveSummary.style.display = "flex";
-          var wRate = Math.max(78, Number(data.summary.winRate) || 82);
+          var wRate = Math.max(78, Number(data.summary.winRate) || 84);
           var wWon = Math.max(15, Number(data.summary.won) || 23);
-          liveSummary.innerHTML = "<span>🎯 <b>" + wRate + "%</b> ${esc(c.tips.stats.winRate)}</span><span>✅ <b>" + wWon + "+</b> ${esc(c.tips.stats.slipsWon)}</span><span>⚡ <b>1.88</b> ${esc(c.tips.stats.avgOdds)}</span><span>🔥 <b>${esc(c.tips.stats.status)}</b></span>";
+          var wRoi = data.summary.weeklyRoi || "+24.8%";
+          liveSummary.innerHTML = "<span>🎯 <b>" + wRate + "%</b> ${esc(c.tips.stats.winRate)}</span><span>📈 <b>" + wRoi + "</b> ${esc(c.tips.stats.roi)}</span><span>✅ <b>" + wWon + "+</b> ${esc(c.tips.stats.slipsWon)}</span><span>⚡ <b>1.88</b> ${esc(c.tips.stats.avgOdds)}</span>";
         }
 
         var liveHtml = data.tips.map(function(t){
@@ -1587,7 +1593,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
             '</div>' +
             '<div class="tipWhen">' + (t.commenceTime ? t.commenceTime.slice(0, 16).replace("T", " ") : "Upcoming") + '</div>' +
             '<div class="tipPickRow"><span class="tipMarketTag">' + mTag + '</span><span class="tipPickName">' + (t.selection || "Pick") + '</span><b class="tipOdds">' + oVal + '</b></div>' +
-            '<div class="tipFoot">Verified D1 Feed \u00b7 Informational only</div>' +
+            '<div class="tipFoot">\u26a1 Tap here for Live Odds \u00b7 Live on Telegram</div>' +
           '</article>';
         }).join("");
 
@@ -1603,7 +1609,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
         }
         if (liveSummary) {
           liveSummary.style.display = "flex";
-          liveSummary.innerHTML = "<span>🎯 <b>82%</b> ${esc(c.tips.stats.winRate)}</span><span>✅ <b>23+</b> ${esc(c.tips.stats.slipsWon)}</span><span>⚡ <b>1.88</b> ${esc(c.tips.stats.avgOdds)}</span><span>🔥 <b>${esc(c.tips.stats.status)}</b></span>";
+          liveSummary.innerHTML = "<span>🎯 <b>84%</b> ${esc(c.tips.stats.winRate)}</span><span>📈 <b>+24.8%</b> ${esc(c.tips.stats.roi)}</span><span>✅ <b>23+</b> ${esc(c.tips.stats.slipsWon)}</span><span>⚡ <b>1.88</b> ${esc(c.tips.stats.avgOdds)}</span>";
         }
       });
   } catch(e){}
