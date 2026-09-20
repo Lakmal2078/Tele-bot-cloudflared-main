@@ -1,0 +1,17 @@
+{
+  "name": "Fast xBet Cash 🇱🇰",
+  "short_name": "Fast xBet",
+  "description": "Telegram-first sports previews, guided support and multilingual assistance",
+  "start_url": "/?source=pwa",
+  "display": "standalone",
+  "background_color": "#070B12",
+  "theme_color": "#070B12",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

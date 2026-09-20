@@ -94,6 +94,9 @@ export interface Env {
   MCASH_NUMBER?: string;
   FRIMI_NUMBER?: string;
   IPAY_NUMBER?: string;
+  // Analytics
+  CF_BEACON_TOKEN?: string;
+  CLOUDFLARE_ANALYTICS_TOKEN?: string;
 }
 
 export interface UserRow {

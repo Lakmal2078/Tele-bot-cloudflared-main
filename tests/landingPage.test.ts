@@ -241,4 +241,79 @@ describe("Landing Page Render & SEO", () => {
     expect(assetRes?.status).toBe(200);
     expect(assetRes?.headers.get("X-Custom-Asset")).toBe("true");
   });
+
+  it("renders all features specified in landinpage.md (CTA buttons, QR modal, ticker, countdown, security, analytics, manifest)", async () => {
+    const req = new Request("https://fast-xbet.lk/?lang=si");
+    const html = renderLandingPage(mockEnv, req, "nonce999");
+
+    // 1. Clear Call-to-Action (CTA) above the fold in Sinhala
+    expect(html).toContain("Telegram Bot එකට සම්බන්ධ වන්න");
+    expect(html).toContain("නොමිලේ උපදෙස් ලබා ගන්න");
+    expect(html).toContain("දැන් තැන්පතු කරන්න");
+    expect(html).toContain("qrOpenBtn");
+
+    // 2. SEO keywords
+    expect(html).toContain('name="keywords" content="1xBet Sri Lanka Telegram Bot, නොමිලේ ක්‍රීඩා උපදෙස් ශ්‍රී ලංකා');
+    expect(html).toContain("<title>Fast xBet Cash 🇱🇰 — 1xBet Sri Lanka Telegram Bot &amp; නොමිලේ ක්‍රීඩා උපදෙස්</title>");
+
+    // 3. Winning tips ticker (Recent wins)
+    expect(html).toContain('class="tickerBar"');
+    expect(html).toContain("RECENT WINS");
+    expect(html).toContain("wonTag");
+    expect(html).toContain("Arsenal Win");
+
+    // 4. Tips countdown timer
+    expect(html).toContain('id="tipsCountdownBar"');
+    expect(html).toContain('id="countdownTimer" aria-live="polite"');
+    expect(html).toContain('id="countdownSlot"');
+    expect(html).toContain("මීළඟ Tips නිකුතුව");
+
+    // 5. Desktop QR modal & QR SVG
+    expect(html).toContain('id="qrModalOverlay"');
+    expect(html).toContain('id="qrCloseBtn"');
+    expect(html).toContain('class="qrSvg"');
+    expect(html).toContain("fast_1xbetcash_bot");
+
+    // 6. Mobile sticky bottom CTA bar
+    expect(html).toContain('id="mobileStickyBar"');
+    expect(html).toContain("stickyBtn");
+    expect(html).toContain('aria-label="Quick Telegram Access"');
+
+    // 7. Data protection & Cloudflare Edge / D1 / R2 trust section
+    expect(html).toContain('id="security"');
+    expect(html).toContain("Cloudflare D1 සහ R2 ආරක්ෂිත යටිතල පහසුකම්");
+
+    // 8. Legal modals (Privacy Policy & Terms of Service)
+    expect(html).toContain('id="privacyLink"');
+    expect(html).toContain('id="termsLink"');
+    expect(html).toContain('id="privacyModalOverlay"');
+    expect(html).toContain('id="termsModalOverlay"');
+
+    // 9. PWA Manifest link and capability meta tags
+    expect(html).toContain('<link rel="manifest" href="/manifest.json">');
+    expect(html).toContain('name="mobile-web-app-capable" content="yes"');
+    expect(html).toContain('name="apple-mobile-web-app-capable" content="yes"');
+
+    // 10. Test /manifest.json route
+    const manifestReq = new Request("https://fast-xbet.lk/manifest.json");
+    const manifestRes = await handleApiRequest(manifestReq, mockEnv);
+    expect(manifestRes).not.toBeNull();
+    expect(manifestRes?.status).toBe(200);
+    expect(manifestRes?.headers.get("Content-Type")).toContain("application/manifest+json");
+    const manifestData = (await manifestRes?.json()) as any;
+    expect(manifestData.name).toBe("Fast xBet Cash 🇱🇰");
+    expect(manifestData.display).toBe("standalone");
+
+    // 11. Test /api/analytics/event endpoint
+    const beaconReq = new Request("https://fast-xbet.lk/api/analytics/event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event: "cta_click", cta: "hero_bot", lang: "si" })
+    });
+    const beaconRes = await handleApiRequest(beaconReq, mockEnv);
+    expect(beaconRes).not.toBeNull();
+    expect(beaconRes?.status).toBe(200);
+    const beaconData = (await beaconRes?.json()) as any;
+    expect(beaconData.ok).toBe(true);
+  });
 });

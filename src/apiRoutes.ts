@@ -431,6 +431,60 @@ export async function handleApiRequest(
     return new Response(svg, { status: 200, headers });
   }
 
+  // Web App Manifest (/manifest.json, /site.webmanifest)
+  if ((path === "/manifest.json" || path === "/site.webmanifest") && (method === "GET" || method === "HEAD")) {
+    if (env.ASSETS && typeof env.ASSETS.fetch === "function") {
+      try {
+        const assetRes = await env.ASSETS.fetch(request);
+        if (assetRes && assetRes.status === 200) {
+          return assetRes;
+        }
+      } catch {}
+    }
+    const manifest = JSON.stringify({
+      name: "Fast xBet Cash 🇱🇰",
+      short_name: "Fast xBet",
+      description: "Telegram-first sports previews, guided support and multilingual assistance",
+      start_url: "/?source=pwa",
+      display: "standalone",
+      background_color: "#070B12",
+      theme_color: "#070B12",
+      icons: [
+        {
+          src: "/favicon.png",
+          sizes: "192x192 512x512",
+          type: "image/png",
+          purpose: "any maskable"
+        }
+      ]
+    }, null, 2);
+    const headers: Record<string, string> = {
+      "Content-Type": "application/manifest+json; charset=utf-8",
+      "Access-Control-Allow-Origin": "*",
+      "Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
+      "X-Content-Type-Options": "nosniff",
+    };
+    if (method === "HEAD") return new Response(null, { status: 200, headers });
+    return new Response(manifest, { status: 200, headers });
+  }
+
+  // Conversion & Click-through Analytics Beacon (/api/analytics/event)
+  if (path === "/api/analytics/event" && (method === "POST" || method === "GET" || method === "OPTIONS")) {
+    const corsHeaders: Record<string, string> = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+    };
+    if (method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: corsHeaders });
+    }
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+  }
+
   // Official Brand Favicon (.ico / .png) - Served via Cloudflare Static Assets (public/favicon.png)
   if ((path === "/favicon.ico" || path === "/favicon.png") && (method === "GET" || method === "HEAD")) {
     if (env.ASSETS && typeof env.ASSETS.fetch === "function") {
