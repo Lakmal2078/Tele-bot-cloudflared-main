@@ -24,6 +24,15 @@ export default [
     },
   },
   {
-    ignores: ["dist/**", "node_modules/**", "**/*.cjs", "**/*.mjs", "scripts/**"],
+    ignores: [
+      "dist/**",
+      "node_modules/**",
+      ".wrangler/**",
+      ".mf/**",
+      "**/*.cjs",
+      "**/*.mjs",
+      "scripts/**",
+    ],
   },
 ];
+
