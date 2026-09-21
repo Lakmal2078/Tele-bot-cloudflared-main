@@ -2,6 +2,7 @@ import type { Env } from "./types";
 import { OG_IMAGE_PNG, OG_IMAGE_JPEG } from "./ogImage";
 import { BRAND_LOGO_SVG, BRAND_LOGO_PNG_192 } from "./brandLogo";
 import { FAVICON_PNG_BASE64 } from "./brandFaviconData";
+import { BOT_DESCRIPTION_IMAGE_BASE64 } from "./botDescriptionImageData";
 
 function decodeBase64(base64: string): Uint8Array {
   const binary = atob(base64);
@@ -13,6 +14,7 @@ function decodeBase64(base64: string): Uint8Array {
 }
 
 const PUBLIC_FAVICON_PNG: Uint8Array = decodeBase64(FAVICON_PNG_BASE64);
+const PUBLIC_BOT_DESCRIPTION_JPEG: Uint8Array = decodeBase64(BOT_DESCRIPTION_IMAGE_BASE64);
 import { constantTimeEqual, isConfiguredAdminId, validateEnv } from "./config";
 import { securityHeaders, adminAttemptAllowed, recordAdminFailure, isAdminIpAllowed } from "./security";
 import {
@@ -411,6 +413,21 @@ export async function handleApiRequest(
     };
     if (method === "HEAD") return new Response(null, { status: 200, headers });
     return new Response(OG_IMAGE_JPEG, { status: 200, headers });
+  }
+
+  // Telegram BotFather Description Photo (640x360 JPEG for "What can this bot do?" card)
+  if ((path === "/bot-description-640x360.jpg" || path === "/api/bot/description-photo") && (method === "GET" || method === "HEAD")) {
+    const headers: Record<string, string> = {
+      "Content-Type": "image/jpeg",
+      "Content-Length": String(PUBLIC_BOT_DESCRIPTION_JPEG.byteLength),
+      "Content-Disposition": "inline; filename=\"bot-description-640x360.jpg\"",
+      "Access-Control-Allow-Origin": "*",
+      "Accept-Ranges": "bytes",
+      "Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
+      "X-Content-Type-Options": "nosniff",
+    };
+    if (method === "HEAD") return new Response(null, { status: 200, headers });
+    return new Response(PUBLIC_BOT_DESCRIPTION_JPEG, { status: 200, headers });
   }
 
   // OpenGraph Image PNG (1200x630 bitmap for WhatsApp, Telegram, Facebook, Twitter social previews)

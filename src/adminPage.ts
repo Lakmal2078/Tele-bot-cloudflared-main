@@ -82,6 +82,10 @@ export function renderAdminLoginPage(
       background: #00e676; color: #04130b; font-weight: 800; font-size: 14px; cursor: pointer;
     }
     .login-card a { display: inline-block; margin-top: 16px; font-size: 12px; color: #64748b; text-decoration: none; }
+    @media (max-width: 640px) {
+      body { padding: 16px 12px; }
+      .login-card { width: 100%; padding: 24px 16px; border-radius: 12px; }
+    }
   </style>
 </head>
 <body>
@@ -263,6 +267,57 @@ export function renderAdminPage(
       gap: 16px;
       margin-bottom: 24px;
     }
+    .botfather-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .payment-methods-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    .operational-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+    }
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .chart-toggles-wrap {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .trend-summary-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      justify-content: space-between;
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .kit-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .kit-header-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
     .kpi-card {
       background-color: #0f172a;
       border: 1px solid rgba(255, 255, 255, 0.08);
@@ -361,6 +416,129 @@ export function renderAdminPage(
       font-family: monospace;
       min-width: 260px;
     }
+
+    /* Responsive CSS Media Queries: Shift multi-column layouts to single-column on mobile devices */
+    @media (max-width: 768px) {
+      body {
+        padding: 16px 12px;
+      }
+      .card {
+        padding: 18px 14px;
+        border-radius: 12px;
+        margin-bottom: 18px;
+      }
+      .header-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 14px;
+        padding-bottom: 16px;
+        margin-bottom: 18px;
+      }
+      .header-actions {
+        flex-direction: column;
+        width: 100%;
+        gap: 8px;
+      }
+      .header-actions .btn {
+        width: 100%;
+      }
+      .auth-banner {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 14px;
+        gap: 12px;
+      }
+      .auth-banner form {
+        flex-direction: column;
+        width: 100%;
+      }
+      .auth-input {
+        min-width: 0;
+        width: 100%;
+      }
+      .auth-banner button {
+        width: 100%;
+      }
+      /* Shift all dashboard grids from multi-column to single-column */
+      .kpi-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      .botfather-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      .payment-methods-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+      .operational-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      /* Chart controls & summary */
+      .chart-controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+      }
+      .chart-toggles-wrap {
+        flex-direction: column;
+        width: 100%;
+        gap: 8px;
+      }
+      .controls-group {
+        width: 100%;
+        display: flex;
+        justify-content: stretch;
+      }
+      .controls-group .btn-tab {
+        flex: 1;
+        text-align: center;
+      }
+      .trend-summary-row {
+        flex-direction: column;
+        gap: 8px;
+      }
+      .kit-header {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .kit-header-actions {
+        flex-direction: column;
+        width: 100%;
+      }
+      .kit-header-actions .btn-tab {
+        width: 100%;
+        justify-content: center;
+      }
+      .table-container {
+        margin-top: 14px;
+      }
+      table th, table td {
+        padding: 10px 10px;
+        font-size: 12px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 12px 8px;
+      }
+      .card {
+        padding: 14px 10px;
+        border-radius: 10px;
+      }
+      .kpi-card {
+        padding: 14px 12px;
+      }
+      .kpi-value {
+        font-size: 22px;
+      }
+      .chart-box {
+        padding: 12px 6px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -377,7 +555,7 @@ export function renderAdminPage(
         <p style="font-size: 13px; color: #94a3b8;">Financial integrity monitor, Telegram agent stats &amp; D3.js trend analytics</p>
       </div>
 
-      <div style="display: flex; gap: 10px; align-items: center;">
+      <div class="header-actions">
         <a href="/" class="btn btn-secondary" id="btn-back-home">← Public Website</a>
         <a href="https://t.me/${escapeAttribute((env.BOT_USERNAME || "fast_1xbetcash_bot").replace(/^@/, ""))}" target="_blank" rel="noopener noreferrer" class="btn btn-primary" id="btn-open-bot">🚀 Open Bot</a>
       </div>
@@ -436,7 +614,7 @@ export function renderAdminPage(
           </p>
         </div>
 
-        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+        <div class="chart-toggles-wrap">
           <!-- Metric Mode Switcher -->
           <div class="controls-group" id="metric-toggles">
             <a href="?days=${days}&metric=volume" class="btn-tab ${metric === 'volume' ? 'active' : ''}" id="toggle-metric-vol">LKR Volume</a>
@@ -458,7 +636,7 @@ export function renderAdminPage(
       </div>
 
       <!-- Trend Summary Stats Row -->
-      <div style="display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; margin-top: 18px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 12px; color: #94a3b8;">
+      <div class="trend-summary-row">
         <div>Window Period: <strong style="color: #f1f5f9;">Last ${trends.length} days</strong></div>
         <div>Total Window Deposits: <strong style="color: #10b981;">LKR ${totalDepVol.toLocaleString()}</strong></div>
         <div>Total Window Withdrawals: <strong style="color: #f59e0b;">LKR ${totalWdVol.toLocaleString()}</strong></div>
@@ -488,6 +666,80 @@ export function renderAdminPage(
       </div>
     </section>
 
+    <!-- Telegram Bot Profile & BotFather Assets Kit -->
+    <section class="card" id="section-bot-profile-kit" style="margin-bottom: 24px; border: 1px solid rgba(56, 189, 248, 0.25); background: linear-gradient(145deg, #0c1524, #080d17);">
+      <div class="kit-header">
+        <div>
+          <h3 style="font-size: 16px; font-weight: 700; color: #38bdf8; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
+            🤖 Telegram BotFather Setup Kit
+            <span style="font-size: 11px; padding: 2px 8px; border-radius: 999px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-weight: 600;">640x360 Ready</span>
+          </h3>
+          <p style="font-size: 13px; color: #94a3b8; margin: 0;">
+            Copy verified BotFather configuration texts and download the exact 640x360 description photo.
+          </p>
+        </div>
+        <div class="kit-header-actions">
+          <a href="/bot-description-640x360.jpg" download="fast-xbet-bot-description-640x360.jpg" class="btn-tab active" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 12px;">
+            ⬇️ Download Photo (640x360)
+          </a>
+          <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" class="btn-tab" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 12px;">
+            ↗ Open @BotFather
+          </a>
+        </div>
+      </div>
+
+      <div class="botfather-grid">
+        <!-- Photo Preview Card -->
+        <div style="background: #060a12; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px;">
+          <div style="font-size: 12px; font-weight: 700; color: #cbd5e1; margin-bottom: 8px; display: flex; justify-content: space-between;">
+            <span>🖼️ Description Photo (/setdescriptionphoto)</span>
+            <span style="color: #10b981; font-family: monospace;">640 × 360 px</span>
+          </div>
+          <a href="/bot-description-640x360.jpg" target="_blank" style="display: block; overflow: hidden; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.3);">
+            <img src="/bot-description-640x360.jpg" alt="Telegram Bot Description Photo" style="width: 100%; height: auto; display: block; aspect-ratio: 16/9; object-fit: cover;" />
+          </a>
+          <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #94a3b8;">
+            <span>Aspect Ratio: 16:9 (Telegram standard)</span>
+            <a href="/bot-description-640x360.jpg" download="bot-description-640x360.jpg" style="color: #38bdf8; text-decoration: none; font-weight: 600;">Download JPG</a>
+          </div>
+        </div>
+
+        <!-- Description (Under 512 chars) -->
+        <div style="background: #060a12; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; display: flex; flex-direction: column;">
+          <div style="font-size: 12px; font-weight: 700; color: #cbd5e1; margin-bottom: 8px; display: flex; justify-content: space-between;">
+            <span>📝 Bot Description (/setdescription)</span>
+            <span style="color: #10b981; font-family: monospace;">433 / 512 chars</span>
+          </div>
+          <div id="copy-desc-box" style="background: #0a111e; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 12px; font-size: 12px; line-height: 1.5; color: #e2e8f0; font-family: sans-serif; white-space: pre-line; flex: 1; margin-bottom: 10px;">⚡ Welcome to Fast xBet Cash 🇱🇰
+Official 1xBet Sri Lanka Cash Desk.
+
+What we offer:
+💳 Instant 1xBet Local Deposits (eZ Cash, mCash, FriMi, Bank Transfer)
+🚀 Fast 5–15 min Withdrawals directly to your local account
+⚽ Daily Free VIP Sports Betting Tips with top winning odds
+🌐 24/7 Sinhala, English & Tamil Live Customer Support
+🔒 100% Secure, Verified & 0% Hidden Fees!
+
+Tap 'Start' below to begin now! 👇</div>
+          <button type="button" class="btn-tab" onclick="navigator.clipboard.writeText(document.getElementById('copy-desc-box').innerText).then(function(){alert('Description copied to clipboard!')})" style="width: 100%; text-align: center; justify-content: center; padding: 8px; cursor: pointer;">
+            📋 Copy Description Text
+          </button>
+        </div>
+
+        <!-- About Text (Under 120 chars) -->
+        <div style="background: #060a12; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; display: flex; flex-direction: column;">
+          <div style="font-size: 12px; font-weight: 700; color: #cbd5e1; margin-bottom: 8px; display: flex; justify-content: space-between;">
+            <span>ℹ️ About Text (/setabouttext)</span>
+            <span style="color: #10b981; font-family: monospace;">109 / 120 chars</span>
+          </div>
+          <div id="copy-about-box" style="background: #0a111e; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 12px; font-size: 12px; line-height: 1.5; color: #e2e8f0; font-family: sans-serif; white-space: pre-line; flex: 1; margin-bottom: 10px;">⚡ Fast xBet Cash 🇱🇰 | Official 1xBet Sri Lanka Cash Desk. Instant deposits, fast withdrawals &amp; daily free tips!</div>
+          <button type="button" class="btn-tab" onclick="navigator.clipboard.writeText(document.getElementById('copy-about-box').innerText).then(function(){alert('About text copied to clipboard!')})" style="width: 100%; text-align: center; justify-content: center; padding: 8px; cursor: pointer;">
+            📋 Copy About Text
+          </button>
+        </div>
+      </div>
+    </section>
+
     <!-- Payment Methods Config -->
     <section class="card" id="section-payment-methods" style="margin-bottom: 24px;">
       <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 12px; color: #f8fafc;">
@@ -496,7 +748,7 @@ export function renderAdminPage(
       <p style="font-size: 13px; color: #94a3b8; margin-bottom: 16px;">
         Current deposit accounts and wallets active in the Telegram Bot menu.
       </p>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+      <div class="payment-methods-grid">
         ${data.paymentMethods ? `
           <div style="background: #070b12; border: 1px solid rgba(255,255,255,0.06); padding: 12px; border-radius: 8px;">
             <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px;">Bank Transfer</div>
@@ -527,7 +779,7 @@ export function renderAdminPage(
     </section>
 
     <!-- Operational Tickets & Alerts Section -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
+    <div class="operational-grid">
       <div class="card" id="section-tickets">
         <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 12px; color: #f8fafc;">
           🎫 Support Tickets Queue

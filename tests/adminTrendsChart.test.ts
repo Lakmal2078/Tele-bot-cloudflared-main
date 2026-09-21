@@ -139,6 +139,32 @@ describe("Admin Page Renderer", () => {
     expect(html).toContain("toggle-window-14d");
     expect(html).toContain("toggle-window-30d");
   });
+
+  it("includes responsive CSS media queries for single-column mobile layout", () => {
+    const req = new Request("http://localhost/admin");
+    const html = renderAdminPage(
+      mockEnv,
+      req,
+      {
+        stats: mockStats,
+        trends: mockTrends,
+        days: 7,
+        metric: "volume",
+        isAuthorized: true,
+      }
+    );
+
+    // Responsive breakpoints & media queries
+    expect(html).toContain("@media (max-width: 768px)");
+    expect(html).toContain("@media (max-width: 480px)");
+
+    // Single-column layout shifts on mobile
+    expect(html).toContain(".kpi-grid");
+    expect(html).toContain("grid-template-columns: 1fr");
+    expect(html).toContain(".botfather-grid");
+    expect(html).toContain(".payment-methods-grid");
+    expect(html).toContain(".operational-grid");
+  });
 });
 
 describe("Admin Trends & Panel Routes", () => {

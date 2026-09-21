@@ -561,8 +561,8 @@ ${cfAnalyticsScript}
 <style${n}>
 :root{--bg:#070b12;--bg2:#081525;--surface:#101720;--surface2:#151e2b;--fg:#f1f5f9;--muted:#94a3b8;--faint:#64748b;--signal:#a6f800;--cyan:#00b4f8;--pink:#ff477e;--border:#ffffff12;--shadow:0 25px 70px #0008}
 *{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;min-width:320px;background:radial-gradient(circle at 85% 10%,#00b4f814,transparent 32%),radial-gradient(circle at 12% 42%,#ff477e0d,transparent 30%),var(--bg);color:var(--fg);font-family:"Plus Jakarta Sans","Noto Sans Sinhala","Noto Sans Tamil",system-ui,sans-serif;line-height:1.6;overflow-x:hidden}
+html{scroll-behavior:smooth;overflow-x:hidden;max-width:100%}
+body{margin:0;min-width:320px;max-width:100%;background:radial-gradient(circle at 85% 10%,#00b4f814,transparent 32%),radial-gradient(circle at 12% 42%,#ff477e0d,transparent 30%),var(--bg);color:var(--fg);font-family:"Plus Jakarta Sans","Noto Sans Sinhala","Noto Sans Tamil",system-ui,sans-serif;line-height:1.6;overflow-x:hidden;position:relative}
 a{color:inherit;text-decoration:none}
 button,a,summary{font:inherit}
 a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
@@ -647,9 +647,9 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .promoNote{font-size:.64rem;color:var(--muted)}
 
 /* Phone Mockup */
-#edge-visual{position:relative}
-.phone{width:min(380px,100%);margin:0 auto;padding:2px;border:1px solid #dbeafeaa;border-radius:34px;background:#0b121d;box-shadow:var(--shadow)}
-.phoneInner{overflow:hidden;border-radius:30px;background:var(--bg2)}
+#edge-visual{position:relative;width:100%;max-width:100%;display:flex;justify-content:center;overflow:hidden}
+.phone{width:min(380px,100%);max-width:100%;margin:0 auto;padding:2px;border:1px solid #dbeafeaa;border-radius:34px;background:#0b121d;box-shadow:var(--shadow);box-sizing:border-box}
+.phoneInner{overflow:hidden;border-radius:30px;background:var(--bg2);max-width:100%;box-sizing:border-box}
 .phoneTop{display:flex;justify-content:space-between;align-items:center;padding:12px 24px 7px;color:var(--muted);font:600 .62rem ui-monospace,SFMono-Regular,Menlo,monospace}
 .notch{width:96px;height:16px;border-radius:999px;background:#ffffff10}
 .chatHead{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--border)}
@@ -658,14 +658,15 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .chatTitle{min-width:0}
 .chatTitle b{display:block;font-size:.75rem}
 .chatTitle span{display:block;color:var(--muted);font-size:.6rem}
-.online{margin-left:auto;display:flex;align-items:center;gap:5px;padding:5px 9px;border-radius:999px;background:#a6f80016;color:var(--signal);font-size:.6rem;font-weight:800}
+.online{margin-left:auto;display:flex;align-items:center;gap:5px;padding:5px 9px;border-radius:999px;background:#a6f80016;color:var(--signal);font-size:.6rem;font-weight:800;flex-shrink:0}
 .online i{width:7px;height:7px;border-radius:50%;background:var(--signal);box-shadow:0 0 10px var(--signal)}
-.chat{display:flex;flex-direction:column;gap:10px;padding:16px 18px 20px;min-height:390px}
-.bubble{max-width:88%;padding:10px 13px;border-radius:22px;background:#151d29;border:1px solid #ffffff0b;font-size:.78rem;line-height:1.35}
+.chat{display:flex;flex-direction:column;gap:10px;padding:14px 16px 18px;min-height:390px;max-width:100%;box-sizing:border-box;overflow-x:hidden}
+.bubble{max-width:92%;padding:10px 13px;border-radius:22px;background:#151d29;border:1px solid #ffffff0b;font-size:.78rem;line-height:1.35;word-break:break-word;box-sizing:border-box}
 .bubble.bot{border-bottom-left-radius:5px;align-self:flex-start}
 .bubble.user{border-bottom-right-radius:5px;align-self:flex-end;background:#101923;color:#d9e7f4;text-align:right}
-.chatChips{display:flex;flex-wrap:wrap;gap:5px;margin-top:auto}
-.chatChips button.chatChip{padding:6px 10px;border-radius:999px;background:#ffffff08;border:1px solid #ffffff14;color:var(--muted);font-size:.62rem;cursor:pointer;transition:all .15s}
+.bubble img{max-width:100%;height:auto;display:block}
+.chatChips{display:flex;flex-wrap:wrap;gap:5px;margin-top:auto;max-width:100%;box-sizing:border-box}
+.chatChips button.chatChip{padding:6px 10px;border-radius:999px;background:#ffffff08;border:1px solid #ffffff14;color:var(--muted);font-size:.62rem;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0}
 .chatChips button.chatChip:hover{background:#ffffff18;color:var(--fg)}
 .chatChips button.chatChip.active{background:var(--cyan);color:#071018;font-weight:800;border-color:var(--cyan)}
 
@@ -857,18 +858,24 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
   .links a:nth-child(n+4){display:none}
 }
 @media (max-width:720px){
-  .wrap{width:calc(100% - 24px)}
-  .navin{min-height:62px}
+  .wrap{width:calc(100% - 24px);max-width:100%;box-sizing:border-box}
+  .navin{min-height:62px;gap:8px}
+  .botStatusWidget{padding:4px 8px;gap:5px;font-size:.68rem;margin-left:auto}
+  .botStatusPing{display:none}
   .links,.langs,.desktop{display:none}
   .menu{display:grid;place-items:center}
   .mobile.open{display:grid;position:absolute;right:12px;top:calc(100% + 7px);width:min(320px,calc(100vw - 24px));padding:9px;background:#0a101af7;border:1px solid var(--border);border-radius:17px;box-shadow:0 20px 50px #000b}
   .mobile a{padding:11px;color:var(--muted);font-weight:700}
   .mobile .btn{margin-top:4px;color:#071006}
-  .hero{padding:52px 0 35px}
-  .heroGrid{gap:30px}
-  .hero h1{font-size:clamp(2.6rem,12vw,4.2rem)}
+  .hero{padding:42px 0 30px;max-width:100%;overflow:hidden}
+  .heroGrid{gap:28px;max-width:100%}
+  .hero h1{font-size:clamp(2.5rem,11vw,3.8rem);word-break:break-word}
   .actions{display:grid}
   .actions .btn{width:100%}
+  .promoBar{max-width:100%;box-sizing:border-box;border-radius:16px;padding:6px 10px;gap:6px}
+  .promoCodeWrap strong{font-size:.8rem}
+  .pills{gap:5px;max-width:100%}
+  .pill{font-size:.62rem;padding:5px 9px;max-width:100%}
   .heroSubActions{justify-content:center}
   .trust,.services,.steps,.faq{grid-template-columns:1fr}
   .payments{grid-template-columns:1fr 1fr}
@@ -881,9 +888,12 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 @media (max-width:430px){
   .payments{grid-template-columns:1fr}
   .foot{grid-template-columns:1fr}
-  .phone{border-radius:29px}
-  .phoneInner{border-radius:25px}
-  .chat{min-height:340px}
+  .phone{width:100%;max-width:360px;margin:0 auto;border-radius:26px}
+  .phoneInner{border-radius:23px}
+  .chat{padding:12px 12px 16px;min-height:360px}
+  .bubble{max-width:96%;padding:8px 11px;font-size:.74rem}
+  .chatChips{gap:4px}
+  .chatChips button.chatChip{padding:5px 8px;font-size:.58rem}
 }
 @media(prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
@@ -1010,13 +1020,18 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
             <div class="online" id="phoneBotStatus"><i id="phoneBotStatusDot"></i> <span id="phoneBotStatusText">Bot online</span></div>
           </div>
           <div class="chat" id="chatContainer">
-            <div class="bubble bot">Welcome to Fast xBet Cash 🇱🇰. Choose a service to continue.</div>
-            <div class="bubble user">Deposit</div>
-            <div class="bubble bot">Send your 1xBet Player ID, then pick a local rail.</div>
-            <div class="bubble user">Player ID 88410231</div>
-            <div class="bubble bot">Limits LKR ${min.toLocaleString("en-LK")}–${max.toLocaleString("en-LK")}. Processed after receipt verification (times vary).</div>
+            <div class="bubble bot">
+              <div style="font-size:0.68rem;font-weight:700;color:#38bdf8;margin-bottom:4px;">What can this bot do?</div>
+              <img src="/bot-description-640x360.jpg" alt="Fast xBet Cash Bot Description" width="640" height="360" style="width:100%;height:auto;border-radius:10px;border:1px solid #00b4f844;margin-bottom:6px;display:block;" />
+              <div style="font-size:0.68rem;line-height:1.3;">⚡ <b>Fast xBet Cash 🇱🇰</b><br>Official 1xBet Sri Lanka Cash Desk.<br>💳 0% fee local deposits &amp; fast withdrawals.<br>⚽ Daily winning betting tips!</div>
+            </div>
+            <div class="bubble user">Start Bot /start</div>
+            <div class="bubble bot">Welcome to Fast xBet Cash 🇱🇰! Tap below to explore deposit &amp; withdrawal services.</div>
+            <div class="bubble user" style="display:none"></div>
+            <div class="bubble bot" style="display:none"></div>
             <div class="chatChips">
-              <button type="button" class="chatChip active" data-scenario="deposit">Deposit</button>
+              <button type="button" class="chatChip active" data-scenario="profile">Profile 📸</button>
+              <button type="button" class="chatChip" data-scenario="deposit">Deposit</button>
               <button type="button" class="chatChip" data-scenario="tips">Tips</button>
               <button type="button" class="chatChip" data-scenario="withdraw">Withdraw</button>
               <button type="button" class="chatChip" data-scenario="support">Support</button>
@@ -1493,6 +1508,11 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
     var chat = document.getElementById("chatContainer");
     if (chat && chips.length) {
       var scenarios = {
+        profile: [
+          { role: "bot", text: "<div style='font-size:0.68rem;font-weight:700;color:#38bdf8;margin-bottom:4px;'>What can this bot do?</div><img src='/bot-description-640x360.jpg' alt='Fast xBet Cash Bot Description' style='width:100%;border-radius:10px;border:1px solid #00b4f844;margin-bottom:6px;display:block;' /><div style='font-size:0.68rem;line-height:1.3;'>⚡ <b>Fast xBet Cash 🇱🇰</b><br>Official 1xBet Sri Lanka Cash Desk.<br>💳 0% fee local deposits &amp; fast withdrawals.<br>⚽ Daily winning betting tips!</div>" },
+          { role: "user", text: "Start Bot /start" },
+          { role: "bot", text: "Welcome! Tap below to explore deposit &amp; withdrawal services." }
+        ],
         deposit: [
           { role: "bot", text: "Welcome to Fast xBet Cash 🇱🇰. Choose a service to continue." },
           { role: "user", text: "Deposit" },
@@ -1524,11 +1544,12 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
       };
 
       chips.forEach(function(btn){
-        btn.addEventListener("click", function(){
+        btn.addEventListener("click", function(e){
+          if (e && e.preventDefault) e.preventDefault();
           chips.forEach(function(c){ c.classList.remove("active"); });
           btn.classList.add("active");
-          var sKey = btn.getAttribute("data-scenario") || "deposit";
-          var dialog = scenarios[sKey] || scenarios.deposit;
+          var sKey = btn.getAttribute("data-scenario") || "profile";
+          var dialog = scenarios[sKey] || scenarios.profile;
           var bubbles = chat.querySelectorAll(".bubble");
           bubbles.forEach(function(bubble, idx){
             if (dialog[idx]) {
