@@ -41,7 +41,7 @@ WHATSAPP_NUMBER = ""
 #   3 feeds x 3 slots/day = max 9 paid odds requests/day (~270/month).
 #   /sports discovery + /scores settlement are quota-free on free plans.
 #   1 market (h2h) x 1 region (eu) = 1 credit per sport feed.
-TIPS_CHANNEL_ID = "-1004336999467"
+TIPS_CHANNEL_ID = ""
 TIPS_CHANNEL_URL = "https://t.me/fast_xbet_official_tips"
 TIPS_PER_SLOT = "3"
 TIPS_SPORTS = "soccer_epl,soccer_spain_la_liga,soccer_italy_serie_a,soccer_germany_bundesliga,soccer_uefa_champs_league,cricket_international_t20,basketball_nba,auto:table_tennis,auto:esports"

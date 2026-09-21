@@ -294,7 +294,7 @@ function getPaymentMethodInstructions(method: PaymentMethod, env: Env, lang: Lan
   }
 
   if (method === "IPAY") {
-    const ipayNumber = env.IPAY_NUMBER || "0740452530";
+    const ipayNumber = env.IPAY_NUMBER || "07XXXXXXXX";
     if (lang === "en") {
       return (
         `📱 *iPay Mobile 1*\n` +
@@ -326,7 +326,7 @@ function getPaymentMethodInstructions(method: PaymentMethod, env: Env, lang: Lan
   }
 
   if (method === "EZCASH") {
-    const ezNumber = env.EZCASH_NUMBER || "0765865387";
+    const ezNumber = env.EZCASH_NUMBER || "07XXXXXXXX";
     if (lang === "en") {
       return (
         `📱 *eZ Cash Mobile 2*\n` +

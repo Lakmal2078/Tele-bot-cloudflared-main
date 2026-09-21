@@ -12,14 +12,14 @@ describe("Environment Scanner & Validator", () => {
     const raw = `
 # Comment line
 BOT_TOKEN="123456:ABC-DEF"
-ADMIN_IDS='7990858914,123456'
+ADMIN_IDS='123456789,987654321'
 EMPTY_VAL=
 # Another comment
 XBET_PROMO_CODE=VGSL
 `;
     const parsed = parseEnvFile(raw);
     expect(parsed.BOT_TOKEN).toBe("123456:ABC-DEF");
-    expect(parsed.ADMIN_IDS).toBe("7990858914,123456");
+    expect(parsed.ADMIN_IDS).toBe("123456789,987654321");
     expect(parsed.EMPTY_VAL).toBe("");
     expect(parsed.XBET_PROMO_CODE).toBe("VGSL");
   });
@@ -36,10 +36,10 @@ XBET_PROMO_CODE=VGSL
   it("detects formatting errors for short WEBHOOK_SECRET and invalid ADMIN_IDS", () => {
     const invalidEnv = {
       BOT_TOKEN: "000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-      ADMIN_IDS: "not_a_number,7990858914",
+      ADMIN_IDS: "not_a_number,123456789",
       WEBHOOK_SECRET: "short", // less than 16 chars
       CHANNEL_URL: "https://t.me/test_channel",
-      EZCASH_NUMBER: "0765865387",
+      EZCASH_NUMBER: "0771234567",
     };
 
     const results = scanEnvironment(invalidEnv);
@@ -51,11 +51,11 @@ XBET_PROMO_CODE=VGSL
   it("warns when TIPS_CHANNEL_ID contains 'ID: ' prefix", () => {
     const envWithPrefix = {
       BOT_TOKEN: "000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-      ADMIN_IDS: "7990858914",
+      ADMIN_IDS: "123456789",
       WEBHOOK_SECRET: "123456789012345678",
       CHANNEL_URL: "https://t.me/test_channel",
-      EZCASH_NUMBER: "0765865387",
-      TIPS_CHANNEL_ID: "ID: -1004336999467",
+      EZCASH_NUMBER: "0771234567",
+      TIPS_CHANNEL_ID: "ID: -1001234567890",
     };
 
     const results = scanEnvironment(envWithPrefix);
@@ -66,11 +66,11 @@ XBET_PROMO_CODE=VGSL
   it("validates successfully when all mandatory and payment keys are valid", () => {
     const validEnv = {
       BOT_TOKEN: "000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-      ADMIN_IDS: "7990858914",
+      ADMIN_IDS: "123456789",
       WEBHOOK_SECRET: "REDACTED_WEBHOOK_SECRET_12345",
       CHANNEL_URL: "https://t.me/fast_xbet_official_tips",
       CHANNEL_USERNAME: "@fast_xbet_official_tips",
-      IPAY_NUMBER: "0740452530",
+      IPAY_NUMBER: "0712345678",
       MIN_TRANSACTION_LKR: "1000",
       MAX_TRANSACTION_LKR: "500000",
     };

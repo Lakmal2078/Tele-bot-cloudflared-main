@@ -33,14 +33,14 @@ export const PAYMENT_METHOD_NAMES: Record<PaymentMethod, { si: string; en: strin
     ta: "🏦 LOLC வங்கி (LOLC Bank)",
   },
   IPAY: {
-    si: "📱 iPay Mobile (0740452530)",
-    en: "📱 iPay Mobile (0740452530)",
-    ta: "📱 iPay Mobile (0740452530)",
+    si: "📱 iPay Mobile",
+    en: "📱 iPay Mobile",
+    ta: "📱 iPay மொபைல் (iPay Mobile)",
   },
   EZCASH: {
-    si: "📱 eZ Cash Mobile (0765865387)",
-    en: "📱 eZ Cash Mobile (0765865387)",
-    ta: "📱 eZ Cash Mobile (0765865387)",
+    si: "📱 eZ Cash Mobile",
+    en: "📱 eZ Cash Mobile",
+    ta: "📱 eZ Cash மொபைல் (eZ Cash Mobile)",
   },
   BANK: {
     si: "🏦 Other Bank (වෙනත් බැංකු)",

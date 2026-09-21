@@ -64,7 +64,7 @@ export const KEY_DEFINITIONS = [
     key: "ADMIN_IDS",
     category: "Core Telegram",
     mandatory: true,
-    description: "Numeric Telegram IDs of Bot Admins (comma-separated, e.g. 7990858914)",
+    description: "Numeric Telegram IDs of Bot Admins (comma-separated, e.g. 123456789,987654321)",
     validate: (val) => {
       if (!val || val.trim().length === 0) return "Missing admin Telegram ID(s)";
       const parts = val.split(",").map((s) => s.trim()).filter(Boolean);
@@ -133,25 +133,25 @@ export const KEY_DEFINITIONS = [
     key: "EZCASH_NUMBER",
     category: "Payment Methods",
     mandatory: false,
-    description: "eZ Cash mobile wallet number (e.g. 0765865387)",
+    description: "eZ Cash mobile wallet number (e.g. 0771234567)",
   },
   {
     key: "MCASH_NUMBER",
     category: "Payment Methods",
     mandatory: false,
-    description: "mCash mobile wallet number (e.g. 0765865387)",
+    description: "mCash mobile wallet number (e.g. 0771234567)",
   },
   {
     key: "FRIMI_NUMBER",
     category: "Payment Methods",
     mandatory: false,
-    description: "FriMi account / mobile number (e.g. 0765865387)",
+    description: "FriMi account / mobile number (e.g. 0771234567)",
   },
   {
     key: "IPAY_NUMBER",
     category: "Payment Methods",
     mandatory: false,
-    description: "iPay account / mobile number (e.g. 0740452530)",
+    description: "iPay account / mobile number (e.g. 0712345678)",
   },
   {
     key: "BANK_DETAILS",
@@ -163,7 +163,7 @@ export const KEY_DEFINITIONS = [
     key: "WHATSAPP_NUMBER",
     category: "Support & Contact",
     mandatory: false,
-    description: "Customer support WhatsApp number with country code (e.g. 94776763093)",
+    description: "Customer support WhatsApp number with country code (e.g. 94771234567)",
   },
 
   // ── TRANSACTION LIMITS ──
@@ -223,11 +223,11 @@ export const KEY_DEFINITIONS = [
     key: "TIPS_CHANNEL_ID",
     category: "Sports Betting Tips",
     mandatory: false,
-    description: "Telegram Channel ID where automated tips are posted (e.g. -1004336999467)",
+    description: "Telegram Channel ID where automated tips are posted (e.g. -1001234567890)",
     validate: (val) => {
       if (!val) return null;
       if (val.includes("ID:") || val.includes("id:")) {
-        return "Must only contain the numeric ID, remove 'ID:' prefix (e.g. -1004336999467)";
+        return "Must only contain the numeric ID, remove 'ID:' prefix (e.g. -1001234567890)";
       }
       return null;
     },
