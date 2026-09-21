@@ -217,7 +217,12 @@ export function renderPrivacyPage(env: Env, request: Request, nonce?: string): s
       flex: 1;
     }
     .header-card {
-      margin-bottom: 24px;
+      margin-bottom: 28px;
+      padding: 24px 28px;
+      background: radial-gradient(circle at 85% 15%, rgba(56, 189, 248, 0.08) 0%, transparent 60%), linear-gradient(145deg, #0d1624 0%, #08101a 100%);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 16px;
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35);
     }
     .header-title {
       font-size: 28px;

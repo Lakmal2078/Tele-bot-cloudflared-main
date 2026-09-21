@@ -65,24 +65,29 @@ export function renderAdminLoginPage(
       font-family: Inter, ui-sans-serif, system-ui, sans-serif;
     }
     .login-card {
-      width: min(100% - 32px, 380px);
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 16px;
-      padding: 32px 28px;
+      width: min(100% - 32px, 400px);
+      background: radial-gradient(circle at 50% -20%, rgba(56, 189, 248, 0.14) 0%, transparent 65%), linear-gradient(145deg, #0d1726, #070d17);
+      border: 1px solid rgba(56, 189, 248, 0.28);
+      border-radius: 20px;
+      padding: 36px 30px;
       text-align: center;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
     }
-    .login-card h1 { font-size: 18px; font-weight: 800; margin: 12px 0 4px; }
-    .login-card p { font-size: 13px; color: #94a3b8; margin: 0 0 20px; }
+    .login-card h1 { font-size: 20px; font-weight: 800; margin: 14px 0 6px; color: #ffffff; }
+    .login-card p { font-size: 13px; color: #94a3b8; margin: 0 0 22px; }
     .login-card input {
       width: 100%; padding: 12px 14px; border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.35);
       color: #f1f5f9; font-size: 14px; margin-bottom: 12px;
+      transition: border-color 0.2s;
     }
+    .login-card input:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 12px rgba(56,189,248,0.25); }
     .login-card button {
       width: 100%; padding: 12px 14px; border-radius: 10px; border: none;
       background: #00e676; color: #04130b; font-weight: 800; font-size: 14px; cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
     }
+    .login-card button:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,230,118,0.3); }
     .login-card a { display: inline-block; margin-top: 16px; font-size: 12px; color: #64748b; text-decoration: none; }
     @media (max-width: 640px) {
       body { padding: 16px 12px; }
@@ -210,9 +215,12 @@ export function renderAdminPage(
       justify-content: space-between;
       align-items: center;
       gap: 16px;
-      padding-bottom: 24px;
+      padding: 20px 24px;
       margin-bottom: 24px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      background: radial-gradient(circle at 10% 20%, rgba(56, 189, 248, 0.09) 0%, transparent 50%), linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(11, 18, 32, 0.98));
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
     }
     .badge {
       display: inline-flex;
@@ -463,9 +471,9 @@ export function renderAdminPage(
     }
     /* Auth Form */
     .auth-banner {
-      background: rgba(30, 41, 59, 0.7);
-      border: 1px dashed rgba(255, 255, 255, 0.15);
-      border-radius: 10px;
+      background: linear-gradient(135deg, rgba(14, 26, 44, 0.9), rgba(10, 19, 32, 0.95));
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 12px;
       padding: 16px 20px;
       margin-bottom: 24px;
       display: flex;
@@ -473,6 +481,7 @@ export function renderAdminPage(
       align-items: center;
       justify-content: space-between;
       gap: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
     }
     .auth-input {
       background: #070b12;

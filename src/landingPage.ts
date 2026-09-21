@@ -496,6 +496,67 @@ function renderHeroTrustRibbon(lang: Lang): string {
   </div>`;
 }
 
+function renderFinalCtaBanner(c: (typeof T)[Lang], lang: Lang, eb: string): string {
+  const badgeText = lang === "si" 
+    ? "ක්ෂණික ආරම්භය • 1XBET TELEGRAM CASH DESK" 
+    : lang === "ta" 
+      ? "உடனடி தொடக்கம் • 1XBET TELEGRAM CASH DESK" 
+      : "INSTANT SETUP • 1XBET TELEGRAM CASH DESK";
+  const pillLabel = lang === "si" ? "24/7 සක්‍රියයි" : lang === "ta" ? "24/7 நேரலை" : "24/7 LIVE";
+
+  const headingHtml = lang === "si"
+    ? `<h2 class="finalHeading"><span class="hero-line">දැන්ම ආරම්භ කිරීමට <span class="hl-gradient hl-cash">සූදානම්ද?</span></span></h2>`
+    : lang === "ta"
+      ? `<h2 class="finalHeading"><span class="hero-line">இப்போதே தொடங்க <span class="hl-gradient hl-cash">தயாரா?</span></span></h2>`
+      : `<h2 class="finalHeading"><span class="hero-line">Ready to <span class="hl-gradient hl-cash">get started?</span></span></h2>`;
+
+  const ribbon = lang === "si" ? {
+    f1: "⚡ 5–15 විනාඩි Payouts",
+    f2: "💳 0% සැඟවුණු ගාස්තු",
+    f3: "🔒 Password අවශ්‍ය නෑ",
+    f4: "🇱🇰 24/7 සහාය"
+  } : lang === "ta" ? {
+    f1: "⚡ 5–15 நிமிடம் Payouts",
+    f2: "💳 0% மறைக்கப்பட்ட கட்டணம் இல்லை",
+    f3: "🔒 Password தேவையில்லை",
+    f4: "🇱🇰 24/7 ஆதரவு"
+  } : {
+    f1: "⚡ 5–15 Min Payouts",
+    f2: "💳 0% Hidden Fee",
+    f3: "🔒 No Password Required",
+    f4: "🇱🇰 24/7 Support"
+  };
+
+  return `<section class="final" id="start-now">
+    <div class="wrap">
+      <div class="finalBox">
+        <div class="hero-badge-wrap" style="justify-content:center; margin-bottom:14px;">
+          <div class="hero-badge">
+            <span class="hero-flag" aria-hidden="true">🇱🇰</span>
+            <span class="hero-badge-dot" aria-hidden="true"></span>
+            <span class="hero-badge-text">${badgeText}</span>
+            <span class="hero-badge-pill">${pillLabel}</span>
+          </div>
+        </div>
+        ${headingHtml}
+        <p class="finalDesc">${esc(c.final[1])}</p>
+        
+        <div class="final-trust-pills" aria-label="Benefits highlights">
+          <span class="final-pill">${ribbon.f1}</span>
+          <span class="final-pill">${ribbon.f2}</span>
+          <span class="final-pill">${ribbon.f3}</span>
+          <span class="final-pill">${ribbon.f4}</span>
+        </div>
+
+        <div class="actions heroActions" style="justify-content:center; margin-top:24px;">
+          <a class="btn primary heroPrimaryBtn" href="${eb}" data-track-cta="final_bot">✈ ${esc(c.hero[3])}</a>
+          <a class="btn secondary" href="#tips-preview" style="padding:15px 28px; border-radius:14px; font-weight:700;">🎯 ${esc(c.hero[4])}</a>
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
 export function renderLandingPage(env: Env, request: Request, nonce?: string): string {
   const n = nonce ? ` nonce="${esc(nonce)}"` : "";
   const channel = env.CHANNEL_URL?.trim() || CHANNEL_FALLBACK;
@@ -691,15 +752,15 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .mobile{display:none}
 
 /* Winning Tips Ticker Bar */
-.tickerBar{background:linear-gradient(90deg,#0a1320,#0e1a2b 50%,#0a1320);border-bottom:1px solid #00b4f822;overflow:hidden;padding:7px 0;position:relative}
+.tickerBar{background:linear-gradient(90deg,#070d15 0%,#0e1b2d 50%,#070d15 100%);border-bottom:1px solid rgba(56,189,248,0.2);overflow:hidden;padding:8px 0;position:relative;box-shadow:0 4px 15px rgba(0,0,0,0.3)}
 .tickerInner{display:flex;align-items:center;gap:14px}
-.tickerBadge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:6px;background:#ff477e1c;border:1px solid #ff477e44;color:#ff8ba7;font:800 .62rem ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;white-space:nowrap;flex-shrink:0}
+.tickerBadge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:rgba(255,71,126,0.18);border:1px solid rgba(255,71,126,0.4);color:#ff8ba7;font:800 .62rem ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;white-space:nowrap;flex-shrink:0}
 .tickerScroll{overflow:hidden;white-space:nowrap;display:flex;flex:1;mask-image:linear-gradient(90deg,transparent,black 3%,black 97%,transparent)}
 .tickerItems{display:inline-flex;gap:24px;animation:tickerScroll 32s linear infinite;will-change:transform}
 .tickerItems:hover{animation-play-state:paused}
-.tickerItem{display:inline-flex;align-items:center;gap:6px;color:#cbd5e1;font-size:.7rem;font-weight:600}
-.tickerItem b{color:var(--signal);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-.wonTag{display:inline-block;padding:1px 5px;border-radius:4px;background:#22c55e26;color:#86efac;font:800 .55rem ui-monospace,SFMono-Regular,Menlo,monospace}
+.tickerItem{display:inline-flex;align-items:center;gap:6px;color:#cbd5e1;font-size:.72rem;font-weight:600}
+.tickerItem b{color:#00e676;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:800}
+.wonTag{display:inline-block;padding:2px 6px;border-radius:6px;background:rgba(34,197,94,0.22);color:#86efac;border:1px solid rgba(34,197,94,0.35);font:800 .58rem ui-monospace,SFMono-Regular,Menlo,monospace}
 @keyframes tickerScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 
 /* Hero Section */
@@ -755,14 +816,15 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .pill{padding:6px 11px;border:1px solid var(--border);background:#ffffff05;border-radius:999px;color:var(--muted);font-size:.66rem;font-weight:700}
 
 /* Promo Banner */
-.promoBar{display:inline-flex;align-items:center;gap:10px;margin-top:18px;padding:8px 14px;border:1px solid #a6f80033;border-radius:999px;background:#a6f8000b;flex-wrap:wrap}
-.promoTag{font-size:.6rem;font-weight:900;letter-spacing:.1em;color:var(--signal);background:#a6f80018;padding:3px 7px;border-radius:6px}
-.promoCodeWrap{display:inline-flex;align-items:center;gap:8px}
-.promoCodeWrap strong{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem;color:#fff;letter-spacing:.05em}
-.promoCopyBtn{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;border:1px solid #ffffff22;background:#ffffff10;color:var(--fg);font-size:.65rem;font-weight:700;cursor:pointer;transition:background .2s,border-color .2s,transform .15s}
-.promoCopyBtn:hover{background:#ffffff20;border-color:var(--signal);transform:translateY(-1px)}
-.promoCopyBtn.copied{background:#22c55e22;border-color:#22c55e;color:#86efac}
-.promoNote{font-size:.64rem;color:var(--muted)}
+.promoBar{display:inline-flex;align-items:center;gap:10px;margin-top:20px;padding:8px 14px;border:1px solid rgba(166,248,0,0.38);border-radius:14px;background:linear-gradient(135deg,rgba(166,248,0,0.08),rgba(14,26,44,0.95));box-shadow:0 8px 24px rgba(0,0,0,0.35),0 0 20px rgba(166,248,0,0.12),inset 0 1px 0 rgba(255,255,255,0.12);flex-wrap:wrap}
+.promoTag{font-size:.65rem;font-weight:900;letter-spacing:.1em;color:#071006;background:linear-gradient(135deg,#00e676,#a6f800);padding:4px 9px;border-radius:8px;text-transform:uppercase;box-shadow:0 2px 8px rgba(0,230,118,0.3)}
+.promoCodeWrap{display:inline-flex;align-items:center;gap:8px;background:rgba(0,0,0,0.45);padding:4px 10px;border-radius:8px;border:1px dashed rgba(166,248,0,0.45)}
+.promoCodeWrap code,.promoCodeWrap strong{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92rem;font-weight:800;color:#38bdf8;letter-spacing:.06em}
+.promoCopyBtn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:8px;border:1px solid rgba(56,189,248,0.35);background:linear-gradient(135deg,rgba(56,189,248,0.15),rgba(34,158,217,0.25));color:#ffffff;font-size:.68rem;font-weight:800;cursor:pointer;transition:all .18s ease}
+.promoCopyBtn:hover{background:linear-gradient(135deg,rgba(56,189,248,0.3),rgba(34,158,217,0.4));border-color:#38bdf8;transform:translateY(-1px);box-shadow:0 4px 14px rgba(56,189,248,0.3)}
+.promoCopyBtn.copied{background:rgba(34,197,94,0.25);border-color:#22c55e;color:#86efac}
+.promoNote{font-size:.72rem;color:#f8fafc;font-weight:700;display:inline-flex;align-items:center;gap:5px}
+.promoNote::before{content:"🎁";font-size:.85rem}
 
 /* Phone Mockup */
 #edge-visual{position:relative;width:100%;max-width:100%;display:flex;justify-content:center;overflow:hidden}
@@ -797,9 +859,9 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 /* Sections */
 .section{padding:70px 0}
 .head{max-width:740px;margin-bottom:28px}
-.kicker{color:var(--cyan);font:800 .68rem ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.2em;text-transform:uppercase}
-.head h2{margin:10px 0 8px;font-size:clamp(2rem,4.3vw,3.4rem);line-height:1.05;letter-spacing:-.045em}
-.head p{margin:0;color:var(--muted);font-size:.9rem}
+.kicker{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:999px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.28);color:#38bdf8;font:800 .68rem ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;box-shadow:0 2px 10px rgba(0,0,0,0.25);margin-bottom:8px}
+.head h2{margin:10px 0 8px;font-family:"Noto Sans Sinhala","Plus Jakarta Sans","Noto Sans Tamil",system-ui,sans-serif;font-size:clamp(1.95rem,4.2vw,3.2rem);line-height:1.22;letter-spacing:-.02em;font-weight:800;color:#ffffff}
+.head p{margin:0;color:#cbd5e1;font-size:.92rem;line-height:1.6}
 .services{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 .service{display:flex;flex-direction:column;min-height:215px;padding:21px;border:1px solid var(--border);border-radius:22px;background:linear-gradient(145deg,#151d29,#0d131d);box-shadow:0 12px 40px #0004}
 .icon{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:#a6f80010;color:var(--signal);font-size:1.05rem}
@@ -903,12 +965,12 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .secItem p{margin:0;font-size:.7rem;color:var(--muted);line-height:1.45}
 
 /* Responsible Gaming */
-.responsible-gaming-box{display:grid;grid-template-columns:.8fr 1.2fr;gap:25px;padding:27px;border:1px solid #ff477e3d;border-radius:25px;background:linear-gradient(145deg,#ff477e0b,#ff6b5706)}
-.responsible-gaming-box h2{margin:7px 0 8px;font-size:1.6rem;letter-spacing:-.03em}
-.responsible-gaming-box p,.responsible-gaming-box li{color:var(--muted);font-size:.72rem}
-.responsible-gaming-box ul{margin:0;padding:0;list-style:none;display:grid;gap:7px}
-.responsible-gaming-box li{padding:9px 11px;border-radius:10px;background:#ffffff04}
-.notice{grid-column:1/-1;padding-top:13px;border-top:1px solid #ff477e1c;color:#ffb5c4;font-size:.65rem}
+.responsible-gaming-box{display:grid;grid-template-columns:.85fr 1.15fr;gap:28px;padding:34px;border:1px solid rgba(245,158,11,0.38);border-radius:26px;background:radial-gradient(circle at 10% 20%,rgba(245,158,11,0.12) 0%,transparent 45%),radial-gradient(circle at 90% 80%,rgba(239,68,68,0.08) 0%,transparent 40%),linear-gradient(145deg,#131924 0%,#0c121c 100%);box-shadow:0 16px 45px rgba(0,0,0,0.45),inset 0 1px 0 rgba(255,255,255,0.08)}
+.responsible-gaming-box h2{margin:8px 0 10px;font-size:1.65rem;letter-spacing:-.02em;color:#fcd34d;font-weight:800}
+.responsible-gaming-box p,.responsible-gaming-box li{color:#cbd5e1;font-size:.78rem;line-height:1.65}
+.responsible-gaming-box ul{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+.responsible-gaming-box li{padding:10px 14px;border-radius:12px;background:rgba(255,255,255,0.04);border:1px solid rgba(245,158,11,0.15)}
+.notice{grid-column:1/-1;padding-top:14px;border-top:1px solid rgba(245,158,11,0.24);color:#fde68a;font-size:.72rem;font-weight:600}
 
 /* FAQ */
 .faq{display:grid;grid-template-columns:.8fr 1.2fr;gap:45px}
@@ -917,11 +979,15 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .faqs summary{cursor:pointer;padding:14px;font-weight:800;font-size:.74rem}
 .answer{padding:0 14px 14px;color:var(--muted);font-size:.7rem}
 
-/* Final */
-.final{padding:15px 0 75px}
-.finalBox{text-align:center;padding:48px 25px;border:1px solid #00b4f833;border-radius:28px;background:radial-gradient(circle at 78% 15%,#ff477e18,transparent 30%),linear-gradient(135deg,#111a27,#0b121d)}
-.finalBox h2{margin:0;font-size:clamp(2rem,4.5vw,3.5rem);letter-spacing:-.05em}
-.finalBox p{max-width:650px;margin:10px auto 20px;color:var(--muted);font-size:.85rem}
+/* Final CTA Banner */
+.final{padding:25px 0 80px}
+.finalBox{position:relative;overflow:hidden;text-align:center;padding:56px 28px;border:1px solid rgba(56,189,248,0.32);border-radius:28px;background:radial-gradient(circle at 50% -10%,rgba(0,230,118,0.16) 0%,transparent 60%),radial-gradient(circle at 85% 110%,rgba(56,189,248,0.14) 0%,transparent 55%),linear-gradient(145deg,#0d1827 0%,#09101b 100%);box-shadow:0 24px 60px rgba(0,0,0,0.55),inset 0 1px 0 rgba(255,255,255,0.12)}
+.finalBox::before{content:"";position:absolute;top:-60px;left:-60px;width:340px;height:340px;background:radial-gradient(circle,rgba(0,230,118,0.14) 0%,transparent 70%);pointer-events:none;filter:blur(50px)}
+.finalBox::after{content:"";position:absolute;bottom:-60px;right:-60px;width:340px;height:340px;background:radial-gradient(circle,rgba(56,189,248,0.14) 0%,transparent 70%);pointer-events:none;filter:blur(50px)}
+.finalBox h2,.finalBox h2.finalHeading{position:relative;z-index:1;margin:0 0 12px;font-family:"Noto Sans Sinhala","Plus Jakarta Sans","Noto Sans Tamil",system-ui,sans-serif;font-size:clamp(2.1rem,4.8vw,3.5rem);line-height:1.24;letter-spacing:-.02em;font-weight:800;color:#ffffff}
+.finalBox p.finalDesc{position:relative;z-index:1;max-width:640px;margin:0 auto 20px;color:#cbd5e1;font-size:1.02rem;line-height:1.65}
+.final-trust-pills{position:relative;z-index:1;display:inline-flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:12px auto 6px}
+.final-pill{padding:6px 14px;border-radius:999px;background:rgba(14,26,44,0.85);border:1px solid rgba(255,255,255,0.1);color:#e2e8f0;font-size:.78rem;font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(0,0,0,0.3)}
 
 /* Footer */
 .footer{padding:36px 0 80px;border-top:1px solid var(--border)}
@@ -1000,8 +1066,12 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
   .trust,.services,.steps,.faq{grid-template-columns:1fr}
   .payments{grid-template-columns:1fr 1fr}
   .calcBody{grid-template-columns:1fr}
-  .responsible-gaming-box{grid-template-columns:1fr}
+  .responsible-gaming-box{grid-template-columns:1fr;padding:24px 18px}
   .notice{grid-column:auto}
+  .finalBox{padding:36px 18px}
+  .finalBox h2,.finalBox h2.finalHeading{font-size:clamp(1.75rem,7vw,2.4rem)}
+  .final-trust-pills{gap:6px}
+  .final-pill{font-size:.7rem;padding:5px 10px}
   .foot{grid-template-columns:1fr 1fr}
   .bottom{display:grid}
 }
@@ -1368,14 +1438,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
   <div class="faqs">${faqHtml}</div>
 </div></section>
 
-<section class="final"><div class="wrap"><div class="finalBox">
-  <h2>${esc(c.final[0])}</h2>
-  <p>${esc(c.final[1])}</p>
-  <div class="actions" style="justify-content:center">
-    <a class="btn primary" href="${eb}" data-track-cta="final_bot">✈ ${esc(c.hero[3])}</a>
-    <a class="btn secondary" href="#tips-preview">${esc(c.hero[4])}</a>
-  </div>
-</div></div></section>
+${renderFinalCtaBanner(c, lang, eb)}
 
 <!-- 18+ Responsible Gaming & Regulatory Notice (Footer Level) -->
 <section class="section" id="responsible-gaming" style="padding:28px 0 10px"><div class="wrap"><div class="responsible-gaming-box">
