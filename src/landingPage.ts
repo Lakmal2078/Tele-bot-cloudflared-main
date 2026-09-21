@@ -411,6 +411,91 @@ function paymentIcon(name: string): string {
   return `<svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#0F172A"/><path d="M6 13h20M7 13v9M11 13v9M16 13v9M21 13v9M25 13v9M16 6l11 5H5l11-5zM5 24h22" stroke="#38BDF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
+function renderHeroEyebrow(c: (typeof T)[Lang], lang: Lang): string {
+  const pillLabel = lang === "si" ? "නිල BOT" : lang === "ta" ? "அதிகாரப்பூர்வ BOT" : "OFFICIAL BOT";
+  return `<div class="hero-badge-wrap">
+    <div class="hero-badge">
+      <span class="hero-flag" aria-hidden="true">🇱🇰</span>
+      <span class="hero-badge-dot" aria-hidden="true"></span>
+      <span class="hero-badge-text">${esc(c.hero[0])}</span>
+      <span class="hero-badge-pill">${pillLabel}</span>
+    </div>
+  </div>`;
+}
+
+function renderHeroHeading(lang: Lang): string {
+  if (lang === "si") {
+    return `<h1 class="heroHeading">
+      <span class="hero-line">වේගවත් <span class="hl-gradient hl-tips">tips</span>. සරල <span class="hl-gradient hl-cash">cash</span>.</span>
+      <br class="hero-br">
+      <span class="hero-line">එක <span class="hl-gradient hl-tg">Telegram</span> එකක්.</span>
+    </h1>`;
+  }
+  if (lang === "ta") {
+    return `<h1 class="heroHeading">
+      <span class="hero-line">வேகமான <span class="hl-gradient hl-tips">tips</span>. எளிய <span class="hl-gradient hl-cash">cash</span>.</span>
+      <br class="hero-br">
+      <span class="hero-line">ஒரே <span class="hl-gradient hl-tg">Telegram</span>.</span>
+    </h1>`;
+  }
+  return `<h1 class="heroHeading">
+    <span class="hero-line">Fast <span class="hl-gradient hl-tips">tips</span>. Simple <span class="hl-gradient hl-cash">cash</span>.</span>
+    <br class="hero-br">
+    <span class="hero-line">One <span class="hl-gradient hl-tg">Telegram</span>.</span>
+  </h1>`;
+}
+
+function renderHeroSubtitle(c: (typeof T)[Lang], lang: Lang): string {
+  if (lang === "si") {
+    return `<p class="hero-subtitle">නොමිලේ ක්‍රීඩා උපදෙස්, <strong class="hero-hl">eZ Cash / mCash / Bank</strong> තැන්පතු සහ මුදල් ආපසු ගැනීම් — එකම Telegram bot එකක් හරහා. Extra apps අවශ්‍ය නැහැ.</p>`;
+  }
+  if (lang === "ta") {
+    return `<p class="hero-subtitle">Free sports tips, <strong class="hero-hl">eZ Cash / mCash / Bank</strong> deposits மற்றும் withdrawals — ஒரே Telegram bot-ல். கூடுதல் செயலிகள் தேவையில்லை.</p>`;
+  }
+  return `<p class="hero-subtitle">Free sports tips, <strong class="hero-hl">eZ Cash / mCash / Bank</strong> deposits and fast withdrawals — all inside one official Telegram bot. No extra apps needed.</p>`;
+}
+
+function renderHeroTrustRibbon(lang: Lang): string {
+  const t = lang === "si" ? {
+    payouts: "5–15 Min",
+    payoutsLbl: "වේගවත් ගෙවීම්",
+    fee: "0% Fee",
+    feeLbl: "සැඟවුණු ගාස්තු නෑ",
+    tips: "Daily VIP",
+    tipsLbl: "නොමිලේ Tips",
+    secure: "100% Safe",
+    secureLbl: "Cloudflare Secured"
+  } : lang === "ta" ? {
+    payouts: "5–15 Min",
+    payoutsLbl: "வேகமான பேமெண்ட்",
+    fee: "0% Fee",
+    feeLbl: "மறைக்கப்பட்ட கட்டணம் இல்லை",
+    tips: "Daily VIP",
+    tipsLbl: "இலவச Tips",
+    secure: "100% Safe",
+    secureLbl: "Cloudflare Secured"
+  } : {
+    payouts: "5–15 Min",
+    payoutsLbl: "Fast Payouts",
+    fee: "0% Fee",
+    feeLbl: "Zero Hidden Fees",
+    tips: "Daily VIP",
+    tipsLbl: "Free Tips Drop",
+    secure: "100% Safe",
+    secureLbl: "Cloudflare Secured"
+  };
+
+  return `<div class="hero-trust-ribbon" aria-label="Key operational highlights">
+    <div class="trust-item"><span class="trust-icon">⚡</span> <span><strong class="trust-title">${t.payouts}</strong> <span class="trust-sub">${t.payoutsLbl}</span></span></div>
+    <div class="trust-sep" aria-hidden="true"></div>
+    <div class="trust-item"><span class="trust-icon">💳</span> <span><strong class="trust-title">${t.fee}</strong> <span class="trust-sub">${t.feeLbl}</span></span></div>
+    <div class="trust-sep" aria-hidden="true"></div>
+    <div class="trust-item"><span class="trust-icon">🎯</span> <span><strong class="trust-title">${t.tips}</strong> <span class="trust-sub">${t.tipsLbl}</span></span></div>
+    <div class="trust-sep" aria-hidden="true"></div>
+    <div class="trust-item"><span class="trust-icon">🛡️</span> <span><strong class="trust-title">${t.secure}</strong> <span class="trust-sub">${t.secureLbl}</span></span></div>
+  </div>`;
+}
+
 export function renderLandingPage(env: Env, request: Request, nonce?: string): string {
   const n = nonce ? ` nonce="${esc(nonce)}"` : "";
   const channel = env.CHANNEL_URL?.trim() || CHANNEL_FALLBACK;
@@ -618,14 +703,47 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 @keyframes tickerScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 
 /* Hero Section */
-.hero{padding:70px 0 52px}
-.heroGrid{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(350px,.92fr);gap:60px;align-items:center}
-.eyebrow{color:#e5edf7;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.68rem;font-weight:800;letter-spacing:.22em;text-transform:uppercase}
-.hero h1{max-width:640px;margin:18px 0 22px;font-size:clamp(3.1rem,6.8vw,5.8rem);line-height:.98;letter-spacing:-.065em;font-weight:800}
-.hero p{max-width:610px;color:var(--muted);font-size:1rem;margin:0}
+.hero{position:relative;padding:68px 0 54px;overflow:hidden}
+.hero::before{content:"";position:absolute;top:-80px;left:-60px;width:560px;height:560px;background:radial-gradient(circle,rgba(0,230,118,0.12) 0%,transparent 70%);pointer-events:none;z-index:0;filter:blur(50px)}
+.hero::after{content:"";position:absolute;top:-40px;right:-60px;width:620px;height:620px;background:radial-gradient(circle,rgba(0,180,248,0.13) 0%,rgba(34,158,217,0) 70%);pointer-events:none;z-index:0;filter:blur(60px)}
+.heroGrid{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1.12fr) minmax(350px,.88fr);gap:56px;align-items:center}
+
+/* Eyebrow Badge */
+.hero-badge-wrap{display:inline-flex;margin-bottom:14px}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 14px 6px 10px;background:linear-gradient(135deg,rgba(10,19,32,0.92),rgba(14,26,44,0.95));border:1px solid rgba(56,189,248,0.3);border-radius:999px;box-shadow:0 6px 20px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.12);backdrop-filter:blur(10px)}
+.hero-flag{font-size:1.15rem;line-height:1;display:inline-block;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))}
+.hero-badge-dot{width:7px;height:7px;border-radius:50%;background:#00e676;box-shadow:0 0 10px #00e676,0 0 20px #00e676;display:inline-block;animation:heroPulseDot 2s ease-in-out infinite}
+@keyframes heroPulseDot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.85)}}
+.hero-badge-text{font-size:.74rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#e2e8f0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.hero-badge-pill{font-size:.62rem;font-weight:900;letter-spacing:.06em;padding:2px 8px;border-radius:999px;background:rgba(0,230,118,0.18);color:#00e676;border:1px solid rgba(0,230,118,0.38);margin-left:2px}
+
+/* Hero Heading */
+.hero h1,.hero h1.heroHeading{max-width:680px;margin:10px 0 18px;font-family:"Noto Sans Sinhala","Plus Jakarta Sans","Noto Sans Tamil",system-ui,sans-serif;font-size:clamp(2.35rem,5.6vw,4.5rem);line-height:1.22;letter-spacing:-0.015em;font-weight:800;color:#ffffff;word-break:normal;overflow-wrap:normal}
+.hero-line{display:inline}
+@media (min-width:640px){.hero-line{display:inline-block}}
+.hero-br{display:none}
+@media (min-width:640px){.hero-br{display:block}}
+.hl-gradient{background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:900}
+.hl-tips{background-image:linear-gradient(135deg,#38bdf8 0%,#00e5ff 100%);filter:drop-shadow(0 0 18px rgba(56,189,248,0.45))}
+.hl-cash{background-image:linear-gradient(135deg,#00e676 0%,#a6f800 100%);filter:drop-shadow(0 0 18px rgba(0,230,118,0.45))}
+.hl-tg{background-image:linear-gradient(135deg,#38bdf8 0%,#229ED9 100%);filter:drop-shadow(0 0 18px rgba(34,158,217,0.45))}
+
+/* Hero Subtitle */
+.hero p.hero-subtitle{max-width:620px;color:#cbd5e1;font-size:1.02rem;line-height:1.68;margin:0 0 18px;font-weight:400}
+.hero-subtitle .hero-hl{color:#f8fafc;font-weight:700}
+
+/* Hero Trust Ribbon */
+.hero-trust-ribbon{display:inline-flex;align-items:center;gap:12px;margin-bottom:20px;padding:9px 15px;background:rgba(14,23,38,0.75);border:1px solid rgba(255,255,255,0.09);border-radius:12px;max-width:100%;flex-wrap:wrap;box-shadow:0 4px 16px rgba(0,0,0,0.25)}
+.trust-item{display:inline-flex;align-items:center;gap:7px;font-size:.76rem;color:#cbd5e1}
+.trust-icon{font-size:.9rem}
+.trust-title{color:#38bdf8;font-weight:800}
+.trust-sub{color:#94a3b8;font-size:.72rem}
+.trust-sep{width:1px;height:16px;background:rgba(255,255,255,0.12)}
+@media (max-width:640px){.hero-trust-ribbon{gap:8px;padding:8px 10px}.trust-sep{display:none}}
+
 .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
-.heroActions{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px;align-items:center}
-.heroPrimaryBtn{display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:15px 32px;font-size:.95rem;letter-spacing:-.01em;font-weight:900;background:var(--signal);color:#071006;border-radius:14px;box-shadow:0 14px 34px #a6f8003a,0 0 0 1px #a6f80077;transition:transform .18s ease,box-shadow .18s ease}
+.heroActions{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px;align-items:center}
+.heroPrimaryBtn{display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:15px 32px;font-size:.95rem;letter-spacing:-.01em;font-weight:900;background:linear-gradient(135deg,#00e676,#a6f800);color:#071006;border-radius:14px;box-shadow:0 14px 34px #a6f8003a,0 0 0 1px #a6f80077;transition:transform .18s ease,box-shadow .18s ease}
 .heroPrimaryBtn:hover{transform:translateY(-2px);box-shadow:0 18px 40px #a6f80055,0 0 0 2px #a6f800}
 .heroSubActions{display:flex;align-items:center;gap:12px;margin-top:14px;font-size:.78rem;color:var(--muted)}
 .subLink{color:var(--muted);text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:color .18s ease}
@@ -867,9 +985,11 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
   .mobile.open{display:grid;position:absolute;right:12px;top:calc(100% + 7px);width:min(320px,calc(100vw - 24px));padding:9px;background:#0a101af7;border:1px solid var(--border);border-radius:17px;box-shadow:0 20px 50px #000b}
   .mobile a{padding:11px;color:var(--muted);font-weight:700}
   .mobile .btn{margin-top:4px;color:#071006}
-  .hero{padding:42px 0 30px;max-width:100%;overflow:hidden}
+  .hero{padding:38px 0 28px;max-width:100%;overflow:hidden}
   .heroGrid{gap:28px;max-width:100%}
-  .hero h1{font-size:clamp(2.5rem,11vw,3.8rem);word-break:break-word}
+  .hero h1,.hero h1.heroHeading{font-size:clamp(1.95rem,8.2vw,2.95rem);line-height:1.24;letter-spacing:-0.01em;word-break:normal;overflow-wrap:normal}
+  .hero-badge{max-width:100%;box-sizing:border-box}
+  .hero-badge-text{font-size:.66rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .actions{display:grid}
   .actions .btn{width:100%}
   .promoBar{max-width:100%;box-sizing:border-box;border-radius:16px;padding:6px 10px;gap:6px}
@@ -975,9 +1095,10 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 <section class="hero" id="home">
   <div class="wrap heroGrid">
     <div>
-      <div class="eyebrow">${esc(c.hero[0])}</div>
-      <h1>${esc(c.hero[1])}</h1>
-      <p>${esc(c.hero[2])}</p>
+      ${renderHeroEyebrow(c, lang)}
+      ${renderHeroHeading(lang)}
+      ${renderHeroSubtitle(c, lang)}
+      ${renderHeroTrustRibbon(lang)}
       
       <!-- Clear Above-The-Fold Primary CTA (Focused Conversion Goal) -->
       <div class="actions heroActions">
