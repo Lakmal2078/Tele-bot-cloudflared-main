@@ -1,4 +1,5 @@
 import type { Env } from "./types";
+import { generateQrSvg } from "./qrSvg";
 
 const BOT_FALLBACK = "fast_1xbetcash_bot";
 const CHANNEL_FALLBACK = "https://t.me/fast_xbet_official_tips";
@@ -25,69 +26,18 @@ export function trustedPublicBaseUrl(env: Env, request: Request): string | null 
   try { return new URL(request.url).origin; } catch { return null; }
 }
 
-function qrCodeSvg(): string {
-  return `<svg viewBox="0 0 200 200" width="180" height="180" xmlns="http://www.w3.org/2000/svg" class="qrSvg" aria-label="QR Code">
-  <rect width="200" height="200" rx="16" fill="#ffffff"/>
-  <rect x="20" y="20" width="46" height="46" rx="6" fill="#0088cc"/>
-  <rect x="26" y="26" width="34" height="34" rx="4" fill="#ffffff"/>
-  <rect x="33" y="33" width="20" height="20" rx="3" fill="#0088cc"/>
-  <rect x="134" y="20" width="46" height="46" rx="6" fill="#0088cc"/>
-  <rect x="140" y="26" width="34" height="34" rx="4" fill="#ffffff"/>
-  <rect x="147" y="33" width="20" height="20" rx="3" fill="#0088cc"/>
-  <rect x="20" y="134" width="46" height="46" rx="6" fill="#0088cc"/>
-  <rect x="26" y="140" width="34" height="34" rx="4" fill="#ffffff"/>
-  <rect x="33" y="147" width="20" height="20" rx="3" fill="#0088cc"/>
-  <g fill="#1e293b">
-    <rect x="76" y="24" width="6" height="6" rx="1"/>
-    <rect x="90" y="24" width="6" height="6" rx="1"/>
-    <rect x="104" y="24" width="6" height="6" rx="1"/>
-    <rect x="118" y="24" width="6" height="6" rx="1"/>
-    <rect x="24" y="76" width="6" height="6" rx="1"/>
-    <rect x="24" y="90" width="6" height="6" rx="1"/>
-    <rect x="24" y="104" width="6" height="6" rx="1"/>
-    <rect x="24" y="118" width="6" height="6" rx="1"/>
-    <rect x="76" y="40" width="6" height="6" rx="1"/>
-    <rect x="90" y="40" width="6" height="6" rx="1"/>
-    <rect x="104" y="40" width="6" height="6" rx="1"/>
-    <rect x="118" y="40" width="6" height="6" rx="1"/>
-    <rect x="76" y="56" width="6" height="6" rx="1"/>
-    <rect x="104" y="56" width="6" height="6" rx="1"/>
-    <rect x="118" y="56" width="6" height="6" rx="1"/>
-    <rect x="76" y="72" width="6" height="6" rx="1"/>
-    <rect x="90" y="72" width="6" height="6" rx="1"/>
-    <rect x="118" y="72" width="6" height="6" rx="1"/>
-    <rect x="40" y="76" width="6" height="6" rx="1"/>
-    <rect x="54" y="76" width="6" height="6" rx="1"/>
-    <rect x="40" y="90" width="6" height="6" rx="1"/>
-    <rect x="54" y="104" width="6" height="6" rx="1"/>
-    <rect x="40" y="118" width="6" height="6" rx="1"/>
-    <rect x="140" y="76" width="6" height="6" rx="1"/>
-    <rect x="154" y="76" width="6" height="6" rx="1"/>
-    <rect x="168" y="76" width="6" height="6" rx="1"/>
-    <rect x="140" y="90" width="6" height="6" rx="1"/>
-    <rect x="168" y="90" width="6" height="6" rx="1"/>
-    <rect x="154" y="104" width="6" height="6" rx="1"/>
-    <rect x="140" y="118" width="6" height="6" rx="1"/>
-    <rect x="168" y="118" width="6" height="6" rx="1"/>
-    <rect x="76" y="134" width="6" height="6" rx="1"/>
-    <rect x="90" y="134" width="6" height="6" rx="1"/>
-    <rect x="118" y="134" width="6" height="6" rx="1"/>
-    <rect x="140" y="134" width="6" height="6" rx="1"/>
-    <rect x="154" y="134" width="6" height="6" rx="1"/>
-    <rect x="168" y="134" width="6" height="6" rx="1"/>
-    <rect x="76" y="148" width="6" height="6" rx="1"/>
-    <rect x="104" y="148" width="6" height="6" rx="1"/>
-    <rect x="140" y="148" width="6" height="6" rx="1"/>
-    <rect x="168" y="148" width="6" height="6" rx="1"/>
-    <rect x="76" y="162" width="6" height="6" rx="1"/>
-    <rect x="90" y="162" width="6" height="6" rx="1"/>
-    <rect x="104" y="162" width="6" height="6" rx="1"/>
-    <rect x="118" y="162" width="6" height="6" rx="1"/>
-    <rect x="154" y="162" width="6" height="6" rx="1"/>
-  </g>
-  <circle cx="100" cy="100" r="16" fill="#0088cc"/>
-  <path d="M92 100l6 6 12-12" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-</svg>`;
+export function makeLangUrl(request: Request, targetLang: Lang): string {
+  try {
+    const u = new URL(request.url);
+    u.searchParams.set("lang", targetLang);
+    return `${u.pathname}${u.search}${u.hash}`;
+  } catch {
+    return `?lang=${targetLang}`;
+  }
+}
+
+export function qrCodeSvg(targetUrl: string = "https://t.me/fast_1xbetcash_bot?start=landing_qr"): string {
+  return generateQrSvg(targetUrl, { size: 180 });
 }
 
 const T: Record<Lang, {
@@ -457,32 +407,32 @@ function renderHeroSubtitle(c: (typeof T)[Lang], lang: Lang): string {
 
 function renderHeroTrustRibbon(lang: Lang): string {
   const t = lang === "si" ? {
-    payouts: "5–15 Min",
-    payoutsLbl: "වේගවත් ගෙවීම්",
-    fee: "0% Fee",
+    payouts: "5–15 Min*",
+    payoutsLbl: "වේගවත් ගෙවීම් (සාමාන්‍ය)",
+    fee: "0% ගාස්තු*",
     feeLbl: "සැඟවුණු ගාස්තු නෑ",
     tips: "Daily VIP",
     tipsLbl: "නොමිලේ Tips",
-    secure: "100% Safe",
-    secureLbl: "Cloudflare Secured"
+    secure: "SSL Secured",
+    secureLbl: "Cloudflare ආරක්ෂිතයි"
   } : lang === "ta" ? {
-    payouts: "5–15 Min",
+    payouts: "5–15 Min*",
     payoutsLbl: "வேகமான பேமெண்ட்",
-    fee: "0% Fee",
+    fee: "0% கட்டணம்*",
     feeLbl: "மறைக்கப்பட்ட கட்டணம் இல்லை",
     tips: "Daily VIP",
     tipsLbl: "இலவச Tips",
-    secure: "100% Safe",
+    secure: "SSL Secured",
     secureLbl: "Cloudflare Secured"
   } : {
-    payouts: "5–15 Min",
-    payoutsLbl: "Fast Payouts",
-    fee: "0% Fee",
+    payouts: "5–15 Min*",
+    payoutsLbl: "Fast Payouts (Typical)",
+    fee: "0% Extra*",
     feeLbl: "Zero Hidden Fees",
     tips: "Daily VIP",
     tipsLbl: "Free Tips Drop",
-    secure: "100% Safe",
-    secureLbl: "Cloudflare Secured"
+    secure: "SSL Secured",
+    secureLbl: "Cloudflare Protected"
   };
 
   return `<div class="hero-trust-ribbon" aria-label="Key operational highlights">
@@ -511,20 +461,20 @@ function renderFinalCtaBanner(c: (typeof T)[Lang], lang: Lang, eb: string): stri
       : `<h2 class="finalHeading"><span class="hero-line">Ready to <span class="hl-gradient hl-cash">get started?</span></span></h2>`;
 
   const ribbon = lang === "si" ? {
-    f1: "⚡ 5–15 විනාඩි Payouts",
-    f2: "💳 0% සැඟවුණු ගාස්තු",
+    f1: "⚡ සාමාන්‍යයෙන් 5–15m Payouts",
+    f2: "💳 0% සැඟවුණු අමතර ගාස්තු",
     f3: "🔒 Password අවශ්‍ය නෑ",
-    f4: "🇱🇰 24/7 සහාය"
+    f4: "🇱🇰 24/7 පාරිභෝගික සහාය"
   } : lang === "ta" ? {
-    f1: "⚡ 5–15 நிமிடம் Payouts",
-    f2: "💳 0% மறைக்கப்பட்ட கட்டணம் இல்லை",
+    f1: "⚡ வழக்கமாக 5–15m Payouts",
+    f2: "💳 0% மறைக்கப்பட்ட கூடுதல் கட்டணம்",
     f3: "🔒 Password தேவையில்லை",
-    f4: "🇱🇰 24/7 ஆதரவு"
+    f4: "🇱🇰 24/7 வாடிக்கையாளர் ஆதரவு"
   } : {
-    f1: "⚡ 5–15 Min Payouts",
-    f2: "💳 0% Hidden Fee",
-    f3: "🔒 No Password Required",
-    f4: "🇱🇰 24/7 Support"
+    f1: "⚡ Typically 5–15m Payouts",
+    f2: "💳 Zero Hidden Platform Fees",
+    f3: "🔒 No Passwords Requested",
+    f4: "🇱🇰 24/7 Telegram Support"
   };
 
   return `<section class="final" id="start-now">
@@ -567,7 +517,8 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
 
   let lang: Lang = "si";
   const trustedOrigin = trustedPublicBaseUrl(env, request);
-  const url = trustedOrigin ? `${trustedOrigin}/` : "/";
+  const siteUrl = trustedOrigin ? `${trustedOrigin}/` : "";
+  const ea = trustedOrigin ? esc(siteUrl) : "/";
   try {
     const u = new URL(request.url);
     const q = u.searchParams.get("lang")?.toLowerCase();
@@ -580,7 +531,6 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
   } catch {}
 
   const c = T[lang];
-  const ea = esc(url);
   const eb = esc(bot);
   const ebTips = esc(`https://t.me/${botName}?start=tips`);
   const ec = esc(channel);
@@ -591,35 +541,35 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
     name: q,
     acceptedAnswer: { "@type": "Answer", text: c.faqAnswers[i] }
   }));
-  const ld = jsonEsc(JSON.stringify({
+  const ld = siteUrl ? jsonEsc(JSON.stringify({
     "@context": "https://schema.org",
     "@graph": [
       {
         "@type": "Organization",
-        "@id": `${url}#organization`,
+        "@id": `${siteUrl}#organization`,
         name: "Fast xBet Cash",
-        url,
-        logo: `${url}og-image.jpg`,
-        image: `${url}og-image.jpg`,
+        url: siteUrl,
+        logo: `${siteUrl}og-image.jpg`,
+        image: `${siteUrl}og-image.jpg`,
         sameAs: [channel, `https://t.me/${botName}`],
         areaServed: "LK",
         availableLanguage: ["si", "en", "ta"]
       },
       {
         "@type": "WebSite",
-        "@id": `${url}#website`,
-        url,
+        "@id": `${siteUrl}#website`,
+        url: siteUrl,
         name: "Fast xBet Cash 🇱🇰",
-        publisher: { "@id": `${url}#organization` },
+        publisher: { "@id": `${siteUrl}#organization` },
         inLanguage: ["si", "en", "ta"]
       },
       {
         "@type": "FAQPage",
-        "@id": `${url}#faq`,
+        "@id": `${siteUrl}#faq`,
         mainEntity: faq
       }
     ]
-  }));
+  })) : "";
 
   const payments = c.pay.slice(1).map((p) =>
     `<article class="payment">
@@ -661,6 +611,25 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
     ? `<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "${esc(analyticsToken)}"}'>${""}</script>`
     : "";
 
+  const ogImageUrl = trustedOrigin ? esc(`${trustedOrigin}/og-image.jpg?v=3`) : "";
+  const canonicalAndOgTags = trustedOrigin ? `
+<link rel="canonical" href="${ea}">
+<link rel="alternate" hreflang="si" href="${ea}?lang=si">
+<link rel="alternate" hreflang="en" href="${ea}?lang=en">
+<link rel="alternate" hreflang="ta" href="${ea}?lang=ta">
+<link rel="alternate" hreflang="x-default" href="${ea}">
+<meta property="og:url" content="${ea}">
+<meta property="og:image" content="${ogImageUrl}">
+<meta property="og:image:secure_url" content="${ogImageUrl}">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<link rel="image_src" href="${ogImageUrl}">
+<meta itemprop="image" content="${ogImageUrl}">
+<meta name="twitter:image" content="${ogImageUrl}">` : "";
+
+  const ldScript = ld ? `<script type="application/ld+json"${n}>${ld}</script>` : "";
+
   return `<!doctype html>
 <html lang="${lang}">
 <head>
@@ -678,31 +647,17 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
 <link rel="manifest" href="/manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600;700;800&family=Noto+Sans+Tamil:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="canonical" href="${ea}">
-<link rel="alternate" hreflang="si" href="${ea}?lang=si">
-<link rel="alternate" hreflang="en" href="${ea}?lang=en">
-<link rel="alternate" hreflang="ta" href="${ea}?lang=ta">
-<link rel="alternate" hreflang="x-default" href="${ea}">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600;700;800&family=Noto+Sans+Tamil:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">${canonicalAndOgTags}
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/favicon.png">
 <meta property="og:site_name" content="Fast xBet Cash">
 <meta property="og:type" content="website">
 <meta property="og:title" content="${esc(c.title)}">
 <meta property="og:description" content="${esc(c.desc)}">
-<meta property="og:url" content="${ea}">
-<meta property="og:image" content="${esc(url + "og-image.jpg?v=3")}">
-<meta property="og:image:secure_url" content="${esc(url + "og-image.jpg?v=3")}">
-<meta property="og:image:type" content="image/jpeg">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<link rel="image_src" href="${esc(url + "og-image.jpg?v=3")}">
-<meta itemprop="image" content="${esc(url + "og-image.jpg?v=3")}">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${esc(c.title)}">
 <meta name="twitter:description" content="${esc(c.desc)}">
-<meta name="twitter:image" content="${esc(url + "og-image.jpg?v=3")}">
-<script type="application/ld+json"${n}>${ld}</script>
+${ldScript}
 ${cfAnalyticsScript}
 <style${n}>
 :root{--bg:#070b12;--bg2:#081525;--surface:#101720;--surface2:#151e2b;--fg:#f1f5f9;--muted:#94a3b8;--faint:#64748b;--signal:#a6f800;--cyan:#00b4f8;--pink:#ff477e;--border:#ffffff12;--shadow:0 25px 70px #0008}
@@ -1115,9 +1070,9 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
       <span class="botStatusPing" id="botStatusPing"></span>
     </div>
     <div class="langs" aria-label="Language">
-      <a href="?lang=si" ${lang === "si" ? 'aria-current="page"' : ""}>SI</a>
-      <a href="?lang=en" ${lang === "en" ? 'aria-current="page"' : ""}>EN</a>
-      <a href="?lang=ta" ${lang === "ta" ? 'aria-current="page"' : ""}>TA</a>
+      <a href="${esc(makeLangUrl(request, "si"))}" ${lang === "si" ? 'aria-current="page"' : ""}>SI</a>
+      <a href="${esc(makeLangUrl(request, "en"))}" ${lang === "en" ? 'aria-current="page"' : ""}>EN</a>
+      <a href="${esc(makeLangUrl(request, "ta"))}" ${lang === "ta" ? 'aria-current="page"' : ""}>TA</a>
     </div>
     <a class="btn primary desktop" href="${eb}" data-track-cta="nav_bot">✈ ${esc(c.hero[3])}</a>
     <button class="menu" id="menuToggle" type="button" aria-controls="mobileNav" aria-expanded="false" aria-label="Open navigation">☰</button>
@@ -1129,9 +1084,9 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
       <a href="#security">${esc(c.nav[4])}</a>
       <a href="#faq">${esc(c.nav[5])}</a>
       <div style="display:flex;gap:6px;padding:8px">
-        <a href="?lang=si">SI</a>
-        <a href="?lang=en">EN</a>
-        <a href="?lang=ta">TA</a>
+        <a href="${esc(makeLangUrl(request, "si"))}">SI</a>
+        <a href="${esc(makeLangUrl(request, "en"))}">EN</a>
+        <a href="${esc(makeLangUrl(request, "ta"))}">TA</a>
       </div>
       <a class="btn primary" href="${eb}" data-track-cta="mobile_nav_bot">✈ ${esc(c.hero[3])}</a>
     </nav>
@@ -1190,7 +1145,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
             <span id="promoCopyIcon">📋</span> <span id="promoCopyLabel">Copy Code</span>
           </button>
         </div>
-        <span class="promoNote">+100% First Deposit Bonus</span>
+        <span class="promoNote">+100% First Deposit Bonus · <small style="font-size:0.72rem;opacity:0.9;">18+ T&amp;Cs apply</small></span>
       </div>
 
       <div class="pills">
@@ -1214,7 +1169,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
             <div class="bubble bot">
               <div style="font-size:0.68rem;font-weight:700;color:#38bdf8;margin-bottom:4px;">What can this bot do?</div>
               <img src="/bot-description-640x360.jpg" alt="Fast xBet Cash Bot Description" width="640" height="360" style="width:100%;height:auto;border-radius:10px;border:1px solid #00b4f844;margin-bottom:6px;display:block;" />
-              <div style="font-size:0.68rem;line-height:1.3;">⚡ <b>Fast xBet Cash 🇱🇰</b><br>Official 1xBet Sri Lanka Cash Desk.<br>💳 0% fee local deposits &amp; fast withdrawals.<br>⚽ Daily winning betting tips!</div>
+              <div style="font-size:0.68rem;line-height:1.3;">⚡ <b>Fast xBet Cash 🇱🇰</b><br>Official 1xBet Sri Lanka Cash Desk.<br>💳 Zero hidden fee local deposits &amp; fast withdrawals.<br>⚽ Daily sports analysis &amp; betting tips!</div>
             </div>
             <div class="bubble user">Start Bot /start</div>
             <div class="bubble bot">Welcome to Fast xBet Cash 🇱🇰! Tap below to explore deposit &amp; withdrawal services.</div>
@@ -1279,10 +1234,9 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
       <button type="button" data-sport="cricket" class="tipTab">Cricket</button>
     </div>
     <div id="tipLiveSummary" class="tipSummary">
-      <span>🎯 <b>84%</b> ${esc(c.tips.stats.winRate)}</span>
-      <span>📈 <b>+24.8%</b> ${esc(c.tips.stats.roi)}</span>
-      <span>✅ <b>23+</b> ${esc(c.tips.stats.slipsWon)}</span>
-      <span>⚡ <b>1.88</b> ${esc(c.tips.stats.avgOdds)}</span>
+      <span>⚡ <b>Live Feed</b> Telegram Channel</span>
+      <span>📊 <b>Real-Time Odds</b> 1xBet SL</span>
+      <span>🔒 <b>18+ Only</b> Play Responsibly</span>
     </div>
     <div class="tipCardGrid" id="tipCardGrid" aria-live="polite">
       <article class="tipCard" data-sport="football">
@@ -1397,6 +1351,9 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
         <a class="btn primary calcBtn" id="calcCtaBtn" href="${eb}&start=deposit" data-track-cta="calc_deposit">✈ Deposit LKR 5,000 via Telegram</a>
       </div>
     </div>
+    <div style="margin-top:14px;padding:8px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;font-size:0.72rem;color:var(--muted);text-align:center;">
+      *100% First Deposit Bonus up to LKR 35,000. 18+ only. Wagering requirements &amp; terms apply. Play responsibly.
+    </div>
   </div>
 
   <div class="actions">${env.DEPOSIT_INSTRUCTIONS?.trim() ? `<details class="limit"><summary>Deposit instructions</summary><div style="color:var(--muted);font-size:.7rem;margin-top:7px">${esc(env.DEPOSIT_INSTRUCTIONS.trim())}</div></details>` : ""}</div>
@@ -1444,17 +1401,18 @@ ${renderFinalCtaBanner(c, lang, eb)}
 <section class="section" id="responsible-gaming" style="padding:28px 0 10px"><div class="wrap"><div class="responsible-gaming-box">
   <div>
     <div class="kicker">Play responsibly</div>
-    <h2>🔞 18+ Responsible Gaming Notice</h2>
-    <p>Get daily tips and verified match previews. Open Telegram Bot for Live Data & Real-time Odds. This site is a Telegram cash-desk helper — not a bookmaker.</p>
+    <h2>🔞 18+ Responsible Gaming Notice &amp; Helplines</h2>
+    <p>Fast xBet Cash provides educational sports analysis and Telegram cash desk assistance. We are not a bookmaker and do not guarantee betting outcomes. Gambling involves financial risk and can be addictive.</p>
   </div>
   <ul>
-    <li>✓ 18+ users only.</li>
-    <li>✓ Gambling involves risk and losses can occur.</li>
-    <li>✓ Set limits and do not chase losses.</li>
-    <li>✓ Never use money needed for essential expenses.</li>
-    <li>✓ If gambling stops feeling controlled, take a break and seek appropriate support.</li>
+    <li>✓ <b>18+ Users Only:</b> Underage gambling is strictly prohibited.</li>
+    <li>✓ <b>Set Budget Limits:</b> Only bet amounts you can afford to lose. Never use money needed for essential living expenses.</li>
+    <li>✓ <b>Do Not Chase Losses:</b> Betting should remain entertainment, not an investment strategy.</li>
+    <li>✓ <b>Take Breaks &amp; Self-Exclude:</b> Use the in-bot <code>/safety</code> command to set cooling-off periods or pause transactions.</li>
   </ul>
-  <div class="notice">Responsible use is your responsibility. Do not chase losses or use essential-expense money for gambling.</div>
+  <div class="notice">
+    <strong>Need Free &amp; Confidential Support?</strong> Sri Lanka National Mental Health Helpline: <b>1926</b> | CCCline Crisis Support: <b>1333</b> | International guidance: <a href="https://www.begambleaware.org" target="_blank" rel="noopener" style="color:var(--cyan);text-decoration:underline;">BeGambleAware.org</a>
+  </div>
 </div></div></section>
 
 <!-- Desktop QR Code Modal -->
@@ -1466,7 +1424,7 @@ ${renderFinalCtaBanner(c, lang, eb)}
     </div>
     <p class="qrModalDesc">Scan with your phone camera to start the Telegram bot:</p>
     <div class="qrBox">
-      ${qrCodeSvg()}
+      ${qrCodeSvg(eb + "&start=landing_qr")}
     </div>
     <div class="qrModalBot">@${esc(botName)}</div>
     <a class="btn primary" href="${eb}&start=landing_qr" target="_blank" rel="noopener" data-track-cta="qr_modal_btn">✈ Open in Telegram</a>

@@ -122,6 +122,119 @@ export async function getPublicTips(env: Env, limit = 12): Promise<PublicTipsRes
 export function publicTipsClientScript(channelUrl: string, nonce?: string): string {
   const safeChannel = JSON.stringify(channelUrl).replace(/</g, "\u003c");
   const nonceAttr = nonce ? ` nonce="${nonce.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}"` : "";
-    const body = "(function(){var root=document.querySelector(\"#tips-preview .tips\");if(!root)return;var channel=CHANNEL_PLACEHOLDER;var esc=function(v){return String(v==null?\"\":v).replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\").replace(/\"/g,\"&quot;\")};var initials=function(name){var p=String(name||\"\").trim().split(/\\s+/).filter(Boolean);if(!p.length)return\"?\";if(p.length===1)return p[0].slice(0,2).toUpperCase();return (p[0][0]+p[p.length-1][0]).toUpperCase()};var hue=function(s){var h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h%360};var avatar=function(name){var h=hue(name||\"x\");return '<span class=\"tipAvatar\" style=\"background:hsl('+h+' 55% 28%);border-color:hsl('+h+' 60% 42%)\">'+esc(initials(name))+'</span>'};var fmtWhen=function(v){if(!v)return\"TBD\";try{var d=new Date(v);var now=new Date();var same=d.toDateString()===now.toDateString();var t=d.toLocaleTimeString(\"en-GB\",{hour:\"2-digit\",minute:\"2-digit\",hour12:false,timeZone:\"Asia/Colombo\"});if(same)return\"Today, \"+t;var tom=new Date(now);tom.setDate(tom.getDate()+1);if(d.toDateString()===tom.toDateString())return\"Tomorrow, \"+t;return d.toLocaleString(\"en-GB\",{day:\"2-digit\",month:\"short\",hour:\"2-digit\",minute:\"2-digit\",hour12:false,timeZone:\"Asia/Colombo\"})}catch(e){return esc(v)}};var marketLabel=function(m){var x=String(m||\"h2h\").toLowerCase();if(x===\"h2h\"||x===\"1x2\")return\"1X2\";if(x.indexOf(\"over\")>=0||x.indexOf(\"under\")>=0||x===\"totals\"||x===\"ou\")return\"O/U\";return x.toUpperCase()};var pickLabel=function(t){var sel=String(t.selection||\"\");var m=marketLabel(t.market);if(m===\"1X2\"){if(/draw/i.test(sel))return\"Draw\";return sel+\" Win\"}return sel};var resultBadge=function(r){if(r===\"WON\")return'<span class=\"tipStatus won\">Won</span>';if(r===\"LOST\")return'<span class=\"tipStatus lost\">Lost</span>';if(r===\"VOID\")return'<span class=\"tipStatus void\">Void</span>';if(r===\"PARTIAL\")return'<span class=\"tipStatus partial\">Partial</span>';return'<span class=\"tipStatus pending\">Today</span>'};var render=function(data){var tips=Array.isArray(data.tips)?data.tips:[];var summary=data.summary||{};var tabs='<div class=\"tipTabs\" role=\"tablist\"><button type=\"button\" data-sport=\"all\" class=\"tipTab active\">All</button><button type=\"button\" data-sport=\"football\" class=\"tipTab\">Football</button><button type=\"button\" data-sport=\"cricket\" class=\"tipTab\">Cricket</button></div>';var wRate=Math.max(78,Number(summary.winRate)||82);var wWon=Math.max(15,Number(summary.won)||23);var wRoi=summary.weeklyRoi||'+24.8%';var stats='<div class=\"tipSummary\"><span>🎯 <b>'+wRate+'%</b> Strike Rate</span><span>📈 <b>'+wRoi+'</b> Weekly ROI</span><span>✅ <b>'+wWon+'+</b> Slips Won (7d)</span><span>⚡ <b>1.88</b> Avg Odds</span></div>';var cards=tips.length?tips.map(function(t){var score=t.scoreHome!=null&&t.scoreAway!=null?\" \u00b7 \"+esc(t.scoreHome)+\"-\"+esc(t.scoreAway):\"\";return '<article class=\"tipCard\" data-sport=\"'+esc(t.sport)+'\">'+'<div class=\"tipCardTop\"><span class=\"tipLeague\">'+esc(t.sportTitle)+'</span>'+resultBadge(t.result)+'</div>'+'<div class=\"tipTeams\"><div class=\"tipTeam\">'+avatar(t.homeTeam)+'<b>'+esc(t.homeTeam)+'</b></div><div class=\"tipVs\">VS</div><div class=\"tipTeam\">'+avatar(t.awayTeam)+'<b>'+esc(t.awayTeam)+'</b></div></div>'+'<div class=\"tipWhen\">'+esc(fmtWhen(t.commenceTime))+score+'</div>'+'<div class=\"tipPickRow\"><span class=\"tipMarketTag\">'+esc(marketLabel(t.market))+'</span><span class=\"tipPickName\">'+esc(pickLabel(t))+'</span><b class=\"tipOdds\">'+(t.odds?Number(t.odds).toFixed(2):\"\u2014\")+'</b></div>'+'<div class=\"tipFoot\">\u26a1 Tap here for Live Odds \u00b7 Live on Telegram</div></article>';}).join(\"\"):'<div class=\"tipEmpty\"><b>No public tips are available right now.</b><span>New tips will appear here after the next successful channel publish.</span></div>';root.innerHTML='<div class=\"tipHead\"><b>Today\\'s Free Tips</b><span id=\"tipsLiveBadge\" class=\"previewBadge\">Daily Featured</span></div>'+tabs+stats+'<div class=\"tipCardGrid\">'+cards+'</div><div class=\"actions\" style=\"margin-top:16px;justify-content:center\"><a class=\"btn primary\" href=\"'+esc(channel)+'\" rel=\"noopener noreferrer\">\u2708 Open Official Telegram Tips \u2192</a></div>';var buttons=root.querySelectorAll(\".tipTab\");buttons.forEach(function(b){b.addEventListener(\"click\",function(){buttons.forEach(function(x){x.classList.remove(\"active\")});b.classList.add(\"active\");var sport=b.getAttribute(\"data-sport\");root.querySelectorAll(\".tipCardGrid .tipCard\").forEach(function(x){x.style.display=sport===\"all\"||x.getAttribute(\"data-sport\")===sport?\"flex\":\"none\"})})});};fetch(\"/api/tips/preview\",{headers:{Accept:\"application/json\"},cache:\"no-store\"}).then(function(r){if(!r.ok)throw new Error(\"preview unavailable\");return r.json()}).then(render).catch(function(){render({tips:[],summary:{total:28,won:23,lost:5,winRate:82,weeklyRoi:'+24.8%'}})});})();".replace("CHANNEL_PLACEHOLDER", safeChannel);
+  const body = `(function(){
+  var root = document.querySelector("#tips-preview .tips");
+  if (!root) return;
+  var channel = CHANNEL_PLACEHOLDER;
+  var esc = function(v){
+    return String(v == null ? "" : v)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  };
+  var initials = function(name){
+    var p = String(name || "").trim().split(/\\s+/).filter(Boolean);
+    if (!p.length) return "?";
+    if (p.length === 1) return p[0].slice(0, 2).toUpperCase();
+    return (p[0][0] + p[p.length - 1][0]).toUpperCase();
+  };
+  var hue = function(s){
+    var h = 0;
+    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return h % 360;
+  };
+  var avatar = function(name){
+    var h = hue(name || "x");
+    return '<span class="tipAvatar" style="background:hsl(' + h + ' 55% 28%);border-color:hsl(' + h + ' 60% 42%)">' + esc(initials(name)) + '</span>';
+  };
+  var fmtWhen = function(v){
+    if (!v) return "TBD";
+    try {
+      var d = new Date(v);
+      var now = new Date();
+      var same = d.toDateString() === now.toDateString();
+      var t = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Colombo" });
+      if (same) return "Today, " + t;
+      var tom = new Date(now);
+      tom.setDate(tom.getDate() + 1);
+      if (d.toDateString() === tom.toDateString()) return "Tomorrow, " + t;
+      return d.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Colombo" });
+    } catch(e) {
+      return esc(v);
+    }
+  };
+  var marketLabel = function(m){
+    var x = String(m || "h2h").toLowerCase();
+    if (x === "h2h" || x === "1x2") return "1X2";
+    if (x.indexOf("over") >= 0 || x.indexOf("under") >= 0 || x === "totals" || x === "ou") return "O/U";
+    return x.toUpperCase();
+  };
+  var pickLabel = function(t){
+    var sel = String(t.selection || "");
+    var m = marketLabel(t.market);
+    if (m === "1X2") {
+      if (/draw/i.test(sel)) return "Draw";
+      return sel + " Win";
+    }
+    return sel;
+  };
+  var resultBadge = function(r){
+    if (r === "WON") return '<span class="tipStatus won">Won</span>';
+    if (r === "LOST") return '<span class="tipStatus lost">Lost</span>';
+    if (r === "VOID") return '<span class="tipStatus void">Void</span>';
+    if (r === "PARTIAL") return '<span class="tipStatus partial">Partial</span>';
+    return '<span class="tipStatus pending">Today</span>';
+  };
+  var render = function(data){
+    var tips = Array.isArray(data.tips) ? data.tips : [];
+    var summary = data.summary || {};
+    var tabs = '<div class="tipTabs" role="tablist"><button type="button" data-sport="all" class="tipTab active">All</button><button type="button" data-sport="football" class="tipTab">Football</button><button type="button" data-sport="cricket" class="tipTab">Cricket</button></div>';
+    
+    var stats = "";
+    if (summary && summary.total && Number(summary.total) > 0) {
+      var wRate = Math.round(Number(summary.winRate) || 0);
+      var wWon = Number(summary.won) || 0;
+      var wRoi = String(summary.weeklyRoi || "").trim();
+      var roiPart = wRoi ? '<span>📈 <b>' + esc(wRoi) + '</b> Weekly ROI</span>' : '';
+      stats = '<div class="tipSummary"><span>🎯 <b>' + wRate + '%</b> Strike Rate (7d)</span>' + roiPart + '<span>✅ <b>' + wWon + '</b> Slips Won</span><span>⚡ <b>Live Feed</b></span></div>';
+    } else {
+      stats = '<div class="tipSummary"><span>⚡ <b>Live Analysis</b> Telegram Channel</span><span>📊 <b>Real-Time Odds</b> 1xBet SL</span><span>🔒 <b>18+ Only</b> Play Responsibly</span></div>';
+    }
+
+    var cards = tips.length ? tips.map(function(t){
+      var score = t.scoreHome != null && t.scoreAway != null ? " · " + esc(t.scoreHome) + "-" + esc(t.scoreAway) : "";
+      return '<article class="tipCard" data-sport="' + esc(t.sport) + '">' +
+        '<div class="tipCardTop"><span class="tipLeague">' + esc(t.sportTitle) + '</span>' + resultBadge(t.result) + '</div>' +
+        '<div class="tipTeams"><div class="tipTeam">' + avatar(t.homeTeam) + '<b>' + esc(t.homeTeam) + '</b></div><div class="tipVs">VS</div><div class="tipTeam">' + avatar(t.awayTeam) + '<b>' + esc(t.awayTeam) + '</b></div></div>' +
+        '<div class="tipWhen">' + esc(fmtWhen(t.commenceTime)) + score + '</div>' +
+        '<div class="tipPickRow"><span class="tipMarketTag">' + esc(marketLabel(t.market)) + '</span><span class="tipPickName">' + esc(pickLabel(t)) + '</span><b class="tipOdds">' + (t.odds ? Number(t.odds).toFixed(2) : "—") + '</b></div>' +
+        '<div class="tipFoot">⚡ Tap here for Live Odds · Live on Telegram</div>' +
+      '</article>';
+    }).join("") : '<div class="tipEmpty"><b>No public tips are available right now.</b><span>New tips will appear here after the next successful channel publish.</span></div>';
+
+    root.innerHTML = '<div class="tipHead"><b>Today\\'s Free Tips</b><span id="tipsLiveBadge" class="previewBadge">Daily Featured</span></div>' +
+      tabs + stats +
+      '<div class="tipCardGrid">' + cards + '</div>' +
+      '<div class="actions" style="margin-top:16px;justify-content:center"><a class="btn primary" href="' + esc(channel) + '" rel="noopener noreferrer">✈ Open Official Telegram Tips →</a></div>';
+
+    var buttons = root.querySelectorAll(".tipTab");
+    buttons.forEach(function(b){
+      b.addEventListener("click", function(){
+        buttons.forEach(function(x){ x.classList.remove("active"); });
+        b.classList.add("active");
+        var sport = b.getAttribute("data-sport");
+        root.querySelectorAll(".tipCardGrid .tipCard").forEach(function(x){
+          x.style.display = (sport === "all" || x.getAttribute("data-sport") === sport) ? "flex" : "none";
+        });
+      });
+    });
+  };
+
+  fetch("/api/tips/preview", { headers: { Accept: "application/json" }, cache: "no-store" })
+    .then(function(r){ if (!r.ok) throw new Error("preview unavailable"); return r.json(); })
+    .then(render)
+    .catch(function(){ render({ tips: [], summary: { total: 0, won: 0, lost: 0, winRate: 0, weeklyRoi: "" } }); });
+})();`.replace("CHANNEL_PLACEHOLDER", safeChannel);
   return `<script${nonceAttr}>${body}</script>`;
 }

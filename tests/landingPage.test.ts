@@ -316,4 +316,63 @@ describe("Landing Page Render & SEO", () => {
     const beaconData = (await beaconRes?.json()) as any;
     expect(beaconData.ok).toBe(true);
   });
+
+  it("serves robots.txt and sitemap.xml dynamically via worker fetch", async () => {
+    const workerModule = await import("../src/worker");
+    const robotsRes = await workerModule.default.fetch(new Request("https://fast-xbet.lk/robots.txt"), mockEnv);
+    expect(robotsRes.status).toBe(200);
+    expect(robotsRes.headers.get("Content-Type")).toContain("text/plain");
+    const robotsText = await robotsRes.text();
+    expect(robotsText).toContain("Sitemap: https://fast-xbet.lk/sitemap.xml");
+
+    const sitemapRes = await workerModule.default.fetch(new Request("https://fast-xbet.lk/sitemap.xml"), mockEnv);
+    expect(sitemapRes.status).toBe(200);
+    expect(sitemapRes.headers.get("Content-Type")).toContain("application/xml");
+    const sitemapXml = await sitemapRes.text();
+    expect(sitemapXml).toContain("<loc>https://fast-xbet.lk/</loc>");
+    expect(sitemapXml).toContain('hreflang="si"');
+  });
+
+  it("serves robots.txt with sitemap reference", async () => {
+    const req = new Request("https://fast-xbet.lk/robots.txt");
+    const res = await handleApiRequest(req, mockEnv);
+    expect(res).not.toBeNull();
+    expect(res?.status).toBe(200);
+    expect(res?.headers.get("Content-Type")).toContain("text/plain");
+    const text = await res?.text();
+    expect(text).toContain("User-agent: *");
+    expect(text).toContain("Allow: /");
+    expect(text).toContain("Sitemap: https://fast-xbet.lk/sitemap.xml");
+  });
+
+  it("serves sitemap.xml with alternate hreflang entries", async () => {
+    const req = new Request("https://fast-xbet.lk/sitemap.xml");
+    const res = await handleApiRequest(req, mockEnv);
+    expect(res).not.toBeNull();
+    expect(res?.status).toBe(200);
+    expect(res?.headers.get("Content-Type")).toContain("application/xml");
+    const xml = await res?.text();
+    expect(xml).toContain('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"');
+    expect(xml).toContain("<loc>https://fast-xbet.lk/</loc>");
+    expect(xml).toContain('hreflang="si"');
+    expect(xml).toContain('hreflang="en"');
+    expect(xml).toContain('hreflang="ta"');
+  });
+
+  it("preserves query parameters when generating language switch links", () => {
+    const req = new Request("https://fast-xbet.lk/?utm_source=facebook&tag=promo100&lang=si");
+    const html = renderLandingPage(mockEnv, req);
+    expect(html).toContain('href="/?utm_source=facebook&amp;tag=promo100&amp;lang=en"');
+    expect(html).toContain('href="/?utm_source=facebook&amp;tag=promo100&amp;lang=ta"');
+  });
+
+  it("includes responsible gambling helplines (1926, 1333, begambleaware.org) and bonus compliance", () => {
+    const req = new Request("https://fast-xbet.lk/");
+    const html = renderLandingPage(mockEnv, req);
+    expect(html).toContain("1926");
+    expect(html).toContain("1333");
+    expect(html).toContain("BeGambleAware.org");
+    expect(html).toContain("T&amp;Cs apply");
+    expect(html).toContain("SSL Secured");
+  });
 });

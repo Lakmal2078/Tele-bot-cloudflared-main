@@ -33,6 +33,7 @@ import { settlePendingTips, getTipsPerformanceStats } from "./tipsSettlement";
 import { checkTelegramBotConnection } from "./telegramStatus";
 import { renderAdminPage, renderAdminLoginPage } from "./adminPage";
 import { renderPrivacyPage } from "./privacyPage";
+import { trustedPublicBaseUrl } from "./landingPage";
 
 /**
  * Header-only admin credential check.
@@ -567,6 +568,58 @@ export async function handleApiRequest(
     };
     if (method === "HEAD") return new Response(null, { status: 200, headers });
     return new Response(BRAND_LOGO_PNG_192, { status: 200, headers });
+  }
+
+  // Search Engine Robots Directive (/robots.txt)
+  if (path === "/robots.txt" && (method === "GET" || method === "HEAD")) {
+    const origin = (env.PUBLIC_BASE_URL || "").trim().replace(/\/+$/, "") || trustedPublicBaseUrl(env, request) || "https://fastxbet.lk";
+    const body = `User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /panel
+Disallow: /api/
+Disallow: /go/
+
+Sitemap: ${origin}/sitemap.xml
+`;
+    const headers: Record<string, string> = {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "public, max-age=86400",
+      "X-Content-Type-Options": "nosniff",
+      "Access-Control-Allow-Origin": "*",
+    };
+    if (method === "HEAD") return new Response(null, { status: 200, headers });
+    return new Response(body, { status: 200, headers });
+  }
+
+  // XML Sitemap for Search Engines (/sitemap.xml)
+  if (path === "/sitemap.xml" && (method === "GET" || method === "HEAD")) {
+    const origin = (env.PUBLIC_BASE_URL || "").trim().replace(/\/+$/, "") || trustedPublicBaseUrl(env, request) || "https://fastxbet.lk";
+    const body = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>${origin}/</loc>
+    <xhtml:link rel="alternate" hreflang="si" href="${origin}/?lang=si"/>
+    <xhtml:link rel="alternate" hreflang="en" href="${origin}/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="ta" href="${origin}/?lang=ta"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="${origin}/"/>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>${origin}/privacy</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+</urlset>`;
+    const headers: Record<string, string> = {
+      "Content-Type": "application/xml; charset=utf-8",
+      "Cache-Control": "public, max-age=86400",
+      "X-Content-Type-Options": "nosniff",
+      "Access-Control-Allow-Origin": "*",
+    };
+    if (method === "HEAD") return new Response(null, { status: 200, headers });
+    return new Response(body, { status: 200, headers });
   }
 
   // Public Privacy Policy Page (/privacy, /privacy-policy, /legal/privacy)

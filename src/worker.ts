@@ -82,6 +82,58 @@ export default {
         return finish(json(getPublicStatus(env, "cf-worker"), 200, headers));
       }
 
+      // Robots directive (/robots.txt) dynamically generated based on PUBLIC_BASE_URL for SEO indexing
+      if (path === "/robots.txt" && (method === "GET" || method === "HEAD")) {
+        const baseUrl = (env.PUBLIC_BASE_URL || "").trim().replace(/\/+$/, "") || trustedPublicBaseUrl(env, request) || "https://fastxbet.lk";
+        const body = `User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /panel
+Disallow: /api/
+Disallow: /go/
+
+Sitemap: ${baseUrl}/sitemap.xml
+`;
+        const headers: Record<string, string> = {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "public, max-age=86400",
+          "X-Content-Type-Options": "nosniff",
+          "Access-Control-Allow-Origin": "*",
+        };
+        if (method === "HEAD") return finish(new Response(null, { status: 200, headers }));
+        return finish(new Response(body, { status: 200, headers }));
+      }
+
+      // XML Sitemap (/sitemap.xml) dynamically generated based on PUBLIC_BASE_URL with hreflang tags
+      if (path === "/sitemap.xml" && (method === "GET" || method === "HEAD")) {
+        const baseUrl = (env.PUBLIC_BASE_URL || "").trim().replace(/\/+$/, "") || trustedPublicBaseUrl(env, request) || "https://fastxbet.lk";
+        const body = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>${baseUrl}/</loc>
+    <xhtml:link rel="alternate" hreflang="si" href="${baseUrl}/?lang=si"/>
+    <xhtml:link rel="alternate" hreflang="en" href="${baseUrl}/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="ta" href="${baseUrl}/?lang=ta"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="${baseUrl}/"/>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/privacy</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+</urlset>`;
+        const headers: Record<string, string> = {
+          "Content-Type": "application/xml; charset=utf-8",
+          "Cache-Control": "public, max-age=86400",
+          "X-Content-Type-Options": "nosniff",
+          "Access-Control-Allow-Origin": "*",
+        };
+        if (method === "HEAD") return finish(new Response(null, { status: 200, headers }));
+        return finish(new Response(body, { status: 200, headers }));
+      }
+
       // Public read-only landing-page feed. Only sanitized tip fields and a 7-day
       // settlement summary are exposed; no Telegram IDs, payment data, or secrets.
       if (path === "/api/tips/preview" && (method === "GET" || method === "HEAD")) {
