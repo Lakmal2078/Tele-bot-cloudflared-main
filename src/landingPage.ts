@@ -70,6 +70,37 @@ const T: Record<Lang, {
       status: string;
     };
   };
+  ui: {
+    howStepBodies: string[];
+    servicesIntro: string;
+    serviceBodies: string[];
+    serviceTagTips: string;
+    serviceTagGuided: string;
+    payDesc: string;
+    payAfterVerify: string;
+    payNoFee: string;
+    payAvailable: string;
+    payViaTelegram: string;
+    faqHeading: string;
+    faqSub: string;
+    footerAbout: string;
+    footerQuick: string;
+    footerLegal: string;
+    footerTipsChannel: string;
+    footerPrivacy: string;
+    footerTerms: string;
+    calcTitle: string;
+    calcSubPrefix: string;
+    calcCtaPrefix: string;
+    calcCtaSuffix: string;
+    qrTitle: string;
+    qrDesc: string;
+    qrOpen: string;
+    stickyTag: string;
+    stickyBtn: string;
+    emptyTipsTitle: string;
+    emptyTipsSub: string;
+  };
   legal: { privacy: string; terms: string };
 }> = {
   si: {
@@ -151,6 +182,46 @@ const T: Record<Lang, {
         avgOdds: "සාමාන්‍ය Odds",
         status: "විශ්ලේෂිත ඉඟි (Analyzed)"
       }
+    },
+    ui: {
+      howStepBodies: [
+        "Telegram CTA එකෙන් හෝ QR code එකෙන් bot එක විවෘත කරන්න.",
+        "Tips, deposit, withdrawal හෝ බහුභාෂා සහාය තෝරන්න.",
+        "Bot එක ඉල්ලන තොරතුරු පමණක් ලබා දෙන්න."
+      ],
+      servicesIntro: "සේවාවක් තෝරලා guided උපදෙස් අනුගමනය කරන්න. සජීවී දත්ත සහ Real-time Odds සඳහා Telegram Bot විවෘත කරන්න (18+ වගකීමෙන් ක්‍රීඩා කරන්න).",
+      serviceBodies: [
+        "Telegram එකේ සජීවී තරග ඔඩ්ස් සමඟ ස්වයංක්‍රීය ක්‍රීඩා විශ්ලේෂණය.",
+        "වින්‍යාසගත ගනුදෙනු සීමා සහිත guided deposit ප්‍රවාහය.",
+        "Bot එක හරහා withdrawal ඉල්ලීමක් යවලා verification පියවර අනුගමනය කරන්න.",
+        "Telegram හරහා සිංහල, ඉංග්‍රීසි සහ දෙමළ සහාය."
+      ],
+      serviceTagTips: "සජීවී tips ලබාගන්න",
+      serviceTagGuided: "Guided ඉල්ලීම",
+      payDesc: "eZ Cash, mCash, FriMi, iPay සහ බැංකු ගිණුම් හරහා තැන්පතු සහ මුදල් ආපසු ගැනීම් පහසුවෙන් සිදු කළ හැක. සංවේදී තොරතුරු මෙම පිටුවේ කිසිසේත් හෙළි නොකෙරේ.",
+      payAfterVerify: "⚡ තහවුරු කිරීමෙන් පසු",
+      payNoFee: "සේවා ගාස්තුවක් නෑ",
+      payAvailable: "ලබා ගත හැක",
+      payViaTelegram: "Telegram හරහා",
+      faqHeading: "නිතර අසන ප්‍රශ්න",
+      faqSub: "පොදු ක්‍රියාවලිය සඳහා පැහැදිලි පිළිතුරු.",
+      footerAbout: "පොදු ක්‍රීඩා පෙරදසුන්, guided සහාය සහ බහුභාෂා පහසුකම් සඳහා Telegram ප්‍රමුක සේවාවක්.",
+      footerQuick: "ක්ෂණික සබැඳි",
+      footerLegal: "නීතිමය සහ ප්‍රවේශය",
+      footerTipsChannel: "Tips Channel එක",
+      footerPrivacy: "රහස්‍යතා ප්‍රතිපත්තිය",
+      footerTerms: "සේවා කොන්දේසි",
+      calcTitle: "තැන්පතු සහ බෝනස් ගණනය (LKR)",
+      calcSubPrefix: "ප්‍රවර්ධන කේතය සමඟ ක්ෂණික බෝනස් ඇස්තමේන්තුව:",
+      calcCtaPrefix: "තැන්පතු කරන්න",
+      calcCtaSuffix: "— Telegram හරහා",
+      qrTitle: "📱 ජංගම දුරකථනයෙන් විවෘත කරන්න",
+      qrDesc: "Telegram bot එක ආරම්භ කිරීමට ඔබේ දුරකථන කැමරාවෙන් scan කරන්න:",
+      qrOpen: "Telegram හි විවෘත කරන්න",
+      stickyTag: "නොමිලේ Tips සහ Cash Desk",
+      stickyBtn: "Telegram විවෘත කරන්න",
+      emptyTipsTitle: "දැනට මේ කාණ්ඩයේ tips නැහැ",
+      emptyTipsSub: "අලුත් picks 08:00 · 12:00 · 18:00 (SL වේලාවට) නිකුත් වේ"
     },
     legal: {
       privacy: "අපගේ සේවාව පරිශීලක රහස්‍යතාව උපරිමයෙන් සුරකියි. කිසිදු සංවේදී බැංකු PIN හෝ කාඩ්පත් දත්ත වෙබ් අඩවියේ ගබඩා නොකෙරේ. දත්ත ආරක්ෂාව Cloudflare Edge, D1 සහ R2 යටිතල පහසුකම් මගින් සහතික කෙරේ. සේවාව 18+ පරිශීලකයින් සඳහා පමණි.",
@@ -237,6 +308,46 @@ const T: Record<Lang, {
         status: "Verified Value Picks"
       }
     },
+    ui: {
+      howStepBodies: [
+        "Use the Telegram CTA or QR code to open the bot.",
+        "Choose tips, deposit, withdrawal or multilingual support.",
+        "Provide only the information requested by the bot."
+      ],
+      servicesIntro: "Choose a service and follow the guided instructions. Open Telegram Bot for Live Data & Real-time Odds (18+ Gamble Responsibly).",
+      serviceBodies: [
+        "Automated sports analysis with real-time match odds on Telegram.",
+        "Guided deposit workflow with configured transaction limits.",
+        "Submit a withdrawal request through the bot and follow verification steps.",
+        "Sinhala, English and Tamil support through Telegram."
+      ],
+      serviceTagTips: "Get live tips",
+      serviceTagGuided: "Guided request",
+      payDesc: "Deposit and withdraw easily via eZ Cash, mCash, FriMi, iPay and bank accounts. Sensitive credentials are never exposed on this page.",
+      payAfterVerify: "⚡ After verify",
+      payNoFee: "No service fee",
+      payAvailable: "Available",
+      payViaTelegram: "via Telegram",
+      faqHeading: "Frequently Asked Questions",
+      faqSub: "Clear answers for the public workflow.",
+      footerAbout: "Telegram-first service for public sports previews, guided support and multilingual assistance.",
+      footerQuick: "Quick links",
+      footerLegal: "Legal & Access",
+      footerTipsChannel: "Tips Channel",
+      footerPrivacy: "Privacy Policy",
+      footerTerms: "Terms of Service",
+      calcTitle: "Deposit & Bonus Calculator (LKR)",
+      calcSubPrefix: "Instant bonus estimate with promo code",
+      calcCtaPrefix: "Deposit",
+      calcCtaSuffix: "via Telegram",
+      qrTitle: "📱 Open on Mobile",
+      qrDesc: "Scan with your phone camera to start the Telegram bot:",
+      qrOpen: "Open in Telegram",
+      stickyTag: "Free Tips & Cash Desk",
+      stickyBtn: "Open Telegram",
+      emptyTipsTitle: "No tips in this category right now",
+      emptyTipsSub: "New picks drop daily at 08:00 · 12:00 · 18:00 (SL time)"
+    },
     legal: {
       privacy: "Your privacy is strictly safeguarded. Sensitive financial credentials (passwords, PINs, card CVVs) are never collected or stored on this website. Operations are secured through Cloudflare edge infrastructure, D1, and encrypted R2 storage. Restricted to users 18+.",
       terms: "This website serves as the official portal and Telegram assistant. We make no guaranteed return or betting outcome claims. Gamble responsibly and within your personal means. Strictly 18+."
@@ -321,6 +432,46 @@ const T: Record<Lang, {
         avgOdds: "சராசரி Odds",
         status: "உறுதிப்படுத்தப்பட்டது (Verified)"
       }
+    },
+    ui: {
+      howStepBodies: [
+        "Telegram CTA அல்லது QR code மூலம் bot-ஐ திறக்கவும்.",
+        "Tips, deposit, withdrawal அல்லது multilingual support-ஐ தேர்ந்தெடுக்கவும்.",
+        "Bot கேட்கும் தகவல்களை மட்டும் வழங்கவும்."
+      ],
+      servicesIntro: "ஒரு சேவையைத் தேர்ந்தெடுத்து guided வழிமுறைகளைப் பின்பற்றுங்கள். நேரடி தரவு மற்றும் Real-time Odds-க்கு Telegram Bot-ஐ திறக்கவும் (18+ பொறுப்புடன் விளையாடுங்கள்).",
+      serviceBodies: [
+        "Telegram-இல் நேரடி match odds-உடன் தானியங்கி விளையாட்டு பகுப்பாய்வு.",
+        "Configured பரிவர்த்தனை வரம்புகளுடன் guided deposit flow.",
+        "Bot வழியாக withdrawal கோரிக்கை சமர்ப்பித்து verification படிகளைப் பின்பற்றவும்.",
+        "Telegram வழியாக சிங்களம், ஆங்கிலம் மற்றும் தமிழ் ஆதரவு."
+      ],
+      serviceTagTips: "நேரடி tips பெறவும்",
+      serviceTagGuided: "Guided கோரிக்கை",
+      payDesc: "eZ Cash, mCash, FriMi, iPay மற்றும் வங்கி கணக்குகள் மூலம் எளிதாக deposit மற்றும் withdrawal. முக்கிய தகவல்கள் இந்த பக்கத்தில் வெளிப்படுத்தப்படாது.",
+      payAfterVerify: "⚡ சரிபார்ப்புக்குப் பிறகு",
+      payNoFee: "சேவை கட்டணம் இல்லை",
+      payAvailable: "கிடைக்கிறது",
+      payViaTelegram: "Telegram வழியாக",
+      faqHeading: "அடிக்கடி கேட்கும் கேள்விகள்",
+      faqSub: "பொது செயல்முறைக்கான தெளிவான பதில்கள்.",
+      footerAbout: "பொது விளையாட்டு முன்னோட்டங்கள், guided ஆதரவு மற்றும் multilingual உதவிக்கான Telegram முதன்மை சேவை.",
+      footerQuick: "விரைவு இணைப்புகள்",
+      footerLegal: "சட்டம் & அணுகல்",
+      footerTipsChannel: "Tips Channel",
+      footerPrivacy: "தனியுரிமைக் கொள்கை",
+      footerTerms: "சேவை விதிமுறைகள்",
+      calcTitle: "Deposit & Bonus கால்குலேட்டர் (LKR)",
+      calcSubPrefix: "ப்ரோமோ குறியீட்டுடன் உடனடி போனஸ் மதிப்பீடு:",
+      calcCtaPrefix: "Deposit செய்க",
+      calcCtaSuffix: "— Telegram வழியாக",
+      qrTitle: "📱 மொபைலில் திறக்கவும்",
+      qrDesc: "Telegram bot-ஐ தொடங்க உங்கள் ஃபோன் கேமராவால் scan செய்யவும்:",
+      qrOpen: "Telegram-இல் திறக்கவும்",
+      stickyTag: "இலவச Tips & Cash Desk",
+      stickyBtn: "Telegram திறக்கவும்",
+      emptyTipsTitle: "இந்த வகையில் தற்போது tips இல்லை",
+      emptyTipsSub: "புதிது picks தினமும் 08:00 · 12:00 · 18:00 (SL நேரம்) வெளியாகும்"
     },
     legal: {
       privacy: "பயனர் ரகசியத்தன்மை முழுமையாகப் பாதுகாக்கப்படுகிறது. வங்கி PIN அல்லது கார்டு விவரங்கள் தளத்தில் சேமிக்கப்படாது. Cloudflare Edge, D1 மற்றும் R2 மூலம் பாதுகாக்கப்படுகிறது. 18+ பயனர்களுக்கு மட்டுமே.",
@@ -512,6 +663,10 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
   const channel = env.CHANNEL_URL?.trim() || CHANNEL_FALLBACK;
   const botName = env.BOT_USERNAME?.trim().replace(/^@/, "") || BOT_FALLBACK;
   const bot = `https://t.me/${botName}?start=landing`;
+  // Deep-link URL builders — `bot` already carries ?start=landing, so variant
+  // deep links must replace (not append) the start parameter, otherwise Telegram
+  // reads only the first value and the payload (dep_*, landing_qr, …) is lost.
+  const botDeepLink = (payload: string): string => `https://t.me/${botName}?start=${payload}`;
   const min = Number.parseInt(env.MIN_TRANSACTION_LKR || "1000", 10) || 1000;
   const max = Number.parseInt(env.MAX_TRANSACTION_LKR || "500000", 10) || 500000;
 
@@ -575,21 +730,21 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
     `<article class="payment">
       <div class="payTop">
         <span class="payIcon">${paymentIcon(p)}</span>
-        <span class="payBadge">⚡ After verify</span>
+        <span class="payBadge">${esc(c.ui.payAfterVerify)}</span>
       </div>
       <b>${esc(p)}</b>
       <div class="payBottom">
-        <span class="payFee">No service fee</span>
-        <span>${paymentConfigured(env, p) ? "Available" : "via Telegram"}</span>
+        <span class="payFee">${esc(c.ui.payNoFee)}</span>
+        <span>${paymentConfigured(env, p) ? esc(c.ui.payAvailable) : esc(c.ui.payViaTelegram)}</span>
       </div>
     </article>`
   ).join("");
 
   const serviceCards = [
-    ["🎯", c.services[2], "Automated sports analysis with real-time match odds on Telegram.", "Get live tips"],
-    ["💳", c.services[3], "Guided deposit workflow with configured transaction limits.", `LKR ${min.toLocaleString("en-LK")} – ${max.toLocaleString("en-LK")}`],
-    ["↗", c.services[4], "Submit a withdrawal request through the bot and follow verification steps.", "Guided request"],
-    ["🌐", c.services[5], "Sinhala, English and Tamil support through Telegram.", "SI · EN · TA"]
+    ["🎯", c.services[2], c.ui.serviceBodies[0], c.ui.serviceTagTips],
+    ["💳", c.services[3], c.ui.serviceBodies[1], `LKR ${min.toLocaleString("en-LK")} – ${max.toLocaleString("en-LK")}`],
+    ["↗", c.services[4], c.ui.serviceBodies[2], c.ui.serviceTagGuided],
+    ["🌐", c.services[5], c.ui.serviceBodies[3], "SI · EN · TA"]
   ].map(([icon, title, body, tag]) =>
     `<article class="service">
       <div class="icon">${icon}</div>
@@ -974,6 +1129,10 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .legalModalTop h3{margin:0;font-size:1.1rem;color:var(--fg)}
 .legalContent{font-size:.76rem;color:var(--muted);line-height:1.6}
 
+/* Tips empty state */
+.tipEmpty{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:34px 20px;border:1px dashed #26354b;border-radius:18px;background:#0b111b;color:var(--muted);font-size:.72rem;text-align:center}
+.tipEmpty .tipEmptyIcon{font-size:1.6rem;opacity:.85}
+
 /* Mobile Sticky Bar */
 .mobileStickyBar{display:none}
 @media(max-width:720px){
@@ -1202,7 +1361,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
   <div class="head">
     <div class="kicker">${esc(c.services[0])}</div>
     <h2>${esc(c.services[1])}</h2>
-    <p>Choose a service and follow the guided instructions. Open Telegram Bot for Live Data & Real-time Odds (18+ Gamble Responsibly).</p>
+    <p>${esc(c.ui.servicesIntro)}</p>
   </div>
   <div class="services">${serviceCards}</div>
 </div></section>
@@ -1232,6 +1391,12 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
       <button type="button" data-sport="all" class="tipTab active">All</button>
       <button type="button" data-sport="football" class="tipTab">Football</button>
       <button type="button" data-sport="cricket" class="tipTab">Cricket</button>
+    </div>
+    <div id="tipEmptyState" class="tipEmpty" style="display:none;margin:0 16px 8px">
+      <span class="tipEmptyIcon" aria-hidden="true">🏏</span>
+      <b>${esc(c.ui.emptyTipsTitle)}</b>
+      <span>${esc(c.ui.emptyTipsSub)}</span>
+      <a class="btn primary" href="${ebTips}" style="min-height:38px;padding:8px 16px;font-size:.72rem">✈ ${esc(c.hero[4])}</a>
     </div>
     <div id="tipLiveSummary" class="tipSummary">
       <span>⚡ <b>Live Feed</b> Telegram Channel</span>
@@ -1288,17 +1453,17 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
     <article class="step">
       <div class="num">1</div>
       <h3>${esc(c.how[1])}</h3>
-      <p>Use the Telegram CTA or QR code to open the bot.</p>
+      <p>${esc(c.ui.howStepBodies[0])}</p>
     </article>
     <article class="step">
       <div class="num">2</div>
       <h3>${esc(c.how[2])}</h3>
-      <p>Choose tips, deposit, withdrawal or multilingual support.</p>
+      <p>${esc(c.ui.howStepBodies[1])}</p>
     </article>
     <article class="step">
       <div class="num">3</div>
       <h3>${esc(c.how[3])}</h3>
-      <p>Provide only the information requested by the bot.</p>
+      <p>${esc(c.ui.howStepBodies[2])}</p>
     </article>
   </div>
 </div></section>
@@ -1307,7 +1472,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
   <div class="head">
     <div class="kicker">Payments</div>
     <h2>${esc(c.pay[0])}</h2>
-    <p>eZ Cash, mCash, FriMi, iPay සහ බැංකු ගිණුම් හරහා තැන්පතු සහ මුදල් ආපසු ගැනීම් පහසුවෙන් සිදු කළ හැක. Sensitive credentials are never exposed on this page.</p>
+    <p>${esc(c.ui.payDesc)}</p>
   </div>
   <div class="payments">${payments}</div>
   <div class="limits">
@@ -1320,8 +1485,8 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
     <div class="calcHead">
       <div class="calcIcon">🧮</div>
       <div>
-        <h3 style="margin:0;font-size:1.05rem;color:var(--fg)">Deposit &amp; Bonus Calculator (LKR)</h3>
-        <p style="margin:3px 0 0;font-size:.72rem;color:var(--muted)">Instant bonus estimate with promo code ${promo}</p>
+        <h3 style="margin:0;font-size:1.05rem;color:var(--fg)">${esc(c.ui.calcTitle)}</h3>
+        <p style="margin:3px 0 0;font-size:.72rem;color:var(--muted)">${esc(c.ui.calcSubPrefix)} ${promo}</p>
       </div>
     </div>
     <div class="calcBody">
@@ -1348,7 +1513,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
           <span>🛡️ No service fee</span>
           <span>💳 Local rails</span>
         </div>
-        <a class="btn primary calcBtn" id="calcCtaBtn" href="${eb}&start=deposit" data-track-cta="calc_deposit">✈ Deposit LKR 5,000 via Telegram</a>
+        <a class="btn primary calcBtn" id="calcCtaBtn" href="${esc(botDeepLink("deposit"))}" data-track-cta="calc_deposit">✈ ${esc(c.ui.calcCtaPrefix)} LKR 5,000 ${esc(c.ui.calcCtaSuffix)}</a>
       </div>
     </div>
     <div style="margin-top:14px;padding:8px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;font-size:0.72rem;color:var(--muted);text-align:center;">
@@ -1389,8 +1554,8 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 <section class="section" id="faq"><div class="wrap faq">
   <div class="head">
     <div class="kicker">FAQ</div>
-    <h2>Frequently Asked Questions</h2>
-    <p>Clear answers for the public workflow.</p>
+    <h2>${esc(c.ui.faqHeading)}</h2>
+    <p>${esc(c.ui.faqSub)}</p>
   </div>
   <div class="faqs">${faqHtml}</div>
 </div></section>
@@ -1419,15 +1584,15 @@ ${renderFinalCtaBanner(c, lang, eb)}
 <div class="qrModalOverlay" id="qrModalOverlay" aria-hidden="true" inert>
   <div class="qrModalCard" role="dialog" aria-modal="true" aria-labelledby="qrModalTitle">
     <div class="qrModalTop">
-      <h3 id="qrModalTitle">📱 Open on Mobile</h3>
+      <h3 id="qrModalTitle">${esc(c.ui.qrTitle)}</h3>
       <button type="button" class="qrCloseBtn" id="qrCloseBtn" aria-label="Close QR modal">&times;</button>
     </div>
-    <p class="qrModalDesc">Scan with your phone camera to start the Telegram bot:</p>
+    <p class="qrModalDesc">${esc(c.ui.qrDesc)}</p>
     <div class="qrBox">
-      ${qrCodeSvg(eb + "&start=landing_qr")}
+      ${qrCodeSvg(botDeepLink("landing_qr"))}
     </div>
     <div class="qrModalBot">@${esc(botName)}</div>
-    <a class="btn primary" href="${eb}&start=landing_qr" target="_blank" rel="noopener" data-track-cta="qr_modal_btn">✈ Open in Telegram</a>
+    <a class="btn primary" href="${esc(botDeepLink("landing_qr"))}" target="_blank" rel="noopener" data-track-cta="qr_modal_btn">✈ ${esc(c.ui.qrOpen)}</a>
   </div>
 </div>
 
@@ -1464,9 +1629,9 @@ ${renderFinalCtaBanner(c, lang, eb)}
   <div class="stickyContent">
     <div class="stickyInfo">
       <b>Fast xBet Cash 🇱🇰</b>
-      <span>Free Tips &amp; Cash Desk</span>
+      <span>${esc(c.ui.stickyTag)}</span>
     </div>
-    <a class="btn primary stickyBtn" href="${eb}&start=landing_sticky" data-track-cta="mobile_sticky">✈ Open Telegram</a>
+    <a class="btn primary stickyBtn" href="${esc(botDeepLink("landing_sticky"))}" data-track-cta="mobile_sticky">✈ ${esc(c.ui.stickyBtn)}</a>
   </div>
 </aside>
 </main>
@@ -1477,11 +1642,11 @@ ${renderFinalCtaBanner(c, lang, eb)}
       <img src="/favicon.png" alt="Fast xBet Cash" width="36" height="36" decoding="async">
       Fast <span>xBet</span> Cash 🇱🇰
     </a>
-    <p>Telegram-first service for public sports previews, guided support and multilingual assistance.</p>
+    <p>${esc(c.ui.footerAbout)}</p>
     <b>18+ only · Gamble responsibly</b>
   </div>
   <div>
-    <b>Quick links</b>
+    <b>${esc(c.ui.footerQuick)}</b>
     <div class="footerLinks">
       <a href="#tips-preview">${esc(c.nav[1])}</a>
       <a href="#payments">${esc(c.nav[3])}</a>
@@ -1490,12 +1655,12 @@ ${renderFinalCtaBanner(c, lang, eb)}
     </div>
   </div>
   <div>
-    <b>Legal &amp; Access</b>
+    <b>${esc(c.ui.footerLegal)}</b>
     <div class="footerLinks">
-      <a href="${ec}">Tips Channel</a>
+      <a href="${ec}">${esc(c.ui.footerTipsChannel)}</a>
       <a href="${eb}" data-track-cta="footer_bot">Telegram Bot</a>
-      <button type="button" class="footerLinkBtn" id="privacyLink">Privacy Policy</button>
-      <button type="button" class="footerLinkBtn" id="termsLink">Terms of Service</button>
+      <button type="button" class="footerLinkBtn" id="privacyLink">${esc(c.ui.footerPrivacy)}</button>
+      <button type="button" class="footerLinkBtn" id="termsLink">${esc(c.ui.footerTerms)}</button>
     </div>
   </div>
 </div><div class="wrap bottom">
@@ -1626,7 +1791,7 @@ ${renderFinalCtaBanner(c, lang, eb)}
       if (sumTotal) sumTotal.textContent = "LKR " + total.toLocaleString("en-LK");
 
       if (calcCta) {
-        calcCta.textContent = "✈ Deposit " + formatted + " via Telegram";
+        calcCta.textContent = "✈ " + ${JSON.stringify(c.ui.calcCtaPrefix)} + " " + formatted + " " + ${JSON.stringify(c.ui.calcCtaSuffix)};
         calcCta.href = baseBotUrl + "?start=dep_" + val;
       }
     }
@@ -1717,10 +1882,15 @@ ${renderFinalCtaBanner(c, lang, eb)}
 
     function applySportFilter(sport) {
       if (!tipGrid) return;
+      var anyVisible = false;
       tipGrid.querySelectorAll(".tipCard").forEach(function(card){
         var cardSport = card.getAttribute("data-sport") || "football";
-        card.style.display = (sport === "all" || cardSport === sport) ? "flex" : "none";
+        var show = (sport === "all" || cardSport === sport);
+        card.style.display = show ? "flex" : "none";
+        anyVisible = anyVisible || show;
       });
+      var emptyState = document.getElementById("tipEmptyState");
+      if (emptyState) emptyState.style.display = anyVisible ? "none" : "flex";
     }
 
     tipTabs.forEach(function(tab){

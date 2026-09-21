@@ -183,9 +183,12 @@ describe("Landing Page Render & SEO", () => {
     expect(html).toContain("VGSL");
 
     // 3. Local payment rails with badges (soft metrics — no hard SLA claims)
+    // Localized UI strings are language-aware: the default render is SI, and the
+    // EN render must carry the original English labels.
+    const htmlEn = renderLandingPage(mockEnv, new Request("https://fast-xbet.lk/?lang=en"), "testnonce123");
     expect(html).toContain("payBadge");
-    expect(html).toContain("⚡ After verify");
-    expect(html).toContain("No service fee");
+    expect(htmlEn).toContain("⚡ After verify");
+    expect(htmlEn).toContain("No service fee");
     expect(html).toContain("eZ Cash");
     expect(html).toContain("mCash");
     expect(html).toContain("FriMi");
