@@ -16,7 +16,7 @@ function decodeBase64(base64: string): Uint8Array {
 const PUBLIC_FAVICON_PNG: Uint8Array = decodeBase64(FAVICON_PNG_BASE64);
 const PUBLIC_BOT_DESCRIPTION_JPEG: Uint8Array = decodeBase64(BOT_DESCRIPTION_IMAGE_BASE64);
 import { constantTimeEqual, isConfiguredAdminId, validateEnv } from "./config";
-import { securityHeaders, adminAttemptAllowed, recordAdminFailure, isAdminIpAllowed } from "./security";
+import { securityHeaders, landingPageSecurityHeaders, adminAttemptAllowed, recordAdminFailure, isAdminIpAllowed } from "./security";
 import {
   ADMIN_SESSION_COOKIE,
   adminSessionCookieHeader,
@@ -32,6 +32,7 @@ import { getR2StorageAnalytics } from "./r2";
 import { settlePendingTips, getTipsPerformanceStats } from "./tipsSettlement";
 import { checkTelegramBotConnection } from "./telegramStatus";
 import { renderAdminPage, renderAdminLoginPage } from "./adminPage";
+import { renderPrivacyPage } from "./privacyPage";
 
 /**
  * Header-only admin credential check.
@@ -566,6 +567,18 @@ export async function handleApiRequest(
     };
     if (method === "HEAD") return new Response(null, { status: 200, headers });
     return new Response(BRAND_LOGO_PNG_192, { status: 200, headers });
+  }
+
+  // Public Privacy Policy Page (/privacy, /privacy-policy, /legal/privacy)
+  if ((path === "/privacy" || path === "/privacy-policy" || path === "/legal/privacy") && (method === "GET" || method === "HEAD")) {
+    const nonce = crypto.randomUUID().replace(/-/g, "");
+    const html = renderPrivacyPage(env, request, nonce);
+    const headers = landingPageSecurityHeaders(nonce, { isHttps: request.url.startsWith("https://") });
+    delete headers["X-Frame-Options"];
+    headers["Content-Security-Policy"] = headers["Content-Security-Policy"].replace(/;\s*frame-ancestors\s+'none'/, "");
+    headers["Content-Type"] = "text/html; charset=utf-8";
+    if (method === "HEAD") return new Response(null, { status: 200, headers });
+    return new Response(html, { status: 200, headers });
   }
 
   // Affiliate Click Tracking & 302 Redirect for Tip Picks (/go/tip/:id)

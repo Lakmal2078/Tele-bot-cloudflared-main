@@ -897,6 +897,26 @@ Tap 'Start' below to begin now! 👇</div>
             📋 Copy About Text
           </button>
         </div>
+
+        <!-- Privacy Policy URL (/setprivacy) -->
+        <div style="background: #060a12; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; display: flex; flex-direction: column;">
+          <div style="font-size: 12px; font-weight: 700; color: #cbd5e1; margin-bottom: 8px; display: flex; justify-content: space-between;">
+            <span>🛡️ Privacy Policy (/setprivacy)</span>
+            <span style="color: #38bdf8; font-family: monospace;">Public URL</span>
+          </div>
+          <div id="copy-privacy-box" style="background: #0a111e; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 12px; font-size: 12px; line-height: 1.5; color: #7dd3fc; font-family: monospace; word-break: break-all; flex: 1; margin-bottom: 10px;">/privacy</div>
+          <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <button type="button" class="btn-tab" onclick="var btn=this;var fullUrl=window.location.origin+'/privacy';navigator.clipboard.writeText(fullUrl).then(function(){btn.textContent='✓ Copied!';setTimeout(function(){btn.textContent='📋 Copy Privacy URL'},2000);})" style="flex: 1; text-align: center; justify-content: center; padding: 8px; cursor: pointer;">
+              📋 Copy Privacy URL
+            </button>
+            <a href="/privacy" target="_blank" class="btn-tab" style="text-align: center; justify-content: center; padding: 8px 12px; text-decoration: none; display: inline-flex; align-items: center; color: #e2e8f0;">
+              ↗ View
+            </a>
+          </div>
+          <div style="font-size: 11px; color: #94a3b8; line-height: 1.4;">
+            Send this public URL to @BotFather after typing <code>/setprivacy</code>, or use <code>/empty</code> to revert to Telegram's default policy.
+          </div>
+        </div>
       </div>
     </section>
 
@@ -968,6 +988,12 @@ Tap 'Start' below to begin now! 👇</div>
 
   <script${nonceAttr}>
   (function(){
+    // Set absolute Privacy Policy URL for current host
+    var privacyBox = document.getElementById("copy-privacy-box");
+    if (privacyBox) {
+      privacyBox.textContent = window.location.origin + "/privacy";
+    }
+
     // Telegram Bot ping
     var badge = document.getElementById("admin-bot-badge");
     var dot = document.getElementById("admin-bot-dot");

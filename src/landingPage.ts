@@ -1299,6 +1299,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
     <div class="legalContent">
       <p>${esc(c.legal.privacy)}</p>
       <p>Cloudflare D1 SQL storage and Cloudflare R2 object storage provide strict data isolation. Logs are rotated and purged automatically. No bank credentials or card information are ever requested.</p>
+      <p style="margin-top: 14px;"><a href="/privacy" target="_blank" style="color: #00e676; text-decoration: underline; font-weight: 600;">View Full Official Privacy Policy Page &rarr;</a></p>
     </div>
   </div>
 </div>
