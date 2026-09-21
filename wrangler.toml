@@ -4,66 +4,68 @@ compatibility_date = "2026-09-09"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
-# Cloudflare Workers Static Assets.
-# public/og-image.jpg is the canonical OpenGraph image asset.
-# Assets are served before Worker code by default, so /og-image.jpg is
-# delivered directly from Cloudflare's asset layer.
+# Cloudflare Workers Static Assets (Landing Page & SEO)
 [assets]
 directory = "./public"
 binding = "ASSETS"
 
+# Environment Variables ([vars])
 [vars]
 BOT_MODE = "production"
-# Trusted public HTTPS origin used for canonical and absolute SEO URLs.
+USE_POLLING = "false"
 PUBLIC_BASE_URL = "https://xbet-telegram-bot.agent-1xfast-srilanka.workers.dev"
 BOT_USERNAME = "fast_1xbetcash_bot"
+
+# Telegram Channel
 CHANNEL_URL = "https://t.me/fast_xbet_official_tips"
 CHANNEL_USERNAME = "@fast_xbet_official_tips"
-DEPOSIT_INSTRUCTIONS = "Deposit to the following account"
-MAX_TRANSACTION_LKR = "500000"
-MIN_TRANSACTION_LKR = "1000"
-R2_BUCKET_NAME = "chat-media"
-USE_POLLING = "false"
-# Affiliate / payment contact values are environment-specific operational data.
-# Prefer setting them via `wrangler secret put` or per-environment [vars] rather
-# than committing live phone numbers and affiliate tags to public source.
-XBET_LINK = ""
-XBET_PROMO_CODE = ""
-EZCASH_NUMBER = ""
-MCASH_NUMBER = ""
-FRIMI_NUMBER = ""
-IPAY_NUMBER = ""
-WHATSAPP_NUMBER = ""
 
-# Automated Free Tips — Sri Lanka time (UTC+05:30)
-# 08:00 = 02:30 UTC, 12:00 = 06:30 UTC, 18:00 = 12:30 UTC.
-# Free-plan (500 credits/mo) budget:
-#   3 feeds x 3 slots/day = max 9 paid odds requests/day (~270/month).
-#   /sports discovery + /scores settlement are quota-free on free plans.
-#   1 market (h2h) x 1 region (eu) = 1 credit per sport feed.
-TIPS_CHANNEL_ID = ""
+# Payment Gateways & Numbers
+EZCASH_NUMBER = "0765865387"
+MCASH_NUMBER = "0765865387"
+FRIMI_NUMBER = "0765865387"
+IPAY_NUMBER = "0740452530"
+BANK_DETAILS = ""
+
+# Customer Support
+WHATSAPP_NUMBER = "94776763093"
+
+# Limits & Instructions
+MIN_TRANSACTION_LKR = "1000"
+MAX_TRANSACTION_LKR = "500000"
+DEPOSIT_INSTRUCTIONS = "Deposit to the following account"
+
+# 1xBet Affiliate
+XBET_LINK = "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622"
+XBET_PROMO_CODE = "VGSL"
+
+# Automated Free Sports Betting Tips (Sri Lanka UTC+05:30)
+TIPS_CHANNEL_ID = "-1004336999467"
 TIPS_CHANNEL_URL = "https://t.me/fast_xbet_official_tips"
-TIPS_PER_SLOT = "3"
 TIPS_SPORTS = "soccer_epl,soccer_spain_la_liga,soccer_italy_serie_a,soccer_germany_bundesliga,soccer_uefa_champs_league,cricket_international_t20,basketball_nba,auto:table_tennis,auto:esports"
 TIPS_ODDS_REGIONS = "eu"
 TIPS_MIN_ODDS = "1.30"
 TIPS_MAX_ODDS = "3.00"
 TIPS_HOURS_AHEAD = "72"
+TIPS_PER_SLOT = "3"
 TIPS_MAX_FEEDS = "5"
 TIPS_MIN_CONSENSUS = "0.48"
 TIPS_MIN_VALUE = "0.005"
 TIPS_MIN_BOOKMAKERS = "2"
 TIPS_MAX_STALE_HOURS = "24"
 
+# Cloudflare D1 SQL Database Binding
 [[d1_databases]]
 binding = "DB"
 database_name = "fastxbetcash_bot-db"
 database_id = "7a821498-be68-4a0f-a630-e9334238c1fe"
 
+# Cloudflare R2 Media Bucket Binding
 [[r2_buckets]]
 binding = "CHAT_MEDIA"
 bucket_name = "chat-media"
 
+# Automated Cron Triggers
+# 02:00 UTC = cleanup, 02:30/06:30/12:30 UTC = Free Tips (08:00/12:00/18:00 SL), 15 * * * * = Hourly settlement
 [triggers]
-# 02:00 UTC = legacy R2 cleanup; 02:30/06:30/12:30 UTC = 08:00/12:00/18:00 SL free tips; 15 * * * * = Hourly settlement
 crons = ["0 2 * * *", "30 2 * * *", "30 6 * * *", "30 12 * * *", "15 * * * *"]
