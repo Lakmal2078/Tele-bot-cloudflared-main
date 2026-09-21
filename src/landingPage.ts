@@ -579,6 +579,19 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .links{display:flex;gap:2px;margin-left:auto}
 .links a{padding:8px 11px;border-radius:10px;color:var(--muted);font-size:.78rem;font-weight:700}
 .links a:hover{background:#ffffff08;color:var(--fg)}
+.botStatusWidget{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;background:#ffffff06;border:1px solid #ffffff12;font-size:.74rem;font-weight:600;color:var(--muted);cursor:pointer;transition:all .18s ease;user-select:none;margin-left:auto}
+.botStatusWidget:hover{background:#ffffff0f;border-color:#00b4f855;color:var(--fg)}
+.botStatusWidget:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.botStatusDot{width:8px;height:8px;border-radius:50%;background:#94a3b8;flex-shrink:0;transition:background-color .25s ease,box-shadow .25s ease}
+.botStatusDot.online{background:#00e676;box-shadow:0 0 8px #00e676cc;animation:botPulse 2s infinite}
+.botStatusDot.checking{background:#facc15;box-shadow:0 0 6px #facc15aa;animation:botBlink 0.9s infinite}
+.botStatusDot.offline{background:#ef4444;box-shadow:0 0 8px #ef4444aa}
+.botStatusDot.unconfigured{background:#f59e0b;box-shadow:0 0 6px #f59e0baa}
+.botStatusLabel{display:inline-flex;gap:4px}
+.botStatusLabel b{color:var(--fg);font-weight:700}
+.botStatusPing{font-size:.65rem;padding:2px 6px;border-radius:6px;background:#00b4f81a;color:#38bdf8;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;border:1px solid #00b4f833}
+@keyframes botPulse{0%,100%{transform:scale(1);box-shadow:0 0 6px #00e676aa}50%{transform:scale(1.2);box-shadow:0 0 12px #00e676ff}}
+@keyframes botBlink{0%,100%{opacity:1}50%{opacity:0.3}}
 .langs{display:flex;gap:3px;padding:3px;border:1px solid var(--border);border-radius:999px;background:#ffffff05}
 .langs a{padding:5px 8px;color:var(--muted);font-size:.72rem;font-weight:800;border-radius:999px}
 .langs a[aria-current=page]{background:#ffffff0b;color:var(--fg)}
@@ -896,6 +909,11 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
       <a href="#security">${esc(c.nav[4])}</a>
       <a href="#faq">${esc(c.nav[5])}</a>
     </nav>
+    <div class="botStatusWidget" id="botStatusWidget" role="status" aria-live="polite" title="Telegram Bot Live Ping · Click to re-test connection" tabindex="0">
+      <span class="botStatusDot checking" id="botStatusDot"></span>
+      <span class="botStatusLabel" id="botStatusLabel">Bot: <b id="botStatusText">Checking...</b></span>
+      <span class="botStatusPing" id="botStatusPing"></span>
+    </div>
     <div class="langs" aria-label="Language">
       <a href="?lang=si" ${lang === "si" ? 'aria-current="page"' : ""}>SI</a>
       <a href="?lang=en" ${lang === "en" ? 'aria-current="page"' : ""}>EN</a>
@@ -975,9 +993,9 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
       </div>
 
       <div class="pills">
+        <span class="pill" id="heroBotStatusPill"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#00e676;margin-right:4px;"></span> ⚡ Bot Online</span>
         <span class="pill">🔞 18+ only</span>
         <span class="pill">🌐 Sinhala / English / Tamil</span>
-        <span class="pill">⚡ Guided Telegram flow</span>
         <span class="pill">🛡️ Cloudflare Protected</span>
       </div>
     </div>
@@ -989,7 +1007,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
           <div class="chatHead">
             <div class="brand"><img src="/favicon.png" alt="Fast xBet Cash Bot" width="34" height="34" decoding="async"></div>
             <div class="chatTitle"><b>Fast xBet Cash</b><span>bot · replies in minutes</span></div>
-            <div class="online"><i></i> Bot online</div>
+            <div class="online" id="phoneBotStatus"><i id="phoneBotStatusDot"></i> <span id="phoneBotStatusText">Bot online</span></div>
           </div>
           <div class="chat" id="chatContainer">
             <div class="bubble bot">Welcome to Fast xBet Cash 🇱🇰. Choose a service to continue.</div>
@@ -1324,6 +1342,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
   </div>
 </div><div class="wrap bottom">
   <span>© ${new Date().getFullYear()} Fast xBet Cash</span>
+  <span id="footerBotStatus" style="display:inline-flex;align-items:center;gap:6px;"><i style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#00e676;"></i> Telegram Bot API: Online</span>
   <span>18+ · Cloudflare Edge · D1 &amp; R2 Infrastructure</span>
 </div></footer>
 
@@ -1736,6 +1755,93 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
         } catch(err){}
       });
     });
+  } catch(e){}
+
+  // 12. Telegram Bot Live API Status Ping
+  try {
+    var botWidget = document.getElementById("botStatusWidget");
+    var botDot = document.getElementById("botStatusDot");
+    var botText = document.getElementById("botStatusText");
+    var botPing = document.getElementById("botStatusPing");
+    var phoneDot = document.getElementById("phoneBotStatusDot");
+    var phoneText = document.getElementById("phoneBotStatusText");
+    var heroPill = document.getElementById("heroBotStatusPill");
+    var footerStatus = document.getElementById("footerBotStatus");
+    var isPinging = false;
+
+    function pingBotStatus() {
+      if (isPinging) return;
+      isPinging = true;
+      if (botDot) botDot.className = "botStatusDot checking";
+      if (botText) botText.textContent = "Pinging...";
+
+      fetch("/api/bot/status", { cache: "no-store", headers: { Accept: "application/json" } })
+        .then(function(res){ return res.ok ? res.json() : null; })
+        .then(function(data){
+          isPinging = false;
+          if (data && data.ok && data.status === "connected") {
+            var ms = data.pingMs ? data.pingMs + "ms" : "<100ms";
+            var botUser = data.bot && data.bot.username ? "@" + data.bot.username : "Active";
+            if (botDot) botDot.className = "botStatusDot online";
+            if (botText) botText.textContent = "Online";
+            if (botPing) {
+              botPing.textContent = ms;
+              botPing.style.display = "inline-block";
+            }
+            if (botWidget) botWidget.setAttribute("title", "Telegram Bot is connected & responding (" + ms + ") · Click to re-test");
+            if (phoneText) phoneText.textContent = "Online (" + ms + ")";
+            if (phoneDot) phoneDot.style.background = "#00e676";
+            if (heroPill) heroPill.innerHTML = '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#00e676;margin-right:4px;"></span> <b>Bot Online</b> (' + ms + ')';
+            if (footerStatus) footerStatus.innerHTML = '<i style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#00e676;box-shadow:0 0 6px #00e676;"></i> Telegram Bot API: Connected (' + ms + ')';
+          } else if (data && data.status === "not_configured") {
+            if (botDot) botDot.className = "botStatusDot unconfigured";
+            if (botText) botText.textContent = "Not Configured";
+            if (botPing) botPing.style.display = "none";
+            if (botWidget) botWidget.setAttribute("title", "BOT_TOKEN not configured in environment · Click to test");
+            if (phoneText) phoneText.textContent = "Setup Required";
+            if (phoneDot) phoneDot.style.background = "#f59e0b";
+            if (heroPill) heroPill.innerHTML = '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#f59e0b;margin-right:4px;"></span> Bot Setup Required';
+            if (footerStatus) footerStatus.innerHTML = '<i style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#f59e0b;"></i> Telegram Bot: Unconfigured';
+          } else {
+            var errMsg = (data && data.message) || "Disconnected";
+            if (botDot) botDot.className = "botStatusDot offline";
+            if (botText) botText.textContent = "Offline";
+            if (botPing) {
+              botPing.textContent = "ERR";
+              botPing.style.display = "inline-block";
+            }
+            if (botWidget) botWidget.setAttribute("title", "Telegram Bot API error: " + errMsg + " · Click to retry");
+            if (phoneText) phoneText.textContent = "Offline";
+            if (phoneDot) phoneDot.style.background = "#ef4444";
+            if (heroPill) heroPill.innerHTML = '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#ef4444;margin-right:4px;"></span> Bot Offline';
+            if (footerStatus) footerStatus.innerHTML = '<i style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#ef4444;"></i> Telegram Bot: Offline';
+          }
+        })
+        .catch(function(){
+          isPinging = false;
+          if (botDot) botDot.className = "botStatusDot offline";
+          if (botText) botText.textContent = "Offline";
+          if (botPing) {
+            botPing.textContent = "FAIL";
+            botPing.style.display = "inline-block";
+          }
+          if (phoneText) phoneText.textContent = "Offline";
+          if (phoneDot) phoneDot.style.background = "#ef4444";
+        });
+    }
+
+    if (botWidget) {
+      botWidget.addEventListener("click", pingBotStatus);
+      botWidget.addEventListener("keydown", function(e){
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          pingBotStatus();
+        }
+      });
+    }
+
+    pingBotStatus();
+    setInterval(pingBotStatus, 45000);
   } catch(e){}
 
 })();

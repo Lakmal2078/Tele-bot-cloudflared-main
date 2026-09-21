@@ -372,6 +372,7 @@ export function renderAdminPage(
           <span style="width:32px; height:32px; display:inline-flex; border-radius:8px; overflow:hidden; box-shadow:0 0 10px rgba(0,180,248,0.35); flex-shrink:0;">${BRAND_LOGO_SVG_COMPACT}</span>
           <h1 style="font-size: 22px; font-weight: 800; color: #f8fafc;">Fast xBet Cash — Admin Panel</h1>
           <span class="badge" id="sys-badge"><span class="badge-dot"></span> System Live</span>
+          <span class="badge" id="admin-bot-badge" style="background:rgba(250,204,21,0.12); color:#facc15; border-color:rgba(250,204,21,0.3); cursor:pointer;" title="Click to test Telegram Bot API ping"><span class="badge-dot" id="admin-bot-dot" style="background:#facc15;"></span> <span id="admin-bot-text">Bot: Checking...</span></span>
         </div>
         <p style="font-size: 13px; color: #94a3b8;">Financial integrity monitor, Telegram agent stats &amp; D3.js trend analytics</p>
       </div>
@@ -553,6 +554,52 @@ export function renderAdminPage(
     </div>
   </div>
 
+  <script${nonceAttr}>
+  (function(){
+    var badge = document.getElementById("admin-bot-badge");
+    var dot = document.getElementById("admin-bot-dot");
+    var text = document.getElementById("admin-bot-text");
+    function pingBot() {
+      if (text) text.textContent = "Bot: Pinging...";
+      if (dot) dot.style.background = "#facc15";
+      fetch("/api/bot/status", { cache: "no-store" })
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(d){
+          if (d && d.ok && d.status === "connected") {
+            if (text) text.textContent = "Bot: Connected (" + (d.pingMs ? d.pingMs + "ms" : "OK") + ")";
+            if (dot) dot.style.background = "#10b981";
+            if (badge) {
+              badge.style.background = "rgba(16, 185, 129, 0.12)";
+              badge.style.color = "#10b981";
+              badge.style.borderColor = "rgba(16, 185, 129, 0.28)";
+            }
+          } else if (d && d.status === "not_configured") {
+            if (text) text.textContent = "Bot: Unconfigured";
+            if (dot) dot.style.background = "#f59e0b";
+            if (badge) {
+              badge.style.background = "rgba(245, 158, 11, 0.12)";
+              badge.style.color = "#f59e0b";
+              badge.style.borderColor = "rgba(245, 158, 11, 0.28)";
+            }
+          } else {
+            if (text) text.textContent = "Bot: Offline";
+            if (dot) dot.style.background = "#ef4444";
+            if (badge) {
+              badge.style.background = "rgba(239, 68, 68, 0.12)";
+              badge.style.color = "#ef4444";
+              badge.style.borderColor = "rgba(239, 68, 68, 0.28)";
+            }
+          }
+        })
+        .catch(function(){
+          if (text) text.textContent = "Bot: Unreachable";
+          if (dot) dot.style.background = "#ef4444";
+        });
+    }
+    if (badge) badge.addEventListener("click", pingBot);
+    pingBot();
+  })();
+  </script>
 </body>
 </html>`;
 }

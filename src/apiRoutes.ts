@@ -27,6 +27,7 @@ import { getStats, getOperationsDashboard, getDailyFinancialTrends, getSupportTi
 import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
 import { getObject } from "./storage";
 import { settlePendingTips, getTipsPerformanceStats } from "./tipsSettlement";
+import { checkTelegramBotConnection } from "./telegramStatus";
 import { renderAdminPage, renderAdminLoginPage } from "./adminPage";
 
 /**
@@ -297,6 +298,19 @@ export async function handleApiRequest(
     const headers = { "Cache-Control": "no-store", ...securityHeaders() };
     if (method === "HEAD") return new Response(null, { status: 200, headers });
     return json({ status: "online", service: "telegram-bot", runtime: options?.runtime || "cf-worker", checkedAt: new Date().toISOString() }, 200, headers);
+  }
+
+  // Telegram Bot Live Status & API Connection Ping (/api/bot/status, /api/telegram/status)
+  // Pings Telegram API getMe using BOT_TOKEN to verify connection & response latency
+  if ((path === "/api/bot/status" || path === "/api/telegram/status") && (method === "GET" || method === "HEAD")) {
+    const headers = { "Cache-Control": "no-store, no-cache, must-revalidate", ...securityHeaders() };
+    if (method === "HEAD") return new Response(null, { status: 200, headers });
+
+    const timeoutParam = parseInt(url.searchParams.get("timeout") || "5000", 10);
+    const safeTimeout = Math.max(1000, Math.min(timeoutParam, 10000));
+    const botStatus = await checkTelegramBotConnection(env, safeTimeout);
+
+    return json(botStatus, 200, headers);
   }
 
   // Telegram webhook management (authenticated, mutation via POST only).
