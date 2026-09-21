@@ -39,6 +39,13 @@ Thumbs.db
 *.swp
 *.swo
 
+# Patches, Diffs & Temporary/Backup files
+*.patch
+*.diff
+*.bak
+*.tmp
+*~
+
 # Test & Lint Cache
 coverage/
 .eslintcache
