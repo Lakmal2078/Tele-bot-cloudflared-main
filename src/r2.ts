@@ -1,5 +1,6 @@
 import type { Env } from "./types";
-import { getBucketName, isR2Configured, putObject } from "./storage";
+import { getBucketName, isR2Configured, putObject, listObjects } from "./storage";
+import { getLastCleanupResult } from "./logCleanup";
 
 export interface R2FileMetadata {
   r2Url: string;
@@ -9,6 +10,121 @@ export interface R2FileMetadata {
   mimeType: string;
   telegramFilePath?: string;
   uploadedAt: string;
+}
+
+export interface R2StorageAnalytics {
+  configured: boolean;
+  bucket: string;
+  receiptsCount: number;
+  receiptsTotalBytes: number;
+  receiptsFormattedSize: string;
+  lastReceiptUploadedAt: string | null;
+  logsCount: number;
+  logsTotalBytes: number;
+  logsFormattedSize: string;
+  totalObjects: number;
+  totalStorageBytes: number;
+  totalFormattedSize: string;
+  lastCleanup: any;
+  timestamp: string;
+}
+
+export function formatBytes(bytes: number): string {
+  if (!bytes || bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const val = bytes / Math.pow(1024, i);
+  return `${val.toFixed(val < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
+}
+
+/**
+ * Compiles real-time Cloudflare R2 storage analytics.
+ * Calculates count and byte usage for receipts and logs,
+ * newest receipt backup timestamp, and total storage utilization.
+ */
+export async function getR2StorageAnalytics(env: Env): Promise<R2StorageAnalytics> {
+  const configured = isR2Configured(env);
+  const bucket = getBucketName(env);
+  const now = new Date().toISOString();
+
+  if (!configured) {
+    return {
+      configured: false,
+      bucket,
+      receiptsCount: 0,
+      receiptsTotalBytes: 0,
+      receiptsFormattedSize: "0 B",
+      lastReceiptUploadedAt: null,
+      logsCount: 0,
+      logsTotalBytes: 0,
+      logsFormattedSize: "0 B",
+      totalObjects: 0,
+      totalStorageBytes: 0,
+      totalFormattedSize: "0 B",
+      lastCleanup: getLastCleanupResult(),
+      timestamp: now,
+    };
+  }
+
+  try {
+    const [receiptsRes, logsRes] = await Promise.all([
+      listObjects(env, "receipts/").catch(() => ({ objects: [], truncated: false })),
+      listObjects(env, "logs/").catch(() => ({ objects: [], truncated: false })),
+    ]);
+
+    const receiptsCount = receiptsRes.objects.length;
+    const receiptsTotalBytes = receiptsRes.objects.reduce((sum, obj) => sum + (obj.size || 0), 0);
+    let lastReceiptUploadedAt: string | null = null;
+    for (const obj of receiptsRes.objects) {
+      if (obj.uploaded) {
+        const iso = obj.uploaded.toISOString();
+        if (!lastReceiptUploadedAt || iso > lastReceiptUploadedAt) {
+          lastReceiptUploadedAt = iso;
+        }
+      }
+    }
+
+    const logsCount = logsRes.objects.length;
+    const logsTotalBytes = logsRes.objects.reduce((sum, obj) => sum + (obj.size || 0), 0);
+
+    const totalObjects = receiptsCount + logsCount;
+    const totalStorageBytes = receiptsTotalBytes + logsTotalBytes;
+
+    return {
+      configured: true,
+      bucket,
+      receiptsCount,
+      receiptsTotalBytes,
+      receiptsFormattedSize: formatBytes(receiptsTotalBytes),
+      lastReceiptUploadedAt,
+      logsCount,
+      logsTotalBytes,
+      logsFormattedSize: formatBytes(logsTotalBytes),
+      totalObjects,
+      totalStorageBytes,
+      totalFormattedSize: formatBytes(totalStorageBytes),
+      lastCleanup: getLastCleanupResult(),
+      timestamp: now,
+    };
+  } catch (error) {
+    console.error("[R2] Failed to compile storage analytics:", error);
+    return {
+      configured: true,
+      bucket,
+      receiptsCount: 0,
+      receiptsTotalBytes: 0,
+      receiptsFormattedSize: "0 B",
+      lastReceiptUploadedAt: null,
+      logsCount: 0,
+      logsTotalBytes: 0,
+      logsFormattedSize: "0 B",
+      totalObjects: 0,
+      totalStorageBytes: 0,
+      totalFormattedSize: "0 B",
+      lastCleanup: getLastCleanupResult(),
+      timestamp: now,
+    };
+  }
 }
 
 /**

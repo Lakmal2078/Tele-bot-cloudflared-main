@@ -28,6 +28,7 @@ import {
 import { getStats, getOperationsDashboard, getDailyFinancialTrends, getSupportTickets, updateSupportTicket, createScheduledChannelPost } from "./db";
 import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
 import { getObject } from "./storage";
+import { getR2StorageAnalytics } from "./r2";
 import { settlePendingTips, getTipsPerformanceStats } from "./tipsSettlement";
 import { checkTelegramBotConnection } from "./telegramStatus";
 import { renderAdminPage, renderAdminLoginPage } from "./adminPage";
@@ -254,7 +255,7 @@ function adminHtmlHeaders(nonce: string): Record<string, string> {
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
-    "Content-Security-Policy": `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}' 'unsafe-inline'; img-src 'self' data: https:; font-src https://fonts.gstatic.com;`,
+    "Content-Security-Policy": `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}' 'unsafe-inline'; img-src 'self' data: https:; font-src https://fonts.gstatic.com; connect-src 'self';`,
   };
 }
 
@@ -769,11 +770,67 @@ export async function handleApiRequest(
       });
     }
     try {
-      const dashboard = await getOperationsDashboard(env.DB);
-      return json({ ok: true, ...dashboard });
+      const [dashboard, r2] = await Promise.all([
+        getOperationsDashboard(env.DB),
+        getR2StorageAnalytics(env).catch(() => null),
+      ]);
+      return json({ ok: true, r2, ...dashboard });
     } catch (error) {
       console.error("[Admin Dashboard] query failed", error);
       return json({ ok: false, error: "Dashboard data unavailable" }, 503);
+    }
+  }
+
+  // Admin R2 storage & dashboard analytics polling API (/api/admin/r2-analytics, /api/admin/analytics)
+  if ((path === "/api/admin/r2-analytics" || path === "/api/admin/analytics") && (method === "GET" || method === "HEAD")) {
+    {
+      const denied = await requireAdmin(request, env);
+      if (denied) return denied;
+    }
+    if (method === "HEAD") {
+      return new Response(null, {
+        status: 200,
+        headers: { "Cache-Control": "no-store", ...securityHeaders() },
+      });
+    }
+    try {
+      const daysParam = parseInt(url.searchParams.get("days") || "7", 10);
+      const safeDays = Math.max(1, Math.min(daysParam, 90));
+      const metric = url.searchParams.get("metric") === "count" ? "count" : "volume";
+
+      const [r2, stats, trends, dashboard] = await Promise.all([
+        getR2StorageAnalytics(env),
+        getStats(env.DB),
+        getDailyFinancialTrends(env.DB, safeDays),
+        getOperationsDashboard(env.DB).catch(() => null),
+      ]);
+
+      const totalDepVol = trends.reduce((sum, d) => sum + d.depositVolume, 0);
+      const totalWdVol = trends.reduce((sum, d) => sum + d.withdrawalVolume, 0);
+      const totalDepCnt = trends.reduce((sum, d) => sum + d.depositCount, 0);
+      const totalWdCnt = trends.reduce((sum, d) => sum + d.withdrawalCount, 0);
+
+      return json({
+        ok: true,
+        r2,
+        stats,
+        trends,
+        days: safeDays,
+        metric,
+        summary: {
+          totalDepositVolume: totalDepVol,
+          totalWithdrawalVolume: totalWdVol,
+          netVolume: Math.round((totalDepVol - totalWdVol) * 100) / 100,
+          totalDepositCount: totalDepCnt,
+          totalWithdrawalCount: totalWdCnt,
+        },
+        ticketsCount: dashboard?.tickets?.length || 0,
+        alertsCount: dashboard?.alerts?.length || 0,
+        polledAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("[Admin R2 Analytics] query failed", error);
+      return json({ ok: false, error: "Analytics data unavailable" }, 503);
     }
   }
 
@@ -884,10 +941,11 @@ export async function handleApiRequest(
     const metricParam = url.searchParams.get("metric") === "count" ? "count" : "volume";
 
     try {
-      const [stats, trends, dashboard] = await Promise.all([
+      const [stats, trends, dashboard, r2Analytics] = await Promise.all([
         getStats(env.DB),
         getDailyFinancialTrends(env.DB, safeDays),
         getOperationsDashboard(env.DB).catch(() => null),
+        getR2StorageAnalytics(env).catch(() => undefined),
       ]);
 
       const nonce = crypto.randomUUID().replace(/-/g, "");
@@ -900,6 +958,7 @@ export async function handleApiRequest(
           days: safeDays,
           metric: metricParam,
           isAuthorized: isAuth,
+          r2Analytics,
           tickets: dashboard?.tickets || [],
           alerts: dashboard?.alerts || [],
           tips: dashboard?.tips || [],
@@ -921,7 +980,7 @@ export async function handleApiRequest(
         "X-Content-Type-Options": "nosniff",
         "Referrer-Policy": "strict-origin-when-cross-origin",
         "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
-        "Content-Security-Policy": `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}' 'unsafe-inline'; img-src 'self' data: https:; font-src https://fonts.gstatic.com;`,
+        "Content-Security-Policy": `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}' 'unsafe-inline'; img-src 'self' data: https:; font-src https://fonts.gstatic.com; connect-src 'self';`,
       };
 
       if (method === "HEAD") return new Response(null, { status: 200, headers });

@@ -1,4 +1,5 @@
 import type { Env, SystemStats, DailyTrendItem } from "./types";
+import type { R2StorageAnalytics } from "./r2";
 import { renderTrendsChartSvg } from "./adminChart";
 import { BRAND_LOGO_SVG_COMPACT, BRAND_LOGO_FAVICON_DATA_URI } from "./brandLogo";
 
@@ -20,6 +21,7 @@ export interface AdminPageData {
   days: number;
   metric: "volume" | "count";
   isAuthorized: boolean;
+  r2Analytics?: R2StorageAnalytics;
   tickets?: any[];
   alerts?: any[];
   tips?: any[];
@@ -111,7 +113,23 @@ export function renderAdminPage(
   nonce?: string
 ): string {
   const nonceAttr = nonce ? ` nonce="${escapeAttribute(nonce)}"` : "";
-  const { stats, trends, days, metric, isAuthorized, tickets = [], alerts = [] } = data;
+  const { stats, trends, days, metric, isAuthorized, tickets = [], alerts = [], r2Analytics } = data;
+  const r2 = r2Analytics || {
+    configured: false,
+    bucket: "chat-media",
+    receiptsCount: 0,
+    receiptsTotalBytes: 0,
+    receiptsFormattedSize: "0 B",
+    lastReceiptUploadedAt: null,
+    logsCount: 0,
+    logsTotalBytes: 0,
+    logsFormattedSize: "0 B",
+    totalObjects: 0,
+    totalStorageBytes: 0,
+    totalFormattedSize: "0 B",
+    timestamp: new Date().toISOString(),
+  };
+  const r2Configured = Boolean(r2.configured);
 
   const chartSvg = renderTrendsChartSvg(trends, { metric });
 
@@ -266,6 +284,56 @@ export function renderAdminPage(
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 16px;
       margin-bottom: 24px;
+    }
+    .r2-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-top: 14px;
+    }
+    .r2-stat-card {
+      background: #070b12;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 16px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .r2-stat-card:hover {
+      border-color: rgba(56, 189, 248, 0.35);
+    }
+    .polling-control-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .polling-select {
+      background: #070b12;
+      color: #e2e8f0;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .polling-select:focus {
+      outline: none;
+      border-color: #38bdf8;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .spinning {
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+    }
+    @keyframes pulse-border {
+      0% { border-color: rgba(56, 189, 248, 0.8); box-shadow: 0 0 12px rgba(56, 189, 248, 0.3); }
+      100% { border-color: rgba(255, 255, 255, 0.08); box-shadow: none; }
+    }
+    .flash-highlight {
+      animation: pulse-border 1s ease-out;
     }
     .botfather-grid {
       display: grid;
@@ -464,6 +532,23 @@ export function renderAdminPage(
         grid-template-columns: 1fr;
         gap: 12px;
       }
+      .r2-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      .polling-control-row {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+        gap: 8px;
+      }
+      .polling-select {
+        width: 100%;
+      }
+      #btn-manual-poll {
+        width: 100%;
+        justify-content: center;
+      }
       .botfather-grid {
         grid-template-columns: 1fr;
         gap: 12px;
@@ -602,6 +687,81 @@ export function renderAdminPage(
       </div>
     </div>
 
+    <!-- Cloudflare R2 Analytics & Polling Dashboard Section -->
+    <section class="card" id="section-r2-analytics" style="margin-bottom: 24px; border: 1px solid rgba(56, 189, 248, 0.2); background: linear-gradient(145deg, #0b1322, #070b13);">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 4px;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+            <h2 style="font-size: 18px; font-weight: 700; color: #38bdf8; margin: 0; display: flex; align-items: center; gap: 8px;">
+              ☁️ Cloudflare R2 Storage &amp; Receipt Analytics
+            </h2>
+            <span class="badge" id="r2-engine-badge" style="background: ${r2Configured ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)'}; color: ${r2Configured ? '#10b981' : '#f59e0b'}; border-color: ${r2Configured ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'};">
+              <span class="badge-dot" id="r2-engine-dot" style="background: ${r2Configured ? '#10b981' : '#f59e0b'};"></span>
+              <span id="r2-engine-status">${r2Configured ? 'R2 Connected' : 'R2 Standby'}</span>
+            </span>
+          </div>
+          <p style="font-size: 12px; color: #94a3b8; margin: 0;">
+            Receipt image storage telemetry, audit logs footprint &amp; live polling engine
+          </p>
+        </div>
+
+        <!-- Polling Controls & Real-Time Sync Indicator -->
+        <div class="polling-control-row">
+          <span class="badge" id="polling-status-badge" style="background: rgba(16, 185, 129, 0.12); color: #10b981; border-color: rgba(16, 185, 129, 0.25);">
+            <span class="badge-dot" id="polling-dot" style="background: #10b981;"></span>
+            <span id="polling-status-text">Auto-Poll: 15s</span>
+          </span>
+
+          <label style="font-size: 11px; color: #94a3b8; display: flex; align-items: center; gap: 4px;">
+            Poll:
+            <select id="polling-interval-select" class="polling-select">
+              <option value="10000">10s</option>
+              <option value="15000" selected>15s</option>
+              <option value="30000">30s</option>
+              <option value="60000">60s</option>
+              <option value="0">Paused</option>
+            </select>
+          </label>
+
+          <button type="button" id="btn-manual-poll" class="btn btn-secondary" style="padding: 5px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+            <span id="poll-spinner-icon" style="display: inline-block;">🔄</span> Refresh Now
+          </button>
+        </div>
+      </div>
+
+      <div class="r2-grid" id="r2-metrics-grid">
+        <!-- Metric 1: Backed Up Receipts -->
+        <div class="r2-stat-card" id="card-r2-receipts">
+          <div class="kpi-label" style="color: #38bdf8;">🧾 Stored Deposit Receipts</div>
+          <div class="kpi-value" id="r2-receipts-count" style="color: #38bdf8; font-size: 24px;">${r2.receiptsCount.toLocaleString()}</div>
+          <div class="kpi-sub" id="r2-receipts-size">${r2.receiptsFormattedSize} verified slips</div>
+        </div>
+
+        <!-- Metric 2: Total Storage Footprint -->
+        <div class="r2-stat-card" id="card-r2-storage">
+          <div class="kpi-label" style="color: #10b981;">💾 Total Bucket Footprint</div>
+          <div class="kpi-value" id="r2-total-size" style="color: #10b981; font-size: 24px;">${r2.totalFormattedSize}</div>
+          <div class="kpi-sub" id="r2-total-objects">${r2.totalObjects.toLocaleString()} objects (slips + logs)</div>
+        </div>
+
+        <!-- Metric 3: Target Bucket -->
+        <div class="r2-stat-card" id="card-r2-bucket">
+          <div class="kpi-label" style="color: #fbbf24;">🪣 Target R2 Bucket</div>
+          <div class="kpi-value" id="r2-bucket-name" style="color: #f8fafc; font-size: 18px; word-break: break-all;">${escapeText(r2.bucket)}</div>
+          <div class="kpi-sub" id="r2-engine-sub">${r2Configured ? 'Direct binding active' : 'Fallback / Unconfigured'}</div>
+        </div>
+
+        <!-- Metric 4: Latest Upload & Sync Timestamp -->
+        <div class="r2-stat-card" id="card-r2-backup">
+          <div class="kpi-label" style="color: #a855f7;">⏱️ Latest Storage Activity</div>
+          <div class="kpi-value" id="r2-last-upload" style="color: #e2e8f0; font-size: 15px; font-weight: 700;">
+            ${r2.lastReceiptUploadedAt ? new Date(r2.lastReceiptUploadedAt).toLocaleTimeString() : 'No uploads yet'}
+          </div>
+          <div class="kpi-sub" id="r2-last-sync-time">Last synced: Just now</div>
+        </div>
+      </div>
+    </section>
+
     <!-- Main Chart Card (D3.js Visualization) -->
     <section class="card" id="section-trends">
       <div class="chart-controls">
@@ -637,11 +797,11 @@ export function renderAdminPage(
 
       <!-- Trend Summary Stats Row -->
       <div class="trend-summary-row">
-        <div>Window Period: <strong style="color: #f1f5f9;">Last ${trends.length} days</strong></div>
-        <div>Total Window Deposits: <strong style="color: #10b981;">LKR ${totalDepVol.toLocaleString()}</strong></div>
-        <div>Total Window Withdrawals: <strong style="color: #f59e0b;">LKR ${totalWdVol.toLocaleString()}</strong></div>
-        <div>Window Net Cashflow: <strong style="color: ${netTrendVol >= 0 ? '#10b981' : '#f43f5e'};">${netTrendVol >= 0 ? '+' : ''}LKR ${netTrendVol.toLocaleString()}</strong></div>
-        <div>Total Activity: <strong style="color: #38bdf8;">${totalTxs} transactions</strong></div>
+        <div>Window Period: <strong style="color: #f1f5f9;" id="summary-window-period">Last ${trends.length} days</strong></div>
+        <div>Total Window Deposits: <strong style="color: #10b981;" id="summary-dep-vol">LKR ${totalDepVol.toLocaleString()}</strong></div>
+        <div>Total Window Withdrawals: <strong style="color: #f59e0b;" id="summary-wd-vol">LKR ${totalWdVol.toLocaleString()}</strong></div>
+        <div>Window Net Cashflow: <strong style="color: ${netTrendVol >= 0 ? '#10b981' : '#f43f5e'};" id="summary-net-vol">${netTrendVol >= 0 ? '+' : ''}LKR ${netTrendVol.toLocaleString()}</strong></div>
+        <div>Total Activity: <strong style="color: #38bdf8;" id="summary-activity">${totalTxs} transactions</strong></div>
       </div>
 
       <!-- Detailed Day-by-Day Table -->
@@ -721,7 +881,7 @@ What we offer:
 🔒 100% Secure, Verified & 0% Hidden Fees!
 
 Tap 'Start' below to begin now! 👇</div>
-          <button type="button" class="btn-tab" onclick="navigator.clipboard.writeText(document.getElementById('copy-desc-box').innerText).then(function(){alert('Description copied to clipboard!')})" style="width: 100%; text-align: center; justify-content: center; padding: 8px; cursor: pointer;">
+          <button type="button" class="btn-tab" onclick="var btn=this;navigator.clipboard.writeText(document.getElementById('copy-desc-box').innerText).then(function(){btn.textContent='✓ Copied!';setTimeout(function(){btn.textContent='📋 Copy Description Text'},2000);})" style="width: 100%; text-align: center; justify-content: center; padding: 8px; cursor: pointer;">
             📋 Copy Description Text
           </button>
         </div>
@@ -733,7 +893,7 @@ Tap 'Start' below to begin now! 👇</div>
             <span style="color: #10b981; font-family: monospace;">109 / 120 chars</span>
           </div>
           <div id="copy-about-box" style="background: #0a111e; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 12px; font-size: 12px; line-height: 1.5; color: #e2e8f0; font-family: sans-serif; white-space: pre-line; flex: 1; margin-bottom: 10px;">⚡ Fast xBet Cash 🇱🇰 | Official 1xBet Sri Lanka Cash Desk. Instant deposits, fast withdrawals &amp; daily free tips!</div>
-          <button type="button" class="btn-tab" onclick="navigator.clipboard.writeText(document.getElementById('copy-about-box').innerText).then(function(){alert('About text copied to clipboard!')})" style="width: 100%; text-align: center; justify-content: center; padding: 8px; cursor: pointer;">
+          <button type="button" class="btn-tab" onclick="var btn=this;navigator.clipboard.writeText(document.getElementById('copy-about-box').innerText).then(function(){btn.textContent='✓ Copied!';setTimeout(function(){btn.textContent='📋 Copy About Text'},2000);})" style="width: 100%; text-align: center; justify-content: center; padding: 8px; cursor: pointer;">
             📋 Copy About Text
           </button>
         </div>
@@ -808,6 +968,7 @@ Tap 'Start' below to begin now! 👇</div>
 
   <script${nonceAttr}>
   (function(){
+    // Telegram Bot ping
     var badge = document.getElementById("admin-bot-badge");
     var dot = document.getElementById("admin-bot-dot");
     var text = document.getElementById("admin-bot-text");
@@ -850,6 +1011,238 @@ Tap 'Start' below to begin now! 👇</div>
     }
     if (badge) badge.addEventListener("click", pingBot);
     pingBot();
+
+    // R2 Analytics & Dashboard Periodic Polling Engine
+    var pollIntervalMs = 15000;
+    var pollTimer = null;
+    var isPollingInProgress = false;
+    var isTabActive = !document.hidden;
+
+    var intervalSelect = document.getElementById("polling-interval-select");
+    var manualPollBtn = document.getElementById("btn-manual-poll");
+    var spinnerIcon = document.getElementById("poll-spinner-icon");
+    var pollBadge = document.getElementById("polling-status-badge");
+    var pollDot = document.getElementById("polling-dot");
+    var pollStatusText = document.getElementById("polling-status-text");
+    var lastSyncText = document.getElementById("r2-last-sync-time");
+
+    function setPollingUI(state) {
+      if (!pollDot || !pollStatusText) return;
+      if (state === "syncing") {
+        if (spinnerIcon) spinnerIcon.classList.add("spinning");
+        pollDot.style.background = "#38bdf8";
+        pollStatusText.textContent = "Syncing...";
+      } else if (state === "paused") {
+        if (spinnerIcon) spinnerIcon.classList.remove("spinning");
+        pollDot.style.background = "#94a3b8";
+        pollStatusText.textContent = "Polling: Paused";
+        if (pollBadge) {
+          pollBadge.style.background = "rgba(148, 163, 184, 0.12)";
+          pollBadge.style.color = "#94a3b8";
+          pollBadge.style.borderColor = "rgba(148, 163, 184, 0.25)";
+        }
+      } else if (state === "error") {
+        if (spinnerIcon) spinnerIcon.classList.remove("spinning");
+        pollDot.style.background = "#f59e0b";
+        pollStatusText.textContent = "Retrying...";
+      } else if (state === "expired") {
+        if (spinnerIcon) spinnerIcon.classList.remove("spinning");
+        pollDot.style.background = "#ef4444";
+        pollStatusText.textContent = "Session Expired";
+        if (pollBadge) {
+          pollBadge.style.background = "rgba(239, 68, 68, 0.12)";
+          pollBadge.style.color = "#ef4444";
+          pollBadge.style.borderColor = "rgba(239, 68, 68, 0.28)";
+        }
+      } else { // active
+        if (spinnerIcon) spinnerIcon.classList.remove("spinning");
+        pollDot.style.background = "#10b981";
+        var sec = Math.round(pollIntervalMs / 1000);
+        pollStatusText.textContent = "Auto-Poll: " + sec + "s";
+        if (pollBadge) {
+          pollBadge.style.background = "rgba(16, 185, 129, 0.12)";
+          pollBadge.style.color = "#10b981";
+          pollBadge.style.borderColor = "rgba(16, 185, 129, 0.25)";
+        }
+      }
+    }
+
+    function triggerHighlight(elementId) {
+      var el = document.getElementById(elementId);
+      if (el) {
+        el.classList.remove("flash-highlight");
+        void el.offsetWidth;
+        el.classList.add("flash-highlight");
+      }
+    }
+
+    function refreshR2Dashboard() {
+      if (isPollingInProgress) return;
+      isPollingInProgress = true;
+      setPollingUI("syncing");
+
+      var searchParams = new URLSearchParams(window.location.search);
+      var days = searchParams.get("days") || "7";
+      var metric = searchParams.get("metric") || "volume";
+
+      fetch("/api/admin/r2-analytics?days=" + encodeURIComponent(days) + "&metric=" + encodeURIComponent(metric), {
+        cache: "no-store",
+        headers: { "Accept": "application/json" }
+      })
+      .then(function(res) {
+        if (res.status === 401 || res.status === 403) {
+          setPollingUI("expired");
+          stopPolling();
+          return null;
+        }
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function(data) {
+        if (!data || !data.ok) return;
+
+        // 1. Update R2 Storage Analytics card
+        if (data.r2) {
+          var r = data.r2;
+          var countEl = document.getElementById("r2-receipts-count");
+          var sizeEl = document.getElementById("r2-receipts-size");
+          var totalSizeEl = document.getElementById("r2-total-size");
+          var totalObjEl = document.getElementById("r2-total-objects");
+          var bucketEl = document.getElementById("r2-bucket-name");
+          var lastUpEl = document.getElementById("r2-last-upload");
+          var statusEl = document.getElementById("r2-engine-status");
+          var dotEl = document.getElementById("r2-engine-dot");
+          var subEl = document.getElementById("r2-engine-sub");
+
+          if (countEl) countEl.textContent = (r.receiptsCount || 0).toLocaleString();
+          if (sizeEl) sizeEl.textContent = (r.receiptsFormattedSize || "0 B") + " verified slips";
+          if (totalSizeEl) totalSizeEl.textContent = r.totalFormattedSize || "0 B";
+          if (totalObjEl) totalObjEl.textContent = (r.totalObjects || 0).toLocaleString() + " objects (slips + logs)";
+          if (bucketEl && r.bucket) bucketEl.textContent = r.bucket;
+          if (statusEl) statusEl.textContent = r.configured ? "R2 Connected" : "R2 Standby";
+          if (dotEl) dotEl.style.background = r.configured ? "#10b981" : "#f59e0b";
+          if (subEl) subEl.textContent = r.configured ? "Direct binding active" : "Fallback / Unconfigured";
+          if (lastUpEl) {
+            lastUpEl.textContent = r.lastReceiptUploadedAt ? new Date(r.lastReceiptUploadedAt).toLocaleTimeString() : "No uploads yet";
+          }
+          triggerHighlight("card-r2-receipts");
+          triggerHighlight("card-r2-storage");
+        }
+
+        // 2. Update KPI Grid cards
+        if (data.stats) {
+          var s = data.stats;
+          var usersVal = document.querySelector("#kpi-users .kpi-value");
+          var usersSub = document.querySelector("#kpi-users .kpi-sub");
+          var depVal = document.querySelector("#kpi-deposits .kpi-value");
+          var depSub = document.querySelector("#kpi-deposits .kpi-sub");
+          var wdVal = document.querySelector("#kpi-withdrawals .kpi-value");
+          var wdSub = document.querySelector("#kpi-withdrawals .kpi-sub");
+          var netVal = document.querySelector("#kpi-net .kpi-value");
+
+          if (usersVal) usersVal.textContent = (s.totalUsers || 0).toLocaleString();
+          if (usersSub) usersSub.textContent = "+" + (s.todayUsers || 0).toLocaleString() + " today";
+          if (depVal) depVal.textContent = "LKR " + (s.approvedDepositsVolume || 0).toLocaleString();
+          if (depSub) depSub.textContent = (s.approvedDepositsCount || 0).toLocaleString() + " approved · " + (s.pendingDeposits || 0) + " pending";
+          if (wdVal) wdVal.textContent = "LKR " + (s.approvedWithdrawalsVolume || 0).toLocaleString();
+          if (wdSub) wdSub.textContent = (s.approvedWithdrawalsCount || 0).toLocaleString() + " approved · " + (s.pendingWithdrawals || 0) + " pending";
+          if (netVal) {
+            var net = (s.approvedDepositsVolume || 0) - (s.approvedWithdrawalsVolume || 0);
+            netVal.textContent = "LKR " + net.toLocaleString();
+            netVal.style.color = net >= 0 ? "#10b981" : "#f43f5e";
+          }
+        }
+
+        // 3. Update Window Trends Summary row
+        if (data.summary) {
+          var sum = data.summary;
+          var depRow = document.getElementById("summary-dep-vol");
+          var wdRow = document.getElementById("summary-wd-vol");
+          var netRow = document.getElementById("summary-net-vol");
+          var actRow = document.getElementById("summary-activity");
+          if (depRow) depRow.textContent = "LKR " + (sum.totalDepositVolume || 0).toLocaleString();
+          if (wdRow) wdRow.textContent = "LKR " + (sum.totalWithdrawalVolume || 0).toLocaleString();
+          if (netRow) {
+            var netV = sum.netVolume || 0;
+            netRow.textContent = (netV >= 0 ? "+" : "") + "LKR " + netV.toLocaleString();
+            netRow.style.color = netV >= 0 ? "#10b981" : "#f43f5e";
+          }
+          if (actRow) {
+            var txs = (sum.totalDepositCount || 0) + (sum.totalWithdrawalCount || 0);
+            actRow.textContent = txs + " transactions";
+          }
+        }
+
+        if (lastSyncText) {
+          lastSyncText.textContent = "Last synced: " + new Date().toLocaleTimeString();
+        }
+        if (pollIntervalMs > 0) {
+          setPollingUI("active");
+        }
+      })
+      .catch(function(err) {
+        console.warn("[R2 Polling Warning]:", err);
+        if (pollIntervalMs > 0) {
+          setPollingUI("error");
+        }
+      })
+      .finally(function() {
+        isPollingInProgress = false;
+      });
+    }
+
+    function startPolling() {
+      stopPolling();
+      if (pollIntervalMs > 0) {
+        setPollingUI("active");
+        pollTimer = setInterval(function() {
+          if (isTabActive && pollIntervalMs > 0) {
+            refreshR2Dashboard();
+          }
+        }, pollIntervalMs);
+      } else {
+        setPollingUI("paused");
+      }
+    }
+
+    function stopPolling() {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }
+
+    if (intervalSelect) {
+      intervalSelect.addEventListener("change", function() {
+        pollIntervalMs = parseInt(intervalSelect.value, 10) || 0;
+        if (pollIntervalMs > 0) {
+          startPolling();
+          refreshR2Dashboard();
+        } else {
+          stopPolling();
+          setPollingUI("paused");
+        }
+      });
+    }
+
+    if (manualPollBtn) {
+      manualPollBtn.addEventListener("click", function() {
+        refreshR2Dashboard();
+        if (pollIntervalMs > 0) {
+          startPolling();
+        }
+      });
+    }
+
+    document.addEventListener("visibilitychange", function() {
+      isTabActive = !document.hidden;
+      if (isTabActive && pollIntervalMs > 0) {
+        refreshR2Dashboard();
+      }
+    });
+
+    // Initialize auto-polling
+    startPolling();
   })();
   </script>
 </body>
