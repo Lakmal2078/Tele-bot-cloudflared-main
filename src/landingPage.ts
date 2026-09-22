@@ -1008,7 +1008,9 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .tipTeams{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center}
 .tipTeam{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
 .tipTeam b{font-size:.72rem;line-height:1.2;font-weight:700}
-.tipAvatar{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;border:2px solid #334155;color:#e2e8f0;font-size:.72rem;font-weight:900;letter-spacing:.02em}
+.tipAvatar{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;border:2px solid #334155;color:#e2e8f0;font-size:.72rem;font-weight:900;letter-spacing:.02em;overflow:hidden;background:#0f172a}
+.tipAvatar img{width:100%;height:100%;object-fit:contain;padding:3px;display:block;background:#ffffff}
+.tipAvatar.hasLogo{border-color:#1e293b;background:#ffffff}
 .tipVs{color:#64748b;font-size:.7rem;font-weight:800;letter-spacing:.08em}
 .tipWhen{text-align:center;color:#94a3b8;font-size:.68rem;font-weight:600}
 .tipPickRow{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;background:#0a1018;border:1px solid #1e293b}
@@ -1959,17 +1961,87 @@ ${renderFinalCtaBanner(c, lang, eb)}
           "ajax": 678, "psv": 674, "feyenoord": 675, "porto": 503, "benfica": 1903, "sporting": 498,
           "galatasaray": 645, "fenerbahce": 611, "besiktas": 600, "olympiacos": 654,
           "boca juniors": 1832, "river plate": 1831, "flamengo": 1783, "palmeiras": 1769,
-          "al hilal": 7600, "al nassr": 7583, "inter miami": 16120,
-          "india": 2018, "sri lanka": 2010, "australia": 2014, "england": 770, "pakistan": 2019,
-          "new zealand": 2020, "south africa": 2015, "west indies": 2021, "bangladesh": 2017,
-          "csk": null, "mumbai indians": null, "rcb": null, "kkr": null
+          "al hilal": 7600, "al nassr": 7583, "inter miami": 16120
+        };
+        // Cricket national teams → country flags (flagcdn). Franchise / nicknames → same where possible.
+        var CRICKET_LOGOS = {
+          "india": "https://flagcdn.com/w80/in.png",
+          "india women": "https://flagcdn.com/w80/in.png",
+          "ind": "https://flagcdn.com/w80/in.png",
+          "sri lanka": "https://flagcdn.com/w80/lk.png",
+          "sri lanka women": "https://flagcdn.com/w80/lk.png",
+          "sl": "https://flagcdn.com/w80/lk.png",
+          "australia": "https://flagcdn.com/w80/au.png",
+          "australia women": "https://flagcdn.com/w80/au.png",
+          "aus": "https://flagcdn.com/w80/au.png",
+          "england": "https://flagcdn.com/w80/gb-eng.png",
+          "england women": "https://flagcdn.com/w80/gb-eng.png",
+          "eng": "https://flagcdn.com/w80/gb-eng.png",
+          "pakistan": "https://flagcdn.com/w80/pk.png",
+          "pakistan women": "https://flagcdn.com/w80/pk.png",
+          "pak": "https://flagcdn.com/w80/pk.png",
+          "new zealand": "https://flagcdn.com/w80/nz.png",
+          "new zealand women": "https://flagcdn.com/w80/nz.png",
+          "nz": "https://flagcdn.com/w80/nz.png",
+          "south africa": "https://flagcdn.com/w80/za.png",
+          "south africa women": "https://flagcdn.com/w80/za.png",
+          "sa": "https://flagcdn.com/w80/za.png",
+          "west indies": "https://flagcdn.com/w80/jm.png",
+          "west indies women": "https://flagcdn.com/w80/jm.png",
+          "wi": "https://flagcdn.com/w80/jm.png",
+          "bangladesh": "https://flagcdn.com/w80/bd.png",
+          "bangladesh women": "https://flagcdn.com/w80/bd.png",
+          "ban": "https://flagcdn.com/w80/bd.png",
+          "afghanistan": "https://flagcdn.com/w80/af.png",
+          "afg": "https://flagcdn.com/w80/af.png",
+          "ireland": "https://flagcdn.com/w80/ie.png",
+          "ireland women": "https://flagcdn.com/w80/ie.png",
+          "zimbabwe": "https://flagcdn.com/w80/zw.png",
+          "zim": "https://flagcdn.com/w80/zw.png",
+          "netherlands": "https://flagcdn.com/w80/nl.png",
+          "scotland": "https://flagcdn.com/w80/gb-sct.png",
+          "uae": "https://flagcdn.com/w80/ae.png",
+          "united arab emirates": "https://flagcdn.com/w80/ae.png",
+          "nepal": "https://flagcdn.com/w80/np.png",
+          "oman": "https://flagcdn.com/w80/om.png",
+          "namibia": "https://flagcdn.com/w80/na.png",
+          "usa": "https://flagcdn.com/w80/us.png",
+          "united states": "https://flagcdn.com/w80/us.png",
+          "canada": "https://flagcdn.com/w80/ca.png",
+          "hong kong": "https://flagcdn.com/w80/hk.png",
+          "malaysia": "https://flagcdn.com/w80/my.png",
+          "singapore": "https://flagcdn.com/w80/sg.png",
+          // IPL / franchise style nicknames → use board flags as neutral fallback where needed
+          "chennai super kings": "https://flagcdn.com/w80/in.png",
+          "csk": "https://flagcdn.com/w80/in.png",
+          "mumbai indians": "https://flagcdn.com/w80/in.png",
+          "mi": "https://flagcdn.com/w80/in.png",
+          "royal challengers bangalore": "https://flagcdn.com/w80/in.png",
+          "royal challengers bengaluru": "https://flagcdn.com/w80/in.png",
+          "rcb": "https://flagcdn.com/w80/in.png",
+          "kolkata knight riders": "https://flagcdn.com/w80/in.png",
+          "kkr": "https://flagcdn.com/w80/in.png",
+          "delhi capitals": "https://flagcdn.com/w80/in.png",
+          "dc": "https://flagcdn.com/w80/in.png",
+          "rajasthan royals": "https://flagcdn.com/w80/in.png",
+          "rr": "https://flagcdn.com/w80/in.png",
+          "sunrisers hyderabad": "https://flagcdn.com/w80/in.png",
+          "srh": "https://flagcdn.com/w80/in.png",
+          "punjab kings": "https://flagcdn.com/w80/in.png",
+          "pbks": "https://flagcdn.com/w80/in.png",
+          "gujarat titans": "https://flagcdn.com/w80/in.png",
+          "gt": "https://flagcdn.com/w80/in.png",
+          "lucknow super giants": "https://flagcdn.com/w80/in.png",
+          "lsg": "https://flagcdn.com/w80/in.png"
         };
         function crestUrl(name) {
           var key = String(name || "").toLowerCase().replace(/[^a-z0-9\\s]/g, " ").replace(/\\s+/g, " ").trim();
+          // Cricket logos / national flags first
+          if (CRICKET_LOGOS[key]) return CRICKET_LOGOS[key];
           var id = TEAM_CRESTS[key];
           if (id) return "https://crests.football-data.org/" + id + ".png";
-          // try first word / short aliases
           var first = key.split(" ")[0];
+          if (CRICKET_LOGOS[first]) return CRICKET_LOGOS[first];
           if (TEAM_CRESTS[first]) return "https://crests.football-data.org/" + TEAM_CRESTS[first] + ".png";
           return null;
         }
