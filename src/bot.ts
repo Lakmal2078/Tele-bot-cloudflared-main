@@ -392,6 +392,48 @@ export function createBot(env: Env) {
   const adminIds = parseAdminIds(env.ADMIN_IDS || "");
   mainMenuChannelUrl = normalizeChannelUrl(env.CHANNEL_URL, env.CHANNEL_USERNAME) || "";
 
+  // Register clean Telegram Bot Commands menu (the "/" button)
+  // Default (English) + Sinhala + Tamil
+  const defaultCommands = [
+    { command: "start", description: "Main menu / ප්‍රධාන මෙනුව" },
+    { command: "deposit", description: "Cash deposit / තැන්පතු" },
+    { command: "withdraw", description: "Cash withdrawal / මුදල් ආපසු" },
+    { command: "confirm", description: "Confirm deposit / තැන්පතු තහවුරු" },
+    { command: "tips", description: "Free sports tips / නොමිලේ Tips" },
+    { command: "history", description: "Transaction history / ඉතිහාසය" },
+    { command: "help", description: "Help & FAQ / සහාය" },
+    { command: "language", description: "Change language / භාෂාව" },
+    { command: "id", description: "My Telegram ID / මගේ ID" },
+  ];
+  const siCommands = [
+    { command: "start", description: "ප්‍රධාන මෙනුව" },
+    { command: "deposit", description: "තැන්පතු" },
+    { command: "withdraw", description: "මුදල් ආපසු ගැනීම" },
+    { command: "confirm", description: "තැන්පතු තහවුරු කරන්න" },
+    { command: "tips", description: "නොමිලේ ක්‍රීඩා Tips" },
+    { command: "history", description: "ගනුදෙනු ඉතිහාසය" },
+    { command: "help", description: "සහාය සහ FAQ" },
+    { command: "language", description: "භාෂාව වෙනස් කරන්න" },
+    { command: "id", description: "මගේ Telegram ID" },
+  ];
+  const taCommands = [
+    { command: "start", description: "முதன்மை மெனு" },
+    { command: "deposit", description: "பணம் வைப்பு" },
+    { command: "withdraw", description: "பணம் எடுத்தல்" },
+    { command: "confirm", description: "வைப்பை உறுதிப்படுத்து" },
+    { command: "tips", description: "இலவச விளையாட்டு குறிப்புகள்" },
+    { command: "history", description: "பரிவர்த்தனை வரலாறு" },
+    { command: "help", description: "உதவி & FAQ" },
+    { command: "language", description: "மொழியை மாற்று" },
+    { command: "id", description: "என் Telegram ID" },
+  ];
+  // Fire-and-forget — do not block bot startup if Telegram API is slow
+  bot.api.setMyCommands(defaultCommands).catch(() => {});
+  bot.api.setMyCommands(siCommands, { language_code: "si" }).catch(() => {});
+  bot.api.setMyCommands(taCommands, { language_code: "ta" }).catch(() => {});
+  bot.api.setMyCommands(defaultCommands, { language_code: "en" }).catch(() => {});
+
+
   // 🛡️ Global, per-user & command-specific rate limiting — runs BEFORE every handler.
   // Admins listed in ADMIN_IDS are exempt; deposits/withdrawals keep their own
   // stricter DB-backed limits in fraud.ts on top of this.
@@ -3299,6 +3341,7 @@ export function createBot(env: Env) {
 
 function mainMenu(userId: number, adminIds: Set<number>, lang: Language = "si") {
   const dict = t(lang);
+  // Clean, focused main menu — only primary actions
   const kb = new InlineKeyboard()
     .text(dict.btnDeposit, "deposit")
     .text(dict.btnWithdraw, "withdraw")
@@ -3306,20 +3349,14 @@ function mainMenu(userId: number, adminIds: Set<number>, lang: Language = "si") 
     .text(dict.btnConfirmDeposit, "confirm_deposit")
     .text(dict.btnHistory, "history")
     .row()
+    .text(dict.btnFreeTips, "view_free_tips")
     .text(dict.btnRegistration, "xbet")
-    .text(dict.btnReferral, "referral")
     .row()
     .text(dict.btnLanguage, "choose_lang")
     .text(dict.btnHelp, "help")
     .row()
     .text(dict.btnDashboard, "user_dashboard")
-    .text(dict.btnFreeTips, "view_free_tips")
-    .row()
-    .text(dict.btnSupportTicket, "support_ticket_help")
-    .text(dict.btnResponsibleGaming, "safety_info")
-    .row()
-    .text(dict.btnMyId, "id_info")
-    .text(dict.btnShareBot, "share_bot");
+    .text(dict.btnMyId, "id_info");
 
   if (mainMenuChannelUrl.startsWith("http")) {
     kb.row().url(dict.btnOfficialChannel, mainMenuChannelUrl);
