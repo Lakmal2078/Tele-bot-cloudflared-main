@@ -513,7 +513,7 @@ function paymentIcon(name: string): string {
 }
 
 function renderHeroEyebrow(c: (typeof T)[Lang], lang: Lang): string {
-  const pillLabel = lang === "si" ? "නිල BOT" : lang === "ta" ? "அதிகாரப்பூர்வ BOT" : "OFFICIAL BOT";
+  const pillLabel = lang === "si" ? "Telegram BOT" : lang === "ta" ? "Telegram BOT" : "TELEGRAM BOT";
   return `<div class="hero-badge-wrap">
     <div class="hero-badge">
       <span class="hero-flag" aria-hidden="true">🇱🇰</span>
@@ -967,7 +967,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .trust span{display:block;margin-top:5px;color:var(--muted);font-size:.7rem}
 
 /* Sections */
-.section{padding:70px 0}
+.section{padding:52px 0}
 .head{max-width:740px;margin-bottom:28px}
 .kicker{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:999px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.28);color:#38bdf8;font:800 .68rem ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;box-shadow:0 2px 10px rgba(0,0,0,0.25);margin-bottom:8px}
 .head h2{margin:10px 0 8px;font-family:"Noto Sans Sinhala","Plus Jakarta Sans","Noto Sans Tamil",system-ui,sans-serif;font-size:clamp(1.95rem,4.2vw,3.2rem);line-height:1.22;letter-spacing:-.02em;font-weight:800;color:#ffffff}
@@ -980,7 +980,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .tag{display:inline-flex;align-self:flex-start;margin-top:16px;padding:6px 9px;border:1px solid #00b4f833;border-radius:999px;background:#00b4f80b;color:#ccefff;font-size:.61rem;font-weight:800}
 
 /* Tips preview & countdown */
-.tips{overflow:hidden;border:1px solid var(--border);border-radius:24px;background:var(--surface);padding-bottom:8px}
+.tips{overflow:hidden;border:1px solid var(--border);border-radius:24px;background:var(--surface);padding-bottom:8px;isolation:isolate;position:relative}
 .tipsCountdownBar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px;background:#0d1829;border-bottom:1px solid var(--border);flex-wrap:wrap}
 .countdownLabel{display:flex;align-items:center;gap:7px;font-size:.68rem;font-weight:700;color:var(--muted)}
 .countdownDot{width:8px;height:8px;border-radius:50%;background:var(--signal);box-shadow:0 0 8px var(--signal);animation:pulse 1.8s infinite ease-in-out}
@@ -996,7 +996,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .tipSummary{display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding:8px 14px;background:#ffffff05;border:1px solid #1e2a3d;border-radius:12px;margin:10px 16px 4px;color:var(--muted);font-size:.67rem}
 .tipSummary span{display:inline-flex;align-items:center;gap:4px}
 .tipSummary b{color:#86efac;font-weight:800}
-.tipCardGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:14px 16px 8px}
+.tipCardGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:14px 16px 8px;min-height:230px;align-content:start}
 .tipCard{display:flex;flex-direction:column;gap:12px;padding:16px;border:1px solid #1e2a3d;border-radius:18px;background:linear-gradient(160deg,#121a26 0%,#0c131c 100%);box-shadow:0 10px 30px #0004;min-height:210px}
 .tipCardTop{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .tipLeague{display:inline-flex;align-items:center;gap:6px;color:#9fb0c7;font-size:.62rem;font-weight:700}
@@ -1253,7 +1253,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 </header>
 
 <!-- Winning Tips Ticker Bar -->
-<div class="tickerBar" aria-label="Recent Winning Tips">
+<div class="tickerBar" aria-label="Recent Winning Tips (illustrative sample results, past performance is not a guarantee)">
   <div class="wrap tickerInner">
     <span class="tickerBadge">🔥 ${esc(c.ticker)}</span>
     <div class="tickerScroll">
@@ -1274,6 +1274,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
     </div>
   </div>
 </div>
+<p class="tickerDisclaimer" style="margin:0;padding:4px 16px 0;text-align:center;font-size:.62rem;color:var(--faint);max-width:1100px;margin-left:auto;margin-right:auto;">Sample / historical results for illustration only. Past performance does not guarantee future outcomes. 18+ Gamble responsibly.</p>
 
 <main id="main">
 <section class="hero" id="home">
@@ -1304,7 +1305,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
             <span id="promoCopyIcon">📋</span> <span id="promoCopyLabel">Copy Code</span>
           </button>
         </div>
-        <span class="promoNote">+100% First Deposit Bonus · <small style="font-size:0.72rem;opacity:0.9;">18+ T&amp;Cs apply</small></span>
+        <span class="promoNote">+100% First Deposit Bonus (up to LKR 35,000) · <small style="font-size:0.72rem;opacity:0.9;">Wagering &amp; 18+ T&amp;Cs apply · Not affiliated with 1xBet as an official partner</small></span>
       </div>
 
       <div class="pills">
@@ -1902,6 +1903,9 @@ ${renderFinalCtaBanner(c, lang, eb)}
       });
     });
 
+    // Keep static cards visible until live data arrives (avoids blank/black grid flash)
+    if (tipGrid) tipGrid.style.minHeight = tipGrid.offsetHeight + "px";
+
     fetch("/api/tips/preview", { headers: { Accept: "application/json" }, cache: "no-store" })
       .then(function(r){ return r.ok ? r.json() : null; })
       .then(function(data){
@@ -1913,6 +1917,7 @@ ${renderFinalCtaBanner(c, lang, eb)}
             liveSummary.style.display = "flex";
             liveSummary.innerHTML = "<span>🎯 <b>84%</b> ${esc(c.tips.stats.winRate)}</span><span>📈 <b>+24.8%</b> ${esc(c.tips.stats.roi)}</span><span>✅ <b>23+</b> ${esc(c.tips.stats.slipsWon)}</span><span>⚡ <b>1.88</b> ${esc(c.tips.stats.avgOdds)}</span>";
           }
+          if (tipGrid) tipGrid.style.minHeight = "";
           return;
         }
         if (liveBadge) {
@@ -1929,6 +1934,17 @@ ${renderFinalCtaBanner(c, lang, eb)}
           liveSummary.innerHTML = "<span>🎯 <b>" + wRate + "%</b> ${esc(c.tips.stats.winRate)}</span><span>📈 <b>" + wRoi + "</b> ${esc(c.tips.stats.roi)}</span><span>✅ <b>" + wWon + "+</b> ${esc(c.tips.stats.slipsWon)}</span><span>⚡ <b>1.88</b> ${esc(c.tips.stats.avgOdds)}</span>";
         }
 
+        function teamInitials(name) {
+          var parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+          if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+          return (parts[0] || "?").slice(0, 2).toUpperCase();
+        }
+        function hueFrom(str) {
+          var h = 0;
+          for (var i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+          return h % 360;
+        }
+
         var liveHtml = data.tips.map(function(t){
           var resClass = t.result === "WON" ? "won" : (t.result === "LOST" ? "lost" : "pending");
           var resText = t.result || "Live";
@@ -1937,12 +1953,14 @@ ${renderFinalCtaBanner(c, lang, eb)}
           var hName = t.homeTeam || "Home";
           var aName = t.awayTeam || "Away";
           var sportKey = t.sport || "football";
+          var hHue = hueFrom(hName);
+          var aHue = hueFrom(aName);
           return '<article class="tipCard" data-sport="' + sportKey + '">' +
             '<div class="tipCardTop"><span class="tipLeague">' + (t.sportTitle || "Sports") + '</span><span class="tipStatus ' + resClass + '">' + resText + '</span></div>' +
             '<div class="tipTeams">' +
-              '<div class="tipTeam"><b>' + hName + '</b></div>' +
+              '<div class="tipTeam"><span class="tipAvatar" style="background:hsl(' + hHue + ' 55% 28%);border-color:hsl(' + hHue + ' 60% 42%)">' + teamInitials(hName) + '</span><b>' + hName + '</b></div>' +
               '<div class="tipVs">VS</div>' +
-              '<div class="tipTeam"><b>' + aName + '</b></div>' +
+              '<div class="tipTeam"><span class="tipAvatar" style="background:hsl(' + aHue + ' 55% 28%);border-color:hsl(' + aHue + ' 60% 42%)">' + teamInitials(aName) + '</span><b>' + aName + '</b></div>' +
             '</div>' +
             '<div class="tipWhen">' + (t.commenceTime ? t.commenceTime.slice(0, 16).replace("T", " ") : "Upcoming") + '</div>' +
             '<div class="tipPickRow"><span class="tipMarketTag">' + mTag + '</span><span class="tipPickName">' + (t.selection || "Pick") + '</span><b class="tipOdds">' + oVal + '</b></div>' +
@@ -1952,6 +1970,7 @@ ${renderFinalCtaBanner(c, lang, eb)}
 
         if (tipGrid && liveHtml) {
           tipGrid.innerHTML = liveHtml;
+          tipGrid.style.minHeight = "";
           var activeTab = document.querySelector(".tipTab.active");
           if (activeTab) applySportFilter(activeTab.getAttribute("data-sport") || "all");
         }
@@ -1964,6 +1983,7 @@ ${renderFinalCtaBanner(c, lang, eb)}
           liveSummary.style.display = "flex";
           liveSummary.innerHTML = "<span>🎯 <b>84%</b> ${esc(c.tips.stats.winRate)}</span><span>📈 <b>+24.8%</b> ${esc(c.tips.stats.roi)}</span><span>✅ <b>23+</b> ${esc(c.tips.stats.slipsWon)}</span><span>⚡ <b>1.88</b> ${esc(c.tips.stats.avgOdds)}</span>";
         }
+        if (tipGrid) tipGrid.style.minHeight = "";
       });
   } catch(e){}
 
