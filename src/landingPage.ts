@@ -1408,9 +1408,9 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
       <article class="tipCard" data-sport="football">
         <div class="tipCardTop"><span class="tipLeague">Premier League</span><span class="tipStatus pending">Today</span></div>
         <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar" style="background:hsl(0 55% 28%);border-color:hsl(0 60% 42%)">AR</span><b>Arsenal</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/57.png" alt="AR" loading="lazy"/></span><b>Arsenal</b></div>
           <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar" style="background:hsl(220 55% 28%);border-color:hsl(220 60% 42%)">CH</span><b>Chelsea</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/61.png" alt="CH" loading="lazy"/></span><b>Chelsea</b></div>
         </div>
         <div class="tipWhen">Today, 17:30</div>
         <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Arsenal Win</span><b class="tipOdds">1.94</b></div>
@@ -1419,9 +1419,9 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
       <article class="tipCard" data-sport="football">
         <div class="tipCardTop"><span class="tipLeague">La Liga</span><span class="tipStatus pending">Today</span></div>
         <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar" style="background:hsl(45 55% 28%);border-color:hsl(45 60% 42%)">RM</span><b>Real Madrid</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/86.png" alt="RM" loading="lazy"/></span><b>Real Madrid</b></div>
           <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar" style="background:hsl(0 60% 32%);border-color:hsl(0 65% 45%)">AT</span><b>Atletico Madrid</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/78.png" alt="AT" loading="lazy"/></span><b>Atletico Madrid</b></div>
         </div>
         <div class="tipWhen">Today, 20:00</div>
         <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Real Madrid Win</span><b class="tipOdds">1.78</b></div>
@@ -1430,9 +1430,9 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
       <article class="tipCard" data-sport="football">
         <div class="tipCardTop"><span class="tipLeague">Bundesliga</span><span class="tipStatus pending">Today</span></div>
         <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar" style="background:hsl(0 50% 30%);border-color:hsl(0 55% 42%)">BM</span><b>Bayern Munich</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/5.png" alt="BM" loading="lazy"/></span><b>Bayern Munich</b></div>
           <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar" style="background:hsl(210 55% 28%);border-color:hsl(210 60% 42%)">PS</span><b>PSG</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/524.png" alt="PS" loading="lazy"/></span><b>PSG</b></div>
         </div>
         <div class="tipWhen">Today, 22:00</div>
         <div class="tipPickRow"><span class="tipMarketTag">O/U</span><span class="tipPickName">Over 2.5 Goals</span><b class="tipOdds">1.85</b></div>
@@ -1944,6 +1944,48 @@ ${renderFinalCtaBanner(c, lang, eb)}
           for (var i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
           return h % 360;
         }
+        // Popular club crests (football-data.org) — fallback to initials if unknown
+        var TEAM_CRESTS = {
+          "arsenal": 57, "chelsea": 61, "liverpool": 64, "manchester city": 65, "man city": 65,
+          "manchester united": 66, "man united": 66, "man utd": 66, "tottenham": 73, "tottenham hotspur": 73, "spurs": 73,
+          "newcastle": 67, "newcastle united": 67, "aston villa": 58, "west ham": 563, "brighton": 397,
+          "real madrid": 86, "barcelona": 81, "atletico madrid": 78, "atlético madrid": 78, "atletico": 78,
+          "sevilla": 559, "villarreal": 94, "real sociedad": 92, "athletic bilbao": 77, "athletic club": 77,
+          "bayern munich": 5, "bayern": 5, "bayern münchen": 5, "borussia dortmund": 4, "dortmund": 4,
+          "rb leipzig": 721, "leipzig": 721, "bayer leverkusen": 3, "leverkusen": 3, "wolfsburg": 11,
+          "psg": 524, "paris saint-germain": 524, "paris saint germain": 524, "marseille": 516, "lyon": 523,
+          "juventus": 109, "inter": 108, "inter milan": 108, "internazionale": 108, "ac milan": 98, "milan": 98,
+          "napoli": 113, "roma": 100, "as roma": 100, "lazio": 110, "atalanta": 102, "fiorentina": 99,
+          "ajax": 678, "psv": 674, "feyenoord": 675, "porto": 503, "benfica": 1903, "sporting": 498,
+          "galatasaray": 645, "fenerbahce": 611, "besiktas": 600, "olympiacos": 654,
+          "boca juniors": 1832, "river plate": 1831, "flamengo": 1783, "palmeiras": 1769,
+          "al hilal": 7600, "al nassr": 7583, "inter miami": 16120,
+          "india": 2018, "sri lanka": 2010, "australia": 2014, "england": 770, "pakistan": 2019,
+          "new zealand": 2020, "south africa": 2015, "west indies": 2021, "bangladesh": 2017,
+          "csk": null, "mumbai indians": null, "rcb": null, "kkr": null
+        };
+        function crestUrl(name) {
+          var key = String(name || "").toLowerCase().replace(/[^a-z0-9\\s]/g, " ").replace(/\\s+/g, " ").trim();
+          var id = TEAM_CRESTS[key];
+          if (id) return "https://crests.football-data.org/" + id + ".png";
+          // try first word / short aliases
+          var first = key.split(" ")[0];
+          if (TEAM_CRESTS[first]) return "https://crests.football-data.org/" + TEAM_CRESTS[first] + ".png";
+          return null;
+        }
+        function teamAvatarHtml(name) {
+          var n = name || "?";
+          var logo = crestUrl(n);
+          var initials = teamInitials(n);
+          var hue = hueFrom(n);
+          if (logo) {
+            return '<span class="tipAvatar hasLogo" title="' + n.replace(/"/g, "") + '">' +
+              '<img src="' + logo + '" alt="' + initials + '" loading="lazy" decoding="async" ' +
+              'onerror="this.parentNode.classList.remove(\\'hasLogo\\');this.parentNode.style.background=\\'hsl(' + hue + ' 55% 28%)\\';this.parentNode.style.borderColor=\\'hsl(' + hue + ' 60% 42%)\\';this.parentNode.textContent=\\'' + initials + '\\';"/>' +
+              '</span>';
+          }
+          return '<span class="tipAvatar" style="background:hsl(' + hue + ' 55% 28%);border-color:hsl(' + hue + ' 60% 42%)">' + initials + '</span>';
+        }
 
         var liveHtml = data.tips.map(function(t){
           var resClass = t.result === "WON" ? "won" : (t.result === "LOST" ? "lost" : "pending");
@@ -1953,14 +1995,12 @@ ${renderFinalCtaBanner(c, lang, eb)}
           var hName = t.homeTeam || "Home";
           var aName = t.awayTeam || "Away";
           var sportKey = t.sport || "football";
-          var hHue = hueFrom(hName);
-          var aHue = hueFrom(aName);
           return '<article class="tipCard" data-sport="' + sportKey + '">' +
             '<div class="tipCardTop"><span class="tipLeague">' + (t.sportTitle || "Sports") + '</span><span class="tipStatus ' + resClass + '">' + resText + '</span></div>' +
             '<div class="tipTeams">' +
-              '<div class="tipTeam"><span class="tipAvatar" style="background:hsl(' + hHue + ' 55% 28%);border-color:hsl(' + hHue + ' 60% 42%)">' + teamInitials(hName) + '</span><b>' + hName + '</b></div>' +
+              '<div class="tipTeam">' + teamAvatarHtml(hName) + '<b>' + hName + '</b></div>' +
               '<div class="tipVs">VS</div>' +
-              '<div class="tipTeam"><span class="tipAvatar" style="background:hsl(' + aHue + ' 55% 28%);border-color:hsl(' + aHue + ' 60% 42%)">' + teamInitials(aName) + '</span><b>' + aName + '</b></div>' +
+              '<div class="tipTeam">' + teamAvatarHtml(aName) + '<b>' + aName + '</b></div>' +
             '</div>' +
             '<div class="tipWhen">' + (t.commenceTime ? t.commenceTime.slice(0, 16).replace("T", " ") : "Upcoming") + '</div>' +
             '<div class="tipPickRow"><span class="tipMarketTag">' + mTag + '</span><span class="tipPickName">' + (t.selection || "Pick") + '</span><b class="tipOdds">' + oVal + '</b></div>' +
