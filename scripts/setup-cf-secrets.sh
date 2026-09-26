@@ -65,9 +65,17 @@ DEFAULT_PEPPER="$(node -e "console.log(require('crypto').randomBytes(32).toStrin
 echo "Generated suggested pepper: $DEFAULT_PEPPER"
 read -r -p "Use generated pepper? [Y/n]: " use_pepper_gen
 if [[ "$use_pepper_gen" =~ ^[Nn]$ ]]; then
-  set_secret "SECURITY_CODE_PEPPER" "Min 16 chars HMAC pepper" true
+  read -r -s -p "Enter SECURITY_CODE_PEPPER (minimum 16 characters): " custom_pepper
+  echo
+  if (( ${#custom_pepper} < 16 )); then
+    echo "❌ SECURITY_CODE_PEPPER must be at least 16 characters."
+    exit 1
+  fi
+  printf '%s\n' "$custom_pepper" | npx wrangler secret put "SECURITY_CODE_PEPPER"
+  unset custom_pepper
+  echo "✅ SECURITY_CODE_PEPPER set."
 else
-  echo "$DEFAULT_PEPPER" | npx wrangler secret put "SECURITY_CODE_PEPPER"
+  printf '%s\n' "$DEFAULT_PEPPER" | npx wrangler secret put "SECURITY_CODE_PEPPER"
   echo "✅ SECURITY_CODE_PEPPER set."
 fi
 
