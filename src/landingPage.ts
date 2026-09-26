@@ -689,7 +689,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
   const eb = esc(bot);
   const ebTips = esc(`https://t.me/${botName}?start=tips`);
   const ec = esc(channel);
-  const promo = esc(env.XBET_PROMO_CODE?.trim() || "VGSL");
+  const promo = esc(env.XBET_PROMO_CODE?.trim() || "");
 
   const faq = c.faq.map((q, i) => ({
     "@type": "Question",
@@ -956,7 +956,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .bubble.user{border-bottom-right-radius:5px;align-self:flex-end;background:#101923;color:#d9e7f4;text-align:right}
 .bubble img{max-width:100%;height:auto;display:block}
 .chatChips{display:flex;flex-wrap:wrap;gap:5px;margin-top:auto;max-width:100%;box-sizing:border-box}
-.chatChips button.chatChip{min-width:44px;min-height:44px;padding:8px 12px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:#ffffff08;border:1px solid #ffffff14;color:var(--muted);font-size:.68rem;line-height:1.2;cursor:pointer;transition:background-color .15s ease,border-color .15s ease,color .15s ease,transform .15s ease;white-space:nowrap;flex-shrink:0}.chatChips button.chatChip:focus-visible{outline:3px solid var(--cyan);outline-offset:2px}
+.chatChips button.chatChip{padding:6px 10px;border-radius:999px;background:#ffffff08;border:1px solid #ffffff14;color:var(--muted);font-size:.62rem;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0}
 .chatChips button.chatChip:hover{background:#ffffff18;color:var(--fg)}
 .chatChips button.chatChip.active{background:var(--cyan);color:#071018;font-weight:800;border-color:var(--cyan)}
 
@@ -1053,7 +1053,6 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .calcSliderLabel{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:.78rem;color:var(--muted)}
 .calcSliderLabel strong{font-size:1.1rem;color:var(--signal);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .calcSlider{width:100%;height:8px;border-radius:4px;background:#1e293b;outline:none;accent-color:var(--signal);cursor:pointer}
-.calcSlider:focus-visible{outline:3px solid var(--cyan);outline-offset:3px}
 .calcPresets{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
 .presetBtn{padding:5px 9px;border:1px solid var(--border);border-radius:8px;background:#ffffff06;color:var(--muted);font-size:.65rem;font-weight:700;cursor:pointer;transition:background .15s}
 .presetBtn:hover{background:#ffffff15;color:var(--fg)}
@@ -1200,12 +1199,12 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
   .chat{padding:12px 12px 16px;min-height:360px}
   .bubble{max-width:96%;padding:8px 11px;font-size:.74rem}
   .chatChips{gap:4px}
-  .chatChips button.chatChip{min-height:44px;padding:8px 12px;font-size:.64rem}
+  .chatChips button.chatChip{padding:5px 8px;font-size:.58rem}
 }
 @media(prefers-reduced-motion:reduce){
-  html{scroll-behavior:auto!important}
-  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
-  .tickerItems,.botStatusDot.online,.botStatusDot.checking{animation:none!important}
+  html{scroll-behavior:auto}
+  .btn{transition:none}
+  .tickerItems{animation:none}
 }
 </style>
 </head>
@@ -2176,14 +2175,26 @@ ${renderFinalCtaBanner(c, lang, eb)}
   // 10. Legal Modals (Privacy & Terms)
   try {
     function setupModal(openBtnId, modalId, closeBtnId) {
-      var btn=document.getElementById(openBtnId), modal=document.getElementById(modalId), closeBtn=document.getElementById(closeBtnId);
-      if(!btn||!modal)return;
-      var previousFocus=null;
-      function focusable(){return Array.from(modal.querySelectorAll('a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])')).filter(function(el){return !el.hasAttribute("hidden")&&el.getAttribute("aria-hidden")!=="true";});}
-      function openM(){previousFocus=document.activeElement;modal.classList.add("open");modal.setAttribute("aria-hidden","false");modal.removeAttribute("inert");requestAnimationFrame(function(){var f=focusable();if(closeBtn)closeBtn.focus();else if(f.length)f[0].focus();});}
-      function closeM(){modal.classList.remove("open");modal.setAttribute("aria-hidden","true");modal.setAttribute("inert","");if(previousFocus&&typeof previousFocus.focus==="function")previousFocus.focus();else btn.focus();}
-      function key(e){if(!modal.classList.contains("open"))return;if(e.key==="Escape"){e.preventDefault();closeM();return;}if(e.key!=="Tab")return;var f=focusable();if(!f.length){e.preventDefault();if(closeBtn)closeBtn.focus();return;}var first=f[0],last=f[f.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}
-      btn.addEventListener("click",openM);if(closeBtn)closeBtn.addEventListener("click",closeM);modal.addEventListener("click",function(e){if(e.target===modal)closeM();});document.addEventListener("keydown",key);
+      var btn = document.getElementById(openBtnId);
+      var modal = document.getElementById(modalId);
+      var closeBtn = document.getElementById(closeBtnId);
+      if (!btn || !modal) return;
+      function openM() {
+        modal.classList.add("open");
+        modal.setAttribute("aria-hidden", "false");
+        modal.removeAttribute("inert");
+        if (closeBtn) closeBtn.focus();
+      }
+      function closeM() {
+        modal.classList.remove("open");
+        modal.setAttribute("aria-hidden", "true");
+        modal.setAttribute("inert", "");
+        btn.focus();
+      }
+      btn.addEventListener("click", openM);
+      if (closeBtn) closeBtn.addEventListener("click", closeM);
+      modal.addEventListener("click", function(e){ if (e.target === modal) closeM(); });
+      document.addEventListener("keydown", function(e){ if (e.key === "Escape" && modal.classList.contains("open")) closeM(); });
     }
     setupModal("privacyLink", "privacyModalOverlay", "privacyCloseBtn");
     setupModal("termsLink", "termsModalOverlay", "termsCloseBtn");

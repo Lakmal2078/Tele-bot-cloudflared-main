@@ -6,7 +6,10 @@ echo "======================================================"
 echo " Cloudflare Worker Secrets Configuration"
 echo "======================================================"
 echo ""
+
 echo "This script sets required secrets for the Cloudflare Worker."
+echo "Note: values set here override same-named [vars] in wrangler.toml."
+echo "Do NOT define the same key in both [vars] and secrets."
 echo ""
 
 set_secret() {
@@ -57,8 +60,40 @@ fi
 echo "5. The Odds API Key (optional, for live sports odds)"
 set_secret "ODDS_API_KEY" "The-Odds-API key (leave empty if none)" false
 
-echo "6. Bank Details (optional, for deposits)"
-set_secret "BANK_DETAILS" "e.g. Commercial Bank 1234567890 VGS Lakmal" false
+echo "6. Withdrawal Security Code Pepper (required for withdrawal security codes)"
+DEFAULT_PEPPER="$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")"
+echo "Generated suggested pepper: $DEFAULT_PEPPER"
+read -r -p "Use generated pepper? [Y/n]: " use_pepper_gen
+if [[ "$use_pepper_gen" =~ ^[Nn]$ ]]; then
+  read -r -s -p "Enter SECURITY_CODE_PEPPER (minimum 16 characters): " custom_pepper
+  echo
+  if (( ${#custom_pepper} < 16 )); then
+    echo "❌ SECURITY_CODE_PEPPER must be at least 16 characters."
+    exit 1
+  fi
+  printf '%s\n' "$custom_pepper" | npx wrangler secret put "SECURITY_CODE_PEPPER"
+  unset custom_pepper
+  echo "✅ SECURITY_CODE_PEPPER set."
+else
+  printf '%s\n' "$DEFAULT_PEPPER" | npx wrangler secret put "SECURITY_CODE_PEPPER"
+  echo "✅ SECURITY_CODE_PEPPER set."
+fi
+
+echo "7. Bank Details (optional, for deposits)"
+set_secret "BANK_DETAILS" "Bank name, account number, account holder" false
+
+echo "8. Payment rail numbers (mobile money — previously committed in wrangler.toml)"
+set_secret "EZCASH_NUMBER" "eZ Cash mobile number" false
+set_secret "MCASH_NUMBER" "mCash mobile number" false
+set_secret "FRIMI_NUMBER" "FriMi mobile number" false
+set_secret "IPAY_NUMBER" "iPay mobile number" false
+
+echo "9. Customer Support WhatsApp number"
+set_secret "WHATSAPP_NUMBER" "WhatsApp number with country code, e.g. 9477XXXXXXX" false
+
+echo "10. 1xBet Affiliate (partner-sensitive — previously committed in wrangler.toml)"
+set_secret "XBET_LINK" "1xBet affiliate/registration link" false
+set_secret "XBET_PROMO_CODE" "1xBet promo code" false
 
 echo ""
 echo "======================================================"

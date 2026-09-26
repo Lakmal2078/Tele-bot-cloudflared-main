@@ -643,7 +643,7 @@ Sitemap: ${origin}/sitemap.xml
     const selection = url.searchParams.get("pick") || url.searchParams.get("selection") || "";
     const customUrl = url.searchParams.get("url") || "";
 
-    const defaultBase = env.XBET_LINK?.trim() || "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622";
+    const defaultBase = env.XBET_LINK?.trim() || "";
     let destinationUrl = defaultBase;
 
     // Validate safe affiliate destination to prevent open-redirect vulnerabilities
@@ -663,6 +663,13 @@ Sitemap: ${origin}/sitemap.xml
           destinationUrl = customUrl;
         }
       } catch {}
+    }
+
+    if (!destinationUrl) {
+      return new Response(JSON.stringify({ ok: false, error: "Tip destination is not configured" }), {
+        status: 503,
+        headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...securityHeaders() },
+      });
     }
 
     // Attach tracking parameters

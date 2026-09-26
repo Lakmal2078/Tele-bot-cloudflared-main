@@ -437,10 +437,11 @@ export interface TelegramInlineKeyboardMarkup {
   inline_keyboard: TelegramInlineKeyboardButton[][];
 }
 
-export const DEFAULT_XBET_LINK = "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622";
+export const DEFAULT_XBET_LINK = "";
 
 export function buildMatchBetLink(baseUrl: string | undefined, candidate: TipCandidate): string {
-  const raw = baseUrl?.trim() ? baseUrl.trim() : DEFAULT_XBET_LINK;
+  const raw = baseUrl?.trim() || DEFAULT_XBET_LINK;
+  if (!raw) return "";
   const matchName = `${candidate.event.home_team} vs ${candidate.event.away_team}`;
 
   try {
@@ -549,13 +550,13 @@ export function buildTipsInlineKeyboard(
     } else {
       url = buildMatchBetLink(xbetLink, candidate);
     }
-    rows.push([{ text, url }]);
+    if (url) rows.push([{ text, url }]);
   });
 
   // Accumulator / Multiplier button if there are 2 or more candidates
   if (candidates.length > 1) {
     const totalMultiplier = candidates.reduce((acc, c) => acc * (c.bestPrice ?? c.averageOdds ?? 0), 1);
-    const raw = xbetLink?.trim() ? xbetLink.trim() : DEFAULT_XBET_LINK;
+    const raw = xbetLink?.trim() || DEFAULT_XBET_LINK;
     let accumUrl: string;
     if (useTracking && trackingBaseUrl && tipPostId) {
       accumUrl = `${trackingBaseUrl.replace(/\/$/, "")}/go/tip/${tipPostId}?type=accumulator`;
@@ -569,12 +570,14 @@ export function buildTipsInlineKeyboard(
         accumUrl = raw;
       }
     }
-    rows.push([
-      {
-        text: `⚡ Bet Accumulator (~${totalMultiplier.toFixed(2)}) on 1xBet`,
-        url: accumUrl,
-      },
-    ]);
+    if (accumUrl) {
+      rows.push([
+        {
+          text: `⚡ Bet Accumulator (~${totalMultiplier.toFixed(2)}) on 1xBet`,
+          url: accumUrl,
+        },
+      ]);
+    }
   }
 
   // Official Channel button if joinUrl is provided
@@ -596,8 +599,8 @@ export function buildFallbackInlineKeyboard(
   joinUrl?: string
 ): TelegramInlineKeyboardMarkup {
   const rows: TelegramInlineKeyboardButton[][] = [];
-  const raw = xbetLink?.trim() ? xbetLink.trim() : DEFAULT_XBET_LINK;
-  rows.push([{ text: "🎲 Go to 1xBet", url: raw }]);
+  const raw = xbetLink?.trim() || DEFAULT_XBET_LINK;
+  if (raw) rows.push([{ text: "🎲 Go to 1xBet", url: raw }]);
 
   const cleanJoinUrl = normalizeChannelUrl(joinUrl);
   if (cleanJoinUrl && cleanJoinUrl.startsWith("http")) {

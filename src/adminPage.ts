@@ -75,17 +75,13 @@ export function renderAdminLoginPage(
     }
     .login-card h1 { font-size: 20px; font-weight: 800; margin: 14px 0 6px; color: #ffffff; }
     .login-card p { font-size: 13px; color: #94a3b8; margin: 0 0 22px; }
-    .form-field { text-align:left; margin-bottom:12px; }
-    .form-field label { display:block; margin-bottom:7px; color:#cbd5e1; font-size:13px; font-weight:700; }
-    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
     .login-card input {
       width: 100%; padding: 12px 14px; border-radius: 10px;
       border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.35);
       color: #f1f5f9; font-size: 14px; margin-bottom: 12px;
       transition: border-color 0.2s;
     }
-    .login-card input:focus { border-color: #38bdf8; box-shadow: 0 0 12px rgba(56,189,248,0.25); }
-    .login-card input:focus-visible { outline: 3px solid rgba(56, 189, 248, 0.9); outline-offset: 3px; }
+    .login-card input:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 12px rgba(56,189,248,0.25); }
     .login-card button {
       width: 100%; padding: 12px 14px; border-radius: 10px; border: none;
       background: #00e676; color: #04130b; font-weight: 800; font-size: 14px; cursor: pointer;
@@ -106,11 +102,7 @@ export function renderAdminLoginPage(
     <p>Enter the admin secret to view the dashboard.</p>
     ${options.error ? `<p style="color:#f87171; font-size:13px;">${escapeAttribute(options.error)}</p>` : ""}
     <form id="admin-secret-form" method="POST" action="/admin/login">
-      <div class="form-field">
-        <label for="admin-secret-input">Admin secret</label>
-        <input type="password" name="secret" class="auth-input" id="admin-secret-input" placeholder="Enter ADMIN_API_SECRET..." autocomplete="current-password" aria-describedby="admin-secret-help" required>
-        <p id="admin-secret-help" class="sr-only">Enter the administrator secret to access the dashboard.</p>
-      </div>
+      <input type="password" name="secret" class="auth-input" id="admin-secret-input" placeholder="Enter ADMIN_API_SECRET..." autocomplete="current-password">
       <button type="submit" id="btn-apply-secret">Sign In</button>
     </form>
     <a href="/">← Back to public website</a>
@@ -253,10 +245,8 @@ export function renderAdminPage(
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-width:44px;
-      min-height:44px;
-      padding:10px 16px;
-      font-size:13px;
+      padding: 8px 16px;
+      font-size: 13px;
       font-weight: 600;
       border-radius: 8px;
       text-decoration: none;
@@ -264,11 +254,6 @@ export function renderAdminPage(
       transition: all 0.15s ease;
       border: 1px solid transparent;
       white-space: nowrap;
-    }
-    .btn:focus-visible,
-    .btn-tab:focus-visible {
-      outline: 3px solid #38bdf8;
-      outline-offset: 3px;
     }
     .btn-secondary {
       background-color: #1e293b;
@@ -288,9 +273,7 @@ export function renderAdminPage(
       color: #fff;
     }
     .btn-tab {
-      min-width:44px;
-      min-height:44px;
-      padding:9px 14px;
+      padding: 6px 14px;
       font-size: 12px;
       border-radius: 6px;
       background: #1e293b;
@@ -341,8 +324,10 @@ export function renderAdminPage(
       font-size: 12px;
       cursor: pointer;
     }
-    .polling-select:focus { border-color:#38bdf8; }
-    .polling-select:focus-visible { outline:3px solid rgba(56,189,248,.9); outline-offset:2px; }
+    .polling-select:focus {
+      outline: none;
+      border-color: #38bdf8;
+    }
     @keyframes spin {
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
@@ -648,12 +633,7 @@ export function renderAdminPage(
         padding: 12px 6px;
       }
     }
-  
-    @media (prefers-reduced-motion: reduce) {
-      *,*::before,*::after { animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; scroll-behavior:auto!important; }
-      .spinning,.flash-highlight { animation:none!important; }
-    }
-</style>
+  </style>
 </head>
 <body>
   <div class="container">

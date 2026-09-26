@@ -223,14 +223,8 @@ describe("scheduled tips", () => {
     expect(parsed.searchParams.get("pick")).toBe("Arsenal");
     expect(parsed.searchParams.get("sport")).toBe("soccer_epl");
 
-    // With default XBET_LINK (affiliate reffpa link)
-    const defaultUrl = buildMatchBetLink(undefined, candidate);
-    const parsedDefault = new URL(defaultUrl);
-    expect(parsedDefault.origin).toBe("https://reffpa.com");
-    expect(parsedDefault.searchParams.get("tag")).toBe("d_2481353m_1622c_");
-    expect(parsedDefault.searchParams.get("sub1")).toBe("evt-456");
-    expect(parsedDefault.searchParams.get("sub2")).toBe("Arsenal");
-    expect(parsedDefault.searchParams.get("match")).toBe("Arsenal vs Chelsea");
+    // No configured affiliate URL: do not synthesize or expose a hard-coded destination.
+    expect(buildMatchBetLink(undefined, candidate)).toBe("");
   });
 
   it("formats match button label with badge, sport emoji, and matchup", () => {
@@ -421,7 +415,7 @@ describe("scheduled tips", () => {
       // Even if CHANNEL_URL (https://t.me/...) and tipPostId (42) are supplied:
       const kb = buildTipsInlineKeyboard(
         candidates,
-        "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622",
+        "https://affiliate.example.com/register",
         "https://t.me/fast_xbet_official_tips",
         "https://t.me/fast_xbet_official_tips",
         42
@@ -430,7 +424,7 @@ describe("scheduled tips", () => {
       const betBtn = kb.inline_keyboard[0][0];
       // Button MUST link directly to 1xBet affiliate URL, NOT a broken t.me/go/tip URL
       expect(betBtn.url).not.toContain("t.me");
-      expect(betBtn.url).toContain("reffpa.com");
+      expect(betBtn.url).toContain("affiliate.example.com");
       expect(betBtn.url).toContain("match=Guyana+Amazon+Warriors+vs+Antigua+%26+Barbuda+Falcons");
 
       // Channel button must be a valid t.me link

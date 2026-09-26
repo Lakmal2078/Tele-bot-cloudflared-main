@@ -723,7 +723,7 @@ export function createBot(env: Env) {
       normalizeChannelUrl(env.TIPS_CHANNEL_URL) ||
       normalizeChannelUrl(env.CHANNEL_URL, env.CHANNEL_USERNAME) ||
       "https://t.me/fastxbettips";
-    const xbetUrl = env.XBET_LINK?.trim() || "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622";
+    const xbetUrl = env.XBET_LINK?.trim() || "";
     const kb = new InlineKeyboard();
 
     if (!latestPost) {
@@ -735,7 +735,7 @@ export function createBot(env: Env) {
           : `🎯 *නොමිලේ ලබාදෙන ක්‍රීඩා Betting Tips*\n━━━━━━━━━━━━━━━━━━━━━━━━━\n\nදිනපතා ස්වයංක්‍රීයව විශ්ලේෂණය කළ Tips දිනකට 3 වරක් පළවේ:\n• උදෑසන 08:00 (ශ්‍රී ලංකා)\n• දහවල් 12:00 (ශ්‍රී ලංකා)\n• සවස 06:00 (ශ්‍රී ලංකා)\n\nනවතම Tips සජීවීව ලබාගැනීමට අපගේ නිල Tips Channel එකට සම්බන්ධ වන්න!`;
 
       kb.url("📢 Official Tips Channel", channelLink).row();
-      kb.url("🎲 1xBet හි ලියාපදිංචි වන්න", xbetUrl).row();
+      if (xbetUrl) kb.url("🎲 1xBet හි ලියාපදිංචි වන්න", xbetUrl).row();
       kb.text(dict.btnBack, "back");
 
       if (isEdit) {
@@ -935,8 +935,8 @@ export function createBot(env: Env) {
     const lang = await getUserLang(env.DB, user.id);
     const dict = t(lang);
 
-    const link = env.XBET_LINK || "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622";
-    const promo = escapeCode(env.XBET_PROMO_CODE || "VGSL");
+    const link = env.XBET_LINK?.trim() || "";
+    const promo = escapeCode(env.XBET_PROMO_CODE?.trim() || "");
     const text = `${dict.registrationHeader}\n\n${dict.registrationInstructions(promo)}`;
 
     const kb = new InlineKeyboard();
@@ -1704,8 +1704,8 @@ export function createBot(env: Env) {
 
     // Registration
     if (data === "xbet") {
-      const link = env.XBET_LINK || "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622";
-      const promo = escapeCode(env.XBET_PROMO_CODE || "VGSL");
+      const link = env.XBET_LINK?.trim() || "";
+      const promo = escapeCode(env.XBET_PROMO_CODE?.trim() || "");
       const text = `${dict.registrationHeader}\n\n${dict.registrationInstructions(promo)}`;
 
       const kb = new InlineKeyboard();
@@ -1793,8 +1793,8 @@ export function createBot(env: Env) {
     }
 
     if (data === "faq:register") {
-      const link = env.XBET_LINK || "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622";
-      const promo = escapeCode(env.XBET_PROMO_CODE || "VGSL");
+      const link = env.XBET_LINK?.trim() || "";
+      const promo = escapeCode(env.XBET_PROMO_CODE?.trim() || "");
       const text = dict.faqAnsRegister(promo);
       const kb = new InlineKeyboard();
       if (link && link.startsWith("http")) {
@@ -2567,8 +2567,8 @@ export function createBot(env: Env) {
       }
 
       const { min, max } = getTransactionLimits(env);
-      const promo = escapeCode(env.XBET_PROMO_CODE || "VGSL");
-      const link = env.XBET_LINK || "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622";
+      const promo = escapeCode(env.XBET_PROMO_CODE?.trim() || "");
+      const link = env.XBET_LINK?.trim() || "";
 
       // 1. Question about 1XBet Registration
       if (

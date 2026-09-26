@@ -64,6 +64,10 @@ export function validateEnv(env: Partial<Env>): string[] {
     errors.push(`ADMIN_API_SECRET must be at least ${MIN_ADMIN_API_SECRET_LENGTH} characters`);
   }
 
+  if (env.SECURITY_CODE_PEPPER !== undefined && env.SECURITY_CODE_PEPPER.trim().length < MIN_SECRET_LENGTH) {
+    errors.push(`SECURITY_CODE_PEPPER must be at least ${MIN_SECRET_LENGTH} characters when configured`);
+  }
+
   const adminIds = (env.ADMIN_IDS || "")
     .split(",")
     .map((value) => value.trim())

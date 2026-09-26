@@ -10,34 +10,30 @@ directory = "./public"
 binding = "ASSETS"
 
 # Environment Variables ([vars])
+# NOTE: Personal contact numbers, bank details, WhatsApp number, and 1xBet
+# affiliate credentials are intentionally NOT stored here. They are configured
+# as Cloudflare Secrets (runtime env works identically) so that no personal or
+# partner-sensitive data is committed to source control.
+# Provision them with: npm run secrets:cf   (scripts/setup-cf-secrets.sh)
 [vars]
 BOT_MODE = "production"
 USE_POLLING = "false"
 PUBLIC_BASE_URL = "https://xbet-telegram-bot.agent-1xfast-srilanka.workers.dev"
 BOT_USERNAME = "fast_1xbetcash_bot"
 
-# Telegram Channel
+# Telegram Channel (public channel identity — not sensitive)
 CHANNEL_URL = "https://t.me/fast_xbet_official_tips"
 CHANNEL_USERNAME = "@fast_xbet_official_tips"
 
-# Payment Gateways & Numbers
-EZCASH_NUMBER = "0765865387"
-MCASH_NUMBER = "0765865387"
-FRIMI_NUMBER = "0765865387"
-IPAY_NUMBER = "0740452530"
-BANK_DETAILS = ""
-
-# Customer Support
-WHATSAPP_NUMBER = "94776763093"
+# Customer Support / Payment rails → set via Cloudflare Secrets:
+#   EZCASH_NUMBER, MCASH_NUMBER, FRIMI_NUMBER, IPAY_NUMBER,
+#   BANK_DETAILS, WHATSAPP_NUMBER, XBET_LINK, XBET_PROMO_CODE,
+#   SECURITY_CODE_PEPPER (see scripts/setup-cf-secrets.sh)
 
 # Limits & Instructions
 MIN_TRANSACTION_LKR = "1000"
 MAX_TRANSACTION_LKR = "500000"
 DEPOSIT_INSTRUCTIONS = "📌 තැන්පතු උපදෙස්\n1) ගෙවීම් ක්‍රමය තෝරන්න (BOC / People's / Sampath / LOLC / eZ Cash / iPay / FriMi)\n2) ලබා දෙන ගිණුමට හෝ අංකයට මුදල් යවන්න\n3) ගෙවීම් receipt / screenshot එක bot එකට එවන්න\n4) Admin approve කළ පසු 1xBet balance එකට credit වේ\n⚠️ අවම: රු. 1,000 | උපරිම: රු. 500,000\n⚠️ 18+ පමණි. වගකීමෙන් යුතුව ක්‍රීඩා කරන්න."
-
-# 1xBet Affiliate
-XBET_LINK = "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622"
-XBET_PROMO_CODE = "VGSL"
 
 # Automated Free Sports Betting Tips (Sri Lanka UTC+05:30)
 TIPS_CHANNEL_ID = "-1004336999467"
