@@ -65,6 +65,15 @@ database_id = "7a821498-be68-4a0f-a630-e9334238c1fe"
 binding = "CHAT_MEDIA"
 bucket_name = "chat-media"
 
+# Workers Observability — persist console logs for tips cron debugging
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+invocation_logs = true
+head_sampling_rate = 1
+
 # Automated Cron Triggers
 # 02:00 UTC = cleanup, 02:30/06:30/12:30 UTC = Free Tips (08:00/12:00/18:00 SL), 15 * * * * = Hourly settlement
 [triggers]
