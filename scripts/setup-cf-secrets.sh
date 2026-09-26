@@ -6,13 +6,16 @@ echo "======================================================"
 echo " Cloudflare Worker Secrets Configuration"
 echo "======================================================"
 echo ""
+
 echo "This script sets required secrets for the Cloudflare Worker."
+echo "Note: values set here override same-named [vars] in wrangler.toml."
+echo "Do NOT define the same key in both [vars] and secrets."
 echo ""
 
 set_secret() {
   local key="$1"
   local desc="$2"
-  local is_required="${3:-true}"
+  local is_required="$"{3:-true}"
 
   echo -n "Enter $key ($desc): "
   read -r val
@@ -47,7 +50,7 @@ echo "4. Admin API Secret (minimum 24 characters)"
 DEFAULT_ADMIN_SECRET="$(node -e "console.log(require('crypto').randomBytes(24).toString('hex'))")"
 echo "Generated suggested admin secret: $DEFAULT_ADMIN_SECRET"
 read -r -p "Use generated admin secret? [Y/n]: " use_admin_gen
-if [[ "$use_admin_gen" =~ ^[Nn]$ ]]; then
+if [[ "$use_admin" =~ ^[Nn]$ ]]; then
   set_secret "ADMIN_API_SECRET" "Min 24 chars admin API secret" false
 else
   echo "$DEFAULT_ADMIN_SECRET" | npx wrangler secret put "ADMIN_API_SECRET"
@@ -57,8 +60,32 @@ fi
 echo "5. The Odds API Key (optional, for live sports odds)"
 set_secret "ODDS_API_KEY" "The-Odds-API key (leave empty if none)" false
 
-echo "6. Bank Details (optional, for deposits)"
+echo "6. Withdrawal Security Code Pepper (required for withdrawal security codes)"
+DEFAULT_PEPPER="$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")"
+echo "Generated suggested pepper: $DEFAULT_PEPPER"
+read -r -p "Use generated pepper? [Y/n]: " use_pepper_gen
+if [[ "$use_pepper_gen" =~ ^[Nn]$ ]]; then
+  set_secret "SECURITY_CODE_PEPPER" "Min 16 chars HMAC pepper" true
+else
+  echo "$DEFAULT_PEPPER" | npx wrangler secret put "SECURITY_CODE_PEPPER"
+  echo "✅ SECURITY_CODE_PEPPER set."
+fi
+
+echo "7. Bank Details (optional, for deposits)"
 set_secret "BANK_DETAILS" "e.g. Commercial Bank 1234567890 VGS Lakmal" false
+
+echo "8. Payment rail numbers (mobile money — previously committed in wrangler.toml)"
+set_secret "EZCASH_NUMBER" "eZ Cash mobile number" false
+set_secret "MCASH_NUMBER" "mCash mobile number" false
+set_secret "FRIMI_NUMBER" "FriMi mobile number" false
+set_secret "IPAY_NUMBER" "iPay mobile number" false
+
+echo "9. Customer Support WhatsApp number"
+set_secret "WHATSAPP_NUMBER" "WhatsApp number with country code, e.g. 9477XXXXXXX" false
+
+echo "10. 1xBet Affiliate (partner-sensitive — previously committed in wrangler.toml)"
+set_secret "XBET_LINK" "1xBet affiliate/registration link" false
+set_secret "XBET_PROMO_CODE" "1xBet promo code" false
 
 echo ""
 echo "======================================================"
