@@ -15,7 +15,7 @@ echo ""
 set_secret() {
   local key="$1"
   local desc="$2"
-  local is_required="$"{3:-true}"
+  local is_required="${3:-true}"
 
   echo -n "Enter $key ($desc): "
   read -r val
@@ -50,7 +50,7 @@ echo "4. Admin API Secret (minimum 24 characters)"
 DEFAULT_ADMIN_SECRET="$(node -e "console.log(require('crypto').randomBytes(24).toString('hex'))")"
 echo "Generated suggested admin secret: $DEFAULT_ADMIN_SECRET"
 read -r -p "Use generated admin secret? [Y/n]: " use_admin_gen
-if [[ "$use_admin" =~ ^[Nn]$ ]]; then
+if [[ "$use_admin_gen" =~ ^[Nn]$ ]]; then
   set_secret "ADMIN_API_SECRET" "Min 24 chars admin API secret" false
 else
   echo "$DEFAULT_ADMIN_SECRET" | npx wrangler secret put "ADMIN_API_SECRET"
@@ -72,7 +72,7 @@ else
 fi
 
 echo "7. Bank Details (optional, for deposits)"
-set_secret "BANK_DETAILS" "e.g. Commercial Bank 1234567890 VGS Lakmal" false
+set_secret "BANK_DETAILS" "Bank name, account number, account holder" false
 
 echo "8. Payment rail numbers (mobile money — previously committed in wrangler.toml)"
 set_secret "EZCASH_NUMBER" "eZ Cash mobile number" false
