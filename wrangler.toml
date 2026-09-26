@@ -33,7 +33,7 @@ WHATSAPP_NUMBER = "94776763093"
 # Limits & Instructions
 MIN_TRANSACTION_LKR = "1000"
 MAX_TRANSACTION_LKR = "500000"
-DEPOSIT_INSTRUCTIONS = "Deposit to the following account"
+DEPOSIT_INSTRUCTIONS = "📌 තැන්පතු උපදෙස්\n1) ගෙවීම් ක්‍රමය තෝරන්න (BOC / People's / Sampath / LOLC / eZ Cash / iPay / FriMi)\n2) ලබා දෙන ගිණුමට හෝ අංකයට මුදල් යවන්න\n3) ගෙවීම් receipt / screenshot එක bot එකට එවන්න\n4) Admin approve කළ පසු 1xBet balance එකට credit වේ\n⚠️ අවම: රු. 1,000 | උපරිම: රු. 500,000\n⚠️ 18+ පමණි. වගකීමෙන් යුතුව ක්‍රීඩා කරන්න."
 
 # 1xBet Affiliate
 XBET_LINK = "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622"
