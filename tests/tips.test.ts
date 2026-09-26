@@ -223,14 +223,8 @@ describe("scheduled tips", () => {
     expect(parsed.searchParams.get("pick")).toBe("Arsenal");
     expect(parsed.searchParams.get("sport")).toBe("soccer_epl");
 
-    // With default XBET_LINK (affiliate reffpa link)
-    const defaultUrl = buildMatchBetLink(undefined, candidate);
-    const parsedDefault = new URL(defaultUrl);
-    expect(parsedDefault.origin).toBe("https://reffpa.com");
-    expect(parsedDefault.searchParams.get("tag")).toBe("d_2481353m_1622c_");
-    expect(parsedDefault.searchParams.get("sub1")).toBe("evt-456");
-    expect(parsedDefault.searchParams.get("sub2")).toBe("Arsenal");
-    expect(parsedDefault.searchParams.get("match")).toBe("Arsenal vs Chelsea");
+    // No configured affiliate URL: do not synthesize or expose a hard-coded destination.
+    expect(buildMatchBetLink(undefined, candidate)).toBe("");
   });
 
   it("formats match button label with badge, sport emoji, and matchup", () => {
