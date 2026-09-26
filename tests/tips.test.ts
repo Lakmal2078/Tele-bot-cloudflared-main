@@ -415,7 +415,7 @@ describe("scheduled tips", () => {
       // Even if CHANNEL_URL (https://t.me/...) and tipPostId (42) are supplied:
       const kb = buildTipsInlineKeyboard(
         candidates,
-        "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622",
+        "https://affiliate.example.com/register",
         "https://t.me/fast_xbet_official_tips",
         "https://t.me/fast_xbet_official_tips",
         42
@@ -424,7 +424,7 @@ describe("scheduled tips", () => {
       const betBtn = kb.inline_keyboard[0][0];
       // Button MUST link directly to 1xBet affiliate URL, NOT a broken t.me/go/tip URL
       expect(betBtn.url).not.toContain("t.me");
-      expect(betBtn.url).toContain("reffpa.com");
+      expect(betBtn.url).toContain("affiliate.example.com");
       expect(betBtn.url).toContain("match=Guyana+Amazon+Warriors+vs+Antigua+%26+Barbuda+Falcons");
 
       // Channel button must be a valid t.me link
