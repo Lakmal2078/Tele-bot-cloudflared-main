@@ -689,7 +689,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
   const eb = esc(bot);
   const ebTips = esc(`https://t.me/${botName}?start=tips`);
   const ec = esc(channel);
-  const promo = esc(env.XBET_PROMO_CODE?.trim() || "VGSL");
+  const promo = esc(env.XBET_PROMO_CODE?.trim() || "");
 
   const faq = c.faq.map((q, i) => ({
     "@type": "Question",
