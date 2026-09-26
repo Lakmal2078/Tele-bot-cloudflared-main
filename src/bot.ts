@@ -1704,8 +1704,8 @@ export function createBot(env: Env) {
 
     // Registration
     if (data === "xbet") {
-      const link = env.XBET_LINK || "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622";
-      const promo = escapeCode(env.XBET_PROMO_CODE || "VGSL");
+      const link = env.XBET_LINK?.trim() || "";
+      const promo = escapeCode(env.XBET_PROMO_CODE?.trim() || "");
       const text = `${dict.registrationHeader}\n\n${dict.registrationInstructions(promo)}`;
 
       const kb = new InlineKeyboard();
@@ -1793,8 +1793,8 @@ export function createBot(env: Env) {
     }
 
     if (data === "faq:register") {
-      const link = env.XBET_LINK || "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622";
-      const promo = escapeCode(env.XBET_PROMO_CODE || "VGSL");
+      const link = env.XBET_LINK?.trim() || "";
+      const promo = escapeCode(env.XBET_PROMO_CODE?.trim() || "");
       const text = dict.faqAnsRegister(promo);
       const kb = new InlineKeyboard();
       if (link && link.startsWith("http")) {
@@ -2567,8 +2567,8 @@ export function createBot(env: Env) {
       }
 
       const { min, max } = getTransactionLimits(env);
-      const promo = escapeCode(env.XBET_PROMO_CODE || "VGSL");
-      const link = env.XBET_LINK || "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622";
+      const promo = escapeCode(env.XBET_PROMO_CODE?.trim() || "");
+      const link = env.XBET_LINK?.trim() || "";
 
       // 1. Question about 1XBet Registration
       if (
