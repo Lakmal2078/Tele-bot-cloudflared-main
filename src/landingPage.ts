@@ -1053,6 +1053,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .calcSliderLabel{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:.78rem;color:var(--muted)}
 .calcSliderLabel strong{font-size:1.1rem;color:var(--signal);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .calcSlider{width:100%;height:8px;border-radius:4px;background:#1e293b;outline:none;accent-color:var(--signal);cursor:pointer}
+.calcSlider:focus-visible{outline:3px solid var(--cyan);outline-offset:3px}
 .calcPresets{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
 .presetBtn{padding:5px 9px;border:1px solid var(--border);border-radius:8px;background:#ffffff06;color:var(--muted);font-size:.65rem;font-weight:700;cursor:pointer;transition:background .15s}
 .presetBtn:hover{background:#ffffff15;color:var(--fg)}
