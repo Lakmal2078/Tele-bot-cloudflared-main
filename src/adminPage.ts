@@ -265,6 +265,11 @@ export function renderAdminPage(
       border: 1px solid transparent;
       white-space: nowrap;
     }
+    .btn:focus-visible,
+    .btn-tab:focus-visible {
+      outline: 3px solid #38bdf8;
+      outline-offset: 3px;
+    }
     .btn-secondary {
       background-color: #1e293b;
       color: #cbd5e1;
