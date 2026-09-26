@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { hashSecurityCode } from "../src/db";
+import { validateEnv } from "../src/config";
 import { redactSensitiveFields } from "../src/logger";
 
 describe("hashSecurityCode (HMAC-SHA-256)", () => {
@@ -28,6 +29,28 @@ describe("hashSecurityCode (HMAC-SHA-256)", () => {
   it("rejects missing or short pepper", async () => {
     await expect(hashSecurityCode("x", "")).rejects.toThrow(/SECURITY_CODE_PEPPER/);
     await expect(hashSecurityCode("x", "short")).rejects.toThrow(/SECURITY_CODE_PEPPER/);
+  });
+});
+
+describe("validateEnv security configuration", () => {
+  const baseEnv = {
+    BOT_TOKEN: "test-token",
+    ADMIN_IDS: "123456789",
+    WEBHOOK_SECRET: "webhook-secret-16",
+    CHANNEL_USERNAME: "test_channel",
+    MIN_TRANSACTION_LKR: "100",
+    MAX_TRANSACTION_LKR: "10000",
+    BANK_DETAILS: "test",
+  };
+
+  it("rejects a configured security pepper shorter than 16 characters", () => {
+    const errors = validateEnv({ ...baseEnv, SECURITY_CODE_PEPPER: "short" });
+    expect(errors).toContain("SECURITY_CODE_PEPPER must be at least 16 characters when configured");
+  });
+
+  it("accepts a configured security pepper with at least 16 characters", () => {
+    const errors = validateEnv({ ...baseEnv, SECURITY_CODE_PEPPER: "0123456789abcdef" });
+    expect(errors).not.toContain("SECURITY_CODE_PEPPER must be at least 16 characters when configured");
   });
 });
 
