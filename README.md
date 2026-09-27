@@ -9,7 +9,7 @@ Production Telegram bot on **Cloudflare Workers + TypeScript** for 1xBet affilia
 | **Tips channel** | [@fast_xbet_official_tips](https://t.me/fast_xbet_official_tips) |
 | **Database** | Cloudflare D1 — `fastxbetcash_bot-db` |
 | **Storage** | Cloudflare R2 — `chat-media` |
-| **Deploy** | GitHub Actions + Wrangler `4.131.2` |
+| **Deploy** | GitHub Actions + Wrangler `4.135.0` |
 
 > **Secrets** belong in Cloudflare Secrets / GitHub Actions secrets — never commit credentials.
 
@@ -125,13 +125,13 @@ Default vars are tuned for The Odds API free tier:
 
 | Setting | Default | Notes |
 |---------|---------|--------|
-| `TIPS_MAX_FEEDS` | `3` | Paid odds requests per slot |
+| `TIPS_MAX_FEEDS` | `4` | Paid odds requests per slot |
 | `TIPS_PER_SLOT` | `3` | Tips published per slot |
 | `TIPS_ODDS_REGIONS` | `eu` | 1 region → 1 credit × feeds |
 | `TIPS_MAX_STALE_HOURS` | `24` | Wider window = more candidates |
 | Sports | EPL, UCL, La Liga, NBA, ATP | Rotated by feed cap |
 
-Rough budget: **3 feeds × 3 slots/day ≈ 9 credits/day (~270/month)**.  
+Rough budget: **4 feeds × 3 slots/day ≈ 12 credits/day (~360/month)**.  
 `/sports` discovery and `/scores` settlement are quota-free on free plans.
 
 ## Environment variables

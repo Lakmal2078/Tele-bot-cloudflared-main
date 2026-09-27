@@ -1408,6 +1408,22 @@ export function createBot(env: Env) {
         await showFreeTipsView(ctx, lang, true);
       } catch (err) {
         console.error("[Tips Bot] Free Tips menu action failed:", err);
+        logBotError(
+          env,
+          {
+            source: "FreeTipsMenu",
+            message: err instanceof Error ? err.message : String(err),
+            stack: err instanceof Error ? err.stack : undefined,
+            context: {
+              updateId: ctx.update?.update_id,
+              userId: user.id,
+              username: user.username,
+              chatId: ctx.chat?.id,
+              flow: "view_free_tips",
+            },
+          },
+          ctx.waitUntil
+        );
         try {
           await ctx.reply(
             lang === "en"
@@ -1417,7 +1433,24 @@ export function createBot(env: Env) {
               : "🎯 Free Tips තාවකාලිකව ලබාගත නොහැක. නිල Tips Channel එක භාවිතා කර ටික වේලාවකින් නැවත උත්සාහ කරන්න.",
             { reply_markup: mainMenu(user.id, adminIds, lang) }
           );
-        } catch {}
+        } catch (fallbackErr) {
+          logBotError(
+            env,
+            {
+              source: "FreeTipsRecovery",
+              message: fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr),
+              stack: fallbackErr instanceof Error ? fallbackErr.stack : undefined,
+              context: {
+                updateId: ctx.update?.update_id,
+                userId: user.id,
+                username: user.username,
+                chatId: ctx.chat?.id,
+                flow: "view_free_tips_recovery",
+              },
+            },
+            ctx.waitUntil
+          );
+        }
       }
       return;
     }
