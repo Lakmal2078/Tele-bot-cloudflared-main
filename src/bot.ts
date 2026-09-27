@@ -165,220 +165,65 @@ async function getUserLang(database: import("./types").D1Database, userId: numbe
   return (user?.language as Language) || "si";
 }
 
-function getPaymentMethodInstructions(method: PaymentMethod, env: Env, lang: Language): string {
-  if (method === "BOC") {
-    if (lang === "en") {
-      return (
-        `🏦 *Bank of Ceylon (BOC)*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `• *Account Number:* \`95645895\`\n` +
-        `• *Account Holder:* *VGS Lakmal*\n` +
-        `• *Branch:* *Walasmulla*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `💡 _Tap the account number above to copy it instantly._`
-      );
-    }
-    if (lang === "ta") {
-      return (
-        `🏦 *BOC வங்கி (Bank of Ceylon)*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `• *கணக்கு எண்:* \`95645895\`\n` +
-        `• *கணக்கு உரிமையாளர்:* *VGS Lakmal*\n` +
-        `• *கிளை (Branch):* *Walasmulla*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `💡 _நகலெடுக்க கணக்கு எண்ணைத் தொடவும் (Tap to copy)._`
-      );
-    }
-    return (
-      `🏦 *BOC (Bank of Ceylon - Walasmulla)*\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `• *ගිණුම් අංකය:* \`95645895\`\n` +
-      `• *ගිණුම් හිමියා:* *VGS Lakmal*\n` +
-      `• *ශාඛාව (Branch):* *Walasmulla*\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `💡 _ගිණුම් අංකය Copy කර ගැනීමට එය මත Tap කරන්න._`
-    );
-  }
+export function getPaymentMethodInstructions(method: PaymentMethod, env: Env, lang: Language): string {
+  const bankDetails: Partial<Record<PaymentMethod, string | undefined>> = {
+    BOC: env.BOC_DETAILS,
+    PEOPLES: env.PEOPLES_DETAILS,
+    SAMPATH: env.SAMPATH_DETAILS,
+    LOLC: env.LOLC_DETAILS,
+  };
 
-  if (method === "PEOPLES") {
-    if (lang === "en") {
-      return (
-        `🏦 *People's Bank*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `• *Account Number:* \`120200380030196\`\n` +
-        `• *Account Holder:* *VGS Lakmal*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `💡 _Tap the account number above to copy it instantly._`
-      );
+  if (method === "BOC" || method === "PEOPLES" || method === "SAMPATH" || method === "LOLC") {
+    const details = bankDetails[method]?.trim();
+    if (!details) {
+      if (lang === "en") return "🏦 *Bank Transfer:*\nThis payment method is temporarily unavailable.";
+      if (lang === "ta") return "🏦 *வங்கி பரிமாற்றம்:*\nஇந்த கட்டண முறை தற்காலிகமாக கிடைக்கவில்லை.";
+      return "🏦 *බැංකු තැන්පතු:*\nමෙම ගෙවීම් ක්‍රමය තාවකාලිකව ලබා ගත නොහැක.";
     }
-    if (lang === "ta") {
-      return (
-        `🏦 *மக்கள் வங்கி (People's Bank)*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `• *கணக்கு எண்:* \`120200380030196\`\n` +
-        `• *கணக்கு உரிமையாளர்:* *VGS Lakmal*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `💡 _நகலெடுக்க கணக்கு எண்ணைத் தொடவும் (Tap to copy)._`
-      );
-    }
-    return (
-      `🏦 *PEOPLE'S BANK (මහජන බැංකුව)*\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `• *ගිණුම් අංකය:* \`120200380030196\`\n` +
-      `• *ගිණුම් හිමියා:* *VGS Lakmal*\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `💡 _ගිණුම් අංකය Copy කර ගැනීමට එය මත Tap කරන්න._`
-    );
-  }
-
-  if (method === "SAMPATH") {
-    if (lang === "en") {
-      return (
-        `🏦 *Sampath Bank*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `• *Account Number:* \`105456146706\`\n` +
-        `• *Account Holder:* *NKS Oshadhi*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `💡 _Tap the account number above to copy it instantly._`
-      );
-    }
-    if (lang === "ta") {
-      return (
-        `🏦 *சம்பத் வங்கி (Sampath Bank)*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `• *கணக்கு எண்:* \`105456146706\`\n` +
-        `• *கணக்கு உரிமையாளர்:* *NKS Oshadhi*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `💡 _நகலெடுக்க கணக்கு எண்ணைத் தொடவும் (Tap to copy)._`
-      );
-    }
-    return (
-      `🏦 *SAMPATH BANK (සම්පත් බැංකුව)*\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `• *ගිණුම් අංකය:* \`105456146706\`\n` +
-      `• *ගිණුම් හිමියා:* *NKS Oshadhi*\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `💡 _ගිණුම් අංකය Copy කර ගැනීමට එය මත Tap කරන්න._`
-    );
-  }
-
-  if (method === "LOLC") {
-    if (lang === "en") {
-      return (
-        `🏦 *LOLC Bank / Finance*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `• *Account Number:* \`01210012722\`\n` +
-        `• *Account Holder:* *VGS Lakmal*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `💡 _Tap the account number above to copy it instantly._`
-      );
-    }
-    if (lang === "ta") {
-      return (
-        `🏦 *LOLC வங்கி (LOLC Bank)*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `• *கணக்கு எண்:* \`01210012722\`\n` +
-        `• *கணக்கு உரிமையாளர்:* *VGS Lakmal*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `💡 _நகலெடுக்க கணக்கு எண்ணைத் தொடவும் (Tap to copy)._`
-      );
-    }
-    return (
-      `🏦 *LOLC BANK / FINANCE*\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `• *ගිණුම් අංකය:* \`01210012722\`\n` +
-      `• *ගිණුම් හිමියා:* *VGS Lakmal*\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `💡 _ගිණුම් අංකය Copy කර ගැනීමට එය මත Tap කරන්න._`
-    );
+    const labels: Record<Language, string> = {
+      si: method === "BOC" ? "🏦 *BOC Bank (ලංකා බැංකුව)*" : method === "PEOPLES" ? "🏦 *People's Bank (මහජන බැංකුව)*" : method === "SAMPATH" ? "🏦 *Sampath Bank (සම්පත් බැංකුව)*" : "🏦 *LOLC Bank / Finance*",
+      en: method === "BOC" ? "🏦 *Bank of Ceylon (BOC)*" : method === "PEOPLES" ? "🏦 *People's Bank*" : method === "SAMPATH" ? "🏦 *Sampath Bank*" : "🏦 *LOLC Bank / Finance*",
+      ta: method === "BOC" ? "🏦 *BOC வங்கி (Bank of Ceylon)*" : method === "PEOPLES" ? "🏦 *மக்கள் வங்கி (People's Bank)*" : method === "SAMPATH" ? "🏦 *சம்பத் வங்கி (Sampath Bank)*" : "🏦 *LOLC வங்கி (LOLC Bank)*",
+    };
+    return `${labels[lang]}\n━━━━━━━━━━━━━━━━━━━━━━━━━\n\n${details}`;
   }
 
   if (method === "IPAY") {
-    const ipayNumber = env.IPAY_NUMBER || "07XXXXXXXX";
-    if (lang === "en") {
-      return (
-        `📱 *iPay Mobile 1*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `• *iPay Mobile Number:* \`${ipayNumber}\`\n` +
-        `• *Account Holder:* *VGS Lakmal*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `💡 _Tap the number above to copy it instantly._`
-      );
+    const ipayNumber = env.IPAY_NUMBER?.trim();
+    if (!ipayNumber) {
+      if (lang === "en") return "📱 *iPay:*\nThis payment method is temporarily unavailable.";
+      if (lang === "ta") return "📱 *iPay:*\nஇந்த கட்டண முறை தற்காலிகமாக கிடைக்கவில்லை.";
+      return "📱 *iPay:*\nමෙම ගෙවීම් ක්‍රමය තාවකාලිකව ලබා ගත නොහැක.";
     }
-    if (lang === "ta") {
-      return (
-        `📱 *iPay Mobile 1*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `• *iPay Mobile எண்:* \`${ipayNumber}\`\n` +
-        `• *கணக்கு உரிமையாளர்:* *VGS Lakmal*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `💡 _நகலெடுக்க எண்ணைத் தொடவும் (Tap to copy)._`
-      );
-    }
-    return (
-      `📱 *iPay Mobile 1*\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `• *iPay Mobile අංකය:* \`${ipayNumber}\`\n` +
-      `• *ගිණුම් හිමියා:* *VGS Lakmal*\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `💡 _අංකය Copy කර ගැනීමට එය මත Tap කරන්න._`
-    );
+    return `📱 *iPay Mobile:*\n\`${ipayNumber}\``;
   }
 
   if (method === "EZCASH") {
-    const ezNumber = env.EZCASH_NUMBER || "07XXXXXXXX";
-    if (lang === "en") {
-      return (
-        `📱 *eZ Cash Mobile 2*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `• *eZ Cash Wallet Number:* \`${ezNumber}\`\n` +
-        `• *Account Holder:* *VGS Lakmal*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `💡 _Tap the number above to copy it instantly._`
-      );
+    const ezNumber = env.EZCASH_NUMBER?.trim();
+    if (!ezNumber) {
+      if (lang === "en") return "📱 *eZ Cash:*\nThis payment method is temporarily unavailable.";
+      if (lang === "ta") return "📱 *eZ Cash:*\nஇந்த கட்டண முறை தற்காலிகமாக கிடைக்கவில்லை.";
+      return "📱 *eZ Cash:*\nමෙම ගෙවීම් ක්‍රමය තාවකாலிகமாக ලබා ගත නොහැක.";
     }
-    if (lang === "ta") {
-      return (
-        `📱 *eZ Cash Mobile 2*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `• *eZ Cash எண்:* \`${ezNumber}\`\n` +
-        `• *கணக்கு உரிமையாளர்:* *VGS Lakmal*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `💡 _நகலெடுக்க எண்ணைத் தொடவும் (Tap to copy)._`
-      );
-    }
-    return (
-      `📱 *Ezcash Mobile 2*\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `• *eZ Cash අංකය:* \`${ezNumber}\`\n` +
-      `• *ගිණුම් හිමියා:* *VGS Lakmal*\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `💡 _අංකය Copy කර ගැනීමට එය මත Tap කරන්න._`
-    );
+    return `📱 *eZ Cash Mobile:*\n\`${ezNumber}\``;
   }
 
   if (method === "BANK") {
-    if (env.BANK_DETAILS && env.BANK_DETAILS.trim() !== "") {
-      return `🏦 *Bank Account Details:*\n\`${env.BANK_DETAILS}\``;
-    }
+    if (env.BANK_DETAILS?.trim()) return `🏦 *Bank Account Details:*\n\`${env.BANK_DETAILS.trim()}\``;
     if (lang === "en") return "🏦 *Bank Transfer:*\nPlease transfer to active official bank account details.";
     if (lang === "ta") return "🏦 *வங்கி பரிமாற்றம்:*\nசெயலில் உள்ள வங்கி விவரங்களுக்கு தொகையை மாற்றவும்.";
     return "🏦 *බැංකු තැන්පතු:*\nකරුණාකර නිල බැංකු ගිණුම් විස්තර වෙත මුදල් තැන්පත් කරන්න.";
   }
 
   if (method === "MCASH") {
-    if (env.MCASH_NUMBER && env.MCASH_NUMBER.trim() !== "") {
-      return `📲 *mCash Number:*\n\`${env.MCASH_NUMBER}\``;
-    }
+    if (env.MCASH_NUMBER?.trim()) return `📲 *mCash Number:*\n\`${env.MCASH_NUMBER.trim()}\``;
     if (lang === "en") return "📲 *mCash:*\nSend funds to the official cashier mCash wallet number.";
     if (lang === "ta") return "📲 *mCash:*\nஅதிகாரப்பூர்வ mCash எண்ணிற்கு பணம் அனுப்பவும்.";
     return "📲 *mCash (Mobitel):*\nනිල cashier mCash අංකයට මුදල් transfer කරන්න.";
   }
 
   if (method === "FRIMI") {
-    if (env.FRIMI_NUMBER && env.FRIMI_NUMBER.trim() !== "") {
-      return `💳 *FriMi Number / ID:*\n\`${env.FRIMI_NUMBER}\``;
-    }
+    if (env.FRIMI_NUMBER?.trim()) return `💳 *FriMi Number / ID:*\n\`${env.FRIMI_NUMBER.trim()}\``;
     if (lang === "en") return "💳 *FriMi:*\nSend funds via FriMi app to the official cashier account.";
     if (lang === "ta") return "💳 *FriMi:*\nFriMi செயலி மூலம் பணம் அனுப்பவும்.";
     return "💳 *FriMi (NTB):*\nFriMi app එක හරහා නිල cashier ගිණුමට මුදල් transfer කරන්න.";

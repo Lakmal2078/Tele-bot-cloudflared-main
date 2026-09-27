@@ -157,7 +157,7 @@ Canonical template: [`.env.example`](./.env.example).
 | `TIPS_MAX_STALE_HOURS` / `TIPS_HOURS_AHEAD` | Time windows | |
 | `XBET_LINK` / `XBET_PROMO_CODE` | Affiliate | ⚠️ |
 | `EZCASH_NUMBER` / `MCASH_NUMBER` / `FRIMI_NUMBER` / `IPAY_NUMBER` | Payment rails | ⚠️ |
-| `BANK_DETAILS` / `WHATSAPP_NUMBER` | Support | ⚠️ |
+| `BANK_DETAILS` / `BOC_DETAILS` / `PEOPLES_DETAILS` / `SAMPATH_DETAILS` / `LOLC_DETAILS` | Payment bank details | ⚠️ |
 | `MIN_TRANSACTION_LKR` / `MAX_TRANSACTION_LKR` | Limits | |
 | `R2_*` | Local S3-compatible R2 credentials (Node preview) | ✅ |
 
