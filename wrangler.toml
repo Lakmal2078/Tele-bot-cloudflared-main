@@ -64,6 +64,8 @@ bucket_name = "chat-media"
 # Workers Observability — persist console logs for tips cron debugging
 [observability]
 enabled = true
+head_sampling_rate = 1
+redact_query_string = true
 
 [observability.logs]
 enabled = true
