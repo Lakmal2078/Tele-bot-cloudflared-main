@@ -16,6 +16,26 @@ import {
 } from "../src/tips";
 
 describe("scheduled tips", () => {
+  it("accepts active auto-discovered sport groups in candidate metadata", () => {
+    const future = new Date(Date.now() + 2 * 3600 * 1000).toISOString();
+    const candidates = chooseCandidates([
+      {
+        id: "auto-soccer-1",
+        sport_key: "soccer_france_ligue_one",
+        sport_title: "Ligue 1",
+        commence_time: future,
+        home_team: "Team A",
+        away_team: "Team B",
+        bookmakers: [
+          { key: "b1", title: "B1", markets: [{ key: "h2h", outcomes: [{ name: "Team A", price: 1.80 }] }] },
+          { key: "b2", title: "B2", markets: [{ key: "h2h", outcomes: [{ name: "Team A", price: 1.90 }] }] },
+        ],
+      },
+    ], 1.3, 3.0, 1);
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0].sportGroup).toBe("football");
+  });
+
   it("maps production cron slots to Sri Lanka times", () => {
     expect(slotForCron("30 2 * * *")).toBe("08:00");
     expect(slotForCron("30 6 * * *")).toBe("12:00");
