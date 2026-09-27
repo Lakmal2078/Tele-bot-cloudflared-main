@@ -174,7 +174,7 @@ async function getJson<T>(url: URL, timeoutMs: number, guard?: OddsCreditGuard, 
 export function slotForCron(cron: string): "08:00" | "12:00" | "18:00" | null { if (cron === "30 2 * * *") return "08:00"; if (cron === "30 6 * * *") return "12:00"; if (cron === "30 12 * * *") return "18:00"; return null; }
 export function sriLankaDate(date = new Date()): string { const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Colombo", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date); const get = (type: string) => parts.find((part) => part.type === type)?.value || "00"; return `${get("year")}-${get("month")}-${get("day")}`; }
 function tipCount(env: Env): number { const parsed = Number(env.TIPS_PER_SLOT || DEFAULT_TIPS_PER_SLOT); return Number.isInteger(parsed) && parsed >= 1 && parsed <= 5 ? parsed : DEFAULT_TIPS_PER_SLOT; }
-function sportMatchesGroup(sport: OddsSport, group: string): boolean { const haystack = `${sport.key} ${sport.group || ""} ${sport.title || ""} ${sport.description || ""}`.toLowerCase(); if (group === "table_tennis") return haystack.includes("table tennis") || haystack.includes("table_tennis") || haystack.includes("table-tennis"); if (group === "esports") return haystack.includes("esport") || /(^|[._-])(cs2|csgo|dota2|valorant|lol)([._-]|$)/.test(haystack); if (group === "cricket") return haystack.includes("cricket"); return false; }
+function sportMatchesGroup(sport: OddsSport, group: string): boolean { const haystack = `${sport.key} ${sport.group || ""} ${sport.title || ""} ${sport.description || ""}`.toLowerCase(); if (group === "soccer" || group === "football") return haystack.includes("soccer") || haystack.includes("football"); if (group === "basketball") return haystack.includes("basketball"); if (group === "tennis") return haystack.includes("tennis") && !haystack.includes("table tennis"); if (group === "cricket") return haystack.includes("cricket"); if (group === "table_tennis") return haystack.includes("table tennis") || haystack.includes("table_tennis") || haystack.includes("table-tennis"); if (group === "esports") return haystack.includes("esport") || /(^|[._-])(cs2|csgo|dota2|valorant|lol)([._-]|$)/.test(haystack); return false; }
 
 async function discoverSpecialSports(apiKey: string, requested: string[], guard: OddsCreditGuard): Promise<string[]> {
   const autoGroups = requested.filter((value) => value.startsWith("auto:")).map((value) => value.slice(5).toLowerCase());
@@ -251,8 +251,7 @@ export const getTodaysPostedEventIds = getTodayPostedEventIds;
 async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
   if (!env.ODDS_API_KEY) throw new Error("ODDS_API_KEY is not configured");
 
-  const defaultSports =
-    "soccer_epl,soccer_uefa_champs_league,soccer_spain_la_liga,soccer_italy_serie_a,soccer_germany_bundesliga,basketball_nba,tennis_atp,auto:table_tennis,auto:esports";
+  // Prefer active auto-discovered feeds so seasonal league keys cannot silently\n  // leave every scheduled slot empty when competitions are inactive or renamed.\n  const defaultSports = "auto:soccer,auto:cricket,auto:basketball,auto:tennis,auto:table_tennis,auto:esports";
   const requested = csv(env.TIPS_SPORTS, defaultSports);
   const explicitSports = requested.filter((sport) => !sport.startsWith("auto:"));
   // Free-plan safe: honour TIPS_MAX_FEEDS (default 3). Cap at MAX_ODDS_FEEDS_PER_SLOT.
@@ -282,25 +281,52 @@ async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
 
   const allEvents: OddsEvent[] = [];
 
+  const fetchSportEvents = async (sport: string): Promise<OddsEvent[]> => {
+    const url = new URL(`${ODDS_API_BASE}/sports/${encodeURIComponent(sport)}/odds`);
+    url.searchParams.set("apiKey", env.ODDS_API_KEY!);
+    url.searchParams.set("regions", regions);
+    url.searchParams.set("markets", "h2h");
+    url.searchParams.set("oddsFormat", "decimal");
+    url.searchParams.set("dateFormat", "iso");
+    const events = await getJson<OddsEvent[]>(url, 8000, guard, true);
+    const now = Date.now();
+    return events.filter((event) => {
+      const kickoff = new Date(event.commence_time).getTime();
+      return Number.isFinite(kickoff) && kickoff > now && kickoff <= now + Math.max(hoursAhead, 72) * 60 * 60 * 1000;
+    });
+  };
+
   for (const sport of sports) {
     try {
-      const url = new URL(`${ODDS_API_BASE}/sports/${encodeURIComponent(sport)}/odds`);
-      url.searchParams.set("apiKey", env.ODDS_API_KEY);
-      url.searchParams.set("regions", regions);
-      url.searchParams.set("markets", "h2h");
-      url.searchParams.set("oddsFormat", "decimal");
-      url.searchParams.set("dateFormat", "iso");
-      const events = await getJson<OddsEvent[]>(url, 8000, guard, true);
-      const now = Date.now();
-      const filtered = events.filter((event) => {
-        const start = new Date(event.commence_time).getTime();
-        return Number.isFinite(start) && start > now && start <= now + Math.max(hoursAhead, 72) * 60 * 60 * 1000;
-      });
+      const filtered = await fetchSportEvents(sport);
       allEvents.push(...filtered);
       console.log(`[Tips] ${sport}: ${filtered.length} upcoming event(s)`);
     } catch (error) {
       console.warn(`[Tips] Sport feed failed for ${sport}:`, error instanceof Error ? error.message : error);
       if (String(error).includes("credit guard")) break;
+    }
+  }
+
+  // If explicit league keys are currently empty, discover active feeds and retry.
+  if (allEvents.length === 0 && explicitSports.length > 0 && guard.snapshot().paidRequestAttempts < maxFeeds) {
+    try {
+      const fallbackRequested = ["auto:soccer", "auto:cricket", "auto:basketball", "auto:tennis"];
+      const fallbackDiscovered = await discoverSpecialSports(env.ODDS_API_KEY, fallbackRequested, guard);
+      sports = selectPaidFeeds([], fallbackDiscovered, maxFeeds);
+      console.log(`[Tips] Explicit feeds returned no events; trying ${sports.length} active auto-discovered feed(s)`);
+      for (const sport of sports) {
+        try {
+          const filtered = await fetchSportEvents(sport);
+          allEvents.push(...filtered);
+          console.log(`[Tips] Fallback ${sport}: ${filtered.length} upcoming event(s)`);
+          if (allEvents.length > 0) break;
+        } catch (error) {
+          console.warn(`[Tips] Fallback sport feed failed for ${sport}:`, error instanceof Error ? error.message : error);
+          if (String(error).includes("credit guard")) break;
+        }
+      }
+    } catch (error) {
+      console.warn("[Tips] Active-sport fallback discovery failed:", error instanceof Error ? error.message : error);
     }
   }
 
