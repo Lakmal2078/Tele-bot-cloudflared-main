@@ -79,8 +79,12 @@ else
   echo "✅ SECURITY_CODE_PEPPER set."
 fi
 
-echo "7. Bank Details (optional, for deposits)"
-set_secret "BANK_DETAILS" "Bank name, account number, account holder" false
+echo "7. Bank payment details (optional, for deposits)"
+set_secret "BANK_DETAILS" "Generic bank transfer details" false
+set_secret "BOC_DETAILS" "BOC bank name, account number, account holder, branch" false
+set_secret "PEOPLES_DETAILS" "People's Bank account details" false
+set_secret "SAMPATH_DETAILS" "Sampath Bank account details" false
+set_secret "LOLC_DETAILS" "LOLC Bank / Finance account details" false
 
 echo "8. Payment rail numbers (mobile money — previously committed in wrangler.toml)"
 set_secret "EZCASH_NUMBER" "eZ Cash mobile number" false
