@@ -796,7 +796,9 @@ export function createBot(env: Env) {
     const trackingBase = env.CHANNEL_URL || undefined;
     if (isUsableTrackingHost(trackingBase)) {
       kb.url("🎲 Bet on 1xBet", `${trackingBase.replace(/\/$/, "")}/go/tip/${latestPost.id}`).row();
-    } else {
+    } else if (xbetUrl) {
+      // Never send an InlineKeyboard URL button with an empty URL.
+      // Missing XBET_LINK previously caused Telegram to reject the whole Free Tips message.
       kb.url("🎲 Bet on 1xBet", xbetUrl).row();
     }
     kb.url("📢 Official Tips Channel", channelLink).row();
@@ -1402,7 +1404,21 @@ export function createBot(env: Env) {
         });
         return;
       }
-      await showFreeTipsView(ctx, lang, true);
+      try {
+        await showFreeTipsView(ctx, lang, true);
+      } catch (err) {
+        console.error("[Tips Bot] Free Tips menu action failed:", err);
+        try {
+          await ctx.reply(
+            lang === "en"
+              ? "🎯 Free Tips are temporarily unavailable. Please use the official Tips Channel and try again shortly."
+              : lang === "ta"
+              ? "🎯 இலவச குறிப்புகள் தற்காலிகமாக கிடைக்கவில்லை. அதிகாரப்பூர்வ Tips Channel-ஐ பயன்படுத்தி சிறிது நேரம் கழித்து மீண்டும் முயற்சிக்கவும்."
+              : "🎯 Free Tips තාවකාලිකව ලබාගත නොහැක. නිල Tips Channel එක භාවිතා කර ටික වේලාවකින් නැවත උත්සාහ කරන්න.",
+            { reply_markup: mainMenu(user.id, adminIds, lang) }
+          );
+        } catch {}
+      }
       return;
     }
 
@@ -3352,7 +3368,9 @@ function mainMenu(userId: number, adminIds: Set<number>, lang: Language = "si") 
     .text(dict.btnFreeTips, "view_free_tips")
     .text(dict.btnRegistration, "xbet")
     .row()
+    .text(dict.btnReferral, "referral")
     .text(dict.btnLanguage, "choose_lang")
+    .row()
     .text(dict.btnHelp, "help")
     .row()
     .text(dict.btnDashboard, "user_dashboard")
