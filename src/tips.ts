@@ -269,7 +269,7 @@ async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
     console.warn("[Tips] Special-sport discovery failed:", error instanceof Error ? error.message : error);
   }
 
-  const sports = selectPaidFeeds(explicitSports, discovered, maxFeeds);
+  let sports = selectPaidFeeds(explicitSports, discovered, maxFeeds);
   if (sports.length === 0) throw new Error("No configured or discovered sport feeds are available");
 
   const regions = (env.TIPS_ODDS_REGIONS || "eu").split(",").map((value) => value.trim()).filter(Boolean).slice(0, 1).join(",") || "eu";
