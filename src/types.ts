@@ -90,6 +90,11 @@ export interface Env {
   R2_PUBLIC_DOMAIN?: string;
   // Custom Payment Gateways
   BANK_DETAILS?: string;
+  /** Bank-specific deposit details stored as Cloudflare Secrets. */
+  BOC_DETAILS?: string;
+  PEOPLES_DETAILS?: string;
+  SAMPATH_DETAILS?: string;
+  LOLC_DETAILS?: string;
   EZCASH_NUMBER?: string;
   MCASH_NUMBER?: string;
   FRIMI_NUMBER?: string;
