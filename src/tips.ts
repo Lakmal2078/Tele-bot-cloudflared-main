@@ -251,7 +251,9 @@ export const getTodaysPostedEventIds = getTodayPostedEventIds;
 async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
   if (!env.ODDS_API_KEY) throw new Error("ODDS_API_KEY is not configured");
 
-  // Prefer active auto-discovered feeds so seasonal league keys cannot silently\n  // leave every scheduled slot empty when competitions are inactive or renamed.\n  const defaultSports = "auto:soccer,auto:cricket,auto:basketball,auto:tennis,auto:table_tennis,auto:esports";
+  // Prefer active auto-discovered feeds so seasonal league keys cannot silently
+  // leave every scheduled slot empty when competitions are inactive or renamed.
+  const defaultSports = "auto:soccer,auto:cricket,auto:basketball,auto:tennis,auto:table_tennis,auto:esports";
   const requested = csv(env.TIPS_SPORTS, defaultSports);
   const explicitSports = requested.filter((sport) => !sport.startsWith("auto:"));
   // Free-plan safe: honour TIPS_MAX_FEEDS (default 3). Cap at MAX_ODDS_FEEDS_PER_SLOT.
