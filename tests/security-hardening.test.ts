@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { hashSecurityCode } from "../src/db";
 import { validateEnv } from "../src/config";
 import { redactSensitiveFields } from "../src/logger";
+import { getPaymentMethodInstructions } from "../src/bot";
 
 describe("hashSecurityCode (HMAC-SHA-256)", () => {
   const pepper = "test-pepper-at-least-16-chars";
@@ -141,5 +142,36 @@ describe("receipt magic-byte validation", () => {
     expect(MAX_RECEIPT_BYTES).toBe(5_242_880);
     expect(4 * 1024 * 1024 < MAX_RECEIPT_BYTES).toBe(true);
     expect(6 * 1024 * 1024 > MAX_RECEIPT_BYTES).toBe(true);
+  });
+});
+
+
+describe("payment destination configuration", () => {
+  const baseEnv = {
+    DB: {} as any,
+    BOT_TOKEN: "test",
+    ADMIN_IDS: "1",
+    WEBHOOK_SECRET: "webhook-secret-16",
+    ADMIN_API_SECRET: "admin-secret",
+    CHANNEL_USERNAME: "test_channel",
+    CHANNEL_URL: "https://t.me/test_channel",
+    XBET_LINK: "https://example.test",
+    XBET_PROMO_CODE: "TEST",
+    MIN_TRANSACTION_LKR: "100",
+    MAX_TRANSACTION_LKR: "10000",
+    DEPOSIT_INSTRUCTIONS: "receipt",
+  } as any;
+
+  it("uses configured bank secrets instead of source-coded destinations", () => {
+    const out = getPaymentMethodInstructions("BOC", { ...baseEnv, BOC_DETAILS: "Configured BOC details" }, "en");
+    expect(out).toContain("Configured BOC details");
+    expect(out).not.toContain("95645895");
+    expect(out).not.toContain("VGS Lakmal");
+  });
+
+  it("does not expose a bank destination when the secret is missing", () => {
+    const out = getPaymentMethodInstructions("SAMPATH", baseEnv, "en");
+    expect(out).toContain("temporarily unavailable");
+    expect(out).not.toMatch(/\d{8,}/);
   });
 });
