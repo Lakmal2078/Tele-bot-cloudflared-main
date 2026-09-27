@@ -76,19 +76,22 @@ export function renderAdminLoginPage(
     .login-card h1 { font-size: 20px; font-weight: 800; margin: 14px 0 6px; color: #ffffff; }
     .login-card p { font-size: 13px; color: #94a3b8; margin: 0 0 22px; }
     .login-card input {
-      width: 100%; padding: 12px 14px; border-radius: 10px;
+      width: 100%; min-height: 44px; padding: 12px 14px; border-radius: 10px;
       border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.35);
       color: #f1f5f9; font-size: 14px; margin-bottom: 12px;
       transition: border-color 0.2s;
     }
     .login-card input:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 12px rgba(56,189,248,0.25); }
+    .login-card input:focus-visible, .login-card button:focus-visible, .login-card a:focus-visible { outline: 2px solid #38bdf8; outline-offset: 3px; }
     .login-card button {
-      width: 100%; padding: 12px 14px; border-radius: 10px; border: none;
+      width: 100%; min-height: 44px; padding: 12px 14px; border-radius: 10px; border: none;
       background: #00e676; color: #04130b; font-weight: 800; font-size: 14px; cursor: pointer;
       transition: transform 0.15s, box-shadow 0.15s;
     }
     .login-card button:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,230,118,0.3); }
-    .login-card a { display: inline-block; margin-top: 16px; font-size: 12px; color: #64748b; text-decoration: none; }
+    .login-card a { display: inline-flex; align-items: center; justify-content: center; margin-top: 16px; font-size: 12px; color: #94a3b8; text-decoration: none; min-height: 44px; padding: 10px 4px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    @media (prefers-reduced-motion: reduce) { .login-card input, .login-card button { transition: none; } .login-card button:hover { transform: none; } }
     @media (max-width: 640px) {
       body { padding: 16px 12px; }
       .login-card { width: 100%; padding: 24px 16px; border-radius: 12px; }
@@ -102,7 +105,8 @@ export function renderAdminLoginPage(
     <p>Enter the admin secret to view the dashboard.</p>
     ${options.error ? `<p style="color:#f87171; font-size:13px;">${escapeAttribute(options.error)}</p>` : ""}
     <form id="admin-secret-form" method="POST" action="/admin/login">
-      <input type="password" name="secret" class="auth-input" id="admin-secret-input" placeholder="Enter ADMIN_API_SECRET..." autocomplete="current-password">
+      <label class="sr-only" for="admin-secret-input">Admin API secret</label>
+      <input type="password" name="secret" class="auth-input" id="admin-secret-input" placeholder="Enter ADMIN_API_SECRET..." aria-label="Admin API secret" autocomplete="current-password">
       <button type="submit" id="btn-apply-secret">Sign In</button>
     </form>
     <a href="/">← Back to public website</a>
@@ -245,6 +249,7 @@ export function renderAdminPage(
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      min-height: 44px;
       padding: 8px 16px;
       font-size: 13px;
       font-weight: 600;
@@ -273,6 +278,7 @@ export function renderAdminPage(
       color: #fff;
     }
     .btn-tab {
+      min-height: 44px;
       padding: 6px 14px;
       font-size: 12px;
       border-radius: 6px;
@@ -316,6 +322,7 @@ export function renderAdminPage(
       flex-wrap: wrap;
     }
     .polling-select {
+      min-height: 44px;
       background: #070b12;
       color: #e2e8f0;
       border: 1px solid rgba(255, 255, 255, 0.15);
@@ -662,7 +669,7 @@ export function renderAdminPage(
         ${isAuthorized ? '<span style="color: #10b981; font-weight: 600;">Authenticated Session Active</span>' : 'Preview Mode Active. Enter secret for direct API write controls.'}
       </div>
       <form id="admin-secret-form" style="display: flex; gap: 8px;" method="POST" action="${isAuthorized ? "/admin/logout" : "/admin/login"}">
-        ${isAuthorized ? "" : `<input type="password" name="secret" class="auth-input" id="admin-secret-input" placeholder="Enter ADMIN_API_SECRET..." value="" autocomplete="current-password">`}
+        ${isAuthorized ? "" : `<label class="sr-only" for="admin-secret-input">Admin API secret</label><input type="password" name="secret" class="auth-input" id="admin-secret-input" placeholder="Enter ADMIN_API_SECRET..." value="" aria-label="Admin API secret" autocomplete="current-password">`}
         <button type="submit" class="btn btn-secondary" id="btn-apply-secret">${isAuthorized ? "Sign Out" : "Sign In"}</button>
       </form>
     </div>
