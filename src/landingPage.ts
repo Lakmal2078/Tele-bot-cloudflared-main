@@ -637,8 +637,8 @@ function renderFinalCtaBanner(c: (typeof T)[Lang], lang: Lang, eb: string): stri
     f4: "🇱🇰 24/7 Telegram Support"
   };
 
-  return `<section class="final" id="start-now">
-    <div class="wrap">
+  return `<section class="final" id="start-now"><img class="finalGraphicBg" src="${TELEGRAM_GRAPHICS.botUi}" alt="" width="1600" height="900" loading="lazy" decoding="async" aria-hidden="true"><div class="finalGraphicOverlay" aria-hidden="true"></div>
+    <div class="wrap sectionGraphicContent">
       <div class="finalBox">
         <div class="hero-badge-wrap" style="justify-content:center; margin-bottom:14px;">
           <div class="hero-badge">
