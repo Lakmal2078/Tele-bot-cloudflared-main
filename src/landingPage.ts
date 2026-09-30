@@ -4,6 +4,15 @@ import { generateQrSvg } from "./qrSvg";
 const BOT_FALLBACK = "fast_1xbetcash_bot";
 const CHANNEL_FALLBACK = "https://t.me/fast_xbet_official_tips";
 
+const TELEGRAM_GRAPHICS = {
+  hero: "/assets/telegram/01-hero-telegram-bot.jpg",
+  tips: "/assets/telegram/02-free-tips-sports.jpg",
+  payments: "/assets/telegram/03-deposit-withdraw.jpg",
+  botUi: "/assets/telegram/04-telegram-bot-ui.jpg",
+  og: "/assets/telegram/05-og-social.jpg",
+  security: "/assets/telegram/06-security-support.jpg"
+} as const;
+
 type Lang = "si" | "en" | "ta";
 
 export function normalizePublicBaseUrl(value: string | undefined): string | null {
@@ -116,7 +125,7 @@ const T: Record<Lang, {
       "දැන් තැන්පතු කරන්න",
       "📱 Scan QR"
     ],
-    ticker: "සජීවී ජයග්‍රහණ (RECENT WINS)",
+    ticker: "සජීවී ජයග්‍රහණ (ILLUSTRATIVE TIP RESULTS)",
     countdown: "මීළඟ Tips නිකුතුව (SL Time):",
     services: [
       "One Telegram flow",
@@ -241,7 +250,7 @@ const T: Record<Lang, {
       "Deposit Now",
       "📱 Scan QR"
     ],
-    ticker: "RECENT WINS (VERIFIED SLIPS)",
+    ticker: "ILLUSTRATIVE TIP RESULTS",
     countdown: "Next Tips Drop (SL Time):",
     services: [
       "One Telegram flow",
@@ -350,7 +359,7 @@ const T: Record<Lang, {
     },
     legal: {
       privacy: "Your privacy is strictly safeguarded. Sensitive financial credentials (passwords, PINs, card CVVs) are never collected or stored on this website. Operations are secured through Cloudflare edge infrastructure, D1, and encrypted R2 storage. Restricted to users 18+.",
-      terms: "This website serves as the official portal and Telegram assistant. We make no guaranteed return or betting outcome claims. Gamble responsibly and within your personal means. Strictly 18+."
+      terms: "This website serves as the official portal and Telegram assistant. We make no guaranteed returns or betting outcomes. Gamble responsibly and within your personal means. Strictly 18+."
     }
   },
   ta: {
@@ -366,7 +375,7 @@ const T: Record<Lang, {
       "இப்போதே Deposit செய்க",
       "📱 QR ஸ்கேன்"
     ],
-    ticker: "சமீபத்திய வெற்றிகள் (RECENT WINS)",
+    ticker: "சமீபத்திய வெற்றிகள் (ILLUSTRATIVE TIP RESULTS)",
     countdown: "அடுத்த Tips நேரம் (SL Time):",
     services: [
       "One Telegram flow",
@@ -612,17 +621,17 @@ function renderFinalCtaBanner(c: (typeof T)[Lang], lang: Lang, eb: string): stri
       : `<h2 class="finalHeading"><span class="hero-line">Ready to <span class="hl-gradient hl-cash">get started?</span></span></h2>`;
 
   const ribbon = lang === "si" ? {
-    f1: "⚡ සාමාන්‍යයෙන් 5–15m Payouts",
+    f1: "⚡ Processing times vary",
     f2: "💳 0% සැඟවුණු අමතර ගාස්තු",
     f3: "🔒 Password අවශ්‍ය නෑ",
     f4: "🇱🇰 24/7 පාරිභෝගික සහාය"
   } : lang === "ta" ? {
-    f1: "⚡ வழக்கமாக 5–15m Payouts",
+    f1: "⚡ Processing times vary",
     f2: "💳 0% மறைக்கப்பட்ட கூடுதல் கட்டணம்",
     f3: "🔒 Password தேவையில்லை",
     f4: "🇱🇰 24/7 வாடிக்கையாளர் ஆதரவு"
   } : {
-    f1: "⚡ Typically 5–15m Payouts",
+    f1: "⚡ Typical processing times vary",
     f2: "💳 Zero Hidden Platform Fees",
     f3: "🔒 No Passwords Requested",
     f4: "🇱🇰 24/7 Telegram Support"
@@ -704,8 +713,8 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
         "@id": `${siteUrl}#organization`,
         name: "Fast xBet Cash",
         url: siteUrl,
-        logo: `${siteUrl}og-image.jpg`,
-        image: `${siteUrl}og-image.jpg`,
+        logo: `${siteUrl}${TELEGRAM_GRAPHICS.og`,
+        image: `${siteUrl}${TELEGRAM_GRAPHICS.og`,
         sameAs: [channel, `https://t.me/${botName}`],
         areaServed: "LK",
         availableLanguage: ["si", "en", "ta"]
@@ -766,7 +775,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
     ? `<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "${esc(analyticsToken)}"}'>${""}</script>`
     : "";
 
-  const ogImageUrl = trustedOrigin ? esc(`${trustedOrigin}/og-image.jpg?v=3`) : "";
+  const ogImageUrl = trustedOrigin ? esc(`${trustedOrigin}${TELEGRAM_GRAPHICS.og}?v=1`) : "";
   const canonicalAndOgTags = trustedOrigin ? `
 <link rel="canonical" href="${ea}">
 <link rel="alternate" hreflang="si" href="${ea}?lang=si">
@@ -872,6 +881,18 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .tickerItem b{color:#00e676;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:800}
 .wonTag{display:inline-block;padding:2px 6px;border-radius:6px;background:rgba(34,197,94,0.22);color:#86efac;border:1px solid rgba(34,197,94,0.35);font:800 .58rem ui-monospace,SFMono-Regular,Menlo,monospace}
 @keyframes tickerScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+/* Telegram-first branded graphics */
+.heroGraphicBg,.sectionGraphicBg,.finalGraphicBg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;pointer-events:none;user-select:none;}
+.heroGraphicBg{z-index:-2;opacity:.28;filter:saturate(.9) contrast(1.05);}
+.heroGraphicOverlay{position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,rgba(7,11,18,.98) 0%,rgba(7,11,18,.86) 48%,rgba(7,11,18,.55) 100%),linear-gradient(180deg,rgba(7,11,18,.18),rgba(7,11,18,.88));pointer-events:none;}
+.sectionGraphicBg{z-index:0;opacity:.16;filter:saturate(.85);}
+.sectionGraphicOverlay{position:absolute;inset:0;z-index:0;background:linear-gradient(180deg,rgba(7,11,18,.94),rgba(7,11,18,.82));pointer-events:none;}
+.sectionGraphicContent{position:relative;z-index:1;}
+.finalGraphicBg{z-index:-2;opacity:.2;filter:saturate(.9);}
+.finalGraphicOverlay{position:absolute;inset:0;z-index:-1;background:linear-gradient(135deg,rgba(7,11,18,.96),rgba(7,11,18,.76),rgba(7,11,18,.94));pointer-events:none;}
+#tips-preview,#payments,#security{position:relative;overflow:hidden;isolation:isolate;}
+@media (max-width:639px){.heroGraphicBg{opacity:.12;object-position:68% center}.heroGraphicOverlay{background:linear-gradient(180deg,rgba(7,11,18,.96),rgba(7,11,18,.9))}.sectionGraphicBg{opacity:.08}.finalGraphicBg{opacity:.1}}
 
 /* Hero Section */
 .hero{position:relative;padding:68px 0 54px;overflow:hidden}
@@ -1260,26 +1281,28 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
     <span class="tickerBadge">🔥 ${esc(c.ticker)}</span>
     <div class="tickerScroll">
       <div class="tickerItems">
-        <span class="tickerItem">⚽ Arsenal Win @ <b>1.94</b> <i class="wonTag">WON</i></span>
-        <span class="tickerItem">🎾 Alcaraz Win @ <b>1.75</b> <i class="wonTag">WON</i></span>
-        <span class="tickerItem">⚽ Real Madrid Win @ <b>1.82</b> <i class="wonTag">WON</i></span>
-        <span class="tickerItem">🏀 Celtics -4.5 @ <b>1.90</b> <i class="wonTag">WON</i></span>
-        <span class="tickerItem">🏏 SL vs IND Over 310.5 @ <b>1.88</b> <i class="wonTag">WON</i></span>
-        <span class="tickerItem">⚽ Man City Over 2.5 @ <b>1.85</b> <i class="wonTag">WON</i></span>
-        <span class="tickerItem">⚽ Arsenal Win @ <b>1.94</b> <i class="wonTag">WON</i></span>
-        <span class="tickerItem">🎾 Alcaraz Win @ <b>1.75</b> <i class="wonTag">WON</i></span>
-        <span class="tickerItem">⚽ Real Madrid Win @ <b>1.82</b> <i class="wonTag">WON</i></span>
-        <span class="tickerItem">🏀 Celtics -4.5 @ <b>1.90</b> <i class="wonTag">WON</i></span>
-        <span class="tickerItem">🏏 SL vs IND Over 310.5 @ <b>1.88</b> <i class="wonTag">WON</i></span>
-        <span class="tickerItem">⚽ Man City Over 2.5 @ <b>1.85</b> <i class="wonTag">WON</i></span>
+        <span class="tickerItem">⚽ Arsenal Win @ <b>1.94</b> <i class="wonTag">SAMPLE</i></span>
+        <span class="tickerItem">🎾 Alcaraz Win @ <b>1.75</b> <i class="wonTag">SAMPLE</i></span>
+        <span class="tickerItem">⚽ Real Madrid Win @ <b>1.82</b> <i class="wonTag">SAMPLE</i></span>
+        <span class="tickerItem">🏀 Celtics -4.5 @ <b>1.90</b> <i class="wonTag">SAMPLE</i></span>
+        <span class="tickerItem">🏏 SL vs IND Over 310.5 @ <b>1.88</b> <i class="wonTag">SAMPLE</i></span>
+        <span class="tickerItem">⚽ Man City Over 2.5 @ <b>1.85</b> <i class="wonTag">SAMPLE</i></span>
+        <span class="tickerItem">⚽ Arsenal Win @ <b>1.94</b> <i class="wonTag">SAMPLE</i></span>
+        <span class="tickerItem">🎾 Alcaraz Win @ <b>1.75</b> <i class="wonTag">SAMPLE</i></span>
+        <span class="tickerItem">⚽ Real Madrid Win @ <b>1.82</b> <i class="wonTag">SAMPLE</i></span>
+        <span class="tickerItem">🏀 Celtics -4.5 @ <b>1.90</b> <i class="wonTag">SAMPLE</i></span>
+        <span class="tickerItem">🏏 SL vs IND Over 310.5 @ <b>1.88</b> <i class="wonTag">SAMPLE</i></span>
+        <span class="tickerItem">⚽ Man City Over 2.5 @ <b>1.85</b> <i class="wonTag">SAMPLE</i></span>
       </div>
     </div>
   </div>
 </div>
-<p class="tickerDisclaimer" style="margin:0;padding:4px 16px 0;text-align:center;font-size:.62rem;color:var(--faint);max-width:1100px;margin-left:auto;margin-right:auto;">Sample / historical results for illustration only. Past performance does not guarantee future outcomes. 18+ Gamble responsibly.</p>
+<p class="tickerDisclaimer" style="margin:0;padding:4px 16px 0;text-align:center;font-size:.62rem;color:var(--faint);max-width:1100px;margin-left:auto;margin-right:auto;">Sample / historical results for illustration only. Illustrative/sample data only; past performance does not predict future outcomes. 18+ Gamble responsibly.</p>
 
 <main id="main">
 <section class="hero" id="home">
+  <img class="heroGraphicBg" src="${TELEGRAM_GRAPHICS.hero}" alt="" width="1600" height="900" loading="eager" decoding="async" aria-hidden="true">
+  <div class="heroGraphicOverlay" aria-hidden="true"></div>
   <div class="wrap heroGrid">
     <div>
       ${renderHeroEyebrow(c, lang)}
@@ -1369,7 +1392,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
   <div class="services">${serviceCards}</div>
 </div></section>
 
-<section class="section" id="tips-preview"><div class="wrap">
+<section class="section" id="tips-preview"><img class="sectionGraphicBg" src="${TELEGRAM_GRAPHICS.tips}" alt="" width="1600" height="900" loading="lazy" decoding="async" aria-hidden="true"><div class="sectionGraphicOverlay" aria-hidden="true"></div><div class="wrap sectionGraphicContent">
   <div class="head">
     <div class="kicker">${esc(c.tips.kicker)}</div>
     <h2>${esc(c.tips.title)}</h2>
@@ -1410,9 +1433,9 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
       <article class="tipCard" data-sport="football">
         <div class="tipCardTop"><span class="tipLeague">Premier League</span><span class="tipStatus pending">Today</span></div>
         <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/57.png" alt="AR" loading="lazy"/></span><b>Arsenal</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/57.png" alt="AR" loading="lazy" decoding="async"/></span><b>Arsenal</b></div>
           <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/61.png" alt="CH" loading="lazy"/></span><b>Chelsea</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/61.png" alt="CH" loading="lazy" decoding="async"/></span><b>Chelsea</b></div>
         </div>
         <div class="tipWhen">Today, 17:30</div>
         <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Arsenal Win</span><b class="tipOdds">1.94</b></div>
@@ -1421,9 +1444,9 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
       <article class="tipCard" data-sport="football">
         <div class="tipCardTop"><span class="tipLeague">La Liga</span><span class="tipStatus pending">Today</span></div>
         <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/86.png" alt="RM" loading="lazy"/></span><b>Real Madrid</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/86.png" alt="RM" loading="lazy" decoding="async"/></span><b>Real Madrid</b></div>
           <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/78.png" alt="AT" loading="lazy"/></span><b>Atletico Madrid</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/78.png" alt="AT" loading="lazy" decoding="async"/></span><b>Atletico Madrid</b></div>
         </div>
         <div class="tipWhen">Today, 20:00</div>
         <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Real Madrid Win</span><b class="tipOdds">1.78</b></div>
@@ -1432,9 +1455,9 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
       <article class="tipCard" data-sport="football">
         <div class="tipCardTop"><span class="tipLeague">Bundesliga</span><span class="tipStatus pending">Today</span></div>
         <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/5.png" alt="BM" loading="lazy"/></span><b>Bayern Munich</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/5.png" alt="BM" loading="lazy" decoding="async"/></span><b>Bayern Munich</b></div>
           <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/524.png" alt="PS" loading="lazy"/></span><b>PSG</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/524.png" alt="PS" loading="lazy" decoding="async"/></span><b>PSG</b></div>
         </div>
         <div class="tipWhen">Today, 22:00</div>
         <div class="tipPickRow"><span class="tipMarketTag">O/U</span><span class="tipPickName">Over 2.5 Goals</span><b class="tipOdds">1.85</b></div>
@@ -1471,7 +1494,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
   </div>
 </div></section>
 
-<section class="section" id="payments"><div class="wrap">
+<section class="section" id="payments"><img class="sectionGraphicBg" src="${TELEGRAM_GRAPHICS.payments}" alt="" width="1600" height="900" loading="lazy" decoding="async" aria-hidden="true"><div class="sectionGraphicOverlay" aria-hidden="true"></div><div class="wrap sectionGraphicContent">
   <div class="head">
     <div class="kicker">Payments</div>
     <h2>${esc(c.pay[0])}</h2>
@@ -1528,7 +1551,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 </div></section>
 
 <!-- Data Protection & Cloudflare Edge Infrastructure -->
-<section class="section" id="security"><div class="wrap">
+<section class="section" id="security"><img class="sectionGraphicBg" src="${TELEGRAM_GRAPHICS.security}" alt="" width="1600" height="900" loading="lazy" decoding="async" aria-hidden="true"><div class="sectionGraphicOverlay" aria-hidden="true"></div><div class="wrap sectionGraphicContent">
   <div class="securityCard">
     <div class="securityHead">
       <div class="securityIcon">🛡️</div>
