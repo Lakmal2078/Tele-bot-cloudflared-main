@@ -567,8 +567,8 @@ function renderHeroSubtitle(c: (typeof T)[Lang], lang: Lang): string {
 
 function renderHeroTrustRibbon(lang: Lang): string {
   const t = lang === "si" ? {
-    payouts: "5–15 Min*",
-    payoutsLbl: "වේගවත් ගෙවීම් (සාමාන්‍ය)",
+    payouts: "Timing varies",
+    payoutsLbl: "ගනුදෙනු කාලය වෙනස් විය හැක",
     fee: "0% ගාස්තු*",
     feeLbl: "සැඟවුණු ගාස්තු නෑ",
     tips: "Daily VIP",
@@ -577,7 +577,7 @@ function renderHeroTrustRibbon(lang: Lang): string {
     secureLbl: "Cloudflare ආරක්ෂිතයි"
   } : lang === "ta" ? {
     payouts: "5–15 Min*",
-    payoutsLbl: "வேகமான பேமெண்ட்",
+    payoutsLbl: "Processing time may vary",
     fee: "0% கட்டணம்*",
     feeLbl: "மறைக்கப்பட்ட கட்டணம் இல்லை",
     tips: "Daily VIP",
@@ -586,7 +586,7 @@ function renderHeroTrustRibbon(lang: Lang): string {
     secureLbl: "Cloudflare Secured"
   } : {
     payouts: "5–15 Min*",
-    payoutsLbl: "Fast Payouts (Typical)",
+    payoutsLbl: "Processing time may vary",
     fee: "0% Extra*",
     feeLbl: "Zero Hidden Fees",
     tips: "Daily VIP",
@@ -713,8 +713,8 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
         "@id": `${siteUrl}#organization`,
         name: "Fast xBet Cash",
         url: siteUrl,
-        logo: `${siteUrl}${TELEGRAM_GRAPHICS.og`,
-        image: `${siteUrl}${TELEGRAM_GRAPHICS.og`,
+        logo: `${siteUrl}${TELEGRAM_GRAPHICS.og}`,
+        image: `${siteUrl}${TELEGRAM_GRAPHICS.og}`,
         sameAs: [channel, `https://t.me/${botName}`],
         areaServed: "LK",
         availableLanguage: ["si", "en", "ta"]
