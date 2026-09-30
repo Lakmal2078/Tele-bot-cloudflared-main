@@ -261,8 +261,15 @@ describe("Landing Page Render & SEO", () => {
 
     // 3. Winning tips ticker (Recent wins)
     expect(html).toContain('class="tickerBar"');
-    expect(html).toContain("RECENT WINS");
+    expect(html).toContain("ILLUSTRATIVE TIP RESULTS");
     expect(html).toContain("wonTag");
+    expect(html).toContain("/assets/telegram/01-hero-telegram-bot.jpg");
+    expect(html).toContain("/assets/telegram/02-free-tips-sports.jpg");
+    expect(html).toContain("/assets/telegram/03-deposit-withdraw.jpg");
+    expect(html).toContain("/assets/telegram/04-telegram-bot-ui.jpg");
+    expect(html).toContain("/assets/telegram/05-og-social.jpg");
+    expect(html).toContain("/assets/telegram/06-security-support.jpg");
+    expect(html).toContain("Illustrative/sample data only");
     expect(html).toContain("Arsenal Win");
 
     // 4. Tips countdown timer
