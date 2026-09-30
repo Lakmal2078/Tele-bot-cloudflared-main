@@ -576,7 +576,7 @@ function renderHeroTrustRibbon(lang: Lang): string {
     secure: "SSL Secured",
     secureLbl: "Cloudflare ආරක්ෂිතයි"
   } : lang === "ta" ? {
-    payouts: "5–15 Min*",
+    payouts: "Timing varies",
     payoutsLbl: "Processing time may vary",
     fee: "0% கட்டணம்*",
     feeLbl: "மறைக்கப்பட்ட கட்டணம் இல்லை",
@@ -585,7 +585,7 @@ function renderHeroTrustRibbon(lang: Lang): string {
     secure: "SSL Secured",
     secureLbl: "Cloudflare Secured"
   } : {
-    payouts: "5–15 Min*",
+    payouts: "Timing varies",
     payoutsLbl: "Processing time may vary",
     fee: "0% Extra*",
     feeLbl: "Zero Hidden Fees",
