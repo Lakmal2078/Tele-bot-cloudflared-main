@@ -401,6 +401,7 @@ export async function settlePendingTips(
     }
 
     let allPicksResolved = picksToEvaluate.length > 0;
+    let resultWriteFailed = false;
     const evaluatedList: PickResultRecord[] = [];
 
     for (const pick of picksToEvaluate) {
@@ -419,8 +420,16 @@ export async function settlePendingTips(
         pick.result = evalRes.result;
         pick.score_home = evalRes.scoreHome;
         pick.score_away = evalRes.scoreAway;
-        pick.completed = 1;
-        pick.settled_at = new Date().toISOString();
+
+        // A completed event without usable scores must remain PENDING.
+        if (evalRes.result !== "PENDING") {
+          pick.completed = 1;
+          pick.settled_at = new Date().toISOString();
+        } else {
+          pick.completed = 0;
+          pick.settled_at = null;
+          allPicksResolved = false;
+        }
 
         if (pick.result === "WON") summary.wonPicks += 1;
         else if (pick.result === "LOST") summary.lostPicks += 1;
@@ -434,8 +443,28 @@ export async function settlePendingTips(
       // Save/update row in tip_results table
       try {
         await env.DB.prepare(`
-          INSERT INTO tip_results (tip_post_id, event_id, sport_key, sport_title, home_team, away_team, commence_time, selection, market, odds, result, score_home, score_away, completed, settled_at, updated_at)
+          INSERT INTO tip_results (
+            tip_post_id, event_id, sport_key, sport_title, home_team, away_team,
+            commence_time, selection, market, odds, result, score_home, score_away,
+            completed, settled_at, updated_at
+          )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+          ON CONFLICT(tip_post_id, event_id)
+          DO UPDATE SET
+            sport_key = excluded.sport_key,
+            sport_title = excluded.sport_title,
+            home_team = excluded.home_team,
+            away_team = excluded.away_team,
+            commence_time = excluded.commence_time,
+            selection = excluded.selection,
+            market = excluded.market,
+            odds = excluded.odds,
+            result = excluded.result,
+            score_home = excluded.score_home,
+            score_away = excluded.score_away,
+            completed = excluded.completed,
+            settled_at = excluded.settled_at,
+            updated_at = datetime('now')
         `).bind(
           pick.tip_post_id,
           pick.event_id,
@@ -453,22 +482,39 @@ export async function settlePendingTips(
           pick.completed,
           pick.settled_at || null
         ).run();
-      } catch {
-        // Table or record write error handling
+      } catch (error) {
+        resultWriteFailed = true;
+        allPicksResolved = false;
+        const message = `tip_results write failed for post ${post.id}, event ${pick.event_id}: ${error instanceof Error ? error.message : String(error)}`;
+        console.error(`[Tips Settlement] ${message}`);
+        summary.errors.push(message);
       }
     }
 
     // If all picks for this slot are resolved, finalize the post
-    if (allPicksResolved && evaluatedList.length > 0) {
+    if (
+      allPicksResolved &&
+      !resultWriteFailed &&
+      evaluatedList.length > 0 &&
+      evaluatedList.every((pick) => pick.result !== "PENDING")
+    ) {
       const anyLost = evaluatedList.some((p) => p.result === "LOST");
       const allWon = evaluatedList.every((p) => p.result === "WON" || p.result === "VOID");
       const postResult = anyLost ? (evaluatedList.some((p) => p.result === "WON") ? "PARTIAL" : "LOST") : allWon ? "WON" : "VOID";
 
-      await env.DB.prepare(`
+      const finalizeResult = await env.DB.prepare(`
         UPDATE tip_posts
         SET result = ?, settled_at = datetime('now'), updated_at = datetime('now')
         WHERE id = ?
+          AND status = 'POSTED'
+          AND (result IS NULL OR result = 'PENDING')
       `).bind(postResult, post.id).run();
+
+      const finalized = finalizeResult.meta?.changes ?? (finalizeResult.success ? 1 : 0);
+      if (finalized !== 1) {
+        summary.errors.push(`Post ${post.id} was not finalized because its state changed concurrently`);
+        continue;
+      }
 
       summary.settledPosts += 1;
 
@@ -495,12 +541,14 @@ export async function getTipsPerformanceStats(
   env: Env,
   days = 7
 ): Promise<{ total: number; won: number; lost: number; partial: number; winRate: number; weeklyRoi: string }> {
-  const benchmarkStats = { total: 28, won: 23, lost: 5, partial: 0, winRate: 82, weeklyRoi: "+24.8%" };
-  if (!env.DB) return benchmarkStats;
+  const empty = { total: 0, won: 0, lost: 0, partial: 0, winRate: 0, weeklyRoi: "N/A" };
+  if (!env.DB) return empty;
+
+  const safeDays = Math.max(1, Math.min(days, 90));
 
   try {
     const row = await env.DB.prepare(`
-      SELECT 
+      SELECT
         COUNT(*) as total,
         SUM(CASE WHEN result = 'WON' THEN 1 ELSE 0 END) as won,
         SUM(CASE WHEN result = 'LOST' THEN 1 ELSE 0 END) as lost,
@@ -508,29 +556,38 @@ export async function getTipsPerformanceStats(
       FROM tip_posts
       WHERE status = 'POSTED'
         AND result IN ('WON', 'LOST', 'PARTIAL')
-        AND created_at >= datetime('now', ? || ' days')
-    `).bind(`-${days}`).first<{ total: number; won: number; lost: number; partial: number }>();
+        AND settled_at >= datetime('now', ? || ' days')
+    `).bind(`-${safeDays}`).first<{ total: number; won: number; lost: number; partial: number }>();
 
-    const total = row?.total || 0;
-    const won = row?.won || 0;
-    const lost = row?.lost || 0;
-    const partial = row?.partial || 0;
+    const total = Number(row?.total || 0);
+    const won = Number(row?.won || 0);
+    const lost = Number(row?.lost || 0);
+    const partial = Number(row?.partial || 0);
+    if (total === 0) return empty;
 
-    // Behavioral Psychology & Social Proof Calibration (Cialdini's Persuasion Principles):
-    // If the database has insufficient sample size (< 10 tips) or unpopulated test data (e.g. 1 win / 1 loss in test runs),
-    // raw 50% severely damages bettor confidence. Verified channel recommendations maintain an 80%-84% benchmark accuracy with positive weekly ROI.
-    if (total < 10) {
-      return benchmarkStats;
-    }
+    const winRate = Math.round((won / total) * 100);
 
-    const calculatedWinRate = total > 0 ? Math.round((won / total) * 100) : 82;
-    // Highlight strike rate of analyzed value slips (filtering high-risk speculative longshots)
-    const winRate = Math.max(78, Math.min(94, calculatedWinRate));
-    const roiVal = ((won * 1.88 - total) / total) * 100;
-    const weeklyRoi = (roiVal >= 0 ? "+" : "") + Math.max(16.5, Math.min(34.2, roiVal)).toFixed(1) + "%";
+    const roiRow = await env.DB.prepare(`
+      SELECT
+        COALESCE(SUM(CASE
+          WHEN result = 'WON' THEN odds - 1
+          WHEN result = 'LOST' THEN -1
+          ELSE 0
+        END), 0) as profit,
+        COUNT(CASE WHEN result IN ('WON', 'LOST') THEN 1 END) as settled_picks
+      FROM tip_results
+      WHERE result IN ('WON', 'LOST', 'VOID')
+        AND settled_at >= datetime('now', ? || ' days')
+    `).bind(`-${safeDays}`).first<{ profit: number; settled_picks: number }>();
+
+    const settledPicks = Number(roiRow?.settled_picks || 0);
+    const weeklyRoi = settledPicks > 0
+      ? `${((Number(roiRow?.profit || 0) / settledPicks) * 100).toFixed(1)}%`
+      : "N/A";
 
     return { total, won, lost, partial, winRate, weeklyRoi };
-  } catch {
-    return benchmarkStats;
+  } catch (error) {
+    console.error("[Tips Settlement] Failed to calculate performance stats:", error);
+    return empty;
   }
 }
