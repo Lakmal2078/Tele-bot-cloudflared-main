@@ -741,12 +741,13 @@ async function markTipPosted(
   env: Env,
   id: number,
   candidates: TipCandidate[],
-  telegramMessageId: number | null
+  telegramMessageId: number | null,
+  leaseToken: string
 ): Promise<void> {
   const first = candidates[0];
   const payload = JSON.stringify(candidates.map(toPostedSummary));
 
-  await env.DB.prepare(`
+  const result = await env.DB.prepare(`
     UPDATE tip_posts
     SET status='POSTED',
         event_id=?,
@@ -766,6 +767,8 @@ async function markTipPosted(
         lease_expires_at=NULL,
         updated_at=datetime('now')
     WHERE id=?
+      AND status='PROCESSING'
+      AND lease_token=?
   `).bind(
     first?.event.id ?? null,
     first?.event.sport_key ?? null,
@@ -778,15 +781,20 @@ async function markTipPosted(
     first ? (first.bestPrice ?? first.averageOdds ?? null) : null,
     telegramMessageId,
     payload,
-    id
+    id,
+    leaseToken
   ).run();
+  const changes = result.meta?.changes ?? (result.success ? 1 : 0);
+  if (!result.success || changes !== 1) {
+    throw new Error("Tip lease was lost before POSTED state could be committed");
+  }
 }
 
 /**
  * Marks a tip slot as FAILED with error message and clears lease token.
  */
-async function markTipFailed(env: Env, id: number, error: string): Promise<void> {
-  await env.DB.prepare(`
+async function markTipFailed(env: Env, id: number, error: string, leaseToken: string): Promise<void> {
+  const result = await env.DB.prepare(`
     UPDATE tip_posts
     SET status='FAILED',
         error=?,
@@ -794,8 +802,13 @@ async function markTipFailed(env: Env, id: number, error: string): Promise<void>
         lease_expires_at=NULL,
         updated_at=datetime('now')
     WHERE id=?
-      AND status <> 'POSTED'
-  `).bind(error, id).run();
+      AND status='PROCESSING'
+      AND lease_token=?
+  `).bind(error, id, leaseToken).run();
+  const changes = result.meta?.changes ?? (result.success ? 1 : 0);
+  if (!result.success || changes !== 1) {
+    throw new Error("Tip lease was lost before FAILED state could be committed");
+  }
 }
 
 /**
@@ -895,7 +908,7 @@ export async function runScheduledTip(
     }
 
     const telegramMessageId = await postTelegramMessage(env, message, "Markdown", keyboard);
-    await markTipPosted(env, claim.id, candidates, telegramMessageId);
+    await markTipPosted(env, claim.id, candidates, telegramMessageId, claim.leaseToken);
 
     console.log(
       `[Tips] Posted ${candidates.length} tip(s) with match buttons for ${scheduledKey} (msg ${telegramMessageId})`
@@ -905,7 +918,7 @@ export async function runScheduledTip(
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error(`[Tips] runScheduledTip failed for ${scheduledKey}:`, errorMsg);
 
-    await markTipFailed(env, claim.id, errorMsg).catch((e) =>
+    await markTipFailed(env, claim.id, errorMsg, claim.leaseToken).catch((e) =>
       console.error(`[Tips] markTipFailed also failed:`, e instanceof Error ? e.message : e)
     );
 
