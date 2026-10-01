@@ -8,6 +8,16 @@ export function toCents(amountLkr: number): number {
   return Math.round(amountLkr * 100);
 }
 
+/** Convert a strictly positive LKR transaction amount to integer cents. */
+export function toPositiveCents(amountLkr: number): number {
+  if (!Number.isFinite(amountLkr) || amountLkr <= 0) {
+    throw new Error("Amount must be greater than zero");
+  }
+  const cents = Math.round(amountLkr * 100);
+  if (cents <= 0) throw new Error("Amount must be greater than zero");
+  return cents;
+}
+
 /** Convert integer cents back to LKR major units for display / business logic. */
 export function fromCents(cents: number): number {
   if (cents == null || !Number.isFinite(cents)) return 0;
@@ -199,7 +209,7 @@ export async function addDeposit(
   paymentMethod: string = "BANK",
   r2Url: string | null = null
 ): Promise<number> {
-  const amountCents = toCents(amountLkr);
+  const amountCents = toPositiveCents(amountLkr);
 
   const insertStmt = db
     .prepare(
