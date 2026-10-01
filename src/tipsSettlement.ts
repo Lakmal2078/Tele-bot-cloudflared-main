@@ -401,6 +401,7 @@ export async function settlePendingTips(
     }
 
     let allPicksResolved = picksToEvaluate.length > 0;
+    let resultWriteFailed = false;
     const evaluatedList: PickResultRecord[] = [];
 
     for (const pick of picksToEvaluate) {
@@ -419,8 +420,16 @@ export async function settlePendingTips(
         pick.result = evalRes.result;
         pick.score_home = evalRes.scoreHome;
         pick.score_away = evalRes.scoreAway;
-        pick.completed = 1;
-        pick.settled_at = new Date().toISOString();
+
+        // A completed event without usable scores must remain PENDING.
+        if (evalRes.result !== "PENDING") {
+          pick.completed = 1;
+          pick.settled_at = new Date().toISOString();
+        } else {
+          pick.completed = 0;
+          pick.settled_at = null;
+          allPicksResolved = false;
+        }
 
         if (pick.result === "WON") summary.wonPicks += 1;
         else if (pick.result === "LOST") summary.lostPicks += 1;
@@ -434,8 +443,28 @@ export async function settlePendingTips(
       // Save/update row in tip_results table
       try {
         await env.DB.prepare(`
-          INSERT INTO tip_results (tip_post_id, event_id, sport_key, sport_title, home_team, away_team, commence_time, selection, market, odds, result, score_home, score_away, completed, settled_at, updated_at)
+          INSERT INTO tip_results (
+            tip_post_id, event_id, sport_key, sport_title, home_team, away_team,
+            commence_time, selection, market, odds, result, score_home, score_away,
+            completed, settled_at, updated_at
+          )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+          ON CONFLICT(tip_post_id, event_id)
+          DO UPDATE SET
+            sport_key = excluded.sport_key,
+            sport_title = excluded.sport_title,
+            home_team = excluded.home_team,
+            away_team = excluded.away_team,
+            commence_time = excluded.commence_time,
+            selection = excluded.selection,
+            market = excluded.market,
+            odds = excluded.odds,
+            result = excluded.result,
+            score_home = excluded.score_home,
+            score_away = excluded.score_away,
+            completed = excluded.completed,
+            settled_at = excluded.settled_at,
+            updated_at = datetime('now')
         `).bind(
           pick.tip_post_id,
           pick.event_id,
@@ -453,22 +482,39 @@ export async function settlePendingTips(
           pick.completed,
           pick.settled_at || null
         ).run();
-      } catch {
-        // Table or record write error handling
+      } catch (error) {
+        resultWriteFailed = true;
+        allPicksResolved = false;
+        const message = `tip_results write failed for post ${post.id}, event ${pick.event_id}: ${error instanceof Error ? error.message : String(error)}`;
+        console.error(`[Tips Settlement] ${message}`);
+        summary.errors.push(message);
       }
     }
 
     // If all picks for this slot are resolved, finalize the post
-    if (allPicksResolved && evaluatedList.length > 0) {
+    if (
+      allPicksResolved &&
+      !resultWriteFailed &&
+      evaluatedList.length > 0 &&
+      evaluatedList.every((pick) => pick.result !== "PENDING")
+    ) {
       const anyLost = evaluatedList.some((p) => p.result === "LOST");
       const allWon = evaluatedList.every((p) => p.result === "WON" || p.result === "VOID");
       const postResult = anyLost ? (evaluatedList.some((p) => p.result === "WON") ? "PARTIAL" : "LOST") : allWon ? "WON" : "VOID";
 
-      await env.DB.prepare(`
+      const finalizeResult = await env.DB.prepare(`
         UPDATE tip_posts
         SET result = ?, settled_at = datetime('now'), updated_at = datetime('now')
         WHERE id = ?
+          AND status = 'POSTED'
+          AND (result IS NULL OR result = 'PENDING')
       `).bind(postResult, post.id).run();
+
+      const finalized = finalizeResult.meta?.changes ?? (finalizeResult.success ? 1 : 0);
+      if (finalized !== 1) {
+        summary.errors.push(`Post ${post.id} was not finalized because its state changed concurrently`);
+        continue;
+      }
 
       summary.settledPosts += 1;
 
