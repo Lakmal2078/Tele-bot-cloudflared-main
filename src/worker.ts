@@ -107,17 +107,24 @@ Sitemap: ${baseUrl}/sitemap.xml
       // XML Sitemap (/sitemap.xml) dynamically generated based on PUBLIC_BASE_URL with hreflang tags
       if (path === "/sitemap.xml" && (method === "GET" || method === "HEAD")) {
         const baseUrl = (env.PUBLIC_BASE_URL || "").trim().replace(/\/+$/, "") || trustedPublicBaseUrl(env, request) || "https://fastxbet.lk";
-        const body = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
-  <url>
-    <loc>${baseUrl}/</loc>
-    <xhtml:link rel="alternate" hreflang="si" href="${baseUrl}/?lang=si"/>
-    <xhtml:link rel="alternate" hreflang="en" href="${baseUrl}/?lang=en"/>
-    <xhtml:link rel="alternate" hreflang="ta" href="${baseUrl}/?lang=ta"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="${baseUrl}/"/>
+        const homeUrls = [
+          { lang: "si", url: `${baseUrl}/` },
+          { lang: "en", url: `${baseUrl}/?lang=en` },
+          { lang: "ta", url: `${baseUrl}/?lang=ta` },
+        ];
+        const alternates = [
+          ...homeUrls.map(({ lang, url }) => `<xhtml:link rel="alternate" hreflang="${lang}" href="${url}"/>`),
+          `<xhtml:link rel="alternate" hreflang="x-default" href="${baseUrl}/"/>`,
+        ].join("\n    ");
+        const homeEntries = homeUrls.map(({ url }) => `  <url>
+    <loc>${url}</loc>
+    ${alternates}
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
-  </url>
+  </url>`).join("\n");
+        const body = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+${homeEntries}
   <url>
     <loc>${baseUrl}/privacy</loc>
     <changefreq>monthly</changefreq>
@@ -147,7 +154,11 @@ Sitemap: ${baseUrl}/sitemap.xml
       const apiResponse = await handleApiRequest(request, env, { runtime: "cf-worker" });
       if (apiResponse) return finish(apiResponse);
 
-      if (request.method !== "POST") {
+      if (method === "GET" || method === "HEAD") {
+        if (path !== "/") {
+          const headers = { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", ...securityHeaders() };
+          return finish(new Response(method === "HEAD" ? null : "Not Found", { status: 404, headers }));
+        }
         if (env.BOT_MODE === "production" && !trustedPublicBaseUrl(env, request)) {
           return finish(new Response("Service configuration error", { status: 503, headers: securityHeaders() }));
         }

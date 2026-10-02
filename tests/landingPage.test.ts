@@ -39,8 +39,8 @@ describe("Landing Page Render & SEO", () => {
   it("uses PUBLIC_BASE_URL and ignores attacker-controlled host headers", () => {
     const req = new Request("https://attacker.example/?lang=en", { headers: { Host: "attacker.example", "X-Forwarded-Host": "attacker.example" } });
     const html = renderLandingPage(mockEnv, req);
-    expect(html).toContain('<link rel="canonical" href="https://fast-xbet.lk/">');
-    expect(html).toContain('property="og:url" content="https://fast-xbet.lk/"');
+    expect(html).toContain('<link rel="canonical" href="https://fast-xbet.lk/?lang=en">');
+    expect(html).toContain('property="og:url" content="https://fast-xbet.lk/?lang=en"');
     expect(html).not.toContain("attacker.example");
   });
 
@@ -68,7 +68,8 @@ describe("Landing Page Render & SEO", () => {
     const html = renderLandingPage(mockEnv, req);
     expect(html).toContain('property="og:title"');
     expect(html).toContain('property="og:description"');
-    expect(html).toContain('property="og:image"');
+    expect(html).toContain('property="og:image" content="https://fast-xbet.lk/og-image.png">');
+    expect(html).toContain('property="og:image:type" content="image/png"');
     expect(html).toContain('property="og:image:width" content="1200"');
     expect(html).toContain('property="og:image:height" content="630"');
     expect(html).toContain('name="twitter:card" content="summary_large_image"');
@@ -88,7 +89,20 @@ describe("Landing Page Render & SEO", () => {
     const res = await handleApiRequest(req, mockEnv);
     expect(res).not.toBeNull();
     expect(res?.status).toBe(200);
-    expect(res?.headers.get("Content-Type")).toMatch(/image\/png/);
+    expect(res?.headers.get("Content-Type")).toMatch(/image/png/);
+    const pngBytes = new Uint8Array(await res!.arrayBuffer());
+    expect(Array.from(pngBytes.slice(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+  });
+
+  it("self-canonicalizes explicit language URLs while keeping the root stable", () => {
+    const si = renderLandingPage(mockEnv, new Request("https://fast-xbet.lk/?lang=si"));
+    const en = renderLandingPage(mockEnv, new Request("https://fast-xbet.lk/?lang=en"));
+    const ta = renderLandingPage(mockEnv, new Request("https://fast-xbet.lk/?lang=ta"));
+    const negotiated = renderLandingPage(mockEnv, new Request("https://fast-xbet.lk/", { headers: { "Accept-Language": "en-US,en;q=0.9" } }));
+    expect(si).toContain('<link rel="canonical" href="https://fast-xbet.lk/">');
+    expect(en).toContain('<link rel="canonical" href="https://fast-xbet.lk/?lang=en">');
+    expect(ta).toContain('<link rel="canonical" href="https://fast-xbet.lk/?lang=ta">');
+    expect(negotiated).toContain('<link rel="canonical" href="https://fast-xbet.lk/">');
   });
 
   it("includes canonical and hreflang tags for multi-language SEO", () => {
@@ -98,7 +112,10 @@ describe("Landing Page Render & SEO", () => {
     expect(html).toContain('hreflang="si"');
     expect(html).toContain('hreflang="en"');
     expect(html).toContain('hreflang="ta"');
-    expect(html).toContain('hreflang="x-default"');
+    expect(html).toContain('hreflang="x-default" href="https://fast-xbet.lk/"');
+    expect(html).toContain('hreflang="si" href="https://fast-xbet.lk/"');
+    expect(html).toContain('hreflang="en" href="https://fast-xbet.lk/?lang=en"');
+    expect(html).toContain('hreflang="ta" href="https://fast-xbet.lk/?lang=ta"');
   });
 
   it("includes JSON-LD schema with Organization, WebSite, and FAQPage", () => {
@@ -340,7 +357,29 @@ describe("Landing Page Render & SEO", () => {
     expect(sitemapRes.headers.get("Content-Type")).toContain("application/xml");
     const sitemapXml = await sitemapRes.text();
     expect(sitemapXml).toContain("<loc>https://fast-xbet.lk/</loc>");
-    expect(sitemapXml).toContain('hreflang="si"');
+    expect(sitemapXml).toContain("<loc>https://fast-xbet.lk/?lang=en</loc>");
+    expect(sitemapXml).toContain("<loc>https://fast-xbet.lk/?lang=ta</loc>");
+    expect(sitemapXml.match(/<loc>/g)).toHaveLength(4);
+    expect(sitemapXml).toContain('hreflang="si" href="https://fast-xbet.lk/"');
+  });
+
+  it("returns a real 404 for unknown routes instead of the homepage", async () => {
+    const workerModule = await import("../src/worker");
+    const res = await workerModule.default.fetch(new Request("https://fast-xbet.lk/not-a-real-route"), mockEnv);
+    expect(res.status).toBe(404);
+    expect(res.headers.get("Content-Type")).toContain("text/plain");
+    expect(await res.text()).toBe("Not Found");
+
+    const home = await workerModule.default.fetch(new Request("https://fast-xbet.lk/"), mockEnv);
+    expect(home.status).toBe(200);
+  });
+
+  it("uses the generated PNG preview on the privacy page", async () => {
+    const res = await handleApiRequest(new Request("https://fast-xbet.lk/privacy"), mockEnv);
+    expect(res).not.toBeNull();
+    const html = await res!.text();
+    expect(html).toContain('property="og:image" content="https://fast-xbet.lk/og-image.png"');
+    expect(html).not.toContain("/api/og.png");
   });
 
   it("serves robots.txt with sitemap reference", async () => {
@@ -364,7 +403,10 @@ describe("Landing Page Render & SEO", () => {
     const xml = await res?.text();
     expect(xml).toContain('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"');
     expect(xml).toContain("<loc>https://fast-xbet.lk/</loc>");
-    expect(xml).toContain('hreflang="si"');
+    expect(xml).toContain("<loc>https://fast-xbet.lk/?lang=en</loc>");
+    expect(xml).toContain("<loc>https://fast-xbet.lk/?lang=ta</loc>");
+    expect(xml.match(/<loc>/g)).toHaveLength(4);
+    expect(xml).toContain('hreflang="si" href="https://fast-xbet.lk/"');
     expect(xml).toContain('hreflang="en"');
     expect(xml).toContain('hreflang="ta"');
   });
