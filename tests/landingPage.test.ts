@@ -284,7 +284,7 @@ describe("Landing Page Render & SEO", () => {
     expect(html).toContain("/assets/telegram/02-free-tips-sports.jpg");
     expect(html).toContain("/assets/telegram/03-deposit-withdraw.jpg");
     expect(html).toContain("/assets/telegram/04-telegram-bot-ui.jpg");
-    expect(html).toContain("/assets/telegram/05-og-social.jpg");
+    expect(html).toContain("/og-image.png");
     expect(html).toContain("/assets/telegram/06-security-support.jpg");
     expect(html).toContain("Illustrative/sample data only");
     expect(html).toContain("Arsenal Win");
