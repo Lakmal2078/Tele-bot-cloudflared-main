@@ -89,7 +89,7 @@ describe("Landing Page Render & SEO", () => {
     const res = await handleApiRequest(req, mockEnv);
     expect(res).not.toBeNull();
     expect(res?.status).toBe(200);
-    expect(res?.headers.get("Content-Type")).toMatch(/image/png/);
+    expect(res?.headers.get("Content-Type")).toMatch(/image\/png/);
     const pngBytes = new Uint8Array(await res!.arrayBuffer());
     expect(Array.from(pngBytes.slice(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
   });
