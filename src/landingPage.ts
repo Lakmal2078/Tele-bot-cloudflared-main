@@ -9,7 +9,7 @@ const TELEGRAM_GRAPHICS = {
   tips: "/assets/telegram/02-free-tips-sports.jpg",
   payments: "/assets/telegram/03-deposit-withdraw.jpg",
   botUi: "/assets/telegram/04-telegram-bot-ui.jpg",
-  og: "/assets/telegram/05-og-social.jpg",
+  og: "/og-image.png",
   security: "/assets/telegram/06-security-support.jpg"
 } as const;
 
@@ -680,20 +680,29 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
   const max = Number.parseInt(env.MAX_TRANSACTION_LKR || "500000", 10) || 500000;
 
   let lang: Lang = "si";
+  let hasExplicitLang = false;
   const trustedOrigin = trustedPublicBaseUrl(env, request);
   const siteUrl = trustedOrigin ? `${trustedOrigin}/` : "";
   const ea = trustedOrigin ? esc(siteUrl) : "/";
+  const localeUrls = trustedOrigin ? {
+    si: siteUrl,
+    en: `${siteUrl}?lang=en`,
+    ta: `${siteUrl}?lang=ta`,
+  } : null;
+  let canonicalUrl = siteUrl;
   try {
     const u = new URL(request.url);
     const q = u.searchParams.get("lang")?.toLowerCase();
-    if (q === "si" || q === "en" || q === "ta") lang = q;
-    else {
+    if (q === "si" || q === "en" || q === "ta") {
+      lang = q;
+      hasExplicitLang = true;
+    } else {
       const a = request.headers.get("accept-language") || "";
       if (/\\bta\\b/i.test(a)) lang = "ta";
       else if (/\\ben\\b/i.test(a)) lang = "en";
     }
   } catch {}
-
+  if (hasExplicitLang && lang !== "si" && localeUrls) canonicalUrl = localeUrls[lang];
   const c = T[lang];
   const eb = esc(bot);
   const ebTips = esc(`https://t.me/${botName}?start=tips`);
@@ -713,8 +722,8 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
         "@id": `${siteUrl}#organization`,
         name: "Fast xBet Cash",
         url: siteUrl,
-        logo: `${siteUrl}${TELEGRAM_GRAPHICS.og}`,
-        image: `${siteUrl}${TELEGRAM_GRAPHICS.og}`,
+        logo: `${trustedOrigin}/logo.png`,
+        image: `${trustedOrigin}${TELEGRAM_GRAPHICS.og}`,
         sameAs: [channel, `https://t.me/${botName}`],
         areaServed: "LK",
         availableLanguage: ["si", "en", "ta"]
@@ -729,7 +738,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
       },
       {
         "@type": "FAQPage",
-        "@id": `${siteUrl}#faq`,
+        "@id": `${canonicalUrl}#faq`,
         mainEntity: faq
       }
     ]
@@ -775,17 +784,17 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
     ? `<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "${esc(analyticsToken)}"}'>${""}</script>`
     : "";
 
-  const ogImageUrl = trustedOrigin ? esc(`${trustedOrigin}${TELEGRAM_GRAPHICS.og}?v=1`) : "";
-  const canonicalAndOgTags = trustedOrigin ? `
-<link rel="canonical" href="${ea}">
-<link rel="alternate" hreflang="si" href="${ea}?lang=si">
-<link rel="alternate" hreflang="en" href="${ea}?lang=en">
-<link rel="alternate" hreflang="ta" href="${ea}?lang=ta">
-<link rel="alternate" hreflang="x-default" href="${ea}">
-<meta property="og:url" content="${ea}">
+  const ogImageUrl = trustedOrigin ? esc(`${trustedOrigin}${TELEGRAM_GRAPHICS.og}`) : "";
+  const canonicalAndOgTags = trustedOrigin && localeUrls ? `
+<link rel="canonical" href="${esc(canonicalUrl)}">
+<link rel="alternate" hreflang="si" href="${esc(localeUrls.si)}">
+<link rel="alternate" hreflang="en" href="${esc(localeUrls.en)}">
+<link rel="alternate" hreflang="ta" href="${esc(localeUrls.ta)}">
+<link rel="alternate" hreflang="x-default" href="${esc(localeUrls.si)}">
+<meta property="og:url" content="${esc(canonicalUrl)}">
 <meta property="og:image" content="${ogImageUrl}">
 <meta property="og:image:secure_url" content="${ogImageUrl}">
-<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <link rel="image_src" href="${ogImageUrl}">

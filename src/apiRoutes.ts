@@ -595,17 +595,24 @@ Sitemap: ${origin}/sitemap.xml
   // XML Sitemap for Search Engines (/sitemap.xml)
   if (path === "/sitemap.xml" && (method === "GET" || method === "HEAD")) {
     const origin = (env.PUBLIC_BASE_URL || "").trim().replace(/\/+$/, "") || trustedPublicBaseUrl(env, request) || "https://fastxbet.lk";
-    const body = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
-  <url>
-    <loc>${origin}/</loc>
-    <xhtml:link rel="alternate" hreflang="si" href="${origin}/?lang=si"/>
-    <xhtml:link rel="alternate" hreflang="en" href="${origin}/?lang=en"/>
-    <xhtml:link rel="alternate" hreflang="ta" href="${origin}/?lang=ta"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="${origin}/"/>
+    const homeUrls = [
+      { lang: "si", url: `${origin}/` },
+      { lang: "en", url: `${origin}/?lang=en` },
+      { lang: "ta", url: `${origin}/?lang=ta` },
+    ];
+    const alternates = [
+      ...homeUrls.map(({ lang, url }) => `<xhtml:link rel="alternate" hreflang="${lang}" href="${url}"/>`),
+      `<xhtml:link rel="alternate" hreflang="x-default" href="${origin}/"/>`,
+    ].join("\n    ");
+    const homeEntries = homeUrls.map(({ url }) => `  <url>
+    <loc>${url}</loc>
+    ${alternates}
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
-  </url>
+  </url>`).join("\n");
+    const body = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+${homeEntries}
   <url>
     <loc>${origin}/privacy</loc>
     <changefreq>monthly</changefreq>
@@ -1227,7 +1234,7 @@ Sitemap: ${origin}/sitemap.xml
     return json({ ok: false, error: "Not found" }, 404, securityHeaders());
   }
 
-  // Not handled by API dispatcher (falls through to the landing page for
-  // ordinary GET/HEAD routes, or to webhook handling for POST).
+  // Not handled by the API dispatcher; callers serve the root landing page
+  // or return a 404 for unknown paths.
   return null;
 }

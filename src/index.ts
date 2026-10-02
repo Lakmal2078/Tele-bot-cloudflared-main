@@ -226,8 +226,13 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // 3. HTML landing page with CSP cryptographic nonce
+    // 3. HTML landing page with CSP cryptographic nonce (root only).
     if (method === "GET" || method === "HEAD") {
+      if (url.pathname !== "/") {
+        res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
+        res.end(method === "HEAD" ? undefined : "Not Found");
+        return;
+      }
       const nonce = crypto.randomUUID().replace(/-/g, "");
       const html = renderLandingPage(env, webReq, nonce);
       const headers = landingPageSecurityHeaders(nonce, { isHttps: webReq.url.startsWith("https://") });
