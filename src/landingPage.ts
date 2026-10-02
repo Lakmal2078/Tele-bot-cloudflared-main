@@ -683,6 +683,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
   let hasExplicitLang = false;
   const trustedOrigin = trustedPublicBaseUrl(env, request);
   const siteUrl = trustedOrigin ? `${trustedOrigin}/` : "";
+  const ea = trustedOrigin ? esc(siteUrl) : "/";
   const localeUrls = trustedOrigin ? {
     si: siteUrl,
     en: `${siteUrl}?lang=en`,

@@ -400,7 +400,7 @@ describe("Landing Page Render & SEO", () => {
     expect(res).not.toBeNull();
     expect(res?.status).toBe(200);
     expect(res?.headers.get("Content-Type")).toContain("application/xml");
-    const xml = await res?.text();
+    const xml = await res!.text();
     expect(xml).toContain('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"');
     expect(xml).toContain("<loc>https://fast-xbet.lk/</loc>");
     expect(xml).toContain("<loc>https://fast-xbet.lk/?lang=en</loc>");
