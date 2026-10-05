@@ -49,6 +49,7 @@ Thumbs.db
 # Test & Lint Cache
 coverage/
 .eslintcache
+.testdriver/
 
 # Log files
 npm-debug.log*
