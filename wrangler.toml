@@ -1,10 +1,9 @@
-name = "xbet-telegram-bot"
+name = "telegram-cash-bot"
 main = "src/worker.ts"
-compatibility_date = "2026-09-09"
+compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
-workers_dev = true
 
-# Cloudflare Workers Static Assets (Landing Page & SEO)
+# Static Assets (landing page, styles, icons, robots.txt, sitemap.xml)
 [assets]
 directory = "./public"
 binding = "ASSETS"
@@ -21,32 +20,38 @@ USE_POLLING = "false"
 PUBLIC_BASE_URL = "https://xbet-telegram-bot.agent-1xfast-srilanka.workers.dev"
 BOT_USERNAME = "fast_1xbetcash_bot"
 
-# Telegram Channel (public channel identity — not sensitive)
+# Telegram Channels (public channel identities)
 CHANNEL_URL = "https://t.me/fast_xbet_official_tips"
 CHANNEL_USERNAME = "@fast_xbet_official_tips"
+PROOF_CHANNEL_URL = "https://t.me/fast_xbet_official_tips"
+ADMIN_CHAT_ID = "-1004336999467"
+
+# 1xBet Official Affiliate & Cashier Defaults
+XBET_LINK = "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622"
+XBET_PROMO_CODE = "VGSL"
 
 # Customer Support / Payment rails → set via Cloudflare Secrets:
-#   EZCASH_NUMBER, MCASH_NUMBER, FRIMI_NUMBER, IPAY_NUMBER,
+#   COMMERCIAL_DETAILS, SAMPATH_DETAILS, HNB_DETAILS, BOC_DETAILS, PEOPLES_DETAILS,
+#   EZCASH_NUMBER, MCASH_NUMBER, BINANCE_PAY_ID, USDT_TRC20_ADDRESS, USDT_BEP20_ADDRESS,
 #   BANK_DETAILS, WHATSAPP_NUMBER, XBET_LINK, XBET_PROMO_CODE,
 #   SECURITY_CODE_PEPPER (see scripts/setup-cf-secrets.sh)
 
 # Limits & Instructions
 MIN_TRANSACTION_LKR = "1000"
 MAX_TRANSACTION_LKR = "500000"
-DEPOSIT_INSTRUCTIONS = "📌 තැන්පතු උපදෙස්\n1) ගෙවීම් ක්‍රමය තෝරන්න (BOC / People's / Sampath / LOLC / eZ Cash / iPay / FriMi)\n2) ලබා දෙන ගිණුමට හෝ අංකයට මුදල් යවන්න\n3) ගෙවීම් receipt / screenshot එක bot එකට එවන්න\n4) Admin approve කළ පසු 1xBet balance එකට credit වේ\n⚠️ අවම: රු. 1,000 | උපරිම: රු. 500,000\n⚠️ 18+ පමණි. වගකීමෙන් යුතුව ක්‍රීඩා කරන්න."
+DEPOSIT_INSTRUCTIONS = "📌 තැන්පතු උපදෙස්\n1) ගෙවීම් ක්‍රමය තෝරන්න (Commercial / Sampath / HNB / BOC / People's / eZ Cash / mCash / USDT)\n2) ලබා දෙන ගිණුමට හෝ අංකයට මුදල් යවන්න\n3) ගෙවීම් receipt / screenshot එක bot එකට එවන්න\n4) Admin approve කළ පසු 1xBet balance එකට credit වේ\n⚠️ අවම: රු. 1,000 | උපරිම: රු. 500,000\n⚠️ 18+ පමණි. වගකීමෙන් යුතුව ක්‍රීඩා කරන්න."
 
 # Automated Free Sports Betting Tips (Sri Lanka UTC+05:30)
 TIPS_CHANNEL_ID = "-1004336999467"
 TIPS_CHANNEL_URL = "https://t.me/fast_xbet_official_tips"
-TIPS_SPORTS = "auto:soccer,auto:cricket,auto:basketball,auto:tennis,auto:table_tennis,auto:esports"
+TIPS_SPORTS = "auto:cricket,auto:soccer,auto:basketball"
 TIPS_ODDS_REGIONS = "eu"
 TIPS_MIN_ODDS = "1.30"
 TIPS_MAX_ODDS = "3.00"
 TIPS_HOURS_AHEAD = "72"
-TIPS_PER_SLOT = "3"
-TIPS_MAX_FEEDS = "4"
-TIPS_MIN_CONSENSUS = "0.42"
-TIPS_MIN_VALUE = "0.003"
+TIPS_MAX_FEEDS = "3"
+TIPS_MIN_CONSENSUS = "0.52"
+TIPS_MIN_VALUE = "0.01"
 TIPS_MIN_BOOKMAKERS = "2"
 TIPS_MAX_STALE_HOURS = "24"
 
@@ -61,15 +66,9 @@ database_id = "7a821498-be68-4a0f-a630-e9334238c1fe"
 binding = "CHAT_MEDIA"
 bucket_name = "chat-media"
 
-# Workers Observability — persist console logs for tips cron debugging
+# Workers Observability and Logs
 [observability]
 enabled = true
-head_sampling_rate = 1
-redact_query_string = true
-
-[observability.logs]
-enabled = true
-invocation_logs = true
 head_sampling_rate = 1
 
 # Automated Cron Triggers
