@@ -44,18 +44,16 @@ export interface Env {
   BOT_USERNAME?: string;      // Telegram Bot Username (e.g. fast_1xbetcash_bot)
   ADMIN_IDS: string;          // comma-separated Telegram numeric IDs
   ADMIN_CHANNEL_ID?: string;  // Admin / Audit log channel (e.g. -100xxx or @channel)
+  /** Primary chat/group ID where deposit/withdrawal slip submissions and alerts are forwarded */
+  ADMIN_CHAT_ID?: string;
   WEBHOOK_SECRET: string;     // Telegram webhook secret token
   ADMIN_API_SECRET: string;   // Dedicated secret for private operational endpoints
-  /**
-   * Dedicated pepper for HMAC-SHA-256 of withdrawal security codes.
-   * Set with `wrangler secret put SECURITY_CODE_PEPPER` (minimum 16 characters).
-   * Do not reuse ADMIN_API_SECRET or WEBHOOK_SECRET.
-   */
-  SECURITY_CODE_PEPPER?: string;
   /** Optional comma-separated client IPs allowed for admin API (CF-Connecting-IP). Empty = no IP gate. */
   ADMIN_IP_ALLOWLIST?: string;
   CHANNEL_USERNAME: string;
   CHANNEL_URL: string;
+  /** Channel URL showcasing successful transaction proofs */
+  PROOF_CHANNEL_URL?: string;
   /** Dedicated channel for automated free tips. Use @username or numeric -100... chat id. */
   TIPS_CHANNEL_ID?: string;
   /** Public channel URL shown on tip posts and join buttons. */
@@ -94,14 +92,17 @@ export interface Env {
   BOC_DETAILS?: string;
   PEOPLES_DETAILS?: string;
   SAMPATH_DETAILS?: string;
+  COMMERCIAL_DETAILS?: string;
+  HNB_DETAILS?: string;
   LOLC_DETAILS?: string;
   EZCASH_NUMBER?: string;
   MCASH_NUMBER?: string;
   FRIMI_NUMBER?: string;
   IPAY_NUMBER?: string;
-  // Analytics
-  CF_BEACON_TOKEN?: string;
-  CLOUDFLARE_ANALYTICS_TOKEN?: string;
+  BINANCE_PAY_ID?: string;
+  USDT_TRC20_ADDRESS?: string;
+  USDT_BEP20_ADDRESS?: string;
+  SECURITY_CODE_PEPPER?: string;
 }
 
 export interface UserRow {
