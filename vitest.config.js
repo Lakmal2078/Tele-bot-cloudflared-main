@@ -1,15 +1,8 @@
 import { defineConfig } from 'vitest/config';
-import TestDriver from 'testdriverai/vitest';
 
-// Note: dotenv is loaded automatically by the TestDriver SDK
+// Standard Vitest configuration for repository unit tests
 export default defineConfig({
   test: {
-    testTimeout: 300000,
-    hookTimeout: 300000,
-    reporters: [
-      'default',
-      TestDriver(),
-    ],
-    setupFiles: ['testdriverai/vitest/setup'],
+    exclude: ['**/node_modules/**', '**/dist/**', 'tests/landing-page.test.js'],
   },
 });
