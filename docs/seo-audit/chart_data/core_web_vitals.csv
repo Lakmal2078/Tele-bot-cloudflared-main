@@ -1,0 +1,6 @@
+metric,value,threshold,status
+LCP (s),2.4,2.5,Good
+INP (ms),45,200,Good
+CLS,0.01,0.1,Good
+FCP (s),1.6,1.8,Good
+TTFB (ms),48,800,Good
