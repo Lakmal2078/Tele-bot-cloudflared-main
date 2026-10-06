@@ -105,7 +105,7 @@ echo ""
 echo "9. Mobile Money & Crypto Details"
 set_secret "EZCASH_NUMBER" "eZ Cash mobile number (Dialog)" false
 set_secret "MCASH_NUMBER" "mCash mobile number (Mobitel)" false
-set_secret "BINANCE_PAY_ID" "Binance Pay ID for 0% fee USDT deposits" false
+set_secret "BINANCE_PAY_ID" "Verified Binance Pay identifier (only when legally approved)" false
 set_secret "USDT_TRC20_ADDRESS" "USDT TRC20 Wallet Address" false
 set_secret "USDT_BEP20_ADDRESS" "USDT BEP20 (BSC) Wallet Address" false
 set_secret "FRIMI_NUMBER" "FriMi mobile number / ID" false
@@ -118,7 +118,7 @@ set_secret "WHATSAPP_NUMBER" "WhatsApp customer support number (e.g. 94776763093
 echo ""
 echo "11. 1xBet Official Affiliate System"
 set_secret "XBET_LINK" "Primary 1xPartners affiliate registration URL with SubID support" false
-set_secret "XBET_PROMO_CODE" "Official 1xBet Promo Code (e.g. VGSL for 130% welcome bonus)" false
+set_secret "XBET_PROMO_CODE" "Official partner promo code (optional; use only after claim approval)" false
 
 echo ""
 echo "12. Channel & Proofs Configuration"
