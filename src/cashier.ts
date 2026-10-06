@@ -8,14 +8,17 @@ import { escapeMarkdown, escapeCode } from "./utils";
  * Attaches or updates dynamic subid parameter for campaign & conversion analytics.
  */
 export function getXBetAffiliateLink(rawLink?: string, subId: string = "tele_bot_main"): string {
-  const base = rawLink?.trim() || "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622";
+  const base = rawLink?.trim();
+  if (!base) return "";
+
   try {
     const url = new URL(base);
-    url.searchParams.set("subid", subId);
+    if (!["http:", "https:"].includes(url.protocol)) return "";
+    const cleanSubId = subId.trim();
+    if (cleanSubId) url.searchParams.set("subid", cleanSubId);
     return url.toString();
   } catch {
-    const sep = base.includes("?") ? "&" : "?";
-    return `${base}${sep}subid=${encodeURIComponent(subId)}`;
+    return "";
   }
 }
 
@@ -24,9 +27,9 @@ export function getXBetAffiliateLink(rawLink?: string, subId: string = "tele_bot
  * Strictly prohibits gambling keywords in bank transfer remarks to protect user accounts.
  */
 export const SRI_LANKA_AML_BANK_WARNING = {
-  si: "⚠️ *වැදගත් (AML ආරක්ෂණ උපදෙස්):*\n*බැංකු Transfer එකේ Remark / Reference එකට '1xBet', 'Bet', හෝ 'Game' වැනි කිසිදු වචනයක් ලිවීමෙන් වළකින්න. 'Personal' හෝ හිස්ව තබන්න. (Account freeze වීම් වැළැක්වීමට).*",
-  en: "⚠️ *CRITICAL NOTICE FOR SRI LANKAN BANK TRANSFERS:*\n*Strictly PROHIBIT writing words like '1xBet', 'Bet', or 'Game' in the transfer Remark / Reference. Leave it blank or write 'Personal' to prevent bank account restrictions or freezing.*",
-  ta: "⚠️ *முக்கிய எச்சரிக்கை (AML பாதுகாப்பு):*\n*வங்கி பரிமாற்றத்தின் குறிப்பில் (Remark / Reference) '1xBet', 'Bet', அல்லது 'Game' போன்ற சொற்களை எழுதுவதைத் தவிர்க்கவும். 'Personal' என எழுதவும் அல்லது காலியாக விடவும் (கணக்கு முடக்கப்படுவதைத் தடுக்க).*",
+  si: "⚠️ *ගෙවීම් අනුකූලතා උපදෙස්:* බැංකුව හෝ ගෙවීම් සේවා සපයන්නා ඉල්ලා සිටින නිවැරදි තොරතුරු පමණක් භාවිත කරන්න. ගනුදෙනුවේ අරමුණ හෝ විස්තර වැරදි ලෙස සඳහන් නොකරන්න. අදාළ නීති, බැංකු නීති සහ සේවා කොන්දේසි අනුගමනය කරන්න.",
+  en: "⚠️ *PAYMENT COMPLIANCE NOTICE:* Enter only accurate information requested by your bank or payment provider. Do not misrepresent the purpose or details of a transaction. Follow applicable law, bank rules, and provider terms.",
+  ta: "⚠️ *கட்டண இணக்க அறிவிப்பு:* உங்கள் வங்கி அல்லது கட்டண சேவை வழங்குநர் கோரும் சரியான தகவல்களை மட்டும் பயன்படுத்தவும். பரிவர்த்தனையின் நோக்கம் அல்லது விவரங்களை தவறாக குறிப்பிட வேண்டாம். பொருந்தும் சட்டங்கள் மற்றும் சேவை விதிகளை பின்பற்றவும்.",
 };
 
 export interface SriLankanPaymentOption {
@@ -250,7 +253,6 @@ export function getPaymentMethodAccountDetails(method: string, env: Env, lang: L
       `📱 *eZ Cash Mobile Wallet (Dialog)*\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
       `• *eZ Cash Number:* \`${ezNumber}\`\n` +
-      `• *Merchant / Holder:* *Fast Cashier LK*\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
       `💡 _අංකය Copy කර ගැනීමට එය මත Tap කරන්න (Tap to copy)._\n` +
       `⚠️ *සටහන (Note):* Reference එකට කිසිවක් නොලියා හිස්ව තබන්න (Leave reference blank).`
@@ -268,7 +270,6 @@ export function getPaymentMethodAccountDetails(method: string, env: Env, lang: L
       `📱 *mCash Mobile Wallet (Mobitel)*\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
       `• *mCash Number:* \`${mcashNumber}\`\n` +
-      `• *Merchant / Holder:* *Fast Cashier LK*\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
       `💡 _අංකය Copy කර ගැනීමට එය මත Tap කරන්න (Tap to copy)._\n` +
       `⚠️ *සටහන (Note):* Reference එකට කිසිවක් නොලියා හිස්ව තබන්න (Leave reference blank).`
@@ -276,9 +277,10 @@ export function getPaymentMethodAccountDetails(method: string, env: Env, lang: L
   }
 
   if (m === "BINANCE_PAY") {
-    const payId = env.BINANCE_PAY_ID?.trim() || "876543210";
+    const payId = env.BINANCE_PAY_ID?.trim();
+    if (!payId) return "🪙 *Binance Pay:*\nThis payment method is temporarily unavailable until a verified payout identifier is configured.";
     return (
-      `🪙 *Binance Pay (Instant & 0% Fee)*\n` +
+      `🪙 *Binance Pay*\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
       `• *Binance Pay ID:* \`${payId}\`\n` +
       `• *Currency:* *USDT*\n` +
@@ -289,7 +291,8 @@ export function getPaymentMethodAccountDetails(method: string, env: Env, lang: L
   }
 
   if (m === "USDT_TRC20") {
-    const address = env.USDT_TRC20_ADDRESS?.trim() || "TLaSy8abcdefghijklmnopqrstuvwxyz123456";
+    const address = env.USDT_TRC20_ADDRESS?.trim();
+    if (!address) return "🪙 *USDT (TRC20):*\nThis payment method is temporarily unavailable until a verified wallet address is configured.";
     return (
       `🪙 *USDT Deposit (TRC20 Network)*\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
@@ -302,7 +305,8 @@ export function getPaymentMethodAccountDetails(method: string, env: Env, lang: L
   }
 
   if (m === "USDT_BEP20") {
-    const address = env.USDT_BEP20_ADDRESS?.trim() || "0x1234567890abcdef1234567890abcdef12345678";
+    const address = env.USDT_BEP20_ADDRESS?.trim();
+    if (!address) return "🪙 *USDT (BEP20):*\nThis payment method is temporarily unavailable until a verified wallet address is configured.";
     return (
       `🪙 *USDT Deposit (BEP20 / BSC Network)*\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
@@ -333,33 +337,43 @@ export function getPaymentMethodAccountDetails(method: string, env: Env, lang: L
  * Builds the Telegram message for the /register command and xbet action.
  */
 export function buildRegistrationView(promoCode: string, affiliateLink: string, lang: Language = "si"): string {
-  return [
-    `🎁 *1XBET OFFICIAL REGISTRATION (ලියාපදිංචි වීම)*`,
-    `━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    `Use Promo Code \`${promoCode}\` to claim a *130% Welcome Bonus* + *0% Cashier Deposit Fees*!`,
-    ``,
-    `👉 *Official Affiliate Registration Link:*`,
-    `[Click Here to Register on 1xBet](${affiliateLink})`,
-    ``,
-    `🔑 *Official VIP Promo Code:*`,
-    `\`${promoCode}\``,
-    `_(Tap the code above to copy it instantly / Code එක Copy කර ගැනීමට එය මත Tap කරන්න)_`,
-    ``,
-    `🔥 *Exclusive VIP Benefits:*`,
-    `• 🎁 *130% Welcome Bonus* on your First Deposit (up to LKR 45,000+)`,
-    `• ⚡ *0% Cashier Fees* on all deposits through our local Cashier Bot!`,
-    `• 🏏 *Free Cricket & Sports VIP Tips* (IPL, International, Soccer)`,
-    `• 🚀 *Instant local deposit & withdrawal approvals (5-15 mins)*`,
-    ``,
-    `📌 *Simple Registration Guide:*`,
-    `1️⃣ Click the Registration Link above.`,
-    `2️⃣ Choose "One-Click" or "By Phone" registration.`,
-    `3️⃣ Enter Promo Code \`${promoCode}\` in the promo field.`,
-    `4️⃣ Select *Sports Bonus (130%)*.`,
-    `5️⃣ Finish registration, copy your *1xBet Player ID*, and return to this bot to deposit with 0% fee!`,
-    `━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    `⚠️ *Benefit:* Use Promo Code \`${promoCode}\` to claim a 130% Welcome Bonus + 0% Cashier Deposit Fees!`,
-  ].join("\n");
+  const safePromo = promoCode.trim();
+  const safeLink = affiliateLink.trim();
+  const offerText =
+    lang === "en"
+      ? "Current promotions, eligibility, fees, and wagering terms are subject to the official operator/partner terms shown at the time of registration."
+      : lang === "ta"
+      ? "தற்போதைய சலுகைகள், தகுதி, கட்டணங்கள் மற்றும் விதிமுறைகள் பதிவு செய்யும் நேரத்தில் அதிகாரப்பூர்வ ஆபரேட்டர்/பார்ட்னர் விதிகளுக்கு உட்பட்டவை."
+      : "වත්මන් ප්‍රවර්ධන, සුදුසුකම්, ගාස්තු සහ wagering කොන්දේසි ලියාපදිංචි වන අවස්ථාවේ නිල operator/partner terms අනුව වෙනස් විය හැක.";
+
+  const lines = [
+    lang === "en" ? "🎯 *OFFICIAL REGISTRATION*" : lang === "ta" ? "🎯 *அதிகாரப்பூர்வ பதிவு*" : "🎯 *නිල ලියාපදිංචිය*",
+    "━━━━━━━━━━━━━━━━━━━━━━━━━",
+    offerText,
+  ];
+
+  if (safeLink) {
+    lines.push(
+      "",
+      lang === "en" ? "🔗 *Registration Link:*" : lang === "ta" ? "🔗 *பதிவு இணைப்பு:*" : "🔗 *ලියාපදිංචි වීමේ Link එක:*",
+      `[Open registration](${safeLink})`
+    );
+  }
+
+  if (safePromo) {
+    lines.push("", "🔑 *Promo / Partner Code:*", `\\`${safePromo}\\``);
+  }
+
+  lines.push(
+    "",
+    lang === "en"
+      ? "⚠️ Review the operator's current age, jurisdiction, promotion, payment, and responsible-gaming terms before registering."
+      : lang === "ta"
+      ? "⚠️ பதிவு செய்வதற்கு முன் வயது, அதிகார வரம்பு, சலுகை, கட்டணம் மற்றும் பொறுப்பான விளையாட்டு விதிகளை சரிபார்க்கவும்."
+      : "⚠️ ලියාපදිංචි වීමට පෙර වයස, නීතිමය බල ප්‍රදේශය, promotion, payment සහ responsible-gaming terms පරීක්ෂා කරන්න."
+  );
+
+  return lines.join("\n");
 }
 
 /**
