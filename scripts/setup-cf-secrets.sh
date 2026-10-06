@@ -52,7 +52,7 @@ if [[ "$use_webhook_gen" =~ ^[Nn]$ ]]; then
   set_secret "WEBHOOK_SECRET" "Min 16 chars secret" true
 else
   printf '%s\n' "$DEFAULT_WEBHOOK_SECRET" | npx wrangler secret put "WEBHOOK_SECRET"
-  echo "✅ WEBHOOK_SECRET set."
+  echo "✅ WEBHOOK_SECRET set (value hidden)."
 fi
 
 echo ""
