@@ -20,7 +20,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '22'
         cache: 'npm'
 
     - name: Install dependencies
@@ -36,7 +36,7 @@ jobs:
         api-key: ${{ secrets.TD_API_KEY }}
 
     - name: Run TestDriver.ai tests
-      run: npx vitest run
+      run: npx vitest run --config vitest.testdriver.config.js
 
     - name: Upload test results
       if: always()
