@@ -24,7 +24,7 @@ export function getXBetAffiliateLink(rawLink?: string, subId: string = "tele_bot
 
 /**
  * Anti-Money Laundering (AML) & Central Bank of Sri Lanka compliance warning.
- * Strictly prohibits gambling keywords in bank transfer remarks to protect user accounts.
+ * Provides a neutral reminder to use truthful payment information and follow provider rules.
  */
 export const SRI_LANKA_AML_BANK_WARNING = {
   si: "⚠️ *ගෙවීම් අනුකූලතා උපදෙස්:* බැංකුව හෝ ගෙවීම් සේවා සපයන්නා ඉල්ලා සිටින නිවැරදි තොරතුරු පමණක් භාවිත කරන්න. ගනුදෙනුවේ අරමුණ හෝ විස්තර වැරදි ලෙස සඳහන් නොකරන්න. අදාළ නීති, බැංකු නීති සහ සේවා කොන්දේසි අනුගමනය කරන්න.",
@@ -115,8 +115,8 @@ export const SRI_LANKAN_PAYMENT_METHODS: SriLankanPaymentOption[] = [
     category: "CRYPTO",
     icon: "🪙",
     name: {
-      si: "Binance Pay (0% Fee)",
-      en: "Binance Pay (0% Fee)",
+      si: "Binance Pay",
+      en: "Binance Pay",
       ta: "Binance Pay",
     },
   },
@@ -254,8 +254,7 @@ export function getPaymentMethodAccountDetails(method: string, env: Env, lang: L
       `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
       `• *eZ Cash Number:* \`${ezNumber}\`\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `💡 _අංකය Copy කර ගැනීමට එය මත Tap කරන්න (Tap to copy)._\n` +
-      `⚠️ *සටහන (Note):* Reference එකට කිසිවක් නොලියා හිස්ව තබන්න (Leave reference blank).`
+      `💡 _අංකය Copy කර ගැනීමට එය මත Tap කරන්න (Tap to copy)._`
     );
   }
 
@@ -271,8 +270,7 @@ export function getPaymentMethodAccountDetails(method: string, env: Env, lang: L
       `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
       `• *mCash Number:* \`${mcashNumber}\`\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `💡 _අංකය Copy කර ගැනීමට එය මත Tap කරන්න (Tap to copy)._\n` +
-      `⚠️ *සටහන (Note):* Reference එකට කිසිවක් නොලියා හිස්ව තබන්න (Leave reference blank).`
+      `💡 _අංකය Copy කර ගැනීමට එය මත Tap කරන්න (Tap to copy)._`
     );
   }
 
