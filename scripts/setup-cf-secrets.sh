@@ -46,7 +46,7 @@ set_secret "ADMIN_CHANNEL_ID" "Admin audit channel fallback (optional)" false
 echo ""
 echo "4. Webhook Secret (minimum 16 random characters)"
 DEFAULT_WEBHOOK_SECRET="$(node -e "console.log(require('crypto').randomBytes(16).toString('hex'))")"
-echo "Generated suggested webhook secret: $DEFAULT_WEBHOOK_SECRET"
+echo "A random webhook secret has been generated locally (value hidden)."
 read -r -p "Use generated webhook secret? [Y/n]: " use_webhook_gen
 if [[ "$use_webhook_gen" =~ ^[Nn]$ ]]; then
   set_secret "WEBHOOK_SECRET" "Min 16 chars secret" true
@@ -58,7 +58,7 @@ fi
 echo ""
 echo "5. Admin API Secret (minimum 24 characters)"
 DEFAULT_ADMIN_SECRET="$(node -e "console.log(require('crypto').randomBytes(24).toString('hex'))")"
-echo "Generated suggested admin secret: $DEFAULT_ADMIN_SECRET"
+echo "A random admin API secret has been generated locally (value hidden)."
 read -r -p "Use generated admin secret? [Y/n]: " use_admin_gen
 if [[ "$use_admin_gen" =~ ^[Nn]$ ]]; then
   set_secret "ADMIN_API_SECRET" "Min 24 chars admin API secret" false
@@ -74,7 +74,7 @@ set_secret "ODDS_API_KEY" "The-Odds-API key (leave empty if none)" false
 echo ""
 echo "7. Withdrawal Security Code Pepper (required for withdrawal security codes)"
 DEFAULT_PEPPER="$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")"
-echo "Generated suggested pepper: $DEFAULT_PEPPER"
+echo "A random withdrawal-code pepper has been generated locally (value hidden)."
 read -r -p "Use generated pepper? [Y/n]: " use_pepper_gen
 if [[ "$use_pepper_gen" =~ ^[Nn]$ ]]; then
   read -r -s -p "Enter SECURITY_CODE_PEPPER (minimum 16 characters): " custom_pepper
