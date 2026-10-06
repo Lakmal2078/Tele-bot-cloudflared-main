@@ -103,6 +103,9 @@ export interface Env {
   USDT_TRC20_ADDRESS?: string;
   USDT_BEP20_ADDRESS?: string;
   SECURITY_CODE_PEPPER?: string;
+  // Analytics
+  CF_BEACON_TOKEN?: string;
+  CLOUDFLARE_ANALYTICS_TOKEN?: string;
 }
 
 export interface UserRow {
