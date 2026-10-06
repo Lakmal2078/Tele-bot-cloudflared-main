@@ -1082,7 +1082,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .calcBody{display:grid;grid-template-columns:1.2fr 1fr;gap:24px;align-items:center}
 .calcSliderLabel{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:.78rem;color:var(--muted)}
 .calcSliderLabel strong{font-size:1.1rem;color:var(--signal);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-.calcSlider{width:100%;height:8px;border-radius:4px;background:#1e293b;outline:none;accent-color:var(--signal);cursor:pointer}
+.calcSlider:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}.calcSlider{width:100%;height:8px;border-radius:4px;background:#1e293b;outline:none;accent-color:var(--signal);cursor:pointer}
 .calcPresets{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
 .presetBtn{padding:5px 9px;border:1px solid var(--border);border-radius:8px;background:#ffffff06;color:var(--muted);font-size:.65rem;font-weight:700;cursor:pointer;transition:background .15s}
 .presetBtn:hover{background:#ffffff15;color:var(--fg)}
@@ -1430,7 +1430,7 @@ body::before{
   background:linear-gradient(145deg,#0b1b2c,#07131f);
 }
 .calcIcon,.securityIcon{background:rgba(34,158,217,.10);border-color:rgba(56,189,248,.3);color:#7dd3fc}
-.calcSlider{accent-color:#229ed9}
+.calcSlider:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}.calcSlider{accent-color:#229ed9}
 .securityCard{
   border-color:rgba(34,158,217,.28);
   background:linear-gradient(150deg,#0a1c2e 0%,#06121e 100%);
@@ -1574,7 +1574,7 @@ body::before{
         <span class="promoTag">1XBET PROMO</span>
         <div class="promoCodeWrap">
           <strong id="promoCodeVal">${promo}</strong>
-          <button type="button" class="promoCopyBtn" id="promoCopyBtn" aria-label="Copy promo code ${promo}">
+          <button type="button" class="promoCopyBtn" id="promoCopyBtn" aria-live="polite" aria-label="Copy promo code ${promo}">
             <span id="promoCopyIcon">📋</span> <span id="promoCopyLabel">Copy Code</span>
           </button>
         </div>
