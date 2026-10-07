@@ -426,7 +426,7 @@ export async function handleApiRequest(
       "Content-Disposition": "inline; filename=\"bot-description-640x360.jpg\"",
       "Access-Control-Allow-Origin": "*",
       "Accept-Ranges": "bytes",
-      "Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
+      "Cache-Control": "public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400",
       "X-Content-Type-Options": "nosniff",
     };
     if (method === "HEAD") return new Response(null, { status: 200, headers });
@@ -441,7 +441,7 @@ export async function handleApiRequest(
       "Content-Disposition": "inline; filename=\"og-image.png\"",
       "Access-Control-Allow-Origin": "*",
       "Accept-Ranges": "bytes",
-      "Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
+      "Cache-Control": "public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400",
       "X-Content-Type-Options": "nosniff",
     };
     if (method === "HEAD") return new Response(null, { status: 200, headers });
@@ -453,7 +453,7 @@ export async function handleApiRequest(
     const svg = renderOgImageSvg(env);
     const headers: Record<string, string> = {
       "Content-Type": "image/svg+xml; charset=utf-8",
-      "Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
+      "Cache-Control": "public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400",
       "X-Content-Type-Options": "nosniff",
       "Content-Security-Policy": "default-src 'none'",
     };
@@ -469,7 +469,12 @@ export async function handleApiRequest(
       try {
         const assetRes = await env.ASSETS.fetch(request);
         if (assetRes && assetRes.status === 200) {
-          return assetRes;
+          const headers = new Headers(assetRes.headers);
+          const currentCache = headers.get("Cache-Control");
+          if (!currentCache || currentCache.includes("max-age=0") || currentCache.includes("no-cache")) {
+            headers.set("Cache-Control", "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400");
+          }
+          return new Response(assetRes.body, { status: assetRes.status, headers });
         }
       } catch {}
     }
@@ -523,7 +528,12 @@ export async function handleApiRequest(
       try {
         const assetRes = await env.ASSETS.fetch(request);
         if (assetRes && assetRes.status === 200) {
-          return assetRes;
+          const headers = new Headers(assetRes.headers);
+          const currentCache = headers.get("Cache-Control");
+          if (!currentCache || currentCache.includes("max-age=0") || currentCache.includes("no-cache")) {
+            headers.set("Cache-Control", "public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400");
+          }
+          return new Response(assetRes.body, { status: assetRes.status, headers });
         }
       } catch {
         // Fall back to embedded buffer if asset fetch is not available in mock/testing environments
@@ -536,7 +546,7 @@ export async function handleApiRequest(
       "Content-Disposition": "inline; filename=\"favicon.png\"",
       "Access-Control-Allow-Origin": "*",
       "Accept-Ranges": "bytes",
-      "Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
+      "Cache-Control": "public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400",
       "X-Content-Type-Options": "nosniff",
     };
     if (method === "HEAD") return new Response(null, { status: 200, headers });
@@ -547,7 +557,7 @@ export async function handleApiRequest(
   if ((path === "/favicon.svg" || path === "/logo.svg") && (method === "GET" || method === "HEAD")) {
     const headers: Record<string, string> = {
       "Content-Type": "image/svg+xml; charset=utf-8",
-      "Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
+      "Cache-Control": "public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400",
       "X-Content-Type-Options": "nosniff",
       "Access-Control-Allow-Origin": "*",
     };
@@ -563,7 +573,7 @@ export async function handleApiRequest(
       "Content-Disposition": "inline; filename=\"logo.png\"",
       "Access-Control-Allow-Origin": "*",
       "Accept-Ranges": "bytes",
-      "Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
+      "Cache-Control": "public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400",
       "X-Content-Type-Options": "nosniff",
     };
     if (method === "HEAD") return new Response(null, { status: 200, headers });

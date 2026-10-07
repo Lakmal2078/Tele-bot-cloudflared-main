@@ -820,7 +820,22 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
 <link rel="manifest" href="/manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600;700;800&family=Noto+Sans+Tamil:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">${canonicalAndOgTags}
+<link rel="preconnect" href="https://crests.football-data.org" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600;700;800&family=Noto+Sans+Tamil:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600;700;800&family=Noto+Sans+Tamil:wght@400;600;700;800&display=swap" media="print" id="gfonts-css">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600;700;800&family=Noto+Sans+Tamil:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap"></noscript>
+<script${n}>
+(function(){
+  var gf = document.getElementById("gfonts-css");
+  if (gf) {
+    if (gf.sheet) { gf.media = "all"; }
+    else {
+      gf.addEventListener("load", function(){ gf.media = "all"; });
+      setTimeout(function(){ if (gf) gf.media = "all"; }, 300);
+    }
+  }
+})();
+</script>${canonicalAndOgTags}
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/favicon.png">
 <meta property="og:site_name" content="Fast xBet Cash">
@@ -1683,9 +1698,9 @@ body::before{
       <article class="tipCard" data-sport="football">
         <div class="tipCardTop"><span class="tipLeague">Premier League</span><span class="tipStatus pending">Today</span></div>
         <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/57.png" alt="AR" loading="lazy" decoding="async"/></span><b>Arsenal</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/57.png" alt="AR" width="48" height="48" loading="lazy" decoding="async"/></span><b>Arsenal</b></div>
           <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/61.png" alt="CH" loading="lazy" decoding="async"/></span><b>Chelsea</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/61.png" alt="CH" width="48" height="48" loading="lazy" decoding="async"/></span><b>Chelsea</b></div>
         </div>
         <div class="tipWhen">Today, 17:30</div>
         <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Arsenal Win</span><b class="tipOdds">1.94</b></div>
@@ -1694,9 +1709,9 @@ body::before{
       <article class="tipCard" data-sport="football">
         <div class="tipCardTop"><span class="tipLeague">La Liga</span><span class="tipStatus pending">Today</span></div>
         <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/86.png" alt="RM" loading="lazy" decoding="async"/></span><b>Real Madrid</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/86.png" alt="RM" width="48" height="48" loading="lazy" decoding="async"/></span><b>Real Madrid</b></div>
           <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/78.png" alt="AT" loading="lazy" decoding="async"/></span><b>Atletico Madrid</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/78.png" alt="AT" width="48" height="48" loading="lazy" decoding="async"/></span><b>Atletico Madrid</b></div>
         </div>
         <div class="tipWhen">Today, 20:00</div>
         <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Real Madrid Win</span><b class="tipOdds">1.78</b></div>
@@ -1705,9 +1720,9 @@ body::before{
       <article class="tipCard" data-sport="football">
         <div class="tipCardTop"><span class="tipLeague">Bundesliga</span><span class="tipStatus pending">Today</span></div>
         <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/5.png" alt="BM" loading="lazy" decoding="async"/></span><b>Bayern Munich</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/5.png" alt="BM" width="48" height="48" loading="lazy" decoding="async"/></span><b>Bayern Munich</b></div>
           <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/524.png" alt="PS" loading="lazy" decoding="async"/></span><b>PSG</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/524.png" alt="PS" width="48" height="48" loading="lazy" decoding="async"/></span><b>PSG</b></div>
         </div>
         <div class="tipWhen">Today, 22:00</div>
         <div class="tipPickRow"><span class="tipMarketTag">O/U</span><span class="tipPickName">Over 2.5 Goals</span><b class="tipOdds">1.85</b></div>
@@ -2325,7 +2340,7 @@ ${renderFinalCtaBanner(c, lang, eb)}
           var hue = hueFrom(n);
           if (logo) {
             return '<span class="tipAvatar hasLogo" title="' + n.replace(/"/g, "") + '">' +
-              '<img src="' + logo + '" alt="' + initials + '" loading="lazy" decoding="async" ' +
+              '<img src="' + logo + '" alt="' + initials + '" width="48" height="48" loading="lazy" decoding="async" ' +
               'onerror="this.parentNode.classList.remove(\\'hasLogo\\');this.parentNode.style.background=\\'hsl(' + hue + ' 55% 28%)\\';this.parentNode.style.borderColor=\\'hsl(' + hue + ' 60% 42%)\\';this.parentNode.textContent=\\'' + initials + '\\';"/>' +
               '</span>';
           }

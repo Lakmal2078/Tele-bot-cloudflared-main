@@ -160,7 +160,12 @@ ${homeEntries}
             try {
               const assetRes = await env.ASSETS.fetch(request);
               if (assetRes && assetRes.status !== 404) {
-                return finish(assetRes);
+                const headers = new Headers(assetRes.headers);
+                const currentCache = headers.get("Cache-Control");
+                if (!currentCache || currentCache.includes("max-age=0") || currentCache.includes("no-cache")) {
+                  headers.set("Cache-Control", "public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400");
+                }
+                return finish(new Response(assetRes.body, { status: assetRes.status, headers }));
               }
             } catch {}
           }
