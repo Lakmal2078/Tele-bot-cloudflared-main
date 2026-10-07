@@ -836,7 +836,9 @@ ${cfAnalyticsScript}
 :root{--bg:#070b12;--bg2:#081525;--surface:#101720;--surface2:#151e2b;--fg:#f1f5f9;--muted:#94a3b8;--faint:#64748b;--signal:#a6f800;--cyan:#00b4f8;--pink:#ff477e;--border:#ffffff12;--shadow:0 25px 70px #0008}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth;overflow-x:hidden;max-width:100%}
-body{margin:0;min-width:320px;max-width:100%;background:radial-gradient(circle at 85% 10%,#00b4f814,transparent 32%),radial-gradient(circle at 12% 42%,#ff477e0d,transparent 30%),var(--bg);color:var(--fg);font-family:"Plus Jakarta Sans","Noto Sans Sinhala","Noto Sans Tamil",system-ui,sans-serif;line-height:1.6;overflow-x:hidden;position:relative}
+body{margin:0;min-width:320px;max-width:100%;background:radial-gradient(circle at 85% 10%,#00b4f814,transparent 32%),radial-gradient(circle at 12% 42%,#ff477e0d,transparent 30%),var(--bg);color:var(--fg);font-family:"Plus Jakarta Sans","Noto Sans Sinhala","Noto Sans Tamil",system-ui,sans-serif;line-height:1.6;overflow-x:hidden;position:relative;overflow-wrap:break-word;text-align:start}
+h1,h2,h3,h4,h5,h6,.heroHeading{text-wrap:balance}
+p,.hero-subtitle{text-wrap:pretty}
 a{color:inherit;text-decoration:none}
 button,a,summary{font:inherit}
 a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}

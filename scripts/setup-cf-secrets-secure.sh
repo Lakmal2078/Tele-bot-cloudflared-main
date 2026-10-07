@@ -30,7 +30,8 @@ set_secret() {
     echo "✅ $key set (value not displayed for security)"
     
     # Write to secure temp file for operator to store safely
-    local temp_file="/tmp/${key}_$(date +%s).txt"
+    local temp_file
+    temp_file="/tmp/${key}_$(date +%s).txt"
     chmod 600 "$temp_file"
     echo "$secret_value" > "$temp_file"
     echo "   ⚠️  Save this value: $temp_file (readable only by you)"

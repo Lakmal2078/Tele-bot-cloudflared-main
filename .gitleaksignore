@@ -1,0 +1,14 @@
+# Gitleaks ignore list
+# Test mock token matches (000000000:AAAA...) in tests/scan-env.test.ts
+f97b3edbb5db3f0298ab79267a6c94ec78058688:tests/scan-env.test.ts:telegram-bot-api-token:38
+f97b3edbb5db3f0298ab79267a6c94ec78058688:tests/scan-env.test.ts:telegram-bot-api-token:53
+f97b3edbb5db3f0298ab79267a6c94ec78058688:tests/scan-env.test.ts:telegram-bot-api-token:68
+
+# Historical commit leak (already revoked / removed from current HEAD)
+dced93188643063aab2573c049383802f75b0a04:PRE_DEPLOYMENT_VERIFICATION_REPORT.md:telegram-bot-api-token:174
+715abad6dea6a0fcf80938ba2c268c949ece0275:tests/scan-env.test.ts:telegram-bot-api-token:38
+715abad6dea6a0fcf80938ba2c268c949ece0275:tests/scan-env.test.ts:telegram-bot-api-token:53
+715abad6dea6a0fcf80938ba2c268c949ece0275:tests/scan-env.test.ts:telegram-bot-api-token:68
+
+# False positive generic-api-key match for category key 'cricket_international_t20'
+236cc4dec4ec8e998716786dac933c763df77448:tests/tips-provider.test.ts:generic-api-key:6

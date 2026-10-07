@@ -84,3 +84,5 @@ data/**/*.sqlite*
 backup*.sql
 local.db
 *.local.db
+audit-artifacts/
+
