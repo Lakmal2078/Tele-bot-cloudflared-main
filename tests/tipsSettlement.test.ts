@@ -139,4 +139,34 @@ describe("tip settlement", () => {
     const resNotDone = evaluatePickResult("Arsenal", "Arsenal", "Chelsea", null, false);
     expect(resNotDone.result).toBe("PENDING");
   });
+
+  it("settles cricket matches with runs and wickets format", () => {
+    const scores = [
+      { name: "Sri Lanka", score: "185/6" },
+      { name: "India", score: "182/9" },
+    ];
+    const resSL = evaluatePickResult("Sri Lanka", "Sri Lanka", "India", scores, true);
+    expect(resSL.result).toBe("WON");
+    expect(resSL.scoreHome).toBe("185/6");
+    expect(resSL.scoreAway).toBe("182/9");
+
+    const resInd = evaluatePickResult("India", "Sri Lanka", "India", scores, true);
+    expect(resInd.result).toBe("LOST");
+  });
+
+  it("settles totals (Over/Under) market picks accurately", () => {
+    const scores = [
+      { name: "Real Madrid", score: "2" },
+      { name: "Barcelona", score: "1" },
+    ];
+    // Total is 3
+    const resOver = evaluatePickResult("Over 2.5", "Real Madrid", "Barcelona", scores, true);
+    expect(resOver.result).toBe("WON");
+
+    const resUnder = evaluatePickResult("Under 2.5", "Real Madrid", "Barcelona", scores, true);
+    expect(resUnder.result).toBe("LOST");
+
+    const resPush = evaluatePickResult("Over 3.0", "Real Madrid", "Barcelona", scores, true);
+    expect(resPush.result).toBe("VOID");
+  });
 });

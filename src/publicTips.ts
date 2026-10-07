@@ -3,7 +3,7 @@ import { getTipsPerformanceStats } from "./tipsSettlement";
 
 export type PublicTip = {
   id: number;
-  sport: "football" | "cricket" | "other";
+  sport: "football" | "cricket" | "basketball" | "tennis" | "esports" | "mma" | "other";
   sportTitle: string;
   homeTeam: string;
   awayTeam: string;
@@ -35,6 +35,10 @@ function classifySport(sportKey: string | null, sportTitle: string | null): Publ
   const value = `${sportKey || ""} ${sportTitle || ""}`.toLowerCase();
   if (value.includes("cricket")) return "cricket";
   if (value.includes("soccer") || value.includes("football")) return "football";
+  if (value.includes("basketball")) return "basketball";
+  if (value.includes("tennis") && !value.includes("table")) return "tennis";
+  if (value.includes("esport") || value.includes("cs2") || value.includes("dota") || value.includes("valorant")) return "esports";
+  if (value.includes("mma") || value.includes("ufc") || value.includes("boxing")) return "mma";
   return "other";
 }
 

@@ -15,6 +15,17 @@ describe("tips provider discovery", () => {
     expect(classifySpecialSport({ key: "esports_valorant", title: "Valorant", active: true })).toBe("esports");
   });
 
+  it("classifies mma, combat sports and ufc feeds", () => {
+    expect(classifySpecialSport({ key: "mma_mixed_martial_arts", title: "UFC", active: true })).toBe("mma");
+    expect(classifySpecialSport({ key: "boxing_heavyweight", title: "Boxing", active: true })).toBe("mma");
+  });
+
+  it("classifies baseball, ice hockey and rugby feeds", () => {
+    expect(classifySpecialSport({ key: "baseball_mlb", title: "Major League Baseball", active: true })).toBe("baseball");
+    expect(classifySpecialSport({ key: "icehockey_nhl", title: "NHL", active: true })).toBe("icehockey");
+    expect(classifySpecialSport({ key: "rugby_nrl", title: "NRL Premiership", active: true })).toBe("rugby");
+  });
+
   it("does not classify unrelated sports as special feeds", () => {
     expect(classifySpecialSport({ key: "basketball_nba", title: "NBA", active: true })).toBeNull();
   });

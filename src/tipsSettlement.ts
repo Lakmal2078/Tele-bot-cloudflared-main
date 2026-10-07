@@ -63,6 +63,17 @@ export function normalizeTeamName(name: string): string {
     .trim();
 }
 
+function parseNumericScore(raw: string | undefined | null): number {
+  if (!raw) return NaN;
+  const trimmed = String(raw).trim();
+  const direct = Number(trimmed);
+  if (Number.isFinite(direct)) return direct;
+  // Cricket runs notation: "185/6" -> 185 runs
+  const cricketMatch = trimmed.match(/^(\d+)(?:\/\d+)?/);
+  if (cricketMatch) return Number(cricketMatch[1]);
+  return NaN;
+}
+
 /**
  * Evaluates whether a pick won, lost, or voided based on match scores.
  */
@@ -87,7 +98,7 @@ export function evaluatePickResult(
 
   for (const item of scores) {
     const normItemName = normalizeTeamName(item.name);
-    const val = Number(item.score);
+    const val = parseNumericScore(item.score);
     if (normItemName === normHome || normItemName.includes(normHome) || normHome.includes(normItemName)) {
       homeScoreNum = val;
       rawHomeScore = item.score;
@@ -99,14 +110,30 @@ export function evaluatePickResult(
 
   // If score matching couldn't associate by name, try position (first=home, second=away)
   if ((Number.isNaN(homeScoreNum) || Number.isNaN(awayScoreNum)) && scores.length >= 2) {
-    homeScoreNum = Number(scores[0]?.score);
+    homeScoreNum = parseNumericScore(scores[0]?.score);
     rawHomeScore = scores[0]?.score ?? null;
-    awayScoreNum = Number(scores[1]?.score);
+    awayScoreNum = parseNumericScore(scores[1]?.score);
     rawAwayScore = scores[1]?.score ?? null;
   }
 
   if (Number.isNaN(homeScoreNum) || Number.isNaN(awayScoreNum)) {
     return { result: "PENDING", scoreHome: rawHomeScore, scoreAway: rawAwayScore };
+  }
+
+  // Totals Market evaluation (e.g. "Over 2.5", "Under 215.5")
+  const isOverPick = /^over\b/i.test(selection.trim());
+  const isUnderPick = /^under\b/i.test(selection.trim());
+  if (isOverPick || isUnderPick) {
+    const lineMatch = selection.match(/[\d.]+/);
+    if (lineMatch) {
+      const line = Number(lineMatch[0]);
+      const totalScore = homeScoreNum + awayScoreNum;
+      if (totalScore === line) {
+        return { result: "VOID", scoreHome: rawHomeScore, scoreAway: rawAwayScore };
+      }
+      const won = isOverPick ? totalScore > line : totalScore < line;
+      return { result: won ? "WON" : "LOST", scoreHome: rawHomeScore, scoreAway: rawAwayScore };
+    }
   }
 
   const normSelection = normalizeTeamName(selection);

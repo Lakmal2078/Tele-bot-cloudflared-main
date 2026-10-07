@@ -451,5 +451,74 @@ describe("scheduled tips", () => {
       const channelBtn = kb.inline_keyboard[1][0];
       expect(channelBtn.url).toBe("https://t.me/fast_xbet_official_tips");
     });
+
+    it("filters out rogue outlier odds to protect value calculation", () => {
+      const future = new Date(Date.now() + 2 * 3600 * 1000).toISOString();
+      const candidates = chooseCandidates(
+        [
+          {
+            id: "outlier-test-1",
+            sport_key: "soccer_epl",
+            sport_title: "Premier League",
+            commence_time: future,
+            home_team: "Team X",
+            away_team: "Team Y",
+            bookmakers: [
+              { key: "b1", title: "B1", markets: [{ key: "h2h", outcomes: [{ name: "Team X", price: 1.80 }] }] },
+              { key: "b2", title: "B2", markets: [{ key: "h2h", outcomes: [{ name: "Team X", price: 1.85 }] }] },
+              { key: "b3", title: "B3", markets: [{ key: "h2h", outcomes: [{ name: "Team X", price: 1.82 }] }] },
+              // Rogue price >35% higher than median ~1.82
+              { key: "b4_rogue", title: "B4", markets: [{ key: "h2h", outcomes: [{ name: "Team X", price: 3.50 }] }] },
+            ],
+          },
+        ],
+        1.3,
+        3.0,
+        1,
+      );
+      expect(candidates).toHaveLength(1);
+      // bestPrice should be from the legitimate bookmakers (1.85), NOT the rogue 3.50
+      expect(candidates[0].bestPrice).toBe(1.85);
+    });
+
+    it("assigns appropriate metadata and emojis for mma, baseball, and ice hockey", () => {
+      const future = new Date(Date.now() + 2 * 3600 * 1000).toISOString();
+      const candidates = chooseCandidates(
+        [
+          {
+            id: "mma-1",
+            sport_key: "mma_mixed_martial_arts",
+            sport_title: "UFC Fight Night",
+            commence_time: future,
+            home_team: "Fighter A",
+            away_team: "Fighter B",
+            bookmakers: [
+              { key: "b1", title: "B1", markets: [{ key: "h2h", outcomes: [{ name: "Fighter A", price: 1.70 }] }] },
+              { key: "b2", title: "B2", markets: [{ key: "h2h", outcomes: [{ name: "Fighter A", price: 1.75 }] }] },
+            ],
+          },
+          {
+            id: "baseball-1",
+            sport_key: "baseball_mlb",
+            sport_title: "MLB",
+            commence_time: future,
+            home_team: "Yankees",
+            away_team: "Red Sox",
+            bookmakers: [
+              { key: "b1", title: "B1", markets: [{ key: "h2h", outcomes: [{ name: "Yankees", price: 1.80 }] }] },
+              { key: "b2", title: "B2", markets: [{ key: "h2h", outcomes: [{ name: "Yankees", price: 1.85 }] }] },
+            ],
+          },
+        ],
+        1.3,
+        3.0,
+        2,
+      );
+      expect(candidates).toHaveLength(2);
+      const mmaPick = candidates.find((c) => c.sportGroup === "mma");
+      expect(mmaPick?.emoji).toBe("🥊");
+      const baseballPick = candidates.find((c) => c.sportGroup === "baseball");
+      expect(baseballPick?.emoji).toBe("⚾");
+    });
   });
 });

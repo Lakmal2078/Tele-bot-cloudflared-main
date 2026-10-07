@@ -49,9 +49,32 @@ export interface PostedTipSummary { eventId: string; sportKey: string; sportTitl
 function csv(value: string | undefined, fallback: string): string[] { return (value || fallback).split(",").map((item) => item.trim()).filter(Boolean); }
 function _escapeHtml(value: string): string { return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;"); }
 function decimalPrice(price: number): number { return Number.isFinite(price) && price > 1 ? price : 0; }
-function sportMeta(sportKey: string, title: string): { group: string; emoji: string } { const key = `${sportKey} ${title}`.toLowerCase(); if (key.includes("cricket")) return { group: "cricket", emoji: "🏏" }; if (key.includes("soccer") || key.includes("football")) return { group: "football", emoji: "⚽" }; if (key.includes("basketball")) return { group: "basketball", emoji: "🏀" }; if (key.includes("table") && key.includes("tennis")) return { group: "table_tennis", emoji: "🏓" }; if (key.includes("esport") || key.includes("cs2") || key.includes("dota") || key.includes("valorant")) return { group: "esports", emoji: "🎮" }; if (key.includes("tennis")) return { group: "tennis", emoji: "🎾" }; return { group: sportKey, emoji: "🏆" }; }
+function sportMeta(sportKey: string, title: string): { group: string; emoji: string } {
+  const key = `${sportKey} ${title}`.toLowerCase();
+  if (key.includes("cricket")) return { group: "cricket", emoji: "🏏" };
+  if (key.includes("soccer") || key.includes("football")) return { group: "football", emoji: "⚽" };
+  if (key.includes("basketball")) return { group: "basketball", emoji: "🏀" };
+  if (key.includes("table") && key.includes("tennis")) return { group: "table_tennis", emoji: "🏓" };
+  if (key.includes("esport") || key.includes("cs2") || key.includes("dota") || key.includes("valorant")) return { group: "esports", emoji: "🎮" };
+  if (key.includes("mma") || key.includes("ufc") || key.includes("boxing") || key.includes("bellator")) return { group: "mma", emoji: "🥊" };
+  if (key.includes("baseball") || key.includes("mlb")) return { group: "baseball", emoji: "⚾" };
+  if (key.includes("icehockey") || key.includes("ice_hockey") || key.includes("nhl")) return { group: "icehockey", emoji: "🏒" };
+  if (key.includes("rugby") || key.includes("nrl")) return { group: "rugby", emoji: "🏉" };
+  if (key.includes("tennis")) return { group: "tennis", emoji: "🎾" };
+  return { group: sportKey, emoji: "🏆" };
+}
 function median(values: number[]): number { const sorted = [...values].sort((a, b) => a - b); const middle = Math.floor(sorted.length / 2); return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2; }
-function confidenceFor(probability: number): TipCandidate["confidence"] { return probability >= 0.70 ? "High" : probability >= 0.60 ? "Medium" : "Low"; }
+export function confidenceFor(probability: number, valueScore?: number): TipCandidate["confidence"] {
+  const val = valueScore ?? 0;
+  if (probability >= 0.65 && val >= 0.015) return "High";
+  if (probability >= 0.55 || val >= 0.03) return "Medium";
+  return "Low";
+}
+export function confidenceStars(confidence?: string): string {
+  if (confidence === "High") return "⭐⭐⭐⭐⭐";
+  if (confidence === "Medium") return "⭐⭐⭐⭐";
+  return "⭐⭐⭐";
+}
 
 export function chooseCandidates(
   events: OddsEvent[], minOdds: number, maxOdds: number, limit = DEFAULT_TIPS_PER_SLOT,
@@ -89,11 +112,30 @@ export function chooseCandidates(
       const bookmakerCount = prices.length;
       if (bookmakerCount < thresholds.minBookmakers || fairProbabilities.length < thresholds.minBookmakers) continue;
       const consensusProbability = median(fairProbabilities);
-      const bestPrice = Math.max(...prices);
+
+      // Outlier guard: discard rogue prices >35% higher than the market median
+      const medianPrice = median(prices);
+      const sanitizedPrices = prices.filter((p) => p <= medianPrice * 1.35);
+      const effectivePrices = sanitizedPrices.length >= thresholds.minBookmakers ? sanitizedPrices : prices;
+      const bestPrice = Math.max(...effectivePrices);
+
       const valueScore = consensusProbability * bestPrice - 1;
       if (consensusProbability < thresholds.minConsensus || (qualityMode && (consensusProbability > 0.95 || consensusProbability < 0.05))) continue;
       if (bestPrice < minOdds || bestPrice > maxOdds || valueScore < thresholds.minValue) continue;
-      candidates.push({ event, selection, market: "h2h", bestPrice, consensusProbability, valueScore, bookmakerCount, confidence: confidenceFor(consensusProbability), averageOdds: prices.reduce((sum, price) => sum + price, 0) / prices.length, impliedProbability: fairProbabilities.reduce((sum, probability) => sum + probability, 0) / fairProbabilities.length, sportGroup: meta.group, emoji: meta.emoji });
+      candidates.push({
+        event,
+        selection,
+        market: "h2h",
+        bestPrice,
+        consensusProbability,
+        valueScore,
+        bookmakerCount,
+        confidence: confidenceFor(consensusProbability, valueScore),
+        averageOdds: effectivePrices.reduce((sum, price) => sum + price, 0) / effectivePrices.length,
+        impliedProbability: fairProbabilities.reduce((sum, probability) => sum + probability, 0) / fairProbabilities.length,
+        sportGroup: meta.group,
+        emoji: meta.emoji,
+      });
     }
   }
   candidates.sort((a, b) => qualityMode
@@ -174,7 +216,20 @@ async function getJson<T>(url: URL, timeoutMs: number, guard?: OddsCreditGuard, 
 export function slotForCron(cron: string): "08:00" | "12:00" | "18:00" | null { if (cron === "30 2 * * *") return "08:00"; if (cron === "30 6 * * *") return "12:00"; if (cron === "30 12 * * *") return "18:00"; return null; }
 export function sriLankaDate(date = new Date()): string { const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Colombo", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date); const get = (type: string) => parts.find((part) => part.type === type)?.value || "00"; return `${get("year")}-${get("month")}-${get("day")}`; }
 function tipCount(env: Env): number { const parsed = Number(env.TIPS_PER_SLOT || DEFAULT_TIPS_PER_SLOT); return Number.isInteger(parsed) && parsed >= 1 && parsed <= 5 ? parsed : DEFAULT_TIPS_PER_SLOT; }
-function sportMatchesGroup(sport: OddsSport, group: string): boolean { const haystack = `${sport.key} ${sport.group || ""} ${sport.title || ""} ${sport.description || ""}`.toLowerCase(); if (group === "soccer" || group === "football") return haystack.includes("soccer") || haystack.includes("football"); if (group === "basketball") return haystack.includes("basketball"); if (group === "tennis") return haystack.includes("tennis") && !haystack.includes("table tennis"); if (group === "cricket") return haystack.includes("cricket"); if (group === "table_tennis") return haystack.includes("table tennis") || haystack.includes("table_tennis") || haystack.includes("table-tennis"); if (group === "esports") return haystack.includes("esport") || /(^|[._-])(cs2|csgo|dota2|valorant|lol)([._-]|$)/.test(haystack); return false; }
+function sportMatchesGroup(sport: OddsSport, group: string): boolean {
+  const haystack = `${sport.key} ${sport.group || ""} ${sport.title || ""} ${sport.description || ""}`.toLowerCase();
+  if (group === "soccer" || group === "football") return haystack.includes("soccer") || haystack.includes("football");
+  if (group === "basketball") return haystack.includes("basketball");
+  if (group === "tennis") return haystack.includes("tennis") && !haystack.includes("table tennis");
+  if (group === "cricket") return haystack.includes("cricket");
+  if (group === "table_tennis") return haystack.includes("table tennis") || haystack.includes("table_tennis") || haystack.includes("table-tennis");
+  if (group === "esports") return haystack.includes("esport") || /(^|[._-])(cs2|csgo|dota2|valorant|lol)([._-]|$)/.test(haystack);
+  if (group === "mma") return haystack.includes("mma") || haystack.includes("ufc") || haystack.includes("boxing") || haystack.includes("bellator");
+  if (group === "baseball") return haystack.includes("baseball") || haystack.includes("mlb");
+  if (group === "icehockey") return haystack.includes("icehockey") || haystack.includes("ice_hockey") || haystack.includes("nhl");
+  if (group === "rugby") return haystack.includes("rugby") || haystack.includes("nrl");
+  return false;
+}
 
 async function discoverSpecialSports(apiKey: string, requested: string[], guard: OddsCreditGuard): Promise<string[]> {
   const autoGroups = requested.filter((value) => value.startsWith("auto:")).map((value) => value.slice(5).toLowerCase());
@@ -253,7 +308,7 @@ async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
 
   // Prefer active auto-discovered feeds so seasonal league keys cannot silently
   // leave every scheduled slot empty when competitions are inactive or renamed.
-  const defaultSports = "auto:soccer,auto:cricket,auto:basketball,auto:tennis,auto:table_tennis,auto:esports";
+  const defaultSports = "auto:soccer,auto:cricket,auto:basketball,auto:tennis,auto:table_tennis,auto:esports,auto:mma,auto:baseball,auto:icehockey";
   const requested = csv(env.TIPS_SPORTS, defaultSports);
   const explicitSports = requested.filter((sport) => !sport.startsWith("auto:"));
   // Free-plan safe: honour TIPS_MAX_FEEDS (default 3). Cap at MAX_ODDS_FEEDS_PER_SLOT.
@@ -312,7 +367,7 @@ async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
   // If explicit league keys are currently empty, discover active feeds and retry.
   if (allEvents.length === 0 && explicitSports.length > 0 && guard.snapshot().paidRequestAttempts < maxFeeds) {
     try {
-      const fallbackRequested = ["auto:soccer", "auto:cricket", "auto:basketball", "auto:tennis"];
+      const fallbackRequested = ["auto:soccer", "auto:cricket", "auto:basketball", "auto:tennis", "auto:mma", "auto:baseball"];
       const fallbackDiscovered = await discoverSpecialSports(env.ODDS_API_KEY, fallbackRequested, guard);
       sports = selectPaidFeeds([], fallbackDiscovered, maxFeeds);
       console.log(`[Tips] Explicit feeds returned no events; trying ${sports.length} active auto-discovered feed(s)`);
@@ -359,6 +414,9 @@ function cleanSportTitle(title: string): string {
   return title
     .replace(/^English\s+/i, "")
     .replace(/^UEFA\s+/i, "")
+    .replace(/^Mixed\s+Martial\s+Arts\s+-\s*/i, "")
+    .replace(/^UFC\s+-\s*/i, "UFC ")
+    .replace(/^Ice\s+Hockey\s+-\s*/i, "")
     .replace(/\s+Tour$/i, "")
     .trim();
 }
@@ -406,6 +464,8 @@ export function formatTipMessage(candidates: TipCandidate[], slot: string, joinU
     const pickLabel = marketTag === "1X2"
       ? (/draw/i.test(candidate.selection) ? "Draw" : `${candidate.selection} Win`)
       : candidate.selection;
+    const confLevel = candidate.confidence ?? confidenceFor(consensusProbability, valueScore);
+    const stars = confidenceStars(confLevel);
 
     return [
       `${badge} ${candidate.emoji} *${escapeMarkdown(sportName)}*`,
@@ -413,7 +473,7 @@ export function formatTipMessage(candidates: TipCandidate[], slot: string, joinU
       `🕒 ${escapeMarkdown(formatKickoff(candidate.event.commence_time))}`,
       `🏷 *${escapeMarkdown(marketTag)}* · ${escapeMarkdown(pickLabel)} · *${bestPrice.toFixed(2)}*`,
       `📈 Consensus ${probPercent}% · 💎 Value +${(valueScore * 100).toFixed(1)}% · 🏪 ${candidate.bookmakerCount} books`,
-      `🎯 Confidence: ${candidate.confidence ?? confidenceFor(consensusProbability)}`,
+      `🎯 Confidence: ${stars} *${confLevel}*`,
     ].join("\n");
   });
 

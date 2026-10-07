@@ -3,7 +3,7 @@ import type { Env } from "./types";
 const ODDS_API_BASE = "https://api.the-odds-api.com/v4";
 const REQUEST_TIMEOUT_MS = 8_000;
 
-export type TipsProviderGroup = "cricket" | "table_tennis" | "esports";
+export type TipsProviderGroup = "cricket" | "table_tennis" | "esports" | "mma" | "baseball" | "icehockey" | "rugby";
 
 export interface TipsProviderFeed {
   key: string;
@@ -36,13 +36,32 @@ function matchesGroup(sport: OddsSport, group: TipsProviderGroup): boolean {
   if (group === "table_tennis") {
     return haystack.includes("table tennis") || haystack.includes("table_tennis") || haystack.includes("table-tennis");
   }
-  return haystack.includes("esport") || /(^|[._-])(cs2|csgo|dota2|valorant|lol)([._-]|$)/.test(haystack);
+  if (group === "esports") {
+    return haystack.includes("esport") || /(^|[._-])(cs2|csgo|dota2|valorant|lol)([._-]|$)/.test(haystack);
+  }
+  if (group === "mma") {
+    return haystack.includes("mma") || haystack.includes("ufc") || haystack.includes("boxing") || haystack.includes("bellator");
+  }
+  if (group === "baseball") {
+    return haystack.includes("baseball") || haystack.includes("mlb");
+  }
+  if (group === "icehockey") {
+    return haystack.includes("icehockey") || haystack.includes("ice_hockey") || haystack.includes("nhl");
+  }
+  if (group === "rugby") {
+    return haystack.includes("rugby") || haystack.includes("nrl");
+  }
+  return false;
 }
 
 export function classifySpecialSport(sport: OddsSport): TipsProviderGroup | null {
   if (matchesGroup(sport, "cricket")) return "cricket";
   if (matchesGroup(sport, "table_tennis")) return "table_tennis";
   if (matchesGroup(sport, "esports")) return "esports";
+  if (matchesGroup(sport, "mma")) return "mma";
+  if (matchesGroup(sport, "baseball")) return "baseball";
+  if (matchesGroup(sport, "icehockey")) return "icehockey";
+  if (matchesGroup(sport, "rugby")) return "rugby";
   return null;
 }
 
@@ -71,10 +90,14 @@ async function fetchSports(apiKey: string): Promise<OddsSport[]> {
 
 export async function checkTipsProvider(env: Env): Promise<TipsProviderStatus> {
   const checkedAt = new Date().toISOString();
-  const emptyGroups = {
+  const emptyGroups: Record<TipsProviderGroup, { discovered: number; feeds: TipsProviderFeed[] }> = {
     cricket: { discovered: 0, feeds: [] as TipsProviderFeed[] },
     table_tennis: { discovered: 0, feeds: [] as TipsProviderFeed[] },
     esports: { discovered: 0, feeds: [] as TipsProviderFeed[] },
+    mma: { discovered: 0, feeds: [] as TipsProviderFeed[] },
+    baseball: { discovered: 0, feeds: [] as TipsProviderFeed[] },
+    icehockey: { discovered: 0, feeds: [] as TipsProviderFeed[] },
+    rugby: { discovered: 0, feeds: [] as TipsProviderFeed[] },
   };
 
   if (!env.ODDS_API_KEY) {
