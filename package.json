@@ -8,6 +8,7 @@
     "start": "node dist/server.cjs",
     "lint": "eslint . && tsc --noEmit",
     "typecheck": "tsc --noEmit",
+    "types:cf": "wrangler types --include-runtime false worker-configuration.d.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "npm run lint && npm test",

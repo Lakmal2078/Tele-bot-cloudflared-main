@@ -75,6 +75,10 @@ enabled = true
 invocation_logs = true
 head_sampling_rate = 1
 
+[observability.traces]
+enabled = true
+head_sampling_rate = 1
+
 # Automated Cron Triggers
 # 02:00 UTC = cleanup, 02:30/06:30/12:30 UTC = Free Tips (08:00/12:00/18:00 SL), 15 * * * * = Hourly settlement
 [triggers]

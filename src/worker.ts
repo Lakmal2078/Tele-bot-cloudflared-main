@@ -11,7 +11,7 @@ import { renderLandingPage, trustedPublicBaseUrl } from "./landingPage";
 import { handleApiRequest, json } from "./apiRoutes";
 import { getPublicStatus } from "./publicStatus";
 import { logEvent, requestId, withRequestId } from "./observability";
-import type { Env } from "./types";
+import type { Env, ExecutionContext, ScheduledEvent } from "./types";
 
 export const WORKER_CRONS = {
   FREE_TIPS: [TIPS_CRONS.SL_0800, TIPS_CRONS.SL_1200, TIPS_CRONS.SL_1800] as const,
@@ -63,7 +63,7 @@ async function registerBotCommands(bot: ReturnType<typeof createBot>): Promise<v
 }
 
 export default {
-  async fetch(request: Request, env: Env, ctx?: any): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
     const id = requestId();
     const started = Date.now();
     const finish = (response: Response): Response => {
@@ -156,6 +156,14 @@ ${homeEntries}
 
       if (method === "GET" || method === "HEAD") {
         if (path !== "/") {
+          if (env.ASSETS && typeof env.ASSETS.fetch === "function") {
+            try {
+              const assetRes = await env.ASSETS.fetch(request);
+              if (assetRes && assetRes.status !== 404) {
+                return finish(assetRes);
+              }
+            } catch {}
+          }
           const headers = { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", ...securityHeaders() };
           return finish(new Response(method === "HEAD" ? null : "Not Found", { status: 404, headers }));
         }
@@ -201,7 +209,7 @@ ${homeEntries}
       }
 
       try {
-        return finish(await executionContextStorage.run(ctx, async () => await webhookHandler!(request)));
+        return finish(await executionContextStorage.run(ctx ?? {}, async () => await webhookHandler!(request)));
       } catch (err) {
         console.error("[Worker Webhook Error]:", err);
         logBotError(env, { source: "WorkerWebhookFetch", message: err instanceof Error ? err.message : String(err), stack: err instanceof Error ? err.stack : undefined, context: { flow: "worker_webhook_fetch" } }, ctx?.waitUntil?.bind(ctx));
@@ -213,13 +221,13 @@ ${homeEntries}
     }
   },
 
-  async scheduled(event: any, env: Env, ctx: any): Promise<void> {
+  async scheduled(event: ScheduledEvent, env: Env, ctx?: ExecutionContext): Promise<void> {
     assertValidEnv(env, "Cloudflare Worker cron");
     const cron = String(event?.cron || "").trim();
     logEvent({ event: "cron", cron });
 
     const tasks: Promise<unknown>[] = [];
-    if (WORKER_CRONS.FREE_TIPS.includes(cron as any)) {
+    if ((WORKER_CRONS.FREE_TIPS as readonly string[]).includes(cron)) {
       tasks.push(runScheduledTip(env, cron)
         .then((result) => console.log(`[Worker Cron] Free tip ${result.status} for ${result.slot} Sri Lanka time`))
         .catch((err) => console.error("[Worker Cron] Free tip publishing failed:", err)));

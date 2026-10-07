@@ -29,6 +29,17 @@ export interface R2BucketBinding {
   }>;
 }
 
+export interface ExecutionContext {
+  waitUntil(promise: Promise<unknown>): void;
+  passThroughOnException(): void;
+}
+
+export interface ScheduledEvent {
+  cron: string;
+  scheduledTime: number;
+  type: string;
+}
+
 export interface Env {
   DB: D1Database;
   /** Cloudflare Workers Static Assets binding */
