@@ -10,6 +10,7 @@ import { cleanupOldR2Logs } from "./logCleanup";
 import * as fraud from "./fraud";
 import { RateLimiter, DEFAULT_TIPS_BLOCK_MESSAGE } from "./rateLimit";
 import { isUsableTrackingHost, normalizeChannelUrl } from "./tips";
+import * as cashier from "./cashier";
 
 export const executionContextStorage = new AsyncLocalStorage<{
   waitUntil?: (promise: Promise<unknown>) => void;
@@ -460,11 +461,42 @@ export function createBot(env: Env) {
       }
     }
 
-    // Referral
+    // Referral & Attribution Deep Links
     let referredBy: number | null = null;
-    const payload = ctx.match;
-    if (payload && payload.startsWith("ref") && /^\d+$/.test(payload.slice(3))) {
-      referredBy = parseInt(payload.slice(3), 10);
+    const payload = ctx.match ? String(ctx.match).trim() : "";
+
+    if (payload) {
+      let attrSource: string | null;
+      let attrCampaign: string | null = null;
+      let attrSubId: string | null = null;
+
+      if (payload.startsWith("ref") && /^\d+$/.test(payload.slice(3))) {
+        referredBy = parseInt(payload.slice(3), 10);
+        attrSource = "referral";
+      } else if (payload.startsWith("c_")) {
+        const parts = payload.slice(2).split("_s_");
+        attrCampaign = parts[0] || null;
+        attrSubId = parts[1] || null;
+        attrSource = "campaign";
+      } else if (payload.startsWith("landing_")) {
+        attrSource = payload.slice(8) || "landing";
+      } else if (payload.startsWith("sub_")) {
+        attrSubId = payload.slice(4) || null;
+        attrSource = "subid";
+      } else {
+        attrSource = payload;
+      }
+
+      // Record attribution event asynchronously
+      db.recordAnalyticsEvent(env.DB, {
+        eventName: "bot_start",
+        telegramPayload: payload,
+        userId: user.id,
+        source: attrSource,
+        campaign: attrCampaign,
+        subId: attrSubId,
+        language: lang,
+      }).catch(() => {});
     }
 
     await db.saveUser(env.DB, user.id, user.username || null, user.first_name || null, referredBy, lang);
@@ -782,6 +814,12 @@ export function createBot(env: Env) {
     const lang = await getUserLang(env.DB, user.id);
     const dict = t(lang);
 
+    db.recordAnalyticsEvent(env.DB, {
+      eventName: "registration_view",
+      userId: user.id,
+      language: lang,
+    }).catch(() => {});
+
     const link = env.XBET_LINK?.trim() || "";
     const promo = escapeCode(env.XBET_PROMO_CODE?.trim() || "");
     const text = `${dict.registrationHeader}\n\n${dict.registrationInstructions(promo)}`;
@@ -1030,6 +1068,237 @@ export function createBot(env: Env) {
       } catch {
         console.error("[Admin] Deposit alert delivery failed.");
       }
+    }
+  }
+
+  async function handleDepositExecution(
+    ctx: MyContext,
+    user: { id: number; username?: string | null; first_name?: string | null },
+    stateData: any,
+    amount: number,
+    lang: Language
+  ) {
+    const dict = t(lang);
+    const { photo, playerId, method = "BANK", isConfirmationWorkflow = false } = stateData;
+    const methodName = getMethodDisplayName(method, lang);
+
+    // 🛡️ Rate limit
+    const depRateCheck = await fraud.checkRateLimit(env.DB, user.id, "deposits");
+    if (!depRateCheck.allowed) {
+      await ctx.reply(depRateCheck.blockMessage || "Rate limit exceeded.", {
+        reply_markup: mainMenu(user.id, adminIds, lang),
+      });
+      return;
+    }
+
+    try {
+      const result = await cashier.processDepositSubmission({
+        env,
+        userId: user.id,
+        username: user.username || user.first_name || null,
+        playerId,
+        amount,
+        photoFileId: photo || null,
+        paymentMethod: method,
+        isConfirmationWorkflow: Boolean(isConfirmationWorkflow),
+        r2Meta: stateData?.r2Meta || null,
+        r2Url: stateData?.r2Url || null,
+        waitUntil: ctx.waitUntil,
+      });
+
+      const requestId = result.depositId;
+      await db.clearUserState(env.DB, user.id);
+
+      // Record attribution event asynchronously
+      db.recordAnalyticsEvent(env.DB, {
+        eventName: "deposit_submitted",
+        userId: user.id,
+        language: lang,
+        details: JSON.stringify({ depositId: requestId, amount, method }),
+      }).catch(() => {});
+
+      // Notify Admin Channel and Individual Admins
+      await notifyDepositSubmission(
+        ctx,
+        requestId,
+        user,
+        playerId,
+        amount,
+        methodName,
+        photo,
+        result.r2Url,
+        Boolean(isConfirmationWorkflow),
+        result.r2Meta,
+        result.fraudFlags
+      );
+
+      if (isConfirmationWorkflow) {
+        await ctx.reply(
+          dict.confirmDepositSubmitted(
+            requestId,
+            amount,
+            escapeCode(playerId),
+            escapeMarkdown(methodName),
+            Boolean(result.r2Url)
+          ),
+          {
+            parse_mode: "Markdown",
+            reply_markup: mainMenu(user.id, adminIds, lang),
+          }
+        );
+      } else {
+        await ctx.reply(
+          dict.depositSubmitted(
+            requestId,
+            amount,
+            escapeCode(playerId),
+            escapeMarkdown(methodName)
+          ),
+          {
+            parse_mode: "Markdown",
+            reply_markup: mainMenu(user.id, adminIds, lang),
+          }
+        );
+      }
+    } catch (err: any) {
+      console.error("[Deposit] Submission error:", err);
+      logBotError(
+        env,
+        {
+          source: "DepositSubmission",
+          message: err instanceof Error ? err.message : String(err),
+          context: { userId: user.id, payload: { playerId, amount } },
+        },
+        ctx.waitUntil
+      );
+      await ctx.reply(dict.genericError, {
+        reply_markup: mainMenu(user.id, adminIds, lang),
+      });
+    }
+  }
+
+  async function handleWithdrawalExecution(
+    ctx: MyContext,
+    user: { id: number; username?: string | null; first_name?: string | null },
+    stateData: any,
+    code: string | null,
+    lang: Language
+  ) {
+    const dict = t(lang);
+    const { playerId, amount, method = "BANK", destinationAccount = "N/A" } = stateData;
+    const methodName = getMethodDisplayName(method, lang);
+
+    // Rate limit
+    const wdRateCheck = await fraud.checkRateLimit(env.DB, user.id, "withdrawals");
+    if (!wdRateCheck.allowed) {
+      await ctx.reply(wdRateCheck.blockMessage || "Rate limit exceeded.", {
+        reply_markup: mainMenu(user.id, adminIds, lang),
+      });
+      return;
+    }
+
+    try {
+      const pepper = (env.SECURITY_CODE_PEPPER || "").trim();
+      if (!pepper || pepper.length < 16) {
+        console.error("[Withdrawal] SECURITY_CODE_PEPPER is missing or too short");
+        await ctx.reply("Service configuration error. Please try again later.", {
+          reply_markup: mainMenu(user.id, adminIds, lang),
+        });
+        return;
+      }
+      const hashedCode = code ? await db.hashSecurityCode(code, pepper) : null;
+
+      const result = await cashier.processWithdrawalSubmission({
+        env,
+        userId: user.id,
+        username: user.username || user.first_name || null,
+        playerId,
+        amount,
+        securityCode: hashedCode,
+        paymentMethod: method,
+        destinationAccount,
+        waitUntil: ctx.waitUntil,
+      });
+
+      const requestId = result.withdrawalId;
+      await db.clearUserState(env.DB, user.id);
+
+      db.recordAnalyticsEvent(env.DB, {
+        eventName: "withdrawal_submitted",
+        userId: user.id,
+        language: lang,
+        details: JSON.stringify({ withdrawalId: requestId, amount, method }),
+      }).catch(() => {});
+
+      const fraudBanner = fraud.formatFraudBanner(result.fraudFlags);
+      const maskedCode = code && code.length > 2 ? `****${code.slice(-2)}` : "****";
+      const timeColombo = new Date().toLocaleString("si-LK", { timeZone: "Asia/Colombo" });
+
+      const alert =
+        `🔔 *NEW WITHDRAWAL REQUEST #${requestId}*\n\n` +
+        (fraudBanner ? `${fraudBanner}\n` : "") +
+        `👤 *User:* ${escapeMarkdown(user.first_name || "User")} (@${escapeMarkdown(user.username || "none")})\n` +
+        `🆔 *User ID:* \`${user.id}\`\n` +
+        `💳 *Method:* *${escapeMarkdown(methodName)}*\n` +
+        `🏦 *Destination Account:* \`${escapeCode(destinationAccount)}\`\n` +
+        `🎮 *Player ID:* \`${escapeCode(playerId)}\`\n` +
+        `💰 *Amount:* LKR *${amount.toLocaleString()}*\n` +
+        `🔐 *Security Code:* \`${escapeCode(maskedCode)}\`\n` +
+        `📅 *Time:* ${timeColombo}\n\n` +
+        `📌 *Status:* ⏳ Pending Admin Approval`;
+
+      const adminKb = new InlineKeyboard()
+        .text("✅ Approve", `wd:approve:${requestId}`)
+        .text("❌ Reject", `wd:reject:${requestId}`);
+
+      if (env.ADMIN_CHANNEL_ID) {
+        try {
+          await ctx.api.sendMessage(env.ADMIN_CHANNEL_ID, alert, {
+            parse_mode: "Markdown",
+            reply_markup: adminKb,
+          });
+        } catch (e) {
+          console.error("Failed to notify admin channel for withdrawal:", e);
+        }
+      }
+
+      for (const adminId of adminIds) {
+        try {
+          await ctx.api.sendMessage(adminId, alert, {
+            parse_mode: "Markdown",
+            reply_markup: adminKb,
+          });
+        } catch (e) {
+          console.error(`Failed to notify admin ${adminId}:`, e);
+        }
+      }
+
+      await ctx.reply(
+        dict.withdrawSubmitted(
+          requestId,
+          amount,
+          escapeCode(playerId),
+          escapeMarkdown(methodName)
+        ),
+        {
+          parse_mode: "Markdown",
+          reply_markup: mainMenu(user.id, adminIds, lang),
+        }
+      );
+    } catch (err: any) {
+      console.error("[Withdrawal] Submission error:", err);
+      logBotError(
+        env,
+        {
+          source: "WithdrawalSubmission",
+          message: err instanceof Error ? err.message : String(err),
+          context: { userId: user.id, payload: { playerId, amount } },
+        },
+        ctx.waitUntil
+      );
+      await ctx.reply(dict.genericError, {
+        reply_markup: mainMenu(user.id, adminIds, lang),
+      });
     }
   }
 
@@ -1422,141 +1691,10 @@ export function createBot(env: Env) {
         }
 
         const amount = validation.amount;
-        const { photo, playerId, method = "BANK", isConfirmationWorkflow = false } = state.data;
-        const methodName = getMethodDisplayName(method, lang);
-
-          // 🛡️ Rate limit: block rapid repeated deposit submissions from the same user
-          const depRateCheck = await fraud.checkRateLimit(env.DB, user.id, "deposits");
-          if (!depRateCheck.allowed) {
-            await ctx.reply(depRateCheck.blockMessage || "Rate limit exceeded.", {
-              reply_markup: mainMenu(user.id, adminIds, lang),
-            });
-            return;
-          }
-
-          try {
-            const requestId = await db.addDeposit(
-              env.DB,
-              user.id,
-              user.username || user.first_name || null,
-              playerId,
-              amount,
-              photo,
-              method,
-              null
-            );
-            await db.clearUserState(env.DB, user.id);
-
-            // 🛡️ Fraud checks: duplicate receipt & shared player ID (non-blocking, flagged for admin review)
-            const depFraud = await fraud.checkDepositFraud(env.DB, user.id, playerId, photo || null);
-
-            // Audit log transaction creation to Cloudflare R2
-            logTransactionAudit(
-              env,
-              {
-                category: "DEPOSIT",
-                action: "CREATED",
-                transactionId: requestId,
-                userId: user.id,
-                username: user.username || user.first_name || null,
-                playerId,
-                amount,
-                method,
-                status: "PENDING",
-                details: { photoFileId: photo, isConfirmationWorkflow, fraudFlags: depFraud.flags },
-              },
-              ctx.waitUntil
-            );
-
-            // Backup Receipt to Cloudflare R2
-            let r2Meta: R2FileMetadata | null = state.data.r2Meta || null;
-            let r2Url: string | null = state.data.r2Url || r2Meta?.r2Url || null;
-            if (r2Url) {
-              await db.updateDepositR2Url(env.DB, requestId, r2Url);
-            } else if (photo) {
-              try {
-                const backup = await backupReceiptToR2(env, env.BOT_TOKEN, photo, requestId);
-                if (backup?.r2Url) {
-                  r2Meta = backup;
-                  r2Url = backup.r2Url;
-                  await db.updateDepositR2Url(env.DB, requestId, backup.r2Url);
-                  if (isConfirmationWorkflow) {
-                    await notifyR2ScreenshotUploadToAdminChannel(ctx, user, backup, {
-                      requestId,
-                      playerId,
-                      amount,
-                      methodName,
-                      photoFileId: photo,
-                    });
-                  }
-                }
-              } catch (r2Err) {
-                console.error("[R2] Quick amount receipt backup failed:", r2Err);
-              }
-            }
-
-            // Log to Admin Channel and notify admins
-            await notifyDepositSubmission(
-              ctx,
-              requestId,
-              user,
-              playerId,
-              amount,
-              methodName,
-              photo,
-              r2Url,
-              Boolean(isConfirmationWorkflow),
-              r2Meta,
-              depFraud.flags
-            );
-
-            if (isConfirmationWorkflow) {
-              await ctx.reply(
-                dict.confirmDepositSubmitted(
-                  requestId,
-                  amount,
-                  escapeCode(playerId),
-                  escapeMarkdown(methodName),
-                  Boolean(r2Url)
-                ),
-                {
-                  parse_mode: "Markdown",
-                  reply_markup: mainMenu(user.id, adminIds, lang),
-                }
-              );
-            } else {
-              await ctx.reply(
-                dict.depositSubmitted(requestId, amount, escapeCode(playerId), escapeMarkdown(methodName)),
-                {
-                  parse_mode: "Markdown",
-                  reply_markup: mainMenu(user.id, adminIds, lang),
-                }
-              );
-            }
-          } catch (err) {
-            console.error("[Deposit Callback Error]:", err);
-            logBotError(
-              env,
-              {
-                source: "DepositQuickAmount",
-                message: err instanceof Error ? err.message : String(err),
-                stack: err instanceof Error ? err.stack : undefined,
-                context: {
-                  userId: user.id,
-                  username: user.username,
-                  flow: "deposit_quick_amount",
-                  payload: { playerId, amount, method, isConfirmationWorkflow },
-                },
-              },
-              ctx.waitUntil
-            );
-            await ctx.reply(dict.genericError, {
-              reply_markup: mainMenu(user.id, adminIds, lang),
-            });
-          }
-          return;
-        }
+        await handleDepositExecution(ctx, user, state.data, amount, lang);
+        return;
       }
+    }
 
     // Quick Amount selection for Withdrawal
     if (data.startsWith("wd_amt:")) {
@@ -1598,6 +1736,12 @@ export function createBot(env: Env) {
 
     // Registration
     if (data === "xbet") {
+      db.recordAnalyticsEvent(env.DB, {
+        eventName: "registration_view",
+        userId: user.id,
+        language: lang,
+      }).catch(() => {});
+
       const link = env.XBET_LINK?.trim() || "";
       const promo = escapeCode(env.XBET_PROMO_CODE?.trim() || "");
       const text = `${dict.registrationHeader}\n\n${dict.registrationInstructions(promo)}`;
@@ -2814,140 +2958,7 @@ export function createBot(env: Env) {
       }
 
       const amount = validation.amount;
-
-      const { photo, playerId, method = "BANK", isConfirmationWorkflow = false } = state.data;
-      const methodName = getMethodDisplayName(method, lang);
-
-      // 🛡️ Rate limit: block rapid repeated deposit submissions from the same user
-      const depRateCheck2 = await fraud.checkRateLimit(env.DB, user.id, "deposits");
-      if (!depRateCheck2.allowed) {
-        await ctx.reply(depRateCheck2.blockMessage || "Rate limit exceeded.", {
-          reply_markup: mainMenu(user.id, adminIds, lang),
-        });
-        return;
-      }
-
-      try {
-        const requestId = await db.addDeposit(
-          env.DB,
-          user.id,
-          user.username || user.first_name || null,
-          playerId,
-          amount,
-          photo,
-          method,
-          null
-        );
-        await db.clearUserState(env.DB, user.id);
-
-        // 🛡️ Fraud checks: duplicate receipt & shared player ID (non-blocking, flagged for admin review)
-        const depFraud2 = await fraud.checkDepositFraud(env.DB, user.id, playerId, photo || null);
-
-        // Audit log transaction creation to Cloudflare R2
-        logTransactionAudit(
-          env,
-          {
-            category: "DEPOSIT",
-            action: "CREATED",
-            transactionId: requestId,
-            userId: user.id,
-            username: user.username || user.first_name || null,
-            playerId,
-            amount,
-            method,
-            status: "PENDING",
-            details: { photoFileId: photo, isConfirmationWorkflow, fraudFlags: depFraud2.flags },
-          },
-          ctx.waitUntil
-        );
-
-        // Backup Receipt to Cloudflare R2
-        let r2Meta: R2FileMetadata | null = state.data?.r2Meta || null;
-        let r2Url: string | null = state.data?.r2Url || r2Meta?.r2Url || null;
-        if (r2Url) {
-          await db.updateDepositR2Url(env.DB, requestId, r2Url);
-        } else if (photo) {
-          try {
-            const backup = await backupReceiptToR2(env, env.BOT_TOKEN, photo, requestId);
-            if (backup?.r2Url) {
-              r2Meta = backup;
-              r2Url = backup.r2Url;
-              await db.updateDepositR2Url(env.DB, requestId, backup.r2Url);
-              if (isConfirmationWorkflow) {
-                await notifyR2ScreenshotUploadToAdminChannel(ctx, user, backup, {
-                  requestId,
-                  playerId,
-                  amount,
-                  methodName,
-                  photoFileId: photo,
-                });
-              }
-            }
-          } catch (r2Err) {
-            console.error("[R2] Async receipt backup failed:", r2Err);
-          }
-        }
-
-        // Notify Admin Channel and Individual Admins
-        await notifyDepositSubmission(
-          ctx,
-          requestId,
-          user,
-          playerId,
-          amount,
-          methodName,
-          photo,
-          r2Url,
-          Boolean(isConfirmationWorkflow),
-          r2Meta,
-          depFraud2.flags
-        );
-
-        if (isConfirmationWorkflow) {
-          await ctx.reply(
-            dict.confirmDepositSubmitted(
-              requestId,
-              amount,
-              escapeCode(playerId),
-              escapeMarkdown(methodName),
-              Boolean(r2Url)
-            ),
-            {
-              parse_mode: "Markdown",
-              reply_markup: mainMenu(user.id, adminIds, lang),
-            }
-          );
-        } else {
-          await ctx.reply(
-            dict.depositSubmitted(requestId, amount, escapeCode(playerId), escapeMarkdown(methodName)),
-            {
-              parse_mode: "Markdown",
-              reply_markup: mainMenu(user.id, adminIds, lang),
-            }
-          );
-        }
-      } catch (err) {
-        console.error("[Manual Deposit Error]:", err);
-        logBotError(
-          env,
-          {
-            source: "DepositManualAmount",
-            message: err instanceof Error ? err.message : String(err),
-            stack: err instanceof Error ? err.stack : undefined,
-            context: {
-              userId: user.id,
-              username: user.username,
-              flow: "deposit_manual_amount",
-              payload: { amount, playerId, method, isConfirmationWorkflow },
-            },
-          },
-          ctx.waitUntil
-        );
-        await ctx.reply(dict.transactionFailed, {
-          parse_mode: "Markdown",
-          reply_markup: mainMenu(user.id, adminIds, lang),
-        });
-      }
+      await handleDepositExecution(ctx, user, state.data, amount, lang);
       return;
     }
 
@@ -3041,117 +3052,7 @@ export function createBot(env: Env) {
         return;
       }
 
-      const { playerId, amount, method = "BANK", destinationAccount = "N/A" } = state.data;
-      const methodName = getMethodDisplayName(method, lang);
-
-      // 🛡️ Rate limit: block rapid repeated withdrawal submissions from the same user
-      const wdRateCheck = await fraud.checkRateLimit(env.DB, user.id, "withdrawals");
-      if (!wdRateCheck.allowed) {
-        await ctx.reply(wdRateCheck.blockMessage || "Rate limit exceeded.", {
-          reply_markup: mainMenu(user.id, adminIds, lang),
-        });
-        return;
-      }
-
-      try {
-        // HMAC-SHA-256 with dedicated pepper — never store plaintext in D1.
-        const pepper = (env.SECURITY_CODE_PEPPER || "").trim();
-        if (!pepper || pepper.length < 16) {
-          console.error("[Withdrawal] SECURITY_CODE_PEPPER is missing or too short");
-          await ctx.reply("Service configuration error. Please try again later.", {
-            reply_markup: mainMenu(user.id, adminIds, lang),
-          });
-          return;
-        }
-        const hashedCode = code ? await db.hashSecurityCode(code, pepper) : null;
-        const requestId = await db.addWithdrawal(
-          env.DB,
-          user.id,
-          user.username || user.first_name || null,
-          playerId,
-          amount,
-          hashedCode,
-          method,
-          destinationAccount
-        );
-        await db.clearUserState(env.DB, user.id);
-
-        // 🛡️ Fraud check: player ID already used by another Telegram account (non-blocking)
-        const wdFraud = await fraud.checkWithdrawalFraud(env.DB, user.id, playerId);
-
-        // Audit log withdrawal creation to Cloudflare R2 (do not log the security code).
-        logTransactionAudit(
-          env,
-          {
-            category: "WITHDRAWAL",
-            action: "CREATED",
-            transactionId: requestId,
-            userId: user.id,
-            username: user.username || user.first_name || null,
-            playerId,
-            amount,
-            method,
-            status: "PENDING",
-            details: { destinationAccount, fraudFlags: wdFraud.flags },
-          },
-          ctx.waitUntil
-        );
-        const fraudBanner = fraud.formatFraudBanner(wdFraud.flags);
-        // Mask security code in admin alerts (show last 2 characters only).
-        const maskedCode = code && code.length > 2 ? `****${code.slice(-2)}` : "****";
-        const alert =
-          `🔔 *NEW WITHDRAWAL REQUEST #${requestId}*\n\n` +
-          (fraudBanner ? `${fraudBanner}\n` : "") +
-          `👤 *User:* ${escapeMarkdown(user.first_name || "User")} (@${escapeMarkdown(user.username || "none")})\n` +
-          `🆔 *User ID:* \`${user.id}\`\n` +
-          `💳 *Method:* *${escapeMarkdown(methodName)}*\n` +
-          `🏦 *Destination Account:* \`${escapeCode(destinationAccount)}\`\n` +
-          `🎮 *Player ID:* \`${escapeCode(playerId)}\`\n` +
-          `💰 *Amount:* LKR *${amount.toLocaleString()}*\n` +
-          `🔐 *Security Code:* \`${escapeCode(maskedCode)}\`\n` +
-          `📅 *Time:* ${new Date().toLocaleString("si-LK", { timeZone: "Asia/Colombo" })}`;
-
-        const adminKb = new InlineKeyboard()
-          .text("✅ Approve", `wd:approve:${requestId}`)
-          .text("❌ Reject", `wd:reject:${requestId}`);
-
-        for (const adminId of adminIds) {
-          try {
-            await ctx.api.sendMessage(adminId, alert, {
-              parse_mode: "Markdown",
-              reply_markup: adminKb,
-            });
-          } catch {
-            console.error("[Admin] Deposit alert delivery failed.");
-          }
-        }
-
-        await ctx.reply(dict.withdrawSubmitted(requestId, amount, escapeCode(playerId), escapeMarkdown(methodName)), {
-          parse_mode: "Markdown",
-          reply_markup: mainMenu(user.id, adminIds, lang),
-        });
-      } catch (err) {
-        console.error("[Withdrawal Submission Error]:", err);
-        logBotError(
-          env,
-          {
-            source: "WithdrawalSubmission",
-            message: err instanceof Error ? err.message : String(err),
-            stack: err instanceof Error ? err.stack : undefined,
-            context: {
-              userId: user.id,
-              username: user.username,
-              flow: "withdraw_code",
-              payload: { amount, playerId, method, destinationAccount },
-            },
-          },
-          ctx.waitUntil
-        );
-        await ctx.reply(dict.transactionFailed, {
-          parse_mode: "Markdown",
-          reply_markup: mainMenu(user.id, adminIds, lang),
-        });
-      }
+      await handleWithdrawalExecution(ctx, user, state.data, code, lang);
       return;
     }
   });

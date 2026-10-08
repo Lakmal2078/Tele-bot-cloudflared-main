@@ -138,6 +138,9 @@ export interface DepositRow {
   photo_file_id: string | null;
   r2_url: string | null;
   status: "PENDING" | "APPROVED" | "REJECTED";
+  idempotency_key?: string | null;
+  operator_id?: number | null;
+  action_note?: string | null;
   created_at: string;
   deleted_at?: string | null;
 }
@@ -152,8 +155,35 @@ export interface WithdrawalRow {
   destination_account: string | null;
   security_code: string | null;
   status: "PENDING" | "APPROVED" | "REJECTED";
+  idempotency_key?: string | null;
+  operator_id?: number | null;
+  action_note?: string | null;
   created_at: string;
   deleted_at?: string | null;
+}
+
+export interface AnalyticsEventInput {
+  eventName: string;
+  sessionId?: string | null;
+  source?: string | null;
+  campaign?: string | null;
+  subId?: string | null;
+  landingPath?: string | null;
+  language?: string | null;
+  telegramPayload?: string | null;
+  userId?: number | null;
+  details?: string | null;
+  ipHash?: string | null;
+  userAgent?: string | null;
+}
+
+export interface AttributionFunnelStats {
+  ctaClicks: number;
+  botStarts: number;
+  registrationViews: number;
+  newUsers: number;
+  depositsCount: number;
+  bySource: Array<{ source: string; count: number }>;
 }
 
 export interface SystemStats {

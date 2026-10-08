@@ -25,7 +25,7 @@ import {
   hasValidAdminSession,
   readCookie,
 } from "./adminSession";
-import { getStats, getOperationsDashboard, getDailyFinancialTrends, getSupportTickets, updateSupportTicket, createScheduledChannelPost } from "./db";
+import { getStats, getOperationsDashboard, getDailyFinancialTrends, getSupportTickets, updateSupportTicket, createScheduledChannelPost, recordAnalyticsEvent, getAttributionFunnelStats } from "./db";
 import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
 import { getObject } from "./storage";
 import { getR2StorageAnalytics } from "./r2";
@@ -505,6 +505,20 @@ export async function handleApiRequest(
     return new Response(manifest, { status: 200, headers });
   }
 
+  // Privacy-safe daily salted hash for visitor analytics
+  async function hashIpForPrivacy(ip: string | null): Promise<string | null> {
+    if (!ip) return null;
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const data = new TextEncoder().encode(`salt_${today}_${ip}`);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
+    } catch {
+      return null;
+    }
+  }
+
   // Conversion & Click-through Analytics Beacon (/api/analytics/event)
   if (path === "/api/analytics/event" && (method === "POST" || method === "GET" || method === "OPTIONS")) {
     const corsHeaders: Record<string, string> = {
@@ -516,6 +530,71 @@ export async function handleApiRequest(
     if (method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
+
+    const persistTask = async () => {
+      try {
+        let payload: any = {};
+        if (method === "POST") {
+          try {
+            payload = await request.clone().json();
+          } catch {
+            try {
+              const text = await request.clone().text();
+              if (text) payload = JSON.parse(text);
+            } catch {}
+          }
+        } else if (method === "GET") {
+          payload = Object.fromEntries(url.searchParams.entries());
+        }
+
+        const clientIp =
+          request.headers.get("cf-connecting-ip") ||
+          request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+          null;
+        const ipHash = await hashIpForPrivacy(clientIp);
+        const userAgent = request.headers.get("user-agent")?.slice(0, 500) || null;
+
+        const eventName = String(
+          payload?.event || payload?.event_name || (payload?.cta ? "cta_click" : "page_view")
+        ).slice(0, 64);
+        const sessionId = payload?.sessionId || payload?.session_id || null;
+        const source = payload?.source || payload?.utm_source || url.searchParams.get("utm_source") || null;
+        const campaign = payload?.campaign || payload?.utm_campaign || url.searchParams.get("utm_campaign") || null;
+        const subId =
+          payload?.subId ||
+          payload?.sub_id ||
+          payload?.subid ||
+          url.searchParams.get("subid") ||
+          url.searchParams.get("sub_id") ||
+          null;
+        const landingPath = payload?.href || payload?.path || payload?.landingPath || url.pathname || "/";
+        const language = payload?.lang || payload?.language || "si";
+
+        if (env.DB && typeof env.DB.prepare === "function") {
+          await recordAnalyticsEvent(env.DB, {
+            eventName,
+            sessionId: sessionId ? String(sessionId).slice(0, 100) : null,
+            source: source ? String(source).slice(0, 100) : null,
+            campaign: campaign ? String(campaign).slice(0, 100) : null,
+            subId: subId ? String(subId).slice(0, 100) : null,
+            landingPath: String(landingPath).slice(0, 500),
+            language: String(language).slice(0, 10),
+            details: JSON.stringify(payload).slice(0, 2000),
+            ipHash,
+            userAgent,
+          });
+        }
+      } catch (err) {
+        console.error("[Analytics Beacon] Failed to persist event:", err);
+      }
+    };
+
+    if (options && (options as any).ctx && typeof (options as any).ctx.waitUntil === "function") {
+      (options as any).ctx.waitUntil(persistTask());
+    } else {
+      await persistTask().catch(() => {});
+    }
+
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -860,11 +939,12 @@ ${homeEntries}
       });
     }
     try {
-      const [dashboard, r2] = await Promise.all([
+      const [dashboard, r2, funnel] = await Promise.all([
         getOperationsDashboard(env.DB),
         getR2StorageAnalytics(env).catch(() => null),
+        getAttributionFunnelStats(env.DB).catch(() => null),
       ]);
-      return json({ ok: true, r2, ...dashboard });
+      return json({ ok: true, r2, funnel, ...dashboard });
     } catch (error) {
       console.error("[Admin Dashboard] query failed", error);
       return json({ ok: false, error: "Dashboard data unavailable" }, 503);
@@ -888,11 +968,12 @@ ${homeEntries}
       const safeDays = Math.max(1, Math.min(daysParam, 90));
       const metric = url.searchParams.get("metric") === "count" ? "count" : "volume";
 
-      const [r2, stats, trends, dashboard] = await Promise.all([
+      const [r2, stats, trends, dashboard, funnel] = await Promise.all([
         getR2StorageAnalytics(env),
         getStats(env.DB),
         getDailyFinancialTrends(env.DB, safeDays),
         getOperationsDashboard(env.DB).catch(() => null),
+        getAttributionFunnelStats(env.DB, safeDays).catch(() => null),
       ]);
 
       const totalDepVol = trends.reduce((sum, d) => sum + d.depositVolume, 0);
@@ -905,6 +986,7 @@ ${homeEntries}
         r2,
         stats,
         trends,
+        funnel,
         days: safeDays,
         metric,
         summary: {
@@ -1031,11 +1113,12 @@ ${homeEntries}
     const metricParam = url.searchParams.get("metric") === "count" ? "count" : "volume";
 
     try {
-      const [stats, trends, dashboard, r2Analytics] = await Promise.all([
+      const [stats, trends, dashboard, r2Analytics, funnel] = await Promise.all([
         getStats(env.DB),
         getDailyFinancialTrends(env.DB, safeDays),
         getOperationsDashboard(env.DB).catch(() => null),
         getR2StorageAnalytics(env).catch(() => undefined),
+        getAttributionFunnelStats(env.DB, safeDays).catch(() => undefined),
       ]);
 
       const nonce = crypto.randomUUID().replace(/-/g, "");
@@ -1052,6 +1135,7 @@ ${homeEntries}
           tickets: dashboard?.tickets || [],
           alerts: dashboard?.alerts || [],
           tips: dashboard?.tips || [],
+          funnel,
           paymentMethods: {
             bank: env.BANK_DETAILS || "Not Configured",
             ezcash: env.EZCASH_NUMBER || "Not Configured",

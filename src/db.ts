@@ -207,16 +207,43 @@ export async function addDeposit(
   amountLkr: number,
   photoFileId: string | null,
   paymentMethod: string = "BANK",
-  r2Url: string | null = null
+  r2Url: string | null = null,
+  idempotencyKey?: string | null
 ): Promise<number> {
   const amountCents = toPositiveCents(amountLkr);
 
+  // 1. If an idempotency key was supplied, check if an existing deposit row matches
+  if (idempotencyKey) {
+    const existing = await db
+      .prepare(`SELECT id FROM deposits WHERE idempotency_key = ? AND deleted_at IS NULL`)
+      .bind(idempotencyKey)
+      .first<{ id: number }>();
+    if (existing?.id) {
+      return Number(existing.id);
+    }
+  }
+
+  // 2. Multi-submission deduplication guard: if an identical pending deposit was submitted within 5 minutes, return it
+  const recentDupe = await db
+    .prepare(
+      `SELECT id FROM deposits
+       WHERE user_id = ? AND player_id = ? AND amount = ? AND status = 'PENDING' AND deleted_at IS NULL
+         AND (photo_file_id = ? OR (photo_file_id IS NULL AND ? IS NULL))
+         AND created_at >= datetime('now', '-5 minutes')
+       ORDER BY id DESC LIMIT 1`
+    )
+    .bind(userId, playerId, amountCents, photoFileId, photoFileId)
+    .first<{ id: number }>();
+  if (recentDupe?.id) {
+    return Number(recentDupe.id);
+  }
+
   const insertStmt = db
     .prepare(
-      `INSERT INTO deposits (user_id, username, player_id, amount, payment_method, photo_file_id, r2_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`
+      `INSERT INTO deposits (user_id, username, player_id, amount, payment_method, photo_file_id, r2_url, idempotency_key)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
     )
-    .bind(userId, username, playerId, amountCents, paymentMethod, photoFileId, r2Url);
+    .bind(userId, username, playerId, amountCents, paymentMethod, photoFileId, r2Url, idempotencyKey ?? null);
 
   const clearStmt = db.prepare(`DELETE FROM user_state WHERE user_id = ?`).bind(userId);
 
@@ -254,16 +281,43 @@ export async function addWithdrawal(
   amountLkr: number,
   securityCode: string | null,
   paymentMethod: string = "BANK",
-  destinationAccount: string | null = null
+  destinationAccount: string | null = null,
+  idempotencyKey?: string | null
 ): Promise<number> {
   const amountCents = toCents(amountLkr);
 
+  // 1. If an idempotency key was supplied, check if an existing withdrawal matches
+  if (idempotencyKey) {
+    const existing = await db
+      .prepare(`SELECT id FROM withdrawals WHERE idempotency_key = ? AND deleted_at IS NULL`)
+      .bind(idempotencyKey)
+      .first<{ id: number }>();
+    if (existing?.id) {
+      return Number(existing.id);
+    }
+  }
+
+  // 2. Multi-submission deduplication guard: if an identical pending withdrawal exists, return it
+  const recentDupe = await db
+    .prepare(
+      `SELECT id FROM withdrawals
+       WHERE user_id = ? AND player_id = ? AND amount = ? AND status = 'PENDING' AND deleted_at IS NULL
+         AND IFNULL(destination_account, '') = IFNULL(?, '')
+         AND created_at >= datetime('now', '-5 minutes')
+       ORDER BY id DESC LIMIT 1`
+    )
+    .bind(userId, playerId, amountCents, destinationAccount)
+    .first<{ id: number }>();
+  if (recentDupe?.id) {
+    return Number(recentDupe.id);
+  }
+
   const insertStmt = db
     .prepare(
-      `INSERT INTO withdrawals (user_id, username, player_id, amount, payment_method, destination_account, security_code)
-       VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`
+      `INSERT INTO withdrawals (user_id, username, player_id, amount, payment_method, destination_account, security_code, idempotency_key)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
     )
-    .bind(userId, username, playerId, amountCents, paymentMethod, destinationAccount, securityCode);
+    .bind(userId, username, playerId, amountCents, paymentMethod, destinationAccount, securityCode, idempotencyKey ?? null);
 
   const clearStmt = db.prepare(`DELETE FROM user_state WHERE user_id = ?`).bind(userId);
 
@@ -334,13 +388,16 @@ export async function getWithdrawalById(db: D1Database, id: number) {
 export async function updateDepositStatus(
   db: D1Database,
   id: number,
-  status: "APPROVED" | "REJECTED"
+  status: "APPROVED" | "REJECTED",
+  operatorId?: number | null,
+  actionNote?: string | null
 ): Promise<boolean> {
   const result = await db
     .prepare(
-      `UPDATE deposits SET status = ?, updated_at = datetime('now') WHERE id = ? AND status = 'PENDING' AND deleted_at IS NULL`
+      `UPDATE deposits SET status = ?, operator_id = COALESCE(?, operator_id), action_note = COALESCE(?, action_note), updated_at = datetime('now')
+       WHERE id = ? AND status = 'PENDING' AND deleted_at IS NULL`
     )
-    .bind(status, id)
+    .bind(status, operatorId ?? null, actionNote ?? null, id)
     .run();
   const changes = result.meta?.changes ?? (result.success ? 1 : 0);
   return Boolean(result.success && changes > 0);
@@ -349,14 +406,17 @@ export async function updateDepositStatus(
 export async function updateWithdrawalStatus(
   db: D1Database,
   id: number,
-  status: "APPROVED" | "REJECTED"
+  status: "APPROVED" | "REJECTED",
+  operatorId?: number | null,
+  actionNote?: string | null
 ): Promise<boolean> {
   // Clear security_code on terminal status so residual hashes/plaintext are not retained.
   const result = await db
     .prepare(
-      `UPDATE withdrawals SET status = ?, security_code = NULL, updated_at = datetime('now') WHERE id = ? AND status = 'PENDING' AND deleted_at IS NULL`
+      `UPDATE withdrawals SET status = ?, security_code = NULL, operator_id = COALESCE(?, operator_id), action_note = COALESCE(?, action_note), updated_at = datetime('now')
+       WHERE id = ? AND status = 'PENDING' AND deleted_at IS NULL`
     )
-    .bind(status, id)
+    .bind(status, operatorId ?? null, actionNote ?? null, id)
     .run();
   const changes = result.meta?.changes ?? (result.success ? 1 : 0);
   return Boolean(result.success && changes > 0);
@@ -840,4 +900,64 @@ export async function upsertSafetyPreferences(db: D1Database, userId: number, in
 
 export async function createOperationalAlert(db: D1Database, alertType: string, severity: "INFO" | "WARNING" | "CRITICAL", message: string) {
   await db.prepare(`INSERT INTO operational_alerts (alert_type, severity, message) VALUES (?, ?, ?)`).bind(alertType, severity, message.slice(0, 1000)).run();
+}
+
+/* ============================================================
+ * Attribution & analytics event persistence (P1)
+ * ============================================================ */
+
+export async function recordAnalyticsEvent(
+  db: D1Database,
+  event: import("./types").AnalyticsEventInput
+): Promise<number> {
+  const insertStmt = db
+    .prepare(
+      `INSERT INTO analytics_events (
+        event_name, session_id, source, campaign, sub_id,
+        landing_path, language, telegram_payload, user_id,
+        details, ip_hash, user_agent
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(
+      event.eventName,
+      event.sessionId ?? null,
+      event.source ?? null,
+      event.campaign ?? null,
+      event.subId ?? null,
+      event.landingPath ?? null,
+      event.language ?? "si",
+      event.telegramPayload ?? null,
+      event.userId ?? null,
+      event.details ?? null,
+      event.ipHash ?? null,
+      event.userAgent ?? null
+    );
+
+  const res = await insertStmt.run();
+  return Number(res?.meta?.last_row_id) || 0;
+}
+
+export async function getAttributionFunnelStats(
+  db: D1Database,
+  days: number = 7
+): Promise<import("./types").AttributionFunnelStats> {
+  const safeDays = Math.max(1, Math.min(days, 90));
+
+  const [ctaRes, botRes, regRes, usersRes, depRes, sourceRes] = await Promise.all([
+    db.prepare(`SELECT COUNT(*) as count FROM analytics_events WHERE event_name = 'cta_click' AND created_at >= datetime('now', '-' || ? || ' days')`).bind(safeDays).first<{ count: number }>(),
+    db.prepare(`SELECT COUNT(*) as count FROM analytics_events WHERE event_name = 'bot_start' AND created_at >= datetime('now', '-' || ? || ' days')`).bind(safeDays).first<{ count: number }>(),
+    db.prepare(`SELECT COUNT(*) as count FROM analytics_events WHERE event_name = 'registration_view' AND created_at >= datetime('now', '-' || ? || ' days')`).bind(safeDays).first<{ count: number }>(),
+    db.prepare(`SELECT COUNT(*) as count FROM users WHERE created_at >= datetime('now', '-' || ? || ' days')`).bind(safeDays).first<{ count: number }>(),
+    db.prepare(`SELECT COUNT(*) as count FROM deposits WHERE created_at >= datetime('now', '-' || ? || ' days') AND deleted_at IS NULL`).bind(safeDays).first<{ count: number }>(),
+    db.prepare(`SELECT COALESCE(source, 'direct') as source, COUNT(*) as count FROM analytics_events WHERE created_at >= datetime('now', '-' || ? || ' days') GROUP BY COALESCE(source, 'direct') ORDER BY count DESC LIMIT 10`).bind(safeDays).all<{ source: string; count: number }>(),
+  ]);
+
+  return {
+    ctaClicks: Number(ctaRes?.count) || 0,
+    botStarts: Number(botRes?.count) || 0,
+    registrationViews: Number(regRes?.count) || 0,
+    newUsers: Number(usersRes?.count) || 0,
+    depositsCount: Number(depRes?.count) || 0,
+    bySource: sourceRes?.results || [],
+  };
 }

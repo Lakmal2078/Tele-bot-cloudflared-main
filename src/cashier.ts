@@ -2,6 +2,10 @@ import { InlineKeyboard } from "grammy";
 import type { Env } from "./types";
 import type { Language } from "./i18n";
 import { escapeMarkdown, escapeCode } from "./utils";
+import * as db from "./db";
+import * as fraud from "./fraud";
+import { backupReceiptToR2, type R2FileMetadata } from "./r2";
+import { logTransactionAudit } from "./logger";
 
 /**
  * 1xBet Affiliate SubID tracking generator.
@@ -440,4 +444,212 @@ export function formatWithdrawalAdminAlert(params: {
     `━━━━━━━━━━━━━━━━━━━━━━━━━`,
     `👇 මුදල් යවා ගෙවීම තහවුරු කරන්න:`,
   ].join("\n");
+}
+
+/* ============================================================
+ * Cashier Orchestration & Idempotency Pipeline (P2)
+ * ============================================================ */
+
+/**
+ * Generates a stable idempotency key for transactions to prevent duplicate processing on double-clicks.
+ */
+export function generateIdempotencyKey(
+  kind: "dep" | "wd",
+  userId: number,
+  ...parts: (string | number | null | undefined)[]
+): string {
+  const cleanParts = parts
+    .filter((p) => p !== null && p !== undefined && p !== "")
+    .map(String)
+    .join("_");
+  return `${kind}_${userId}_${cleanParts}`.slice(0, 100);
+}
+
+export interface ProcessDepositParams {
+  env: Env;
+  userId: number;
+  username: string | null;
+  firstName?: string | null;
+  playerId: string;
+  amount: number;
+  photoFileId: string | null;
+  paymentMethod?: string;
+  isConfirmationWorkflow?: boolean;
+  r2Meta?: R2FileMetadata | null;
+  r2Url?: string | null;
+  idempotencyKey?: string;
+  waitUntil?: (promise: Promise<unknown>) => void;
+}
+
+export interface ProcessDepositResult {
+  depositId: number;
+  fraudFlags: string[];
+  r2Meta: R2FileMetadata | null;
+  r2Url: string | null;
+}
+
+/**
+ * Orchestrates a complete deposit submission:
+ * 1. Inserts into D1 with idempotency & multi-tap deduplication guards.
+ * 2. Runs non-blocking fraud checks.
+ * 3. Backs up screenshot to R2 if not already uploaded.
+ * 4. Records transaction audit log to R2.
+ */
+export async function processDepositSubmission(params: ProcessDepositParams): Promise<ProcessDepositResult> {
+  const {
+    env,
+    userId,
+    username,
+    playerId,
+    amount,
+    photoFileId,
+    paymentMethod = "BANK",
+    isConfirmationWorkflow = false,
+    waitUntil,
+  } = params;
+
+  const idempKey = params.idempotencyKey || generateIdempotencyKey("dep", userId, playerId, amount, photoFileId);
+
+  const depositId = await db.addDeposit(
+    env.DB,
+    userId,
+    username,
+    playerId,
+    amount,
+    photoFileId,
+    paymentMethod,
+    params.r2Url || params.r2Meta?.r2Url || null,
+    idempKey
+  );
+
+  // Non-blocking fraud review flags
+  const fraudCheck = await fraud.checkDepositFraud(env.DB, userId, playerId, photoFileId);
+
+  // Audit log transaction creation to Cloudflare R2
+  logTransactionAudit(
+    env,
+    {
+      category: "DEPOSIT",
+      action: "CREATED",
+      transactionId: depositId,
+      userId,
+      username,
+      playerId,
+      amount,
+      method: paymentMethod,
+      status: "PENDING",
+      details: {
+        photoFileId,
+        isConfirmationWorkflow,
+        idempotencyKey: idempKey,
+        fraudFlags: fraudCheck.flags,
+      },
+    },
+    waitUntil
+  );
+
+  let r2Meta: R2FileMetadata | null = params.r2Meta || null;
+  let r2Url: string | null = params.r2Url || r2Meta?.r2Url || null;
+
+  if (r2Url) {
+    await db.updateDepositR2Url(env.DB, depositId, r2Url);
+  } else if (photoFileId) {
+    try {
+      const backup = await backupReceiptToR2(env, env.BOT_TOKEN, photoFileId, depositId);
+      if (backup?.r2Url) {
+        r2Meta = backup;
+        r2Url = backup.r2Url;
+        await db.updateDepositR2Url(env.DB, depositId, backup.r2Url);
+      }
+    } catch (r2Err) {
+      console.error("[Cashier] Async receipt backup failed:", r2Err);
+    }
+  }
+
+  return {
+    depositId,
+    fraudFlags: fraudCheck.flags,
+    r2Meta,
+    r2Url,
+  };
+}
+
+export interface ProcessWithdrawalParams {
+  env: Env;
+  userId: number;
+  username: string | null;
+  playerId: string;
+  amount: number;
+  securityCode: string | null;
+  paymentMethod?: string;
+  destinationAccount?: string | null;
+  idempotencyKey?: string;
+  waitUntil?: (promise: Promise<unknown>) => void;
+}
+
+export interface ProcessWithdrawalResult {
+  withdrawalId: number;
+  fraudFlags: string[];
+}
+
+/**
+ * Orchestrates a complete withdrawal submission:
+ * 1. Inserts into D1 with idempotency & deduplication guards.
+ * 2. Runs non-blocking fraud checks.
+ * 3. Records transaction audit log to R2.
+ */
+export async function processWithdrawalSubmission(params: ProcessWithdrawalParams): Promise<ProcessWithdrawalResult> {
+  const {
+    env,
+    userId,
+    username,
+    playerId,
+    amount,
+    securityCode,
+    paymentMethod = "BANK",
+    destinationAccount = null,
+    waitUntil,
+  } = params;
+
+  const idempKey = params.idempotencyKey || generateIdempotencyKey("wd", userId, playerId, amount, destinationAccount);
+
+  const withdrawalId = await db.addWithdrawal(
+    env.DB,
+    userId,
+    username,
+    playerId,
+    amount,
+    securityCode,
+    paymentMethod,
+    destinationAccount,
+    idempKey
+  );
+
+  const fraudCheck = await fraud.checkWithdrawalFraud(env.DB, userId, playerId);
+
+  logTransactionAudit(
+    env,
+    {
+      category: "WITHDRAWAL",
+      action: "CREATED",
+      transactionId: withdrawalId,
+      userId,
+      username,
+      playerId,
+      amount,
+      method: paymentMethod,
+      status: "PENDING",
+      details: {
+        destinationAccount,
+        idempotencyKey: idempKey,
+        fraudFlags: fraudCheck.flags,
+      },
+    },
+    waitUntil
+  );
+
+  return {
+    withdrawalId,
+    fraudFlags: fraudCheck.flags,
+  };
 }

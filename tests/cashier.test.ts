@@ -7,7 +7,12 @@ import {
   formatDepositAdminSlipAlert,
   formatWithdrawalAdminAlert,
   buildCashierMethodKeyboard,
+  generateIdempotencyKey,
+  processDepositSubmission,
+  processWithdrawalSubmission,
 } from "../src/cashier";
+import { createD1Database } from "../src/sqlite-d1";
+import * as db from "../src/db";
 import type { Env } from "../src/types";
 
 describe("cashier safety and business configuration", () => {
@@ -99,5 +104,106 @@ describe("cashier safety and business configuration", () => {
   it("builds the cashier payment-method keyboard", () => {
     const kb = buildCashierMethodKeyboard("pay_dep", "si");
     expect(kb).toBeDefined();
+  });
+
+  it("generates deterministic idempotency keys for submissions", () => {
+    const key1 = generateIdempotencyKey("dep", 12345, 5000, "PLAYER1");
+    const key2 = generateIdempotencyKey("dep", 12345, 5000, "PLAYER1");
+    const key3 = generateIdempotencyKey("dep", 12345, 5000, "PLAYER2");
+    expect(key1).toBe(key2);
+    expect(key1).not.toBe(key3);
+    expect(key1).toContain("dep_");
+  });
+
+  it("orchestrates deposit submission with idempotency deduplication", async () => {
+    const d1 = createD1Database(":memory:");
+    const env: Env = {
+      ...baseEnv,
+      DB: d1,
+    };
+
+    await db.saveUser(d1, 998877, "player77", "Player", null, "si");
+
+    const idempotencyKey = generateIdempotencyKey("dep", 998877, 2500, "PLAY-77");
+
+    // First submission
+    const res1 = await processDepositSubmission({
+      env,
+      userId: 998877,
+      username: "player77",
+      playerId: "PLAY-77",
+      amount: 2500,
+      photoFileId: "receipt_file_abc",
+      paymentMethod: "BOC",
+      idempotencyKey,
+    });
+
+    expect(res1.depositId).toBeGreaterThan(0);
+
+    // Duplicate submission with same key
+    const res2 = await processDepositSubmission({
+      env,
+      userId: 998877,
+      username: "player77",
+      playerId: "PLAY-77",
+      amount: 2500,
+      photoFileId: "receipt_file_abc",
+      paymentMethod: "BOC",
+      idempotencyKey,
+    });
+
+    // Should return existing depositId without creating a new record
+    expect(res2.depositId).toBe(res1.depositId);
+
+    // Verify only 1 record exists in DB
+    const count = await d1.prepare("SELECT COUNT(*) as count FROM deposits WHERE user_id = ?").bind(998877).first<any>();
+    expect(count.count).toBe(1);
+  });
+
+  it("orchestrates withdrawal submission with idempotency deduplication", async () => {
+    const d1 = createD1Database(":memory:");
+    const env: Env = {
+      ...baseEnv,
+      DB: d1,
+    };
+
+    await db.saveUser(d1, 998877, "player77", "Player", null, "si");
+
+    const idempotencyKey = generateIdempotencyKey("wd", 998877, 1500, "PLAY-77");
+
+    // First submission
+    const res1 = await processWithdrawalSubmission({
+      env,
+      userId: 998877,
+      username: "player77",
+      playerId: "PLAY-77",
+      amount: 1500,
+      paymentMethod: "COMMERCIAL",
+      securityCode: "SEC-CODE-9999",
+      destinationAccount: "Account 0012345678",
+      idempotencyKey,
+    });
+
+    expect(res1.withdrawalId).toBeGreaterThan(0);
+
+    // Duplicate submission with same key
+    const res2 = await processWithdrawalSubmission({
+      env,
+      userId: 998877,
+      username: "player77",
+      playerId: "PLAY-77",
+      amount: 1500,
+      paymentMethod: "COMMERCIAL",
+      securityCode: "SEC-CODE-9999",
+      destinationAccount: "Account 0012345678",
+      idempotencyKey,
+    });
+
+    // Should return existing withdrawalId without creating a new record
+    expect(res2.withdrawalId).toBe(res1.withdrawalId);
+
+    // Verify only 1 record exists in DB
+    const count = await d1.prepare("SELECT COUNT(*) as count FROM withdrawals WHERE user_id = ?").bind(998877).first<any>();
+    expect(count.count).toBe(1);
   });
 });

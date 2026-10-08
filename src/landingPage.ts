@@ -1977,20 +1977,20 @@ ${renderFinalCtaBanner(c, lang, eb)}
   try {
     var params = new URLSearchParams(window.location.search);
     var source = params.get("utm_source") || params.get("utm_campaign") || params.get("ref") || params.get("tag");
-    if (source) {
-      var clean = source.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 32);
-      if (clean) {
-        var startPayload = "landing_" + clean;
-        document.querySelectorAll('a[href*="t.me/"]').forEach(function(a){
-          try {
-            var u = new URL(a.href);
-            if (u.searchParams.has("start")) {
-              u.searchParams.set("start", startPayload);
-              a.href = u.toString();
-            }
-          } catch(err){}
-        });
-      }
+    var subId = params.get("subid") || params.get("sub_id");
+    if (source || subId) {
+      var cleanSource = (source || "web").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 32);
+      var cleanSub = (subId || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 24);
+      var startPayload = cleanSub ? ("c_" + cleanSource + "_s_" + cleanSub).slice(0, 60) : ("landing_" + cleanSource);
+      document.querySelectorAll('a[href*="t.me/"]').forEach(function(a){
+        try {
+          var u = new URL(a.href);
+          if (u.searchParams.has("start")) {
+            u.searchParams.set("start", startPayload);
+            a.href = u.toString();
+          }
+        } catch(err){}
+      });
     }
   } catch(e){}
 
@@ -2491,6 +2491,16 @@ ${renderFinalCtaBanner(c, lang, eb)}
 
   // 11. Conversion & Click-through Rate (CTR) Tracking
   try {
+    var sid = localStorage.getItem("fast_xbet_sid");
+    if (!sid) {
+      sid = "s_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      try { localStorage.setItem("fast_xbet_sid", sid); } catch(e){}
+    }
+    var qParams = new URLSearchParams(window.location.search);
+    var qSource = qParams.get("utm_source") || qParams.get("ref") || "";
+    var qCampaign = qParams.get("utm_campaign") || "";
+    var qSubId = qParams.get("subid") || qParams.get("sub_id") || "";
+
     document.querySelectorAll("[data-track-cta]").forEach(function(el){
       el.addEventListener("click", function(){
         try {
@@ -2500,6 +2510,10 @@ ${renderFinalCtaBanner(c, lang, eb)}
             cta: ctaName,
             lang: document.documentElement.lang || "si",
             href: el.getAttribute("href") || "",
+            sessionId: sid,
+            source: qSource,
+            campaign: qCampaign,
+            subId: qSubId,
             ts: Date.now()
           });
           if (navigator.sendBeacon) {

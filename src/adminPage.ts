@@ -1,4 +1,4 @@
-import type { Env, SystemStats, DailyTrendItem } from "./types";
+import type { Env, SystemStats, DailyTrendItem, AttributionFunnelStats } from "./types";
 import type { R2StorageAnalytics } from "./r2";
 import { renderTrendsChartSvg } from "./adminChart";
 import { BRAND_LOGO_SVG_COMPACT, BRAND_LOGO_FAVICON_DATA_URI } from "./brandLogo";
@@ -25,6 +25,7 @@ export interface AdminPageData {
   tickets?: any[];
   alerts?: any[];
   tips?: any[];
+  funnel?: AttributionFunnelStats;
   paymentMethods?: {
     bank: string;
     ezcash: string;
@@ -122,7 +123,7 @@ export function renderAdminPage(
   nonce?: string
 ): string {
   const nonceAttr = nonce ? ` nonce="${escapeAttribute(nonce)}"` : "";
-  const { stats, trends, days, metric, isAuthorized, tickets = [], alerts = [], r2Analytics } = data;
+  const { stats, trends, days, metric, isAuthorized, tickets = [], alerts = [], r2Analytics, funnel } = data;
   const r2 = r2Analytics || {
     configured: false,
     bucket: "chat-media",
@@ -782,6 +783,75 @@ export function renderAdminPage(
           <div class="kpi-sub" id="r2-last-sync-time">Last synced: Just now</div>
         </div>
       </div>
+    </section>
+
+    <!-- Attribution & Conversion Funnel Section -->
+    <section class="card" id="section-attribution-funnel" style="margin-bottom: 24px; border: 1px solid rgba(56, 189, 248, 0.2); background: linear-gradient(145deg, #0b1322, #070b13);">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 4px;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+            <h2 style="font-size: 18px; font-weight: 700; color: #38bdf8; margin: 0; display: flex; align-items: center; gap: 8px;">
+              🎯 Attribution &amp; Conversion Funnel
+            </h2>
+            <span class="badge" style="background: rgba(56, 189, 248, 0.12); color: #38bdf8; border-color: rgba(56, 189, 248, 0.28);">
+              Last ${days} Days
+            </span>
+          </div>
+          <p style="font-size: 12px; color: #94a3b8; margin: 0;">
+            Real-time pipeline tracking from web landing beacon clicks to Telegram bot starts and cashier deposits
+          </p>
+        </div>
+      </div>
+
+      <div class="r2-grid" id="funnel-metrics-grid" style="margin-top: 14px;">
+        <div class="r2-stat-card">
+          <div class="kpi-label" style="color: #38bdf8;">1. Web CTA Clicks</div>
+          <div class="kpi-value" style="color: #38bdf8; font-size: 24px;">${(funnel?.ctaClicks || 0).toLocaleString()}</div>
+          <div class="kpi-sub">Landing beacon triggers</div>
+        </div>
+
+        <div class="r2-stat-card">
+          <div class="kpi-label" style="color: #a855f7;">2. Bot Starts</div>
+          <div class="kpi-value" style="color: #a855f7; font-size: 24px;">${(funnel?.botStarts || 0).toLocaleString()}</div>
+          <div class="kpi-sub">Telegram deep links</div>
+        </div>
+
+        <div class="r2-stat-card">
+          <div class="kpi-label" style="color: #fbbf24;">3. Reg Views</div>
+          <div class="kpi-value" style="color: #fbbf24; font-size: 24px;">${(funnel?.registrationViews || 0).toLocaleString()}</div>
+          <div class="kpi-sub">1xBet affiliate page views</div>
+        </div>
+
+        <div class="r2-stat-card">
+          <div class="kpi-label" style="color: #10b981;">4. Deposits Submitted</div>
+          <div class="kpi-value" style="color: #10b981; font-size: 24px;">${(funnel?.depositsCount || 0).toLocaleString()}</div>
+          <div class="kpi-sub">Cashier slip submissions</div>
+        </div>
+      </div>
+
+      ${funnel && funnel.bySource && funnel.bySource.length > 0 ? `
+      <div class="table-container" style="margin-top: 16px;">
+        <h3 style="font-size: 13px; font-weight: 700; color: #cbd5e1; margin-bottom: 8px;">
+          🏷️ Performance by Attribution Source
+        </h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Campaign / Source</th>
+              <th style="text-align: right;">Total Events</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${funnel.bySource.map(s => `
+              <tr class="border-b border-slate-800/80">
+                <td class="font-mono text-sm text-slate-200">${escapeText(s.source || "direct")}</td>
+                <td class="text-right font-mono text-emerald-400">${s.count.toLocaleString()}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+      ` : ""}
     </section>
 
     <!-- Main Chart Card (D3.js Visualization) -->
