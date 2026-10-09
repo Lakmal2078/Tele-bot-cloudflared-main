@@ -1,4 +1,3 @@
-import * as d3 from "d3";
 import type { DailyTrendItem } from "./types";
 
 export interface ChartOptions {
@@ -15,6 +14,32 @@ function formatCurrency(val: number): string {
     return `${(val / 1_000).toFixed(0)}K`;
   }
   return String(Math.round(val));
+}
+
+function generateSmoothPath(points: Array<{ x: number; y: number }>): string {
+  if (points.length === 0) return "";
+  if (points.length === 1) return `M ${points[0].x.toFixed(1)},${points[0].y.toFixed(1)}`;
+
+  let path = `M ${points[0].x.toFixed(1)},${points[0].y.toFixed(1)}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i];
+    const p1 = points[i + 1];
+    const dx = (p1.x - p0.x) / 3;
+    const cp1x = p0.x + dx;
+    const cp1y = p0.y;
+    const cp2x = p1.x - dx;
+    const cp2y = p1.y;
+    path += ` C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p1.x.toFixed(1)},${p1.y.toFixed(1)}`;
+  }
+  return path;
+}
+
+function generateSmoothArea(points: Array<{ x: number; y: number }>, baseY: number): string {
+  if (points.length === 0) return "";
+  const first = points[0];
+  const last = points[points.length - 1];
+  const linePart = generateSmoothPath(points);
+  return `${linePart} L ${last.x.toFixed(1)},${baseY} L ${first.x.toFixed(1)},${baseY} Z`;
 }
 
 export function renderTrendsChartSvg(
@@ -52,68 +77,59 @@ export function renderTrendsChartSvg(
           },
         ];
 
-  // X scale using d3.scalePoint across dates
-  const xScale = d3
-    .scalePoint<string>()
-    .domain(data.map((d) => d.date))
-    .range([0, innerWidth])
-    .padding(0.15);
+  // X position mapping
+  const numPoints = data.length;
+  const getX = (index: number): number => {
+    if (numPoints <= 1) return innerWidth / 2;
+    return (index / (numPoints - 1)) * innerWidth;
+  };
 
   // Determine max value for Y scale
-  const maxVal = d3.max(data, (d) => {
-    if (isVolume) {
-      return Math.max(d.depositVolume, d.withdrawalVolume, 1000);
-    }
-    return Math.max(d.depositCount, d.withdrawalCount, 5);
-  }) ?? (isVolume ? 1000 : 5);
+  const rawMax = Math.max(
+    ...data.map((d) =>
+      isVolume
+        ? Math.max(d.depositVolume, d.withdrawalVolume, 1000)
+        : Math.max(d.depositCount, d.withdrawalCount, 5)
+    )
+  );
 
-  const yScale = d3
-    .scaleLinear()
-    .domain([0, maxVal * 1.15])
-    .range([innerHeight, 0])
-    .nice();
+  // Nice rounded top value for Y scale
+  const power = Math.pow(10, Math.floor(Math.log10(rawMax * 1.15)));
+  const roughFactor = (rawMax * 1.15) / power;
+  let niceFactor = 10;
+  if (roughFactor <= 1) niceFactor = 1;
+  else if (roughFactor <= 2) niceFactor = 2;
+  else if (roughFactor <= 5) niceFactor = 5;
+  const maxY = Math.max(isVolume ? 1000 : 5, Math.ceil(niceFactor * power));
 
-  // D3 Area generators
-  const depArea = d3
-    .area<DailyTrendItem>()
-    .x((d) => xScale(d.date) ?? 0)
-    .y0(innerHeight)
-    .y1((d) => yScale(isVolume ? d.depositVolume : d.depositCount))
-    .curve(d3.curveMonotoneX);
+  const getY = (val: number): number => {
+    const clamped = Math.max(0, val);
+    return Math.max(0, innerHeight - (clamped / maxY) * innerHeight);
+  };
 
-  const wdArea = d3
-    .area<DailyTrendItem>()
-    .x((d) => xScale(d.date) ?? 0)
-    .y0(innerHeight)
-    .y1((d) => yScale(isVolume ? d.withdrawalVolume : d.withdrawalCount))
-    .curve(d3.curveMonotoneX);
+  const depPoints = data.map((d, i) => ({
+    x: getX(i),
+    y: getY(isVolume ? d.depositVolume : d.depositCount),
+  }));
 
-  // D3 Line generators
-  const depLine = d3
-    .line<DailyTrendItem>()
-    .x((d) => xScale(d.date) ?? 0)
-    .y((d) => yScale(isVolume ? d.depositVolume : d.depositCount))
-    .curve(d3.curveMonotoneX);
+  const wdPoints = data.map((d, i) => ({
+    x: getX(i),
+    y: getY(isVolume ? d.withdrawalVolume : d.withdrawalCount),
+  }));
 
-  const wdLine = d3
-    .line<DailyTrendItem>()
-    .x((d) => xScale(d.date) ?? 0)
-    .y((d) => yScale(isVolume ? d.withdrawalVolume : d.withdrawalCount))
-    .curve(d3.curveMonotoneX);
+  const depAreaPath = generateSmoothArea(depPoints, innerHeight);
+  const wdAreaPath = generateSmoothArea(wdPoints, innerHeight);
+  const depLinePath = generateSmoothPath(depPoints);
+  const wdLinePath = generateSmoothPath(wdPoints);
 
-  const depAreaPath = depArea(data) || "";
-  const wdAreaPath = wdArea(data) || "";
-  const depLinePath = depLine(data) || "";
-  const wdLinePath = wdLine(data) || "";
-
-  // Y-axis tick marks
-  const yTicks = yScale.ticks(5);
+  // Y-axis tick marks (5 ticks: 0, 25%, 50%, 75%, 100%)
+  const yTicks = [0, maxY * 0.25, maxY * 0.5, maxY * 0.75, maxY];
   const yTickElements = yTicks
     .map((tick) => {
-      const y = yScale(tick);
-      const label = isVolume ? `LKR ${formatCurrency(tick)}` : String(tick);
+      const y = getY(tick);
+      const label = isVolume ? `LKR ${formatCurrency(tick)}` : String(Math.round(tick));
       return `
-      <g class="tick-y" transform="translate(0, ${y})">
+      <g class="tick-y" transform="translate(0, ${y.toFixed(1)})">
         <line x1="0" x2="${innerWidth}" stroke="rgba(255,255,255,0.07)" stroke-dasharray="3,3" />
         <text x="-12" y="4" fill="#94a3b8" font-size="11" font-weight="500" text-anchor="end" font-family="system-ui, -apple-system, sans-serif">${label}</text>
       </g>`;
@@ -122,10 +138,10 @@ export function renderTrendsChartSvg(
 
   // X-axis tick marks
   const xTickElements = data
-    .map((d) => {
-      const x = xScale(d.date) ?? 0;
+    .map((d, i) => {
+      const x = getX(i);
       return `
-      <g class="tick-x" transform="translate(${x}, ${innerHeight})">
+      <g class="tick-x" transform="translate(${x.toFixed(1)}, ${innerHeight})">
         <line y1="0" y2="6" stroke="rgba(255,255,255,0.2)" />
         <text y="22" fill="#94a3b8" font-size="11" font-weight="500" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif">${d.label}</text>
       </g>`;
@@ -134,10 +150,10 @@ export function renderTrendsChartSvg(
 
   // Data point dots & interactive tooltips
   const dataPoints = data
-    .map((d) => {
-      const x = xScale(d.date) ?? 0;
-      const depY = yScale(isVolume ? d.depositVolume : d.depositCount);
-      const wdY = yScale(isVolume ? d.withdrawalVolume : d.withdrawalCount);
+    .map((d, i) => {
+      const x = getX(i);
+      const depY = getY(isVolume ? d.depositVolume : d.depositCount);
+      const wdY = getY(isVolume ? d.withdrawalVolume : d.withdrawalCount);
 
       const depText = isVolume
         ? `LKR ${d.depositVolume.toLocaleString()} (${d.depositCount} deposits)`
@@ -149,15 +165,15 @@ export function renderTrendsChartSvg(
       return `
       <g class="data-point" data-date="${d.date}">
         <!-- Vertical hover bar indicator -->
-        <line class="hover-guide" x1="${x}" y1="0" x2="${x}" y2="${innerHeight}" stroke="rgba(255,255,255,0.15)" stroke-dasharray="2,2" opacity="0" pointer-events="none" />
+        <line class="hover-guide" x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${innerHeight}" stroke="rgba(255,255,255,0.15)" stroke-dasharray="2,2" opacity="0" pointer-events="none" />
         
         <!-- Deposit dot -->
-        <circle cx="${x}" cy="${depY}" r="4.5" fill="#10b981" stroke="#064e3b" stroke-width="2">
+        <circle cx="${x.toFixed(1)}" cy="${depY.toFixed(1)}" r="4.5" fill="#10b981" stroke="#064e3b" stroke-width="2">
           <title>${d.label} Deposits: ${depText}</title>
         </circle>
 
         <!-- Withdrawal dot -->
-        <circle cx="${x}" cy="${wdY}" r="4.5" fill="#f59e0b" stroke="#78350f" stroke-width="2">
+        <circle cx="${x.toFixed(1)}" cy="${wdY.toFixed(1)}" r="4.5" fill="#f59e0b" stroke="#78350f" stroke-width="2">
           <title>${d.label} Withdrawals: ${wdText}</title>
         </circle>
       </g>`;

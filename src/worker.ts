@@ -214,7 +214,8 @@ ${homeEntries}
       }
 
       try {
-        return finish(await executionContextStorage.run(ctx ?? {}, async () => await webhookHandler!(request)));
+        const store = { ...(ctx ?? {}), env };
+        return finish(await executionContextStorage.run(store, async () => await webhookHandler!(request)));
       } catch (err) {
         console.error("[Worker Webhook Error]:", err);
         logBotError(env, { source: "WorkerWebhookFetch", message: err instanceof Error ? err.message : String(err), stack: err instanceof Error ? err.stack : undefined, context: { flow: "worker_webhook_fetch" } }, ctx?.waitUntil?.bind(ctx));

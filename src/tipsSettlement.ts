@@ -259,7 +259,7 @@ export async function updateTelegramMessageWithResults(
   ].join("\n");
 
   try {
-    const resp = await fetch(`https://api.telegram.org/bot${encodeURIComponent(env.BOT_TOKEN)}/editMessageText`, {
+    const resp = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/editMessageText`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

@@ -14,6 +14,7 @@ import * as cashier from "./cashier";
 
 export const executionContextStorage = new AsyncLocalStorage<{
   waitUntil?: (promise: Promise<unknown>) => void;
+  env?: Env;
 }>();
 
 export type MyContext = Context & {
@@ -238,46 +239,6 @@ export function createBot(env: Env) {
   const adminIds = parseAdminIds(env.ADMIN_IDS || "");
   mainMenuChannelUrl = normalizeChannelUrl(env.CHANNEL_URL, env.CHANNEL_USERNAME) || "";
 
-  // Register clean Telegram Bot Commands menu (the "/" button)
-  // Default (English) + Sinhala + Tamil
-  const defaultCommands = [
-    { command: "start", description: "Main menu / ප්‍රධාන මෙනුව" },
-    { command: "deposit", description: "Cash deposit / තැන්පතු" },
-    { command: "withdraw", description: "Cash withdrawal / මුදල් ආපසු" },
-    { command: "confirm", description: "Confirm deposit / තැන්පතු තහවුරු" },
-    { command: "tips", description: "Free sports tips / නොමිලේ Tips" },
-    { command: "history", description: "Transaction history / ඉතිහාසය" },
-    { command: "help", description: "Help & FAQ / සහාය" },
-    { command: "language", description: "Change language / භාෂාව" },
-    { command: "id", description: "My Telegram ID / මගේ ID" },
-  ];
-  const siCommands = [
-    { command: "start", description: "ප්‍රධාන මෙනුව" },
-    { command: "deposit", description: "තැන්පතු" },
-    { command: "withdraw", description: "මුදල් ආපසු ගැනීම" },
-    { command: "confirm", description: "තැන්පතු තහවුරු කරන්න" },
-    { command: "tips", description: "නොමිලේ ක්‍රීඩා Tips" },
-    { command: "history", description: "ගනුදෙනු ඉතිහාසය" },
-    { command: "help", description: "සහාය සහ FAQ" },
-    { command: "language", description: "භාෂාව වෙනස් කරන්න" },
-    { command: "id", description: "මගේ Telegram ID" },
-  ];
-  const taCommands = [
-    { command: "start", description: "முதன்மை மெனு" },
-    { command: "deposit", description: "பணம் வைப்பு" },
-    { command: "withdraw", description: "பணம் எடுத்தல்" },
-    { command: "confirm", description: "வைப்பை உறுதிப்படுத்து" },
-    { command: "tips", description: "இலவச விளையாட்டு குறிப்புகள்" },
-    { command: "history", description: "பரிவர்த்தனை வரலாறு" },
-    { command: "help", description: "உதவி & FAQ" },
-    { command: "language", description: "மொழியை மாற்று" },
-    { command: "id", description: "என் Telegram ID" },
-  ];
-  // Fire-and-forget — do not block bot startup if Telegram API is slow
-  bot.api.setMyCommands(defaultCommands).catch(() => {});
-  bot.api.setMyCommands(siCommands, { language_code: "si" }).catch(() => {});
-  bot.api.setMyCommands(taCommands, { language_code: "ta" }).catch(() => {});
-  bot.api.setMyCommands(defaultCommands, { language_code: "en" }).catch(() => {});
 
 
   // 🛡️ Global, per-user & command-specific rate limiting — runs BEFORE every handler.
@@ -314,8 +275,8 @@ export function createBot(env: Env) {
 
   // Attach env and waitUntil to context
   bot.use(async (ctx, next) => {
-    ctx.env = env;
     const workerCtx = executionContextStorage.getStore();
+    ctx.env = workerCtx?.env ?? env;
     ctx.waitUntil = (promise: Promise<unknown>) => {
       if (workerCtx && typeof workerCtx.waitUntil === "function") {
         workerCtx.waitUntil(promise);

@@ -714,7 +714,7 @@ async function postTelegramMessage(
     payload.reply_markup = replyMarkup;
   }
 
-  let response = await fetch(`https://api.telegram.org/bot${encodeURIComponent(env.BOT_TOKEN)}/sendMessage`, {
+  let response = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -722,7 +722,7 @@ async function postTelegramMessage(
   let telegram = (await response.json()) as { ok: boolean; description?: string; result?: { message_id?: number } };
   if (!telegram.ok && telegram.description?.toLowerCase().includes("can't parse entities")) {
     console.warn(`[Tips] Telegram Markdown parsing failed (${telegram.description}), retrying with plain text`);
-    response = await fetch(`https://api.telegram.org/bot${encodeURIComponent(env.BOT_TOKEN)}/sendMessage`, {
+    response = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -893,7 +893,7 @@ export async function sendAdminAlert(env: Env, alertMessage: string): Promise<vo
   const uniqueTargets = [...new Set(targets)];
   for (const chatId of uniqueTargets) {
     try {
-      await fetch(`https://api.telegram.org/bot${encodeURIComponent(env.BOT_TOKEN)}/sendMessage`, {
+      await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
