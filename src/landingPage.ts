@@ -1483,6 +1483,68 @@ body::before{
 .tipEmpty{border-color:rgba(56,189,248,.22);background:#081522}
 .mobileStickyBar{background:rgba(5,11,20,.90);border-top-color:rgba(34,158,217,.22)}
 .stickyBtn{background:linear-gradient(135deg,#229ed9,#38bdf8);color:#04111d}
+/* Ultra-Modern Interactive Odds & Live Features */
+.oddsCalcBox{
+  margin-top:24px;
+  background:radial-gradient(circle at 10% 20%,rgba(34,158,217,.12) 0%,transparent 50%),linear-gradient(145deg,#0c1c2e,#07121e);
+  border:1px solid rgba(56,189,248,.26);
+  border-radius:14px;
+  padding:20px;
+  box-shadow:0 18px 45px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.05);
+}
+.oddsCalcGrid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:14px;}
+@media(max-width:680px){.oddsCalcGrid{grid-template-columns:1fr;gap:14px;}}
+.oddsCalcInputGroup{display:flex;flex-direction:column;gap:6px;}
+.oddsCalcInputGroup label{font-size:.78rem;color:var(--muted);font-weight:600;}
+.oddsCalcInputWrap{position:relative;display:flex;align-items:center;}
+.oddsCalcInputWrap span{position:absolute;left:12px;font-size:.82rem;color:var(--muted);pointer-events:none;}
+.oddsCalcInput{
+  width:100%;
+  background:rgba(6,16,26,.85);
+  border:1px solid rgba(56,189,248,.22);
+  border-radius:8px;
+  padding:10px 12px 10px 48px;
+  color:#fff;
+  font-size:.95rem;
+  font-weight:700;
+  outline:none;
+  transition:border-color .2s ease,box-shadow .2s ease;
+}
+.oddsCalcInput:focus{border-color:#38bdf8;box-shadow:0 0 12px rgba(56,189,248,.25);}
+.oddsCalcResult{
+  background:rgba(34,158,217,.06);
+  border:1px solid rgba(34,158,217,.20);
+  border-radius:10px;
+  padding:14px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:8px;
+}
+.oddsCalcRow{display:flex;justify-content:space-between;align-items:center;font-size:.82rem;color:var(--muted);}
+.oddsCalcRow b{color:#fff;font-size:1.15rem;font-weight:800;}
+.oddsCalcProfit{color:#00e676 !important;}
+.liveActivityTicker{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  background:rgba(34,158,217,.08);
+  border:1px solid rgba(56,189,248,.22);
+  border-radius:30px;
+  padding:5px 14px;
+  font-size:.76rem;
+  color:#7dd3fc;
+  margin-bottom:12px;
+}
+.liveActivityPulse{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:#00e676;
+  box-shadow:0 0 8px #00e676;
+  animation:pulseGreen 2s infinite ease-in-out;
+}
+@keyframes pulseGreen{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.2);}}
 @media(max-width:720px){
   .hero{padding-top:48px;padding-bottom:38px}
   .heroGraphicBg{opacity:.16}
@@ -1730,6 +1792,48 @@ body::before{
         <div class="tipFoot">${esc(c.tips.verifiedBadge)}</div>
       </article>
     </div>
+    <!-- Interactive Match Odds & Win Calculator (New Feature) -->
+    <div class="oddsCalcBox" id="odds-calculator">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div>
+          <span class="liveActivityTicker"><span class="liveActivityPulse"></span> ⚡ Live Match Slip Calculator</span>
+          <h3 style="margin:4px 0 0;font-size:1.05rem;color:#f8fafc;">ඔබගේ ජයග්‍රහණය ගණනය කරන්න (Potential Win Calculator)</h3>
+        </div>
+        <span style="font-size:0.75rem;color:#38bdf8;background:rgba(56,189,248,0.1);padding:4px 10px;border-radius:20px;border:1px solid rgba(56,189,248,0.25);">Live Odds Engine</span>
+      </div>
+      <div class="oddsCalcGrid">
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="oddsCalcInputGroup">
+            <label for="oddsStakeInput">ඔබගේ ඔට්ටු මුදල (Stake Amount in LKR):</label>
+            <div class="oddsCalcInputWrap">
+              <span>LKR</span>
+              <input type="number" id="oddsStakeInput" class="oddsCalcInput" value="2000" min="500" max="100000" step="500" />
+            </div>
+          </div>
+          <div class="oddsCalcInputGroup">
+            <label for="oddsRateInput">තරගයේ Odds අනුපාතය (Match Odds):</label>
+            <div class="oddsCalcInputWrap">
+              <span>x</span>
+              <input type="number" id="oddsRateInput" class="oddsCalcInput" value="1.85" min="1.10" max="50.00" step="0.05" />
+            </div>
+          </div>
+        </div>
+        <div class="oddsCalcResult">
+          <div class="oddsCalcRow">
+            <span>මුළු ඇස්තමේන්තුගත ගෙවීම (Total Return):</span>
+            <b id="oddsTotalReturn">LKR 3,700</b>
+          </div>
+          <div class="oddsCalcRow">
+            <span>ශුද්ධ ලාභය (Net Profit):</span>
+            <b id="oddsNetProfit" class="oddsCalcProfit">+ LKR 1,700</b>
+          </div>
+          <div style="font-size:0.72rem;color:var(--muted);margin-top:6px;border-top:1px dashed rgba(255,255,255,0.1);padding-top:6px;">
+            ⚡ 1xBet Cash Desk හරහා ජයග්‍රහණ විනාඩි 5-15 න් බැංකුවට හෝ eZ Cash / FriMi වෙත ලබාගත හැක.
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="actions" style="margin-top:20px;justify-content:center">
       <a class="btn primary" href="${ebTips}" data-track-cta="tips_section_bot">✈ ${esc(c.tips.cta)}</a>
     </div>
@@ -2100,6 +2204,33 @@ ${renderFinalCtaBanner(c, lang, eb)}
         updateCalc(current + pVal);
       });
     });
+  } catch(e){}
+
+  // 5b. Interactive Live Match Slip & Odds Calculator Logic
+  try {
+    var stakeIn = document.getElementById("oddsStakeInput");
+    var rateIn = document.getElementById("oddsRateInput");
+    var totalRet = document.getElementById("oddsTotalReturn");
+    var netProf = document.getElementById("oddsNetProfit");
+
+    function updateOddsCalc() {
+      var stake = Number(stakeIn ? stakeIn.value : 2000) || 0;
+      var odds = Number(rateIn ? rateIn.value : 1.85) || 1;
+      var total = Math.round(stake * odds);
+      var profit = Math.max(0, total - stake);
+
+      if (totalRet) totalRet.textContent = "LKR " + total.toLocaleString("en-LK");
+      if (netProf) netProf.textContent = "+ LKR " + profit.toLocaleString("en-LK");
+    }
+
+    if (stakeIn) {
+      stakeIn.addEventListener("input", updateOddsCalc);
+      stakeIn.addEventListener("change", updateOddsCalc);
+    }
+    if (rateIn) {
+      rateIn.addEventListener("input", updateOddsCalc);
+      rateIn.addEventListener("change", updateOddsCalc);
+    }
   } catch(e){}
 
   // 6. Interactive Telegram Bot Chat Preview Simulation
