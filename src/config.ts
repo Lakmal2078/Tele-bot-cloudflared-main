@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { Env } from "./types";
 
 const MIN_SECRET_LENGTH = 16;
@@ -145,15 +146,15 @@ export function assertValidEnv(env: Partial<Env>, context = "runtime"): void {
   }
 }
 
+/**
+ * Constant-time equality check to prevent timing attacks.
+ * Hashes inputs with SHA-256 to a fixed 32-byte digest first, avoiding length leakage,
+ * then uses hardware-accelerated timingSafeEqual.
+ */
 export function constantTimeEqual(a: string, b: string): boolean {
-  const left = new TextEncoder().encode(a);
-  const right = new TextEncoder().encode(b);
-  let diff = left.length ^ right.length;
-  const length = Math.max(left.length, right.length);
-  for (let i = 0; i < length; i += 1) {
-    diff |= (left[i] ?? 0) ^ (right[i] ?? 0);
-  }
-  return diff === 0;
+  const aHash = createHash("sha256").update(a).digest();
+  const bHash = createHash("sha256").update(b).digest();
+  return timingSafeEqual(aHash, bHash);
 }
 
 export function unauthorizedResponse(): Response {

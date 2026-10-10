@@ -94,8 +94,9 @@ export function renderTrendsChartSvg(
   );
 
   // Nice rounded top value for Y scale
-  const power = Math.pow(10, Math.floor(Math.log10(rawMax * 1.15)));
-  const roughFactor = (rawMax * 1.15) / power;
+  const targetMax = rawMax > 0 ? rawMax * 1.15 : 1;
+  const power = Math.pow(10, Math.floor(Math.log10(targetMax)));
+  const roughFactor = targetMax / power;
   let niceFactor = 10;
   if (roughFactor <= 1) niceFactor = 1;
   else if (roughFactor <= 2) niceFactor = 2;
