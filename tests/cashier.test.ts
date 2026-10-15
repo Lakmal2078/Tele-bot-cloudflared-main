@@ -115,6 +115,16 @@ describe("cashier safety and business configuration", () => {
     expect(key1).toContain("dep_");
   });
 
+  it("keeps two different receipts apart when the receipt id is long", () => {
+    const prefix = "AgACAgUAAxkBAAIBc2d4AAHcVqQ1ZKmAAZ3k9f8AAAAA";
+    const receiptA = `${prefix}${"A".repeat(40)}1a2b3c4d5e6f7g8h9i0j`;
+    const receiptB = `${prefix}${"A".repeat(40)}9z8y7x6w5v4u3t2s1r0q`;
+    const keyA = generateIdempotencyKey("dep", 9876543210, "PLAYER778899", 1500, receiptA);
+    const keyB = generateIdempotencyKey("dep", 9876543210, "PLAYER778899", 1500, receiptB);
+    expect(keyA).not.toBe(keyB);
+    expect(keyA.endsWith(receiptA)).toBe(true);
+  });
+
   it("orchestrates deposit submission with idempotency deduplication", async () => {
     const d1 = createD1Database(":memory:");
     const env: Env = {

@@ -462,7 +462,11 @@ export function generateIdempotencyKey(
     .filter((p) => p !== null && p !== undefined && p !== "")
     .map(String)
     .join("_");
-  return `${kind}_${userId}_${cleanParts}`.slice(0, 100);
+  // Never truncate this key. The part that tells two submissions apart (the receipt file id,
+  // the payout destination) sits at the END, so a fixed-width slice() silently collapses two
+  // different transactions into one key and the second submission is deduplicated away. The
+  // full value is deterministic and bounded by the fields it is built from.
+  return `${kind}_${userId}_${cleanParts}`;
 }
 
 export interface ProcessDepositParams {

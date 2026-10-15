@@ -24,6 +24,23 @@ export function fromCents(cents: number): number {
   return cents / 100;
 }
 
+/**
+ * Looks up a transaction by its idempotency key. Used to recover from a concurrent
+ * submission that won the race on the unique idempotency index; returns null when no
+ * such row exists so the caller can rethrow the original error.
+ */
+async function idByKey(
+  db: D1Database,
+  table: "deposits" | "withdrawals",
+  idempotencyKey: string
+): Promise<number | null> {
+  const row = await db
+    .prepare(`SELECT id FROM ${table} WHERE idempotency_key = ? AND deleted_at IS NULL`)
+    .bind(idempotencyKey)
+    .first<{ id: number }>();
+  return row?.id ? Number(row.id) : null;
+}
+
 function mapDepositRow(row: any): DepositRow | null {
   if (!row) return null;
   return {
@@ -247,20 +264,41 @@ export async function addDeposit(
 
   const clearStmt = db.prepare(`DELETE FROM user_state WHERE user_id = ?`).bind(userId);
 
+  // A concurrent submission with the same idempotency key loses the race on the unique
+  // index. Return the row that won instead of failing the whole request.
+  const recoverFromRace = async (err: unknown): Promise<number> => {
+    if (idempotencyKey) {
+      const winnerId = await idByKey(db, "deposits", idempotencyKey);
+      if (winnerId) return winnerId;
+    }
+    throw err;
+  };
+
   if (typeof db.batch === "function") {
-    const results = await db.batch([insertStmt, clearStmt]);
-    const first = results?.[0];
-    const id =
-      first?.results?.[0]?.id ??
-      first?.meta?.last_row_id ??
-      (await insertStmt.first<{ id: number }>())?.id ??
-      0;
-    return Number(id) || 0;
+    try {
+      const results = await db.batch([insertStmt, clearStmt]);
+      const first = results?.[0];
+      const id = first?.results?.[0]?.id ?? first?.meta?.last_row_id ?? 0;
+      if (id) return Number(id);
+      // The batch already inserted the row, so never re-run the INSERT to recover its id:
+      // a second insert either duplicates the transaction or throws on the unique index.
+      if (idempotencyKey) {
+        const winnerId = await idByKey(db, "deposits", idempotencyKey);
+        if (winnerId) return winnerId;
+      }
+      return 0;
+    } catch (err) {
+      return await recoverFromRace(err);
+    }
   }
 
-  const result = await insertStmt.first<{ id: number }>();
-  await clearStmt.run();
-  return result?.id ?? 0;
+  try {
+    const result = await insertStmt.first<{ id: number }>();
+    await clearStmt.run();
+    return result?.id ?? 0;
+  } catch (err) {
+    return await recoverFromRace(err);
+  }
 }
 
 export async function updateDepositR2Url(db: D1Database, id: number, r2Url: string) {
@@ -321,20 +359,41 @@ export async function addWithdrawal(
 
   const clearStmt = db.prepare(`DELETE FROM user_state WHERE user_id = ?`).bind(userId);
 
+  // A concurrent submission with the same idempotency key loses the race on the unique
+  // index. Return the row that won instead of failing the whole request.
+  const recoverFromRace = async (err: unknown): Promise<number> => {
+    if (idempotencyKey) {
+      const winnerId = await idByKey(db, "withdrawals", idempotencyKey);
+      if (winnerId) return winnerId;
+    }
+    throw err;
+  };
+
   if (typeof db.batch === "function") {
-    const results = await db.batch([insertStmt, clearStmt]);
-    const first = results?.[0];
-    const id =
-      first?.results?.[0]?.id ??
-      first?.meta?.last_row_id ??
-      (await insertStmt.first<{ id: number }>())?.id ??
-      0;
-    return Number(id) || 0;
+    try {
+      const results = await db.batch([insertStmt, clearStmt]);
+      const first = results?.[0];
+      const id = first?.results?.[0]?.id ?? first?.meta?.last_row_id ?? 0;
+      if (id) return Number(id);
+      // The batch already inserted the row, so never re-run the INSERT to recover its id:
+      // a second insert either duplicates the transaction or throws on the unique index.
+      if (idempotencyKey) {
+        const winnerId = await idByKey(db, "withdrawals", idempotencyKey);
+        if (winnerId) return winnerId;
+      }
+      return 0;
+    } catch (err) {
+      return await recoverFromRace(err);
+    }
   }
 
-  const result = await insertStmt.first<{ id: number }>();
-  await clearStmt.run();
-  return result?.id ?? 0;
+  try {
+    const result = await insertStmt.first<{ id: number }>();
+    await clearStmt.run();
+    return result?.id ?? 0;
+  } catch (err) {
+    return await recoverFromRace(err);
+  }
 }
 
 export async function getPendingDeposits(db: D1Database) {
