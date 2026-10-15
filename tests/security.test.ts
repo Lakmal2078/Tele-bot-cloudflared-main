@@ -9,6 +9,7 @@ import {
   webhookRequestAllowed,
   SECURITY_LIMITS,
 } from "../src/security";
+import { hasValidAdminSession } from "../src/adminSession";
 
 describe("webhook security", () => {
   it("requires POST application/json requests", () => {
@@ -65,6 +66,20 @@ describe("webhook security", () => {
   it("keeps upgrade-insecure-requests for HTTPS landing pages", () => {
     const headers = landingPageSecurityHeaders("abcdef1234567890", { isHttps: true });
     expect(headers["Content-Security-Policy"]).toContain("upgrade-insecure-requests");
+  });
+
+  it("never publicly caches a landing page that carries a CSP nonce", () => {
+    const withNonce = landingPageSecurityHeaders("abcdef1234567890");
+    expect(withNonce["Cache-Control"]).toContain("no-store");
+    expect(withNonce["Cache-Control"]).not.toContain("s-maxage");
+
+    const withoutNonce = landingPageSecurityHeaders();
+    expect(withoutNonce["Cache-Control"]).toContain("s-maxage=86400");
+  });
+
+  it("reads a malformed admin session cookie as unauthenticated instead of throwing", async () => {
+    const request = new Request("https://example.test/admin", { headers: { Cookie: "admin_session=%" } });
+    await expect(hasValidAdminSession(request, { ADMIN_API_SECRET: "x".repeat(32) })).resolves.toBe(false);
   });
 
 });

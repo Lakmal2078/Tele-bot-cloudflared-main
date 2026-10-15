@@ -145,13 +145,37 @@ if (env.BOT_TOKEN && env.BOT_TOKEN.trim().length > 0) {
   console.log("[Bot] BOT_TOKEN not configured. Live Telegram bot polling is standby; Web showcase and APIs active.");
 }
 
+/** Address headers a caller must never be trusted to set by itself. */
+const CLIENT_ADDRESS_HEADERS = new Set(["cf-connecting-ip", "x-forwarded-for", "x-real-ip", "forwarded"]);
+
+/** True only when a trusted reverse proxy in front of this server sets the address headers. */
+function trustsForwardedAddressHeaders(): boolean {
+  const flag = String(process.env.TRUST_PROXY_HEADERS || "").trim().toLowerCase();
+  return flag === "true" || flag === "1" || flag === "yes";
+}
+
+/** `::ffff:203.0.113.5` -> `203.0.113.5`, so the admin allowlist can match a real address. */
+function normalizeSocketAddress(address: string): string {
+  const trimmed = address.trim();
+  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(trimmed);
+  return mapped ? mapped[1] : trimmed;
+}
+
 async function nodeToWebRequest(req: http.IncomingMessage, hostHeader: string): Promise<Request> {
   const url = new URL(req.url || "/", `http://${hostHeader}`);
   const headers = new Headers();
+  const trustForwardedAddress = trustsForwardedAddressHeaders();
   for (const [k, v] of Object.entries(req.headers)) {
     if (v === undefined) continue;
+    // These headers decide the admin IP allowlist and the failed-login counter, so a
+    // caller-supplied value is dropped unless a trusted proxy is documented as setting it.
+    if (!trustForwardedAddress && CLIENT_ADDRESS_HEADERS.has(k.toLowerCase())) continue;
     if (Array.isArray(v)) for (const item of v) headers.append(k, item);
     else headers.set(k, v);
+  }
+  if (!trustForwardedAddress) {
+    const remoteAddress = req.socket?.remoteAddress;
+    if (remoteAddress) headers.set("cf-connecting-ip", normalizeSocketAddress(remoteAddress));
   }
   const method = (req.method || "GET").toUpperCase();
   const init: RequestInit = { method, headers };
