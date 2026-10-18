@@ -71,6 +71,8 @@ affect the deployed Worker but are real for the preview and for any Node/VPS dep
   is also not covered by the MIME map (see P0-4).
 - **Fix:** mirror `worker.ts` — before the 404 branch, try `env.ASSETS.fetch(request)` for
   `GET`/`HEAD` and serve a 200 response; keep the existing 404 otherwise.
+- **Status:** fixed in `src/index.ts`. All five `/assets/telegram/*.jpg` now return `200 image/jpeg`
+  and load in the browser; unknown paths still return a real 404.
 
 ### P0-3 [Node runtime] `/api/tips/preview` returns 404 → the live tips feed never loads
 - **Evidence:** `curl http://localhost:3000/api/tips/preview` → **404**
@@ -81,6 +83,9 @@ affect the deployed Worker but are real for the preview and for any Node/VPS dep
   runtime has no such endpoint while the landing page always fetches it.
 - **Fix:** move the `/api/tips/preview` (and, for parity, the other Worker-only read routes) into
   `handleApiRequest()` so both runtimes serve it from one implementation.
+- **Status:** fixed in `src/index.ts` (route handled next to `/api/status`, mirroring `worker.ts`;
+  the remaining Worker-only read routes still need the shared-handler move). The landing page's own
+  fetch now gets `200 application/json`.
 
 ### P0-4 [Node runtime] Wrong `Content-Type` for `.json`/manifest (and non-png/ico/svg assets)
 - **Evidence:** `curl -I http://localhost:3000/manifest.json` → `200 application/octet-stream`
@@ -91,6 +96,8 @@ affect the deployed Worker but are real for the preview and for any Node/VPS dep
   asset would be mishandled on the Node runtime.
 - **Fix:** a small extension→MIME map (json/webmanifest, jpg/jpeg, webp, css, js, txt, xml, html,
   svg, ico, png) in the same helper that P0-2 routes through.
+- **Status:** fixed in `src/index.ts` (`CONTENT_TYPES`); `/manifest.json` is now
+  `200 application/json; charset=utf-8` and `.jpg` is `image/jpeg`.
 
 ## 3. P1 — medium
 

@@ -10,6 +10,7 @@ import { landingPageSecurityHeaders } from "./security";
 import { renderLandingPage } from "./landingPage";
 import { handleApiRequest } from "./apiRoutes";
 import { getPublicStatus } from "./publicStatus";
+import { getPublicTips } from "./publicTips";
 import type { Env } from "./types";
 
 // Load .env file with explicit override support
@@ -40,6 +41,25 @@ const HOST = "0.0.0.0";
 const dbPath = process.env.DB_PATH || "data/bot.db";
 const db = createD1Database(dbPath);
 
+const CONTENT_TYPES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".webmanifest": "application/manifest+json; charset=utf-8",
+  ".txt": "text/plain; charset=utf-8",
+  ".xml": "application/xml; charset=utf-8",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+};
+
 const localAssetsFetcher = {
   async fetch(request: Request | string): Promise<Response> {
     const rawUrl = typeof request === "string" ? request : request.url;
@@ -50,7 +70,7 @@ const localAssetsFetcher = {
     if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
       const buffer = fs.readFileSync(filePath);
       const ext = path.extname(filePath).toLowerCase();
-      const contentType = ext === ".png" ? "image/png" : ext === ".ico" ? "image/x-icon" : ext === ".svg" ? "image/svg+xml" : "application/octet-stream";
+      const contentType = CONTENT_TYPES[ext] || "application/octet-stream";
       return new Response(buffer, {
         status: 200,
         headers: {
@@ -198,6 +218,19 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // Public read-only landing-page feed, identical to the Worker route.
+    if (url.pathname === "/api/tips/preview" && (method === "GET" || method === "HEAD")) {
+      if (method === "HEAD") {
+        res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+        res.end();
+        return;
+      }
+      const requestedLimit = Number.parseInt(url.searchParams.get("limit") || "12", 10);
+      const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(requestedLimit, 20)) : 12;
+      writeJson(res, await getPublicTips(env, limit));
+      return;
+    }
+
     // 1. Dispatch shared API routes (health, dashboard, tickets, schedule, receipts, cleanup)
     const apiResponse = await handleApiRequest(webReq, env, { runtime: "node", isPolling: usePolling });
     if (apiResponse) {
@@ -226,9 +259,17 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // 3. HTML landing page with CSP cryptographic nonce (root only).
+    // 3. Static files from public/, then the HTML landing page with CSP cryptographic nonce (root only).
     if (method === "GET" || method === "HEAD") {
       if (url.pathname !== "/") {
+        if (env.ASSETS && typeof env.ASSETS.fetch === "function") {
+          const assetRes = await env.ASSETS.fetch(webReq);
+          if (assetRes && assetRes.status !== 404) {
+            res.writeHead(assetRes.status, Object.fromEntries(assetRes.headers));
+            res.end(method === "HEAD" ? undefined : Buffer.from(await assetRes.arrayBuffer()));
+            return;
+          }
+        }
         res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
         res.end(method === "HEAD" ? undefined : "Not Found");
         return;
