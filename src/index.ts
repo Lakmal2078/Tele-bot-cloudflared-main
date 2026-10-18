@@ -50,7 +50,23 @@ const localAssetsFetcher = {
     if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
       const buffer = fs.readFileSync(filePath);
       const ext = path.extname(filePath).toLowerCase();
-      const contentType = ext === ".png" ? "image/png" : ext === ".ico" ? "image/x-icon" : ext === ".svg" ? "image/svg+xml" : "application/octet-stream";
+      const contentTypes: Record<string, string> = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".gif": "image/gif",
+        ".svg": "image/svg+xml",
+        ".ico": "image/x-icon",
+        ".json": "application/json; charset=utf-8",
+        ".webmanifest": "application/manifest+json; charset=utf-8",
+        ".css": "text/css; charset=utf-8",
+        ".js": "text/javascript; charset=utf-8",
+        ".txt": "text/plain; charset=utf-8",
+        ".xml": "application/xml; charset=utf-8",
+        ".html": "text/html; charset=utf-8",
+      };
+      const contentType = contentTypes[ext] || "application/octet-stream";
       return new Response(buffer, {
         status: 200,
         headers: {
@@ -226,7 +242,24 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // 3. HTML landing page with CSP cryptographic nonce (root only).
+    // 3. Static files from public/ (parity with the Worker's static asset binding,
+    //    which serves public/ before the Worker runs).
+    if ((method === "GET" || method === "HEAD") && url.pathname !== "/") {
+      const assetResponse = await localAssetsFetcher.fetch(webReq);
+      if (assetResponse.status === 200) {
+        if (method === "HEAD") {
+          const headers: Record<string, string> = {};
+          assetResponse.headers.forEach((val, key) => { headers[key] = val; });
+          res.writeHead(200, headers);
+          res.end();
+        } else {
+          await sendWebResponse(res, assetResponse);
+        }
+        return;
+      }
+    }
+
+    // 4. HTML landing page with CSP cryptographic nonce (root only).
     if (method === "GET" || method === "HEAD") {
       if (url.pathname !== "/") {
         res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });

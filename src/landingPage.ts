@@ -606,6 +606,63 @@ function renderHeroTrustRibbon(lang: Lang): string {
   </div>`;
 }
 
+function renderWhyBand(lang: Lang): string {
+  const copy = lang === "si" ? {
+    kicker: "ඇයි Fast xBet Cash",
+    title: "ශ්‍රී ලංකා ක්‍රීඩකයන් සඳහාම හදපු Telegram Cash Desk එක",
+    desc: "ක්‍රීඩා උපදෙස්, තැන්පතු සහ මුදල් ආපසු ගැනීම් — සියල්ල එකම නිල Telegram bot එකක් තුළ. අමතර app එකක් හෝ වෙබ් අඩවියේ බැංකු මුරපදයක් අවශ්‍ය නැහැ.",
+    caption: "⚡ 1xBet Sri Lanka Cash Desk · Telegram",
+    imageAlt: "Fast xBet Cash Telegram bot interface preview",
+    items: [
+      { icon: "🎯", title: "නොමිලේ දෛනික උපදෙස්", body: "සැබෑ වෙළඳපල Odds සමඟ දිනපතා විශ්ලේෂණය කළ tips, නොමිලේ." },
+      { icon: "💳", title: "දේශීය ගෙවීම් මාර්ග", body: "eZ Cash, mCash, FriMi, iPay සහ බැංකු මාරු කිරීම් — පියවරෙන් පියවර." },
+      { icon: "🗣️", title: "භාෂා තුනක්", body: "සිංහල, ඉංග්‍රීසි සහ දෙමළ සහාය එකම chat එකේ." },
+      { icon: "🛡️", title: "රහස්‍යතාව මුලින්ම", body: "PIN හෝ මුරපද වෙබ් අඩවියේ නොඉල්ලයි; තහවුරු කිරීම Telegram තුළම." }
+    ]
+  } : lang === "ta" ? {
+    kicker: "ஏன் Fast xBet Cash",
+    title: "இலங்கை வீரர்களுக்காகவே உருவாக்கப்பட்ட Telegram Cash Desk",
+    desc: "Sports tips, guided deposit, விரைவான withdrawal மற்றும் support — அனைத்தும் ஒரே நிலையான Telegram bot-இல். கூடுதல் செயலிகள் அல்லது web கடவுச்சொல் தேவையில்லை.",
+    caption: "⚡ 1xBet Sri Lanka Cash Desk · Telegram",
+    imageAlt: "Fast xBet Cash Telegram bot இடைமுக முன்னோட்டம்",
+    items: [
+      { icon: "🎯", title: "இலவச தினசரி tips", body: "உண்மையான சந்தை Odds-உடன் தினமும் பகுப்பாய்வு செய்யப்பட்ட tips, இலவசம்." },
+      { icon: "💳", title: "உள்ளூர் கட்டண முறைகள்", body: "eZ Cash, mCash, FriMi, iPay மற்றும் வங்கி பரிமாற்றம் — படிப்படியாக வழிகாட்டல்." },
+      { icon: "🗣️", title: "மூன்று மொழிகள்", body: "சிங்களம், ஆங்கிலம் மற்றும் தமிழ் support ஒரே chat-இல்." },
+      { icon: "🛡️", title: "தனியுரிமை முதன்மை", body: "PIN அல்லது கடவுச்சொல் web-இல் கேட்கப்படாது; சரிபார்ப்பு Telegram-இல்." }
+    ]
+  } : {
+    kicker: "Why Fast xBet Cash",
+    title: "The Telegram cash desk built for Sri Lankan players",
+    desc: "Free analysed tips, guided deposits, faster withdrawals and support in your own language — the whole journey inside one official Telegram bot. No extra apps, no web forms, no passwords.",
+    caption: "⚡ 1xBet Sri Lanka Cash Desk · Telegram",
+    imageAlt: "Fast xBet Cash Telegram bot interface preview",
+    items: [
+      { icon: "🎯", title: "Free daily tips", body: "Analysed picks published free every day at 08:00 · 12:00 · 18:00 SL time." },
+      { icon: "💳", title: "Local payment rails", body: "eZ Cash, mCash, FriMi, iPay and bank transfers, guided step by step." },
+      { icon: "🗣️", title: "Three languages", body: "Sinhala, English and Tamil support in the same conversation." },
+      { icon: "🛡️", title: "Privacy by design", body: "No PINs or passwords are ever requested on the web — verification stays in Telegram." }
+    ]
+  };
+
+  const items = copy.items.map((it) =>
+    `<li class="whyItem"><span class="whyIcon" aria-hidden="true">${it.icon}</span><div><b>${esc(it.title)}</b><p>${esc(it.body)}</p></div></li>`
+  ).join("");
+
+  return `<section class="section whySection" id="why"><div class="wrap whyGrid">
+    <div class="whyCopy">
+      <div class="kicker">${esc(copy.kicker)}</div>
+      <h2>${esc(copy.title)}</h2>
+      <p class="whyDesc">${esc(copy.desc)}</p>
+      <ul class="whyList">${items}</ul>
+    </div>
+    <figure class="whyVisual">
+      <img src="${TELEGRAM_GRAPHICS.botUi}" alt="${esc(copy.imageAlt)}" width="1600" height="900" loading="lazy" decoding="async">
+      <figcaption>${esc(copy.caption)}</figcaption>
+    </figure>
+  </div></section>`;
+}
+
 function renderFinalCtaBanner(c: (typeof T)[Lang], lang: Lang, eb: string): string {
   const badgeText = lang === "si" 
     ? "ක්ෂණික ආරම්භය • 1XBET TELEGRAM CASH DESK" 
@@ -1545,6 +1602,38 @@ body::before{
   animation:pulseGreen 2s infinite ease-in-out;
 }
 @keyframes pulseGreen{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.2);}}
+/* Why band — value proposition with product imagery */
+.whySection{position:relative}
+.whyGrid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:40px;align-items:center}
+.whyCopy h2{
+  margin:10px 0;font-family:"Noto Sans Sinhala","Plus Jakarta Sans","Noto Sans Tamil",system-ui,sans-serif;
+  font-size:clamp(1.7rem,3.6vw,2.55rem);line-height:1.24;letter-spacing:-.025em;font-weight:800;color:#fff;
+}
+.whyDesc{margin:0 0 20px;max-width:56ch;color:#cbd5e1;font-size:.94rem;line-height:1.65}
+.whyList{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.whyItem{
+  display:flex;gap:11px;padding:14px;border:1px solid rgba(34,158,217,.15);border-radius:18px;
+  background:linear-gradient(145deg,rgba(13,26,41,.72),rgba(7,17,28,.78));
+  box-shadow:0 12px 32px rgba(0,0,0,.22);transition:border-color .2s ease,transform .2s ease;
+}
+.whyItem:hover{border-color:rgba(56,189,248,.34);transform:translateY(-2px)}
+.whyItem b{display:block;color:#e8f4ff;font-size:.8rem;line-height:1.35}
+.whyItem p{margin:4px 0 0;color:var(--muted);font-size:.72rem;line-height:1.5}
+.whyIcon{
+  flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:11px;
+  font-size:1rem;background:rgba(34,158,217,.11);border:1px solid rgba(56,189,248,.18);
+}
+.whyVisual{
+  position:relative;margin:0;overflow:hidden;border:1px solid rgba(56,189,248,.24);border-radius:24px;background:#071522;
+  box-shadow:0 24px 60px rgba(0,0,0,.5),0 0 40px rgba(34,158,217,.08);
+}
+.whyVisual img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover}
+.whyVisual::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(7,11,18,0) 48%,rgba(7,11,18,.9));pointer-events:none}
+.whyVisual figcaption{position:absolute;left:18px;right:18px;bottom:15px;z-index:1;color:#dbeafe;font-size:.74rem;font-weight:700;letter-spacing:.02em}
+@media(max-width:900px){.whyGrid{grid-template-columns:1fr;gap:26px}.whyVisual{order:-1}}
+@media(max-width:560px){.whyList{grid-template-columns:1fr}.whyItem{padding:12px}}
+@media (prefers-reduced-motion:reduce){.whyItem{transition:none}}
+
 @media(max-width:720px){
   .hero{padding-top:48px;padding-bottom:38px}
   .heroGraphicBg{opacity:.16}
@@ -1711,6 +1800,8 @@ body::before{
   </div>
 </section>
 
+${renderWhyBand(lang)}
+
 <section class="section" id="services"><div class="wrap">
   <div class="head">
     <div class="kicker">${esc(c.services[0])}</div>
@@ -1842,8 +1933,13 @@ body::before{
 
 <section class="section" id="how-it-works"><div class="wrap">
   <div class="head">
-    <div class="kicker">${esc(c.how[0])}</div>
+    <div class="kicker">${lang === "si" ? "පියවර 3ක්" : lang === "ta" ? "3 எளிய படிகள்" : "3 simple steps"}</div>
     <h2>${esc(c.how[0])}</h2>
+    <p>${lang === "si"
+      ? "Telegram bot එක විවෘත කර, සේවාව තෝරා, bot එක ඉල්ලන තොරතුරු පමණක් ලබා දෙන්න. ඉතිරි පියවර bot එකෙන්ම කියා දෙනවා."
+      : lang === "ta"
+        ? "Telegram bot-ஐ திறந்து, சேவையைத் தேர்ந்தெடுத்து, அது கேட்பதை மட்டும் வழங்குங்கள். மீதமுள்ள படிகளை chat-இலேயே விளக்கும்."
+        : "Open the bot, pick a service and share only the details it asks for. Every remaining step is explained inside the chat."}</p>
   </div>
   <div class="steps">
     <article class="step">
