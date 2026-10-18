@@ -6,7 +6,8 @@ import { createBot } from "./bot";
 import { createD1Database } from "./sqlite-d1";
 import { logBotError } from "./logger";
 import { validateEnv } from "./config";
-import { landingPageSecurityHeaders } from "./security";
+import { landingPageSecurityHeaders, securityHeaders } from "./security";
+import { getPublicTips } from "./publicTips";
 import { renderLandingPage } from "./landingPage";
 import { handleApiRequest } from "./apiRoutes";
 import { getPublicStatus } from "./publicStatus";
@@ -210,6 +211,26 @@ const server = http.createServer(async (req, res) => {
       } else {
         res.writeHead(200, headers);
         res.end(JSON.stringify(status));
+      }
+      return;
+    }
+
+    // Public read-only landing-page tips feed. Mirrors the Cloudflare Worker route
+    // so the Node runtime exposes the same contract as production.
+    if (url.pathname === "/api/tips/preview" && (method === "GET" || method === "HEAD")) {
+      const requestedLimit = Number.parseInt(url.searchParams.get("limit") || "12", 10);
+      const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(requestedLimit, 20)) : 12;
+      const tipHeaders = {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store",
+        ...securityHeaders(),
+      };
+      if (method === "HEAD") {
+        res.writeHead(200, tipHeaders);
+        res.end();
+      } else {
+        res.writeHead(200, tipHeaders);
+        res.end(JSON.stringify(await getPublicTips(env, limit)));
       }
       return;
     }
