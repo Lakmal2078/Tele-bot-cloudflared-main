@@ -27,7 +27,13 @@ export function securityHeaders(): Record<string, string> {
 export function landingPageSecurityHeaders(nonce?: string, options: { isHttps?: boolean } = {}): Record<string, string> {
   const isHttps = options.isHttps ?? true;
   const headers = { ...securityHeaders() };
-  headers["Cache-Control"] = "public, max-age=1800, s-maxage=86400, stale-while-revalidate=86400";
+  // A per-response CSP nonce is single-use by design. Caching the page together with the
+  // CSP that authorises that nonce either blocks the inline scripts on the next visit (the
+  // stored HTML carries a nonce the fresh header no longer lists) or replays a nonce that
+  // was only ever meant for one response. Cache publicly only when no nonce is involved.
+  headers["Cache-Control"] = nonce
+    ? "private, no-store, max-age=0, must-revalidate"
+    : "public, max-age=1800, s-maxage=86400, stale-while-revalidate=86400";
   headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
   const scriptPolicy = nonce ? `'nonce-${nonce}'` : "'unsafe-inline'";
   const stylePolicy = nonce ? `'nonce-${nonce}' https://fonts.googleapis.com` : "'unsafe-inline' https://fonts.googleapis.com";
