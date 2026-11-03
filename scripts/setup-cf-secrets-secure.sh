@@ -31,9 +31,10 @@ set_secret() {
     
     # Write to secure temp file for operator to store safely
     local temp_file
-    temp_file="/tmp/${key}_$(date +%s).txt"
+    umask 077
+    temp_file="$(mktemp "/tmp/${key}_XXXXXX.txt")"
+    printf '%s\n' "$secret_value" > "$temp_file"
     chmod 600 "$temp_file"
-    echo "$secret_value" > "$temp_file"
     echo "   ⚠️  Save this value: $temp_file (readable only by you)"
   else
     # Read from stdin without echo

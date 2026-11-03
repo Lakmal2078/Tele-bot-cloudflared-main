@@ -18,7 +18,7 @@ binding = "ASSETS"
 [vars]
 BOT_MODE = "production"
 USE_POLLING = "false"
-PUBLIC_BASE_URL = "https://xbet-telegram-bot.agent-1xfast-srilanka.workers.dev"
+PUBLIC_BASE_URL = "https://xbet-telegram-bot.lakmal-gamage.workers.dev"
 BOT_USERNAME = "fast_1xbetcash_bot"
 
 # Safety gate: keep cashier functionality disabled until legal, partner, and payment-provider approvals are verified.

@@ -281,6 +281,43 @@ export function createBot(env: Env) {
     await next();
   });
 
+  // The cashier is fail-closed unless it is explicitly enabled in runtime config.
+  // Check commands, old inline buttons, and any message continuing a saved flow.
+  bot.use(async (ctx, next) => {
+    const enabled = ctx.env.CASHIER_ENABLED?.trim().toLowerCase() === "true";
+    if (enabled) return next();
+
+    const command = ctx.message?.text?.trimStart().match(/^\/(deposit|withdraw|confirm_deposit|confirm)(?:@\w+)?(?:\s|$)/i);
+    const callback = ctx.callbackQuery?.data || "";
+    const cashierCallback = callback === "deposit" || callback === "withdraw" || callback === "confirm_deposit" ||
+      callback.startsWith("pay_dep:") || callback.startsWith("pay_wd:") || callback.startsWith("conf_dep:") ||
+      callback.startsWith("dep_amt:") || callback.startsWith("wd_amt:");
+
+    let hasCashierState = false;
+    if (!command && !cashierCallback && ctx.message && ctx.from) {
+      const state = await db.getUserState(ctx.env.DB, ctx.from.id);
+      hasCashierState = Boolean(state && /^(deposit_|confirm_deposit_|withdraw_)/.test(state.state));
+      if (hasCashierState) await db.clearUserState(ctx.env.DB, ctx.from!.id);
+    }
+
+    if (command || cashierCallback || hasCashierState) {
+      const lang = ctx.from ? await getUserLang(ctx.env.DB, ctx.from.id) : "si";
+      const message = lang === "en"
+        ? "Cashier functions are temporarily unavailable."
+        : lang === "ta"
+          ? "பணம் செலுத்தும் சேவை தற்காலிகமாக கிடைக்கவில்லை."
+          : "මුදල් තැන්පතු සහ ලබාගැනීම තාවකාලිකව අක්‍රියයි.";
+      if (ctx.callbackQuery) {
+        await ctx.answerCallbackQuery({ text: message, show_alert: true });
+      } else {
+        await ctx.reply(message);
+      }
+      return;
+    }
+
+    await next();
+  });
+
   // ========== Command & Message Processing Middleware ==========
   // Ensures ALL commands (e.g. /start, /menu, /help, /deposit, /withdraw, /cancel, /language, etc.)
   // are reliably detected, normalized, and executed:
