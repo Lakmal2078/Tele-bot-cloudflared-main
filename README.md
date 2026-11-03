@@ -146,15 +146,15 @@ The committed `[vars]` section contains non-secret runtime configuration. Import
 | `BOT_USERNAME` | Telegram bot username |
 | `CHANNEL_URL` / `CHANNEL_USERNAME` | Public tips-channel identity |
 | `MIN_TRANSACTION_LKR` / `MAX_TRANSACTION_LKR` | Transaction limits |
-| `TIPS_SPORTS` | `auto:soccer,auto:cricket,auto:basketball,auto:tennis,auto:table_tennis,auto:esports` |
+| `TIPS_SPORTS` | `auto:soccer,auto:cricket,auto:basketball,auto:tennis,auto:table_tennis,auto:esports,soccer_epl,cricket_international_t20` |
 | `TIPS_ODDS_REGIONS` | `eu` |
 | `TIPS_MIN_ODDS` / `TIPS_MAX_ODDS` | `1.30` / `3.00` |
 | `TIPS_HOURS_AHEAD` | `72` |
 | `TIPS_PER_SLOT` | `3` |
-| `TIPS_MAX_FEEDS` | `4` |
-| `TIPS_MIN_CONSENSUS` | `0.42` |
-| `TIPS_MIN_VALUE` | `0.003` |
-| `TIPS_MIN_BOOKMAKERS` | `2` |
+| `TIPS_MAX_FEEDS` | `5` |
+| `TIPS_MIN_CONSENSUS` | `0.45` |
+| `TIPS_MIN_VALUE` | `0.001` |
+| `TIPS_MIN_BOOKMAKERS` | `1` |
 | `TIPS_MAX_STALE_HOURS` | `24` |
 
 Do not edit bindings, database IDs, asset configuration, cron schedules, or other `wrangler.toml` values as part of routine cleanup.
@@ -226,29 +226,38 @@ Do **not** use production deployment or remote-D1 commands merely to validate a 
 
 The Worker schedules three free-tip slots per day at **08:00, 12:00, and 18:00 Sri Lanka time**.
 
-Configured sports are exactly:
+Configured sports are:
 
 ```text
-auto:soccer,auto:cricket,auto:basketball,auto:tennis,auto:table_tennis,auto:esports
+auto:soccer,auto:cricket,auto:basketball,auto:tennis,auto:table_tennis,auto:esports,soccer_epl,cricket_international_t20
 ```
 
-With `TIPS_MAX_FEEDS=4` and three daily tip slots, a simple upper-bound estimate is:
+With `TIPS_MAX_FEEDS=5` and three daily tip slots, a simple upper-bound estimate is:
 
-**4 feeds × 3 slots/day ≈ 12 provider requests/day ≈ 360/month.**
+**5 feeds × 3 slots/day ≈ 15 provider requests/day ≈ 450/month.**
 
-This is an **estimate only**, not a guaranteed quota or billing figure; actual provider usage depends on the provider's request/market accounting.
+This fits within The Odds API free-tier quota (500 requests/month). Quota-free requests include zero-credit active sport validation (`/v4/sports`) and settlement score checks (`/v4/sports/.../scores`).
 
-The selection pipeline:
+The selection & publishing pipeline:
 
-1. Query configured sports within the feed cap.
-2. Collect bookmaker head-to-head prices.
-3. Calculate no-vig consensus probability and value.
-4. Apply consensus, value, bookmaker, odds, and freshness filters.
-5. Publish qualifying tips to the Telegram channel and store settlement data in D1.
-6. Expose sanitized tip data through `/api/tips/preview`.
-7. Settle pending tips hourly using available scores and update channel messages.
-
-If no candidate passes the configured filters, the system uses a fallback notice rather than inventing a tip.
+1. **Active Sport Discovery & Category Interleaving**:
+   - Validates sport availability via zero-credit `/sports` query.
+   - Applies round-robin category interleaving across sport families (Soccer, Cricket, Basketball, Tennis, Table Tennis, Esports) so single sports do not monopolize paid feed slots.
+2. **Bookmaker Odds Collection**: Collects head-to-head decimal odds from configured regions (e.g., `eu`).
+3. **No-Vig Consensus & Expected Value**: Computes devigged consensus probability and positive expected value relative to the best available market price.
+4. **Multi-Tier Resilient Candidate Selection**:
+   - **Tier 1 (Strict Value)**: Strict filtering requiring minimum bookmaker coverage (`TIPS_MIN_BOOKMAKERS = 1`), minimum consensus (`TIPS_MIN_CONSENSUS = 0.45`), minimum positive value (`TIPS_MIN_VALUE = 0.001`), odds bounds (`1.30–3.00`), and freshness limit (`24h`).
+   - **Tier 2 (Quality Fallback)**: Relaxes bookmaker requirement to any single verified bookmaker price with positive value.
+   - **Tier 3 (Wider Odds Fallback)**: Expands odds window (1.20–3.50) to capture high-probability favorites when lines are conservative.
+   - **Tier 4 (Future Slot Deduplication Fallback)**: Selects the best upcoming, unexpired candidate even if previously scheduled, ensuring channel activity remains active.
+5. **Channel Delivery & Fallback Notice**:
+   - Publishes selected tips formatted in Sinhala and English with odds, bookmaker, kick-off time, and join button.
+   - Posts directly to `TIPS_CHANNEL_ID` (with fallback to `CHANNEL_USERNAME` if ID is not configured).
+   - If zero events pass after all tiers, publishes an informative fallback notice containing an audited **Scan Summary** breakdown (showing matches scanned, passing candidates, active sport feeds checked, and evaluation status).
+6. **Persistence & Hourly Settlement**:
+   - Saves tip records and unique slot keys in Cloudflare D1.
+   - Hourly cron (`tipsSettlement.ts`) checks match scores, updates D1 records, and edits Telegram channel posts with official WIN/LOSS outcomes.
+   - Exposes sanitized public tip data via `/api/tips/preview`.
 
 See [`docs/free-tips.md`](./docs/free-tips.md) for the deeper provider/tips notes.
 
