@@ -937,8 +937,10 @@ async function postTelegramMessage(
   parseMode: "HTML" | "Markdown" = "Markdown",
   replyMarkup?: TelegramInlineKeyboardMarkup
 ): Promise<number | null> {
+  const rawChatId = (env.TIPS_CHANNEL_ID || env.CHANNEL_USERNAME || "").trim();
+  const chatId = rawChatId.startsWith("@") ? rawChatId : rawChatId.replace(/^id:\s*/i, "").trim();
   const payload: Record<string, unknown> = {
-    chat_id: (env.TIPS_CHANNEL_ID || "").replace(/^id:\s*/i, "").trim(),
+    chat_id: chatId,
     text: message,
     parse_mode: parseMode,
     disable_web_page_preview: true,
