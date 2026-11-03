@@ -1,10 +1,7 @@
 name: TestDriver.ai Tests
 
 on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+  # Requires an active TestDriver account; run manually so external billing outages do not block PR CI.
   workflow_dispatch:
 
 jobs:
