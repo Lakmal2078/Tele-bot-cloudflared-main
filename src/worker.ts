@@ -176,10 +176,9 @@ ${homeEntries}
           return finish(new Response("Service configuration error", { status: 503, headers: securityHeaders() }));
         }
         const nonce = crypto.randomUUID().replace(/-/g, "");
-        const channel = env.CHANNEL_URL?.trim() || "https://t.me/fast_xbet_official_tips";
         const html = renderLandingPage(env, request, nonce).replace(
           "</body>",
-          publicTipsClientScript(channel, nonce) + "</body>"
+          publicTipsClientScript(nonce) + "</body>"
         );
         return finish(new Response(html, {
           headers: { "Content-Type": "text/html; charset=utf-8", ...landingPageSecurityHeaders(nonce, { isHttps: new URL(request.url).protocol === "https:" }) },
