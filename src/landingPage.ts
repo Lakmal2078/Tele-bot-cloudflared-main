@@ -79,37 +79,6 @@ const T: Record<Lang, {
       status: string;
     };
   };
-  ui: {
-    howStepBodies: string[];
-    servicesIntro: string;
-    serviceBodies: string[];
-    serviceTagTips: string;
-    serviceTagGuided: string;
-    payDesc: string;
-    payAfterVerify: string;
-    payNoFee: string;
-    payAvailable: string;
-    payViaTelegram: string;
-    faqHeading: string;
-    faqSub: string;
-    footerAbout: string;
-    footerQuick: string;
-    footerLegal: string;
-    footerTipsChannel: string;
-    footerPrivacy: string;
-    footerTerms: string;
-    calcTitle: string;
-    calcSubPrefix: string;
-    calcCtaPrefix: string;
-    calcCtaSuffix: string;
-    qrTitle: string;
-    qrDesc: string;
-    qrOpen: string;
-    stickyTag: string;
-    stickyBtn: string;
-    emptyTipsTitle: string;
-    emptyTipsSub: string;
-  };
   legal: { privacy: string; terms: string };
 }> = {
   si: {
@@ -178,10 +147,10 @@ const T: Record<Lang, {
     ],
     tips: {
       kicker: "නොමිලේ ඉඟි (Free Tips)",
-      title: "නවතම ක්‍රීඩා ඉඟි",
+      title: "අද දින විශේෂිත ක්‍රීඩා ඉඟි (Featured Free Tips)",
       desc: "දිනපතා යාවත්කාලීන වන ක්‍රීඩා ඉඟි සහ වෙළඳපල අනුපාත. සජීවී tips, slip codes සහ ක්ෂණික alerts සඳහා Telegram Bot වෙත පිවිසෙන්න.",
-      featuredHeading: "නවතම ඉඟි",
-      badge: "ඉඟි පෙරදසුන",
+      featuredHeading: "අද දින තෝරාගත් ඉඟි",
+      badge: "Daily Featured",
       verifiedBadge: "⚡ Tap here for Live Odds",
       cta: "🎯 අද දින සජීවී Tips Telegram වෙතින් ලබා ගන්න",
       stats: {
@@ -191,46 +160,6 @@ const T: Record<Lang, {
         avgOdds: "සාමාන්‍ය Odds",
         status: "විශ්ලේෂිත ඉඟි (Analyzed)"
       }
-    },
-    ui: {
-      howStepBodies: [
-        "Telegram CTA එකෙන් හෝ QR code එකෙන් bot එක විවෘත කරන්න.",
-        "Tips, deposit, withdrawal හෝ බහුභාෂා සහාය තෝරන්න.",
-        "Bot එක ඉල්ලන තොරතුරු පමණක් ලබා දෙන්න."
-      ],
-      servicesIntro: "සේවාවක් තෝරලා guided උපදෙස් අනුගමනය කරන්න. සජීවී දත්ත සහ Real-time Odds සඳහා Telegram Bot විවෘත කරන්න (18+ වගකීමෙන් ක්‍රීඩා කරන්න).",
-      serviceBodies: [
-        "Telegram එකේ සජීවී තරග ඔඩ්ස් සමඟ ස්වයංක්‍රීය ක්‍රීඩා විශ්ලේෂණය.",
-        "වින්‍යාසගත ගනුදෙනු සීමා සහිත guided deposit ප්‍රවාහය.",
-        "Bot එක හරහා withdrawal ඉල්ලීමක් යවලා verification පියවර අනුගමනය කරන්න.",
-        "Telegram හරහා සිංහල, ඉංග්‍රීසි සහ දෙමළ සහාය."
-      ],
-      serviceTagTips: "සජීවී tips ලබාගන්න",
-      serviceTagGuided: "Guided ඉල්ලීම",
-      payDesc: "eZ Cash, mCash, FriMi, iPay සහ බැංකු ගිණුම් හරහා තැන්පතු සහ මුදල් ආපසු ගැනීම් පහසුවෙන් සිදු කළ හැක. සංවේදී තොරතුරු මෙම පිටුවේ කිසිසේත් හෙළි නොකෙරේ.",
-      payAfterVerify: "⚡ තහවුරු කිරීමෙන් පසු",
-      payNoFee: "ගාස්තු provider වෙතින් තහවුරු කරන්න",
-      payAvailable: "ලබා ගත හැක",
-      payViaTelegram: "Telegram හරහා",
-      faqHeading: "නිතර අසන ප්‍රශ්න",
-      faqSub: "පොදු ක්‍රියාවලිය සඳහා පැහැදිලි පිළිතුරු.",
-      footerAbout: "පොදු ක්‍රීඩා පෙරදසුන්, guided සහාය සහ බහුභාෂා පහසුකම් සඳහා Telegram ප්‍රමුක සේවාවක්.",
-      footerQuick: "ක්ෂණික සබැඳි",
-      footerLegal: "නීතිමය සහ ප්‍රවේශය",
-      footerTipsChannel: "Tips Channel එක",
-      footerPrivacy: "රහස්‍යතා ප්‍රතිපත්තිය",
-      footerTerms: "සේවා කොන්දේසි",
-      calcTitle: "තැන්පතු මුදල ගණනය (LKR)",
-      calcSubPrefix: "මෙය තැන්පතු මුදල පමණක් පෙන්වයි. බෝනස් ඇතුළත් නැහැ.",
-      calcCtaPrefix: "තැන්පතු කරන්න",
-      calcCtaSuffix: "— Telegram හරහා",
-      qrTitle: "📱 ජංගම දුරකථනයෙන් විවෘත කරන්න",
-      qrDesc: "Telegram bot එක ආරම්භ කිරීමට ඔබේ දුරකථන කැමරාවෙන් scan කරන්න:",
-      qrOpen: "Telegram හි විවෘත කරන්න",
-      stickyTag: "නොමිලේ Tips සහ Cash Desk",
-      stickyBtn: "Telegram විවෘත කරන්න",
-      emptyTipsTitle: "දැනට මේ කාණ්ඩයේ tips නැහැ",
-      emptyTipsSub: "අලුත් picks 08:00 · 12:00 · 18:00 (SL වේලාවට) නිකුත් වේ"
     },
     legal: {
       privacy: "අපගේ සේවාව පරිශීලක රහස්‍යතාව උපරිමයෙන් සුරකියි. කිසිදු සංවේදී බැංකු PIN හෝ කාඩ්පත් දත්ත වෙබ් අඩවියේ ගබඩා නොකෙරේ. දත්ත ආරක්ෂාව Cloudflare Edge, D1 සහ R2 යටිතල පහසුකම් මගින් සහතික කෙරේ. සේවාව 18+ පරිශීලකයින් සඳහා පමණි.",
@@ -303,10 +232,10 @@ const T: Record<Lang, {
     ],
     tips: {
       kicker: "Free Sports Tips",
-      title: "Latest Free Tips",
+      title: "Today’s Featured Free Tips",
       desc: "Daily automated fixtures and real market odds. For real-time odds, slip codes, and instant alerts, access our official Telegram Bot & Channel.",
-      featuredHeading: "Recent Tips",
-      badge: "Tips preview",
+      featuredHeading: "Today's Market Picks",
+      badge: "Daily Featured",
       verifiedBadge: "⚡ Tap here for Live Odds",
       cta: "🎯 Get Today's Full Live Tips on Telegram",
       stats: {
@@ -316,46 +245,6 @@ const T: Record<Lang, {
         avgOdds: "Avg Odds",
         status: "Verified Value Picks"
       }
-    },
-    ui: {
-      howStepBodies: [
-        "Use the Telegram CTA or QR code to open the bot.",
-        "Choose tips, deposit, withdrawal or multilingual support.",
-        "Provide only the information requested by the bot."
-      ],
-      servicesIntro: "Choose a service and follow the guided instructions. Open Telegram Bot for Live Data & Real-time Odds (18+ Gamble Responsibly).",
-      serviceBodies: [
-        "Automated sports analysis with real-time match odds on Telegram.",
-        "Guided deposit workflow with configured transaction limits.",
-        "Submit a withdrawal request through the bot and follow verification steps.",
-        "Sinhala, English and Tamil support through Telegram."
-      ],
-      serviceTagTips: "Get live tips",
-      serviceTagGuided: "Guided request",
-      payDesc: "Deposit and withdraw easily via eZ Cash, mCash, FriMi, iPay and bank accounts. Sensitive credentials are never exposed on this page.",
-      payAfterVerify: "⚡ After verify",
-      payNoFee: "Check provider fees",
-      payAvailable: "Available",
-      payViaTelegram: "via Telegram",
-      faqHeading: "Frequently Asked Questions",
-      faqSub: "Clear answers for the public workflow.",
-      footerAbout: "Telegram-first service for public sports previews, guided support and multilingual assistance.",
-      footerQuick: "Quick links",
-      footerLegal: "Legal & Access",
-      footerTipsChannel: "Tips Channel",
-      footerPrivacy: "Privacy Policy",
-      footerTerms: "Terms of Service",
-      calcTitle: "Deposit Amount Calculator (LKR)",
-      calcSubPrefix: "Deposit amount only. Bonuses are not included.",
-      calcCtaPrefix: "Deposit",
-      calcCtaSuffix: "via Telegram",
-      qrTitle: "📱 Open on Mobile",
-      qrDesc: "Scan with your phone camera to start the Telegram bot:",
-      qrOpen: "Open in Telegram",
-      stickyTag: "Free Tips & Cash Desk",
-      stickyBtn: "Open Telegram",
-      emptyTipsTitle: "No tips in this category right now",
-      emptyTipsSub: "New picks drop daily at 08:00 · 12:00 · 18:00 (SL time)"
     },
     legal: {
       privacy: "Your privacy is strictly safeguarded. Sensitive financial credentials (passwords, PINs, card CVVs) are never collected or stored on this website. Operations are secured through Cloudflare edge infrastructure, D1, and encrypted R2 storage. Restricted to users 18+.",
@@ -428,10 +317,10 @@ const T: Record<Lang, {
     ],
     tips: {
       kicker: "இலவச Tips (Free Tips)",
-      title: "சமீபத்திய விளையாட்டு குறிப்புகள்",
+      title: "இன்றைய சிறப்பு விளையாட்டு குறிப்புகள்",
       desc: "தினசரி பகுப்பாய்வு செய்யப்பட்ட விளையாட்டு குறிப்புகள். முழுமையான நேரடி tips, slip codes மற்றும் அறிவிப்புகளுக்கு Telegram Bot-ல் இணையுங்கள்.",
-      featuredHeading: "சமீபத்திய குறிப்புகள்",
-      badge: "குறிப்புகள் முன்னோட்டம்",
+      featuredHeading: "இன்றைய சந்தை தேர்வுகள்",
+      badge: "Daily Featured",
       verifiedBadge: "⚡ Tap here for Live Odds",
       cta: "🎯 Telegram-ல் நேரடி Tips பெறவும்",
       stats: {
@@ -441,46 +330,6 @@ const T: Record<Lang, {
         avgOdds: "சராசரி Odds",
         status: "உறுதிப்படுத்தப்பட்டது (Verified)"
       }
-    },
-    ui: {
-      howStepBodies: [
-        "Telegram CTA அல்லது QR code மூலம் bot-ஐ திறக்கவும்.",
-        "Tips, deposit, withdrawal அல்லது multilingual support-ஐ தேர்ந்தெடுக்கவும்.",
-        "Bot கேட்கும் தகவல்களை மட்டும் வழங்கவும்."
-      ],
-      servicesIntro: "ஒரு சேவையைத் தேர்ந்தெடுத்து guided வழிமுறைகளைப் பின்பற்றுங்கள். நேரடி தரவு மற்றும் Real-time Odds-க்கு Telegram Bot-ஐ திறக்கவும் (18+ பொறுப்புடன் விளையாடுங்கள்).",
-      serviceBodies: [
-        "Telegram-இல் நேரடி match odds-உடன் தானியங்கி விளையாட்டு பகுப்பாய்வு.",
-        "Configured பரிவர்த்தனை வரம்புகளுடன் guided deposit flow.",
-        "Bot வழியாக withdrawal கோரிக்கை சமர்ப்பித்து verification படிகளைப் பின்பற்றவும்.",
-        "Telegram வழியாக சிங்களம், ஆங்கிலம் மற்றும் தமிழ் ஆதரவு."
-      ],
-      serviceTagTips: "நேரடி tips பெறவும்",
-      serviceTagGuided: "Guided கோரிக்கை",
-      payDesc: "eZ Cash, mCash, FriMi, iPay மற்றும் வங்கி கணக்குகள் மூலம் எளிதாக deposit மற்றும் withdrawal. முக்கிய தகவல்கள் இந்த பக்கத்தில் வெளிப்படுத்தப்படாது.",
-      payAfterVerify: "⚡ சரிபார்ப்புக்குப் பிறகு",
-      payNoFee: "கட்டணத்தை வழங்குநரிடம் சரிபார்க்கவும்",
-      payAvailable: "கிடைக்கிறது",
-      payViaTelegram: "Telegram வழியாக",
-      faqHeading: "அடிக்கடி கேட்கும் கேள்விகள்",
-      faqSub: "பொது செயல்முறைக்கான தெளிவான பதில்கள்.",
-      footerAbout: "பொது விளையாட்டு முன்னோட்டங்கள், guided ஆதரவு மற்றும் multilingual உதவிக்கான Telegram முதன்மை சேவை.",
-      footerQuick: "விரைவு இணைப்புகள்",
-      footerLegal: "சட்டம் & அணுகல்",
-      footerTipsChannel: "Tips Channel",
-      footerPrivacy: "தனியுரிமைக் கொள்கை",
-      footerTerms: "சேவை விதிமுறைகள்",
-      calcTitle: "Deposit Amount Calculator (LKR)",
-      calcSubPrefix: "வைப்புத் தொகை மட்டும். போனஸ் இதில் சேர்க்கப்படவில்லை.",
-      calcCtaPrefix: "Deposit செய்க",
-      calcCtaSuffix: "— Telegram வழியாக",
-      qrTitle: "📱 மொபைலில் திறக்கவும்",
-      qrDesc: "Telegram bot-ஐ தொடங்க உங்கள் ஃபோன் கேமராவால் scan செய்யவும்:",
-      qrOpen: "Telegram-இல் திறக்கவும்",
-      stickyTag: "இலவச Tips & Cash Desk",
-      stickyBtn: "Telegram திறக்கவும்",
-      emptyTipsTitle: "இந்த வகையில் தற்போது tips இல்லை",
-      emptyTipsSub: "புதிது picks தினமும் 08:00 · 12:00 · 18:00 (SL நேரம்) வெளியாகும்"
     },
     legal: {
       privacy: "பயனர் ரகசியத்தன்மை முழுமையாகப் பாதுகாக்கப்படுகிறது. வங்கி PIN அல்லது கார்டு விவரங்கள் தளத்தில் சேமிக்கப்படாது. Cloudflare Edge, D1 மற்றும் R2 மூலம் பாதுகாக்கப்படுகிறது. 18+ பயனர்களுக்கு மட்டுமே.",
@@ -672,10 +521,6 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
   const channel = env.CHANNEL_URL?.trim() || CHANNEL_FALLBACK;
   const botName = env.BOT_USERNAME?.trim().replace(/^@/, "") || BOT_FALLBACK;
   const bot = `https://t.me/${botName}?start=landing`;
-  // Deep-link URL builders — `bot` already carries ?start=landing, so variant
-  // deep links must replace (not append) the start parameter, otherwise Telegram
-  // reads only the first value and the payload (dep_*, landing_qr, …) is lost.
-  const botDeepLink = (payload: string): string => `https://t.me/${botName}?start=${payload}`;
   const min = Number.parseInt(env.MIN_TRANSACTION_LKR || "1000", 10) || 1000;
   const max = Number.parseInt(env.MAX_TRANSACTION_LKR || "500000", 10) || 500000;
 
@@ -748,21 +593,21 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
     `<article class="payment">
       <div class="payTop">
         <span class="payIcon">${paymentIcon(p)}</span>
-        <span class="payBadge">${esc(c.ui.payAfterVerify)}</span>
+        <span class="payBadge">⚡ After verify</span>
       </div>
       <b>${esc(p)}</b>
       <div class="payBottom">
-        <span class="payFee">${esc(c.ui.payNoFee)}</span>
-        <span>${paymentConfigured(env, p) ? esc(c.ui.payAvailable) : esc(c.ui.payViaTelegram)}</span>
+        <span class="payFee">No service fee</span>
+        <span>${paymentConfigured(env, p) ? "Available" : "via Telegram"}</span>
       </div>
     </article>`
   ).join("");
 
   const serviceCards = [
-    ["🎯", c.services[2], c.ui.serviceBodies[0], c.ui.serviceTagTips],
-    ["💳", c.services[3], c.ui.serviceBodies[1], `LKR ${min.toLocaleString("en-LK")} – ${max.toLocaleString("en-LK")}`],
-    ["↗", c.services[4], c.ui.serviceBodies[2], c.ui.serviceTagGuided],
-    ["🌐", c.services[5], c.ui.serviceBodies[3], "SI · EN · TA"]
+    ["🎯", c.services[2], "Automated sports analysis with real-time match odds on Telegram.", "Get live tips"],
+    ["💳", c.services[3], "Guided deposit workflow with configured transaction limits.", `LKR ${min.toLocaleString("en-LK")} – ${max.toLocaleString("en-LK")}`],
+    ["↗", c.services[4], "Submit a withdrawal request through the bot and follow verification steps.", "Guided request"],
+    ["🌐", c.services[5], "Sinhala, English and Tamil support through Telegram.", "SI · EN · TA"]
   ].map(([icon, title, body, tag]) =>
     `<article class="service">
       <div class="icon">${icon}</div>
@@ -820,22 +665,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
 <link rel="manifest" href="/manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preconnect" href="https://crests.football-data.org" crossorigin>
-<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600;700;800&family=Noto+Sans+Tamil:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600;700;800&family=Noto+Sans+Tamil:wght@400;600;700;800&display=swap" media="print" id="gfonts-css">
-<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600;700;800&family=Noto+Sans+Tamil:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap"></noscript>
-<script${n}>
-(function(){
-  var gf = document.getElementById("gfonts-css");
-  if (gf) {
-    if (gf.sheet) { gf.media = "all"; }
-    else {
-      gf.addEventListener("load", function(){ gf.media = "all"; });
-      setTimeout(function(){ if (gf) gf.media = "all"; }, 300);
-    }
-  }
-})();
-</script>${canonicalAndOgTags}
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600;700;800&family=Noto+Sans+Tamil:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">${canonicalAndOgTags}
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/favicon.png">
 <meta property="og:site_name" content="Fast xBet Cash">
@@ -848,13 +678,10 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
 ${ldScript}
 ${cfAnalyticsScript}
 <style${n}>
-:root{--bg:#070b12;--bg2:#081525;--surface:#101720;--surface2:#151e2b;--fg:#f1f5f9;--muted:#94a3b8;--faint:#64748b;--signal:#a6f800;--cyan:#00b4f8;--pink:#ff477e;--border:#ffffff12;--shadow:0 2px 4px rgba(0,0,0,.25),0 8px 24px rgba(0,0,0,.35),0 25px 70px rgba(0,0,0,.55);--in-oklab: ;--in-oklch: ;}
-@supports (linear-gradient(in oklab, white, black)){:root{--in-oklab:in oklab;--in-oklch:in oklch;}}
+:root{--bg:#070b12;--bg2:#081525;--surface:#101720;--surface2:#151e2b;--fg:#f1f5f9;--muted:#94a3b8;--faint:#64748b;--signal:#a6f800;--cyan:#00b4f8;--pink:#ff477e;--border:#ffffff12;--shadow:0 25px 70px #0008}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth;overflow-x:hidden;max-width:100%}
-body{margin:0;min-width:320px;max-width:100%;background:radial-gradient(circle at 85% 10%,#00b4f814,transparent 32%),radial-gradient(circle at 12% 42%,#ff477e0d,transparent 30%),var(--bg);color:var(--fg);font-family:"Plus Jakarta Sans","Noto Sans Sinhala","Noto Sans Tamil",system-ui,sans-serif;line-height:1.6;overflow-x:hidden;position:relative;overflow-wrap:break-word;text-align:start}
-h1,h2,h3,h4,h5,h6,.heroHeading{text-wrap:balance}
-p,.hero-subtitle{text-wrap:pretty}
+body{margin:0;min-width:320px;max-width:100%;background:radial-gradient(circle at 85% 10%,#00b4f814,transparent 32%),radial-gradient(circle at 12% 42%,#ff477e0d,transparent 30%),var(--bg);color:var(--fg);font-family:"Plus Jakarta Sans","Noto Sans Sinhala","Noto Sans Tamil",system-ui,sans-serif;line-height:1.6;overflow-x:hidden;position:relative}
 a{color:inherit;text-decoration:none}
 button,a,summary{font:inherit}
 a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
@@ -898,7 +725,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .mobile{display:none}
 
 /* Winning Tips Ticker Bar */
-.tickerBar{background:linear-gradient(90deg var(--in-oklab),#070d15 0%,#0e1b2d 50%,#070d15 100%);border-bottom:1px solid rgba(56,189,248,0.2);overflow:hidden;padding:8px 0;position:relative;box-shadow:0 2px 6px rgba(0,0,0,0.2),0 6px 18px rgba(0,0,0,0.3)}
+.tickerBar{background:linear-gradient(90deg,#070d15 0%,#0e1b2d 50%,#070d15 100%);border-bottom:1px solid rgba(56,189,248,0.2);overflow:hidden;padding:8px 0;position:relative;box-shadow:0 4px 15px rgba(0,0,0,0.3)}
 .tickerInner{display:flex;align-items:center;gap:14px}
 .tickerBadge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:rgba(255,71,126,0.18);border:1px solid rgba(255,71,126,0.4);color:#ff8ba7;font:800 .62rem ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;white-space:nowrap;flex-shrink:0}
 .tickerScroll{overflow:hidden;white-space:nowrap;display:flex;flex:1;mask-image:linear-gradient(90deg,transparent,black 3%,black 97%,transparent)}
@@ -943,9 +770,9 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .hero-br{display:none}
 @media (min-width:640px){.hero-br{display:block}}
 .hl-gradient{background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:900}
-.hl-tips{background-image:linear-gradient(135deg var(--in-oklch),#38bdf8 0%,#00e5ff 100%);filter:drop-shadow(0 0 18px rgba(56,189,248,0.45))}
-.hl-cash{background-image:linear-gradient(135deg var(--in-oklch),#00e676 0%,#a6f800 100%);filter:drop-shadow(0 0 18px rgba(0,230,118,0.45))}
-.hl-tg{background-image:linear-gradient(135deg var(--in-oklch),#38bdf8 0%,#229ED9 100%);filter:drop-shadow(0 0 18px rgba(34,158,217,0.45))}
+.hl-tips{background-image:linear-gradient(135deg,#38bdf8 0%,#00e5ff 100%);filter:drop-shadow(0 0 18px rgba(56,189,248,0.45))}
+.hl-cash{background-image:linear-gradient(135deg,#00e676 0%,#a6f800 100%);filter:drop-shadow(0 0 18px rgba(0,230,118,0.45))}
+.hl-tg{background-image:linear-gradient(135deg,#38bdf8 0%,#229ED9 100%);filter:drop-shadow(0 0 18px rgba(34,158,217,0.45))}
 
 /* Hero Subtitle */
 .hero p.hero-subtitle{max-width:620px;color:#cbd5e1;font-size:1.02rem;line-height:1.68;margin:0 0 18px;font-weight:400}
@@ -962,8 +789,8 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 
 .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
 .heroActions{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px;align-items:center}
-.heroPrimaryBtn{display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:15px 32px;font-size:.95rem;letter-spacing:-.01em;font-weight:900;background:linear-gradient(135deg var(--in-oklch),#00e676,#a6f800);color:#071006;border-radius:14px;box-shadow:0 4px 12px rgba(166,248,0,0.22),0 14px 34px rgba(166,248,0,0.28),0 0 0 1px #a6f80077;transition:transform .18s ease,box-shadow .18s ease}
-.heroPrimaryBtn:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(166,248,0,0.25),0 18px 40px rgba(166,248,0,0.38),0 0 0 2px #a6f800}
+.heroPrimaryBtn{display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:15px 32px;font-size:.95rem;letter-spacing:-.01em;font-weight:900;background:linear-gradient(135deg,#00e676,#a6f800);color:#071006;border-radius:14px;box-shadow:0 14px 34px #a6f8003a,0 0 0 1px #a6f80077;transition:transform .18s ease,box-shadow .18s ease}
+.heroPrimaryBtn:hover{transform:translateY(-2px);box-shadow:0 18px 40px #a6f80055,0 0 0 2px #a6f800}
 .heroSubActions{display:flex;align-items:center;gap:12px;margin-top:14px;font-size:.78rem;color:var(--muted)}
 .subLink{color:var(--muted);text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:color .18s ease}
 .subLink:hover{color:var(--cyan);text-decoration:underline;text-underline-offset:3px}
@@ -974,8 +801,8 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .pill{padding:6px 11px;border:1px solid var(--border);background:#ffffff05;border-radius:999px;color:var(--muted);font-size:.66rem;font-weight:700}
 
 /* Promo Banner */
-.promoBar{display:inline-flex;align-items:center;gap:10px;margin-top:20px;padding:8px 14px;border:1px solid rgba(166,248,0,0.38);border-radius:14px;background:linear-gradient(135deg var(--in-oklab),rgba(166,248,0,0.08),rgba(14,26,44,0.95));box-shadow:0 4px 10px rgba(0,0,0,0.25),0 12px 28px rgba(0,0,0,0.35),0 0 20px rgba(166,248,0,0.12),inset 0 1px 0 rgba(255,255,255,0.12);flex-wrap:wrap}
-.promoTag{font-size:.65rem;font-weight:900;letter-spacing:.1em;color:#071006;background:linear-gradient(135deg var(--in-oklch),#00e676,#a6f800);padding:4px 9px;border-radius:8px;text-transform:uppercase;box-shadow:0 2px 8px rgba(0,230,118,0.3)}
+.promoBar{display:inline-flex;align-items:center;gap:10px;margin-top:20px;padding:8px 14px;border:1px solid rgba(166,248,0,0.38);border-radius:14px;background:linear-gradient(135deg,rgba(166,248,0,0.08),rgba(14,26,44,0.95));box-shadow:0 8px 24px rgba(0,0,0,0.35),0 0 20px rgba(166,248,0,0.12),inset 0 1px 0 rgba(255,255,255,0.12);flex-wrap:wrap}
+.promoTag{font-size:.65rem;font-weight:900;letter-spacing:.1em;color:#071006;background:linear-gradient(135deg,#00e676,#a6f800);padding:4px 9px;border-radius:8px;text-transform:uppercase;box-shadow:0 2px 8px rgba(0,230,118,0.3)}
 .promoCodeWrap{display:inline-flex;align-items:center;gap:8px;background:rgba(0,0,0,0.45);padding:4px 10px;border-radius:8px;border:1px dashed rgba(166,248,0,0.45)}
 .promoCodeWrap code,.promoCodeWrap strong{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92rem;font-weight:800;color:#38bdf8;letter-spacing:.06em}
 .promoCopyBtn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:8px;border:1px solid rgba(56,189,248,0.35);background:linear-gradient(135deg,rgba(56,189,248,0.15),rgba(34,158,217,0.25));color:#ffffff;font-size:.68rem;font-weight:800;cursor:pointer;transition:all .18s ease}
@@ -1041,8 +868,6 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .tipTabs{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px 0}
 .tipTab{appearance:none;border:1px solid var(--border);background:#ffffff06;color:var(--muted);border-radius:999px;padding:7px 12px;font-size:.65rem;font-weight:700;cursor:pointer}
 .tipTab.active{border-color:#00b4f855;background:#00b4f812;color:#ccefff}
-#tipEmptyState{margin:0 16px 8px}
-[hidden]{display:none!important}
 .tipSummary{display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding:8px 14px;background:#ffffff05;border:1px solid #1e2a3d;border-radius:12px;margin:10px 16px 4px;color:var(--muted);font-size:.67rem}
 .tipSummary span{display:inline-flex;align-items:center;gap:4px}
 .tipSummary b{color:#86efac;font-weight:800}
@@ -1102,7 +927,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .calcBody{display:grid;grid-template-columns:1.2fr 1fr;gap:24px;align-items:center}
 .calcSliderLabel{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:.78rem;color:var(--muted)}
 .calcSliderLabel strong{font-size:1.1rem;color:var(--signal);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-.calcSlider:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}.calcSlider{width:100%;height:8px;border-radius:4px;background:#1e293b;outline:none;accent-color:var(--signal);cursor:pointer}
+.calcSlider{width:100%;height:8px;border-radius:4px;background:#1e293b;outline:none;accent-color:var(--signal);cursor:pointer}
 .calcPresets{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
 .presetBtn{padding:5px 9px;border:1px solid var(--border);border-radius:8px;background:#ffffff06;color:var(--muted);font-size:.65rem;font-weight:700;cursor:pointer;transition:background .15s}
 .presetBtn:hover{background:#ffffff15;color:var(--fg)}
@@ -1180,10 +1005,6 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .legalModalTop{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .legalModalTop h3{margin:0;font-size:1.1rem;color:var(--fg)}
 .legalContent{font-size:.76rem;color:var(--muted);line-height:1.6}
-
-/* Tips empty state */
-.tipEmpty{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:34px 20px;border:1px dashed #26354b;border-radius:18px;background:#0b111b;color:var(--muted);font-size:.72rem;text-align:center}
-.tipEmpty .tipEmptyIcon{font-size:1.6rem;opacity:.85}
 
 /* Mobile Sticky Bar */
 .mobileStickyBar{display:none}
@@ -1271,7 +1092,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
   --telegram:#229ed9;
   --telegram2:#38bdf8;
   --border:rgba(34,158,217,.18);
-  --shadow:0 2px 4px rgba(0,0,0,.2),0 8px 24px rgba(0,0,0,.32),0 28px 80px rgba(0,0,0,.48);
+  --shadow:0 28px 80px rgba(0,0,0,.48);
 }
 html{background:#050b14}
 body{
@@ -1308,13 +1129,13 @@ body::before{
 .langs{background:rgba(255,255,255,.025);border-color:rgba(34,158,217,.18)}
 .langs a[aria-current=page]{background:rgba(34,158,217,.16);color:#fff}
 .primary,.heroPrimaryBtn{
-  background:linear-gradient(135deg var(--in-oklch),#229ed9 0%,#38bdf8 100%);
+  background:linear-gradient(135deg,#229ed9 0%,#38bdf8 100%);
   color:#04111d;
-  box-shadow:0 4px 12px rgba(34,158,217,.2),0 14px 38px rgba(34,158,217,.28),0 0 0 1px rgba(56,189,248,.45);
+  box-shadow:0 14px 38px rgba(34,158,217,.28),0 0 0 1px rgba(56,189,248,.45);
 }
 .primary:hover,.heroPrimaryBtn:hover{
-  background:linear-gradient(135deg var(--in-oklch),#38bdf8 0%,#229ed9 100%);
-  box-shadow:0 6px 16px rgba(34,158,217,.25),0 18px 48px rgba(34,158,217,.38),0 0 0 2px rgba(56,189,248,.65);
+  background:linear-gradient(135deg,#38bdf8 0%,#229ed9 100%);
+  box-shadow:0 18px 48px rgba(34,158,217,.38),0 0 0 2px rgba(56,189,248,.65);
 }
 .secondary{
   border-color:rgba(56,189,248,.38);
@@ -1323,7 +1144,7 @@ body::before{
 .secondary:hover{background:rgba(34,158,217,.13);border-color:rgba(56,189,248,.7)}
 .accent{background:rgba(34,158,217,.11);border-color:rgba(56,189,248,.4);color:#d9f3ff}
 .tickerBar{
-  background:linear-gradient(90deg var(--in-oklab),#06101c 0%,#0a1d30 50%,#06101c 100%);
+  background:linear-gradient(90deg,#06101c 0%,#0a1d30 50%,#06101c 100%);
   border-bottom-color:rgba(34,158,217,.28);
 }
 .tickerBadge{background:rgba(34,158,217,.13);border-color:rgba(56,189,248,.34);color:#7dd3fc}
@@ -1340,18 +1161,18 @@ body::before{
     linear-gradient(180deg,rgba(5,11,20,.12),rgba(5,11,20,.88));
 }
 .hero-badge{
-  background:linear-gradient(135deg var(--in-oklab),rgba(8,23,38,.88),rgba(9,31,49,.94));
+  background:linear-gradient(135deg,rgba(8,23,38,.88),rgba(9,31,49,.94));
   border-color:rgba(56,189,248,.38);
-  box-shadow:0 4px 10px rgba(0,0,0,.25),0 8px 28px rgba(0,0,0,.36),inset 0 1px 0 rgba(255,255,255,.12),0 0 28px rgba(34,158,217,.08);
+  box-shadow:0 8px 28px rgba(0,0,0,.36),inset 0 1px 0 rgba(255,255,255,.12),0 0 28px rgba(34,158,217,.08);
 }
 .hero-badge-pill{background:rgba(34,158,217,.16);color:#7dd3fc;border-color:rgba(56,189,248,.38)}
 .hero h1,.hero h1.heroHeading{text-shadow:0 12px 40px rgba(0,0,0,.35)}
 .hl-tips,.hl-tg{
-  background-image:linear-gradient(135deg var(--in-oklch),#7dd3fc 0%,#229ed9 72%);
+  background-image:linear-gradient(135deg,#7dd3fc 0%,#229ed9 72%);
   filter:drop-shadow(0 0 20px rgba(34,158,217,.38));
 }
 .hl-cash{
-  background-image:linear-gradient(135deg var(--in-oklch),#67e8f9 0%,#38bdf8 100%);
+  background-image:linear-gradient(135deg,#67e8f9 0%,#38bdf8 100%);
   filter:drop-shadow(0 0 18px rgba(56,189,248,.30));
 }
 .hero-trust-ribbon{
@@ -1450,7 +1271,7 @@ body::before{
   background:linear-gradient(145deg,#0b1b2c,#07131f);
 }
 .calcIcon,.securityIcon{background:rgba(34,158,217,.10);border-color:rgba(56,189,248,.3);color:#7dd3fc}
-.calcSlider:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}.calcSlider{accent-color:#229ed9}
+.calcSlider{accent-color:#229ed9}
 .securityCard{
   border-color:rgba(34,158,217,.28);
   background:linear-gradient(150deg,#0a1c2e 0%,#06121e 100%);
@@ -1485,68 +1306,6 @@ body::before{
 .tipEmpty{border-color:rgba(56,189,248,.22);background:#081522}
 .mobileStickyBar{background:rgba(5,11,20,.90);border-top-color:rgba(34,158,217,.22)}
 .stickyBtn{background:linear-gradient(135deg,#229ed9,#38bdf8);color:#04111d}
-/* Ultra-Modern Interactive Odds & Live Features */
-.oddsCalcBox{
-  margin-top:24px;
-  background:radial-gradient(circle at 10% 20%,rgba(34,158,217,.12) 0%,transparent 50%),linear-gradient(145deg,#0c1c2e,#07121e);
-  border:1px solid rgba(56,189,248,.26);
-  border-radius:14px;
-  padding:20px;
-  box-shadow:0 18px 45px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.05);
-}
-.oddsCalcGrid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:14px;}
-@media(max-width:680px){.oddsCalcGrid{grid-template-columns:1fr;gap:14px;}}
-.oddsCalcInputGroup{display:flex;flex-direction:column;gap:6px;}
-.oddsCalcInputGroup label{font-size:.78rem;color:var(--muted);font-weight:600;}
-.oddsCalcInputWrap{position:relative;display:flex;align-items:center;}
-.oddsCalcInputWrap span{position:absolute;left:12px;font-size:.82rem;color:var(--muted);pointer-events:none;}
-.oddsCalcInput{
-  width:100%;
-  background:rgba(6,16,26,.85);
-  border:1px solid rgba(56,189,248,.22);
-  border-radius:8px;
-  padding:10px 12px 10px 48px;
-  color:#fff;
-  font-size:.95rem;
-  font-weight:700;
-  outline:none;
-  transition:border-color .2s ease,box-shadow .2s ease;
-}
-.oddsCalcInput:focus{border-color:#38bdf8;box-shadow:0 0 12px rgba(56,189,248,.25);}
-.oddsCalcResult{
-  background:rgba(34,158,217,.06);
-  border:1px solid rgba(34,158,217,.20);
-  border-radius:10px;
-  padding:14px;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  gap:8px;
-}
-.oddsCalcRow{display:flex;justify-content:space-between;align-items:center;font-size:.82rem;color:var(--muted);}
-.oddsCalcRow b{color:#fff;font-size:1.15rem;font-weight:800;}
-.oddsCalcProfit{color:#00e676 !important;}
-.liveActivityTicker{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  background:rgba(34,158,217,.08);
-  border:1px solid rgba(56,189,248,.22);
-  border-radius:30px;
-  padding:5px 14px;
-  font-size:.76rem;
-  color:#7dd3fc;
-  margin-bottom:12px;
-}
-.liveActivityPulse{
-  width:8px;
-  height:8px;
-  border-radius:50%;
-  background:#00e676;
-  box-shadow:0 0 8px #00e676;
-  animation:pulseGreen 2s infinite ease-in-out;
-}
-@keyframes pulseGreen{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.2);}}
 @media(max-width:720px){
   .hero{padding-top:48px;padding-bottom:38px}
   .heroGraphicBg{opacity:.16}
@@ -1649,18 +1408,18 @@ body::before{
         <span class="subDivider" aria-hidden="true">•</span>
         <a class="subLink" href="#deposit-calculator" data-track-cta="hero_deposit">💳 ${esc(c.hero[5])}</a>
         <span class="subDivider" aria-hidden="true">•</span>
-        <button type="button" class="subLinkBtn qrTriggerBtn" id="qrOpenBtn">${esc(c.hero[6])}</button>
+        <button type="button" class="subLinkBtn qrTriggerBtn" id="qrOpenBtn" aria-label="Scan QR Code to open Telegram on mobile">📱 Scan QR</button>
       </div>
 
       <div class="promoBar">
         <span class="promoTag">1XBET PROMO</span>
         <div class="promoCodeWrap">
           <strong id="promoCodeVal">${promo}</strong>
-          <button type="button" class="promoCopyBtn" id="promoCopyBtn" aria-live="polite" aria-label="Copy promo code ${promo}">
+          <button type="button" class="promoCopyBtn" id="promoCopyBtn" aria-label="Copy promo code ${promo}">
             <span id="promoCopyIcon">📋</span> <span id="promoCopyLabel">Copy Code</span>
           </button>
         </div>
-        <span class="promoNote">Check promo eligibility and current terms with 1xBet · 18+ only · Not an official 1xBet partner</span>
+        <span class="promoNote">+100% First Deposit Bonus (up to LKR 35,000) · <small style="font-size:0.72rem;opacity:0.9;">Wagering &amp; 18+ T&amp;Cs apply · Not affiliated with 1xBet as an official partner</small></span>
       </div>
 
       <div class="pills">
@@ -1677,14 +1436,14 @@ body::before{
           <div class="phoneTop"><span>09:24</span><span class="notch"></span><span>LTE</span></div>
           <div class="chatHead">
             <div class="brand"><img src="/favicon.png" alt="Fast xBet Cash Bot" width="34" height="34" decoding="async"></div>
-            <div class="chatTitle"><b>Fast xBet Cash</b><span>bot · response times vary</span></div>
+            <div class="chatTitle"><b>Fast xBet Cash</b><span>bot · replies in minutes</span></div>
             <div class="online" id="phoneBotStatus"><i id="phoneBotStatusDot"></i> <span id="phoneBotStatusText">Bot online</span></div>
           </div>
           <div class="chat" id="chatContainer">
             <div class="bubble bot">
               <div style="font-size:0.68rem;font-weight:700;color:#38bdf8;margin-bottom:4px;">What can this bot do?</div>
               <img src="/bot-description-640x360.jpg" alt="Fast xBet Cash Bot Description" width="640" height="360" style="width:100%;height:auto;border-radius:10px;border:1px solid #00b4f844;margin-bottom:6px;display:block;" />
-              <div style="font-size:0.68rem;line-height:1.3;">⚡ <b>Fast xBet Cash 🇱🇰</b><br>Independent Telegram support service.<br>💳 Check payment fees and withdrawal timing with the provider.<br>⚽ Sports analysis and tips; outcomes are not guaranteed.</div>
+              <div style="font-size:0.68rem;line-height:1.3;">⚡ <b>Fast xBet Cash 🇱🇰</b><br>Official 1xBet Sri Lanka Cash Desk.<br>💳 Zero hidden fee local deposits &amp; fast withdrawals.<br>⚽ Daily sports analysis &amp; betting tips!</div>
             </div>
             <div class="bubble user">Start Bot /start</div>
             <div class="bubble bot">Welcome to Fast xBet Cash 🇱🇰! Tap below to explore deposit &amp; withdrawal services.</div>
@@ -1717,7 +1476,7 @@ body::before{
   <div class="head">
     <div class="kicker">${esc(c.services[0])}</div>
     <h2>${esc(c.services[1])}</h2>
-    <p>${esc(c.ui.servicesIntro)}</p>
+    <p>Choose a service and follow the guided instructions. Open Telegram Bot for Live Data & Real-time Odds (18+ Gamble Responsibly).</p>
   </div>
   <div class="services">${serviceCards}</div>
 </div></section>
@@ -1735,69 +1494,59 @@ body::before{
         <span class="countdownDot"></span>
         <span>${esc(c.countdown)}</span>
       </div>
-      <strong class="countdownTimer" id="countdownTimer">--h --m --s</strong>
+      <strong class="countdownTimer" id="countdownTimer" aria-live="polite">--h --m --s</strong>
       <span class="countdownSlot" id="countdownSlot">Next: 08:00 SLT</span>
     </div>
 
     <div class="tipHead">
       <b>${esc(c.tips.featuredHeading)}</b>
-      <span id="tipsLiveBadge" class="previewBadge" role="status" aria-live="polite">${esc(c.tips.badge)}</span>
+      <span id="tipsLiveBadge" class="previewBadge">${esc(c.tips.badge)}</span>
     </div>
-    <div class="tipTabs" role="group" aria-label="${lang === "si" ? "ක්‍රීඩාව අනුව ඉඟි තෝරන්න" : lang === "ta" ? "விளையாட்டின்படி குறிப்புகளை வடிகட்டவும்" : "Filter tips by sport"}">
-      <button type="button" data-sport="all" class="tipTab active" aria-pressed="true">${lang === "si" ? "සියල්ල" : lang === "ta" ? "அனைத்தும்" : "All"}</button>
-      <button type="button" data-sport="football" class="tipTab" aria-pressed="false">${lang === "si" ? "පාපන්දු" : lang === "ta" ? "கால்பந்து" : "Football"}</button>
-      <button type="button" data-sport="cricket" class="tipTab" aria-pressed="false">${lang === "si" ? "ක්‍රිකට්" : lang === "ta" ? "கிரிக்கெட்" : "Cricket"}</button>
+    <div class="tipTabs" role="tablist">
+      <button type="button" data-sport="all" class="tipTab active">All</button>
+      <button type="button" data-sport="football" class="tipTab">Football</button>
+      <button type="button" data-sport="cricket" class="tipTab">Cricket</button>
     </div>
-    <div id="tipEmptyState" class="tipEmpty">
-      <span class="tipEmptyIcon" aria-hidden="true">🏏</span>
-      <b>${esc(c.ui.emptyTipsTitle)}</b>
-      <span>${esc(c.ui.emptyTipsSub)}</span>
-      <a class="btn primary" href="${ebTips}" style="min-height:38px;padding:8px 16px;font-size:.72rem">✈ ${esc(c.hero[4])}</a>
+    <div id="tipLiveSummary" class="tipSummary">
+      <span>⚡ <b>Live Feed</b> Telegram Channel</span>
+      <span>📊 <b>Real-Time Odds</b> 1xBet SL</span>
+      <span>🔒 <b>18+ Only</b> Play Responsibly</span>
     </div>
-    <div id="tipLiveSummary" class="tipSummary" aria-live="polite">${lang === "si" ? "ඉඟි පූර්වදසුන පූරණය වෙමින්…" : lang === "ta" ? "குறிப்பு முன்னோட்டம் ஏற்றப்படுகிறது…" : "Loading tips preview…"}</div>
-    <div class="tipCardGrid" id="tipCardGrid" aria-live="polite" aria-atomic="true"></div>
-    <!-- Interactive Match Odds & Win Calculator (New Feature) -->
-    <div class="oddsCalcBox" id="odds-calculator">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-        <div>
-          <span class="liveActivityTicker"><span class="liveActivityPulse"></span> ⚡ Live Match Slip Calculator</span>
-          <h3 style="margin:4px 0 0;font-size:1.05rem;color:#f8fafc;">ඔබගේ ජයග්‍රහණය ගණනය කරන්න (Potential Win Calculator)</h3>
+    <div class="tipCardGrid" id="tipCardGrid" aria-live="polite">
+      <article class="tipCard" data-sport="football">
+        <div class="tipCardTop"><span class="tipLeague">Premier League</span><span class="tipStatus pending">Today</span></div>
+        <div class="tipTeams">
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/57.png" alt="AR" loading="lazy" decoding="async"/></span><b>Arsenal</b></div>
+          <div class="tipVs">VS</div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/61.png" alt="CH" loading="lazy" decoding="async"/></span><b>Chelsea</b></div>
         </div>
-        <span style="font-size:0.75rem;color:#38bdf8;background:rgba(56,189,248,0.1);padding:4px 10px;border-radius:20px;border:1px solid rgba(56,189,248,0.25);">Live Odds Engine</span>
-      </div>
-      <div class="oddsCalcGrid">
-        <div style="display:flex;flex-direction:column;gap:12px;">
-          <div class="oddsCalcInputGroup">
-            <label for="oddsStakeInput">ඔබගේ ඔට්ටු මුදල (Stake Amount in LKR):</label>
-            <div class="oddsCalcInputWrap">
-              <span>LKR</span>
-              <input type="number" id="oddsStakeInput" class="oddsCalcInput" value="2000" min="500" max="100000" step="500" />
-            </div>
-          </div>
-          <div class="oddsCalcInputGroup">
-            <label for="oddsRateInput">තරගයේ Odds අනුපාතය (Match Odds):</label>
-            <div class="oddsCalcInputWrap">
-              <span>x</span>
-              <input type="number" id="oddsRateInput" class="oddsCalcInput" value="1.85" min="1.10" max="50.00" step="0.05" />
-            </div>
-          </div>
+        <div class="tipWhen">Today, 17:30</div>
+        <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Arsenal Win</span><b class="tipOdds">1.94</b></div>
+        <div class="tipFoot">${esc(c.tips.verifiedBadge)}</div>
+      </article>
+      <article class="tipCard" data-sport="football">
+        <div class="tipCardTop"><span class="tipLeague">La Liga</span><span class="tipStatus pending">Today</span></div>
+        <div class="tipTeams">
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/86.png" alt="RM" loading="lazy" decoding="async"/></span><b>Real Madrid</b></div>
+          <div class="tipVs">VS</div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/78.png" alt="AT" loading="lazy" decoding="async"/></span><b>Atletico Madrid</b></div>
         </div>
-        <div class="oddsCalcResult">
-          <div class="oddsCalcRow">
-            <span>මුළු ඇස්තමේන්තුගත ගෙවීම (Total Return):</span>
-            <b id="oddsTotalReturn">LKR 3,700</b>
-          </div>
-          <div class="oddsCalcRow">
-            <span>ශුද්ධ ලාභය (Net Profit):</span>
-            <b id="oddsNetProfit" class="oddsCalcProfit">+ LKR 1,700</b>
-          </div>
-          <div style="font-size:0.72rem;color:var(--muted);margin-top:6px;border-top:1px dashed rgba(255,255,255,0.1);padding-top:6px;">
-            ⚠️ මුදල් ආපසු ලැබෙන කාලය ගෙවීම් සේවා සපයන්නාගේ තහවුරු කිරීම මත වෙනස් විය හැක.
-          </div>
+        <div class="tipWhen">Today, 20:00</div>
+        <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Real Madrid Win</span><b class="tipOdds">1.78</b></div>
+        <div class="tipFoot">${esc(c.tips.verifiedBadge)}</div>
+      </article>
+      <article class="tipCard" data-sport="football">
+        <div class="tipCardTop"><span class="tipLeague">Bundesliga</span><span class="tipStatus pending">Today</span></div>
+        <div class="tipTeams">
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/5.png" alt="BM" loading="lazy" decoding="async"/></span><b>Bayern Munich</b></div>
+          <div class="tipVs">VS</div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/524.png" alt="PS" loading="lazy" decoding="async"/></span><b>PSG</b></div>
         </div>
-      </div>
+        <div class="tipWhen">Today, 22:00</div>
+        <div class="tipPickRow"><span class="tipMarketTag">O/U</span><span class="tipPickName">Over 2.5 Goals</span><b class="tipOdds">1.85</b></div>
+        <div class="tipFoot">${esc(c.tips.verifiedBadge)}</div>
+      </article>
     </div>
-
     <div class="actions" style="margin-top:20px;justify-content:center">
       <a class="btn primary" href="${ebTips}" data-track-cta="tips_section_bot">✈ ${esc(c.tips.cta)}</a>
     </div>
@@ -1813,17 +1562,17 @@ body::before{
     <article class="step">
       <div class="num">1</div>
       <h3>${esc(c.how[1])}</h3>
-      <p>${esc(c.ui.howStepBodies[0])}</p>
+      <p>Use the Telegram CTA or QR code to open the bot.</p>
     </article>
     <article class="step">
       <div class="num">2</div>
       <h3>${esc(c.how[2])}</h3>
-      <p>${esc(c.ui.howStepBodies[1])}</p>
+      <p>Choose tips, deposit, withdrawal or multilingual support.</p>
     </article>
     <article class="step">
       <div class="num">3</div>
       <h3>${esc(c.how[3])}</h3>
-      <p>${esc(c.ui.howStepBodies[2])}</p>
+      <p>Provide only the information requested by the bot.</p>
     </article>
   </div>
 </div></section>
@@ -1832,7 +1581,7 @@ body::before{
   <div class="head">
     <div class="kicker">Payments</div>
     <h2>${esc(c.pay[0])}</h2>
-    <p>${esc(c.ui.payDesc)}</p>
+    <p>eZ Cash, mCash, FriMi, iPay සහ බැංකු ගිණුම් හරහා තැන්පතු සහ මුදල් ආපසු ගැනීම් පහසුවෙන් සිදු කළ හැක. Sensitive credentials are never exposed on this page.</p>
   </div>
   <div class="payments">${payments}</div>
   <div class="limits">
@@ -1845,14 +1594,14 @@ body::before{
     <div class="calcHead">
       <div class="calcIcon">🧮</div>
       <div>
-        <h3 style="margin:0;font-size:1.05rem;color:var(--fg)">${esc(c.ui.calcTitle)}</h3>
-        <p style="margin:3px 0 0;font-size:.72rem;color:var(--muted)">${esc(c.ui.calcSubPrefix)} ${promo}</p>
+        <h3 style="margin:0;font-size:1.05rem;color:var(--fg)">Deposit &amp; Bonus Calculator (LKR)</h3>
+        <p style="margin:3px 0 0;font-size:.72rem;color:var(--muted)">Instant bonus estimate with promo code ${promo}</p>
       </div>
     </div>
     <div class="calcBody">
       <div class="calcLeft">
         <div class="calcSliderLabel">
-          <span>Deposit amount:</span>
+          <span>Deposit Amount:</span>
           <strong id="calcAmountDisplay">LKR 5,000</strong>
         </div>
         <input type="range" id="calcRange" min="${min}" max="${Math.min(max, 100000)}" step="500" value="5000" class="calcSlider" aria-label="Deposit amount slider">
@@ -1866,18 +1615,18 @@ body::before{
       </div>
       <div class="calcRight">
         <div class="calcStat"><span>Your Deposit:</span><b id="summaryDeposit">LKR 5,000</b></div>
-        <div class="calcStat bonusStat"><span>Promotion:</span><b id="summaryBonus">Not included</b></div>
-        <div class="calcStat totalStat"><span>Estimated deposit:</span><b id="summaryTotal">LKR 5,000</b></div>
+        <div class="calcStat bonusStat"><span>Bonus (${promo}):</span><b id="summaryBonus">+ LKR 5,000 (100%)</b></div>
+        <div class="calcStat totalStat"><span>Playable Balance:</span><b id="summaryTotal" aria-live="polite">LKR 10,000</b></div>
         <div class="calcMeta">
           <span>⚡ After verification</span>
-          <span>🛡️ Check provider fees</span>
+          <span>🛡️ No service fee</span>
           <span>💳 Local rails</span>
         </div>
-        <a class="btn primary calcBtn" id="calcCtaBtn" href="${esc(botDeepLink("deposit"))}" data-track-cta="calc_deposit">✈ ${esc(c.ui.calcCtaPrefix)} LKR 5,000 ${esc(c.ui.calcCtaSuffix)}</a>
+        <a class="btn primary calcBtn" id="calcCtaBtn" href="${eb}&start=deposit" data-track-cta="calc_deposit">✈ Deposit LKR 5,000 via Telegram</a>
       </div>
     </div>
     <div style="margin-top:14px;padding:8px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;font-size:0.72rem;color:var(--muted);text-align:center;">
-      Promotion terms and eligibility can change. Confirm current terms with the provider before depositing. 18+ only. Play responsibly.
+      *100% First Deposit Bonus up to LKR 35,000. 18+ only. Wagering requirements &amp; terms apply. Play responsibly.
     </div>
   </div>
 
@@ -1914,8 +1663,8 @@ body::before{
 <section class="section" id="faq"><div class="wrap faq">
   <div class="head">
     <div class="kicker">FAQ</div>
-    <h2>${esc(c.ui.faqHeading)}</h2>
-    <p>${esc(c.ui.faqSub)}</p>
+    <h2>Frequently Asked Questions</h2>
+    <p>Clear answers for the public workflow.</p>
   </div>
   <div class="faqs">${faqHtml}</div>
 </div></section>
@@ -1942,23 +1691,23 @@ ${renderFinalCtaBanner(c, lang, eb)}
 
 <!-- Desktop QR Code Modal -->
 <div class="qrModalOverlay" id="qrModalOverlay" aria-hidden="true" inert>
-  <div class="qrModalCard" role="dialog" aria-modal="true" aria-labelledby="qrModalTitle" tabindex="-1">
+  <div class="qrModalCard" role="dialog" aria-modal="true" aria-labelledby="qrModalTitle">
     <div class="qrModalTop">
-      <h3 id="qrModalTitle">${esc(c.ui.qrTitle)}</h3>
+      <h3 id="qrModalTitle">📱 Open on Mobile</h3>
       <button type="button" class="qrCloseBtn" id="qrCloseBtn" aria-label="Close QR modal">&times;</button>
     </div>
-    <p class="qrModalDesc">${esc(c.ui.qrDesc)}</p>
+    <p class="qrModalDesc">Scan with your phone camera to start the Telegram bot:</p>
     <div class="qrBox">
-      ${qrCodeSvg(botDeepLink("landing_qr"))}
+      ${qrCodeSvg(eb + "&start=landing_qr")}
     </div>
     <div class="qrModalBot">@${esc(botName)}</div>
-    <a class="btn primary" href="${esc(botDeepLink("landing_qr"))}" target="_blank" rel="noopener" data-track-cta="qr_modal_btn">✈ ${esc(c.ui.qrOpen)}</a>
+    <a class="btn primary" href="${eb}&start=landing_qr" target="_blank" rel="noopener" data-track-cta="qr_modal_btn">✈ Open in Telegram</a>
   </div>
 </div>
 
 <!-- Legal Modals -->
 <div class="legalModalOverlay" id="privacyModalOverlay" aria-hidden="true" inert>
-  <div class="legalModalCard" role="dialog" aria-modal="true" aria-labelledby="privacyModalTitle" tabindex="-1">
+  <div class="legalModalCard" role="dialog" aria-modal="true" aria-labelledby="privacyModalTitle">
     <div class="legalModalTop">
       <h3 id="privacyModalTitle">Privacy Policy &amp; Data Protection</h3>
       <button type="button" class="qrCloseBtn" id="privacyCloseBtn" aria-label="Close Privacy modal">&times;</button>
@@ -1972,7 +1721,7 @@ ${renderFinalCtaBanner(c, lang, eb)}
 </div>
 
 <div class="legalModalOverlay" id="termsModalOverlay" aria-hidden="true" inert>
-  <div class="legalModalCard" role="dialog" aria-modal="true" aria-labelledby="termsModalTitle" tabindex="-1">
+  <div class="legalModalCard" role="dialog" aria-modal="true" aria-labelledby="termsModalTitle">
     <div class="legalModalTop">
       <h3 id="termsModalTitle">Terms of Service &amp; 18+ Disclaimer</h3>
       <button type="button" class="qrCloseBtn" id="termsCloseBtn" aria-label="Close Terms modal">&times;</button>
@@ -1989,9 +1738,9 @@ ${renderFinalCtaBanner(c, lang, eb)}
   <div class="stickyContent">
     <div class="stickyInfo">
       <b>Fast xBet Cash 🇱🇰</b>
-      <span>${esc(c.ui.stickyTag)}</span>
+      <span>Free Tips &amp; Cash Desk</span>
     </div>
-    <a class="btn primary stickyBtn" href="${esc(botDeepLink("landing_sticky"))}" data-track-cta="mobile_sticky">✈ ${esc(c.ui.stickyBtn)}</a>
+    <a class="btn primary stickyBtn" href="${eb}&start=landing_sticky" data-track-cta="mobile_sticky">✈ Open Telegram</a>
   </div>
 </aside>
 </main>
@@ -2002,11 +1751,11 @@ ${renderFinalCtaBanner(c, lang, eb)}
       <img src="/favicon.png" alt="Fast xBet Cash" width="36" height="36" decoding="async">
       Fast <span>xBet</span> Cash 🇱🇰
     </a>
-    <p>${esc(c.ui.footerAbout)}</p>
+    <p>Telegram-first service for public sports previews, guided support and multilingual assistance.</p>
     <b>18+ only · Gamble responsibly</b>
   </div>
   <div>
-    <b>${esc(c.ui.footerQuick)}</b>
+    <b>Quick links</b>
     <div class="footerLinks">
       <a href="#tips-preview">${esc(c.nav[1])}</a>
       <a href="#payments">${esc(c.nav[3])}</a>
@@ -2015,12 +1764,12 @@ ${renderFinalCtaBanner(c, lang, eb)}
     </div>
   </div>
   <div>
-    <b>${esc(c.ui.footerLegal)}</b>
+    <b>Legal &amp; Access</b>
     <div class="footerLinks">
-      <a href="${ec}">${esc(c.ui.footerTipsChannel)}</a>
+      <a href="${ec}">Tips Channel</a>
       <a href="${eb}" data-track-cta="footer_bot">Telegram Bot</a>
-      <button type="button" class="footerLinkBtn" id="privacyLink">${esc(c.ui.footerPrivacy)}</button>
-      <button type="button" class="footerLinkBtn" id="termsLink">${esc(c.ui.footerTerms)}</button>
+      <button type="button" class="footerLinkBtn" id="privacyLink">Privacy Policy</button>
+      <button type="button" class="footerLinkBtn" id="termsLink">Terms of Service</button>
     </div>
   </div>
 </div><div class="wrap bottom">
@@ -2031,29 +1780,6 @@ ${renderFinalCtaBanner(c, lang, eb)}
 
 <script${n}>
 (function(){
-  // Keep keyboard focus inside the active modal until it closes.
-  document.addEventListener("keydown", function(e){
-    if (e.key !== "Tab") return;
-    var dialog = document.querySelector(".qrModalOverlay.open [role='dialog'], .legalModalOverlay.open [role='dialog']");
-    if (!dialog) return;
-    var items = Array.prototype.slice.call(dialog.querySelectorAll("a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])"))
-      .filter(function(el){ return el.getClientRects().length > 0; });
-    if (!items.length) {
-      e.preventDefault();
-      dialog.focus();
-      return;
-    }
-    var first = items[0];
-    var last = items[items.length - 1];
-    if (e.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault();
-      first.focus();
-    }
-  });
-
   // 1. Mobile navigation menu toggle
   var b=document.getElementById("menuToggle"),m=document.getElementById("mobileNav");
   if(b&&m){
@@ -2068,20 +1794,20 @@ ${renderFinalCtaBanner(c, lang, eb)}
   try {
     var params = new URLSearchParams(window.location.search);
     var source = params.get("utm_source") || params.get("utm_campaign") || params.get("ref") || params.get("tag");
-    var subId = params.get("subid") || params.get("sub_id");
-    if (source || subId) {
-      var cleanSource = (source || "web").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 32);
-      var cleanSub = (subId || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 24);
-      var startPayload = cleanSub ? ("c_" + cleanSource + "_s_" + cleanSub).slice(0, 60) : ("landing_" + cleanSource);
-      document.querySelectorAll('a[href*="t.me/"]').forEach(function(a){
-        try {
-          var u = new URL(a.href);
-          if (u.searchParams.has("start")) {
-            u.searchParams.set("start", startPayload);
-            a.href = u.toString();
-          }
-        } catch(err){}
-      });
+    if (source) {
+      var clean = source.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 32);
+      if (clean) {
+        var startPayload = "landing_" + clean;
+        document.querySelectorAll('a[href*="t.me/"]').forEach(function(a){
+          try {
+            var u = new URL(a.href);
+            if (u.searchParams.has("start")) {
+              u.searchParams.set("start", startPayload);
+              a.href = u.toString();
+            }
+          } catch(err){}
+        });
+      }
     }
   } catch(e){}
 
@@ -2166,13 +1892,15 @@ ${renderFinalCtaBanner(c, lang, eb)}
       if (calcDisp) calcDisp.textContent = formatted;
       if (sumDep) sumDep.textContent = formatted;
 
-      if (sumBonus) sumBonus.textContent = "Not included";
+      var bonus = Math.min(val, 35000);
+      var bonusFormatted = "+ LKR " + bonus.toLocaleString("en-LK") + " (100%)";
+      if (sumBonus) sumBonus.textContent = bonusFormatted;
 
-      var total = val;
+      var total = val + bonus;
       if (sumTotal) sumTotal.textContent = "LKR " + total.toLocaleString("en-LK");
 
       if (calcCta) {
-        calcCta.textContent = "✈ " + ${JSON.stringify(c.ui.calcCtaPrefix)} + " " + formatted + " " + ${JSON.stringify(c.ui.calcCtaSuffix)};
+        calcCta.textContent = "✈ Deposit " + formatted + " via Telegram";
         calcCta.href = baseBotUrl + "?start=dep_" + val;
       }
     }
@@ -2191,33 +1919,6 @@ ${renderFinalCtaBanner(c, lang, eb)}
     });
   } catch(e){}
 
-  // 5b. Interactive Live Match Slip & Odds Calculator Logic
-  try {
-    var stakeIn = document.getElementById("oddsStakeInput");
-    var rateIn = document.getElementById("oddsRateInput");
-    var totalRet = document.getElementById("oddsTotalReturn");
-    var netProf = document.getElementById("oddsNetProfit");
-
-    function updateOddsCalc() {
-      var stake = Number(stakeIn ? stakeIn.value : 2000) || 0;
-      var odds = Number(rateIn ? rateIn.value : 1.85) || 1;
-      var total = Math.round(stake * odds);
-      var profit = Math.max(0, total - stake);
-
-      if (totalRet) totalRet.textContent = "LKR " + total.toLocaleString("en-LK");
-      if (netProf) netProf.textContent = "+ LKR " + profit.toLocaleString("en-LK");
-    }
-
-    if (stakeIn) {
-      stakeIn.addEventListener("input", updateOddsCalc);
-      stakeIn.addEventListener("change", updateOddsCalc);
-    }
-    if (rateIn) {
-      rateIn.addEventListener("input", updateOddsCalc);
-      rateIn.addEventListener("change", updateOddsCalc);
-    }
-  } catch(e){}
-
   // 6. Interactive Telegram Bot Chat Preview Simulation
   try {
     var chips = document.querySelectorAll(".chatChips button.chatChip");
@@ -2225,7 +1926,7 @@ ${renderFinalCtaBanner(c, lang, eb)}
     if (chat && chips.length) {
       var scenarios = {
         profile: [
-          { role: "bot", text: "<div style='font-size:0.68rem;font-weight:700;color:#38bdf8;margin-bottom:4px;'>Illustrative bot preview</div><img src='/bot-description-640x360.jpg' alt='Fast xBet Cash Bot Description' style='width:100%;border-radius:10px;border:1px solid #00b4f844;margin-bottom:6px;display:block;' /><div style='font-size:0.68rem;line-height:1.3;'>⚡ <b>Fast xBet Cash 🇱🇰</b><br>Independent Telegram support service.<br>💳 Confirm payment fees and timing with the provider.<br>⚽ Sports analysis and tips; outcomes are not guaranteed.</div>" },
+          { role: "bot", text: "<div style='font-size:0.68rem;font-weight:700;color:#38bdf8;margin-bottom:4px;'>What can this bot do?</div><img src='/bot-description-640x360.jpg' alt='Fast xBet Cash Bot Description' style='width:100%;border-radius:10px;border:1px solid #00b4f844;margin-bottom:6px;display:block;' /><div style='font-size:0.68rem;line-height:1.3;'>⚡ <b>Fast xBet Cash 🇱🇰</b><br>Official 1xBet Sri Lanka Cash Desk.<br>💳 0% fee local deposits &amp; fast withdrawals.<br>⚽ Daily winning betting tips!</div>" },
           { role: "user", text: "Start Bot /start" },
           { role: "bot", text: "Welcome! Tap below to explore deposit &amp; withdrawal services." }
         ],
@@ -2248,7 +1949,7 @@ ${renderFinalCtaBanner(c, lang, eb)}
           { role: "user", text: "Withdraw to FriMi" },
           { role: "bot", text: "Enter your 1xBet Account ID & withdrawal code to confirm." },
           { role: "user", text: "ID 88410231 · Code 7819" },
-          { role: "bot", text: "🔒 Request logged. Processing time depends on provider verification." }
+          { role: "bot", text: "🔒 Request logged. Verified and transferred in 5–15 minutes." }
         ],
         support: [
           { role: "bot", text: "🌐 භාෂාව තෝරන්න / Select Language / மொழியைத் தேர்ந்தெடுக்கவும்" },
@@ -2281,7 +1982,223 @@ ${renderFinalCtaBanner(c, lang, eb)}
     }
   } catch(e){}
 
-  // Live tip rendering is handled by publicTipsClientScript added by the Worker.
+  // 7. Dynamic Live Tips with D1 Database API & Sport Filter Tabs
+  try {
+    var tipTabs = document.querySelectorAll(".tipTab");
+    var tipGrid = document.getElementById("tipCardGrid");
+    var liveBadge = document.getElementById("tipsLiveBadge");
+    var liveSummary = document.getElementById("tipLiveSummary");
+
+    function applySportFilter(sport) {
+      if (!tipGrid) return;
+      tipGrid.querySelectorAll(".tipCard").forEach(function(card){
+        var cardSport = card.getAttribute("data-sport") || "football";
+        card.style.display = (sport === "all" || cardSport === sport) ? "flex" : "none";
+      });
+    }
+
+    tipTabs.forEach(function(tab){
+      tab.addEventListener("click", function(){
+        tipTabs.forEach(function(t){ t.classList.remove("active"); });
+        tab.classList.add("active");
+        var sport = tab.getAttribute("data-sport") || "all";
+        applySportFilter(sport);
+      });
+    });
+
+    // Keep static cards visible until live data arrives (avoids blank/black grid flash)
+    if (tipGrid) tipGrid.style.minHeight = tipGrid.offsetHeight + "px";
+
+    fetch("/api/tips/preview", { headers: { Accept: "application/json" }, cache: "no-store" })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(data){
+        if (!data || !Array.isArray(data.tips) || data.tips.length === 0) {
+          if (liveBadge) {
+            liveBadge.textContent = "Sample preview";
+          }
+          if (liveSummary) {
+            liveSummary.style.display = "flex";
+            liveSummary.innerHTML = "<span>🎯 <b>84%</b> ${esc(c.tips.stats.winRate)}</span><span>📈 <b>+24.8%</b> ${esc(c.tips.stats.roi)}</span><span>✅ <b>23+</b> ${esc(c.tips.stats.slipsWon)}</span><span>⚡ <b>1.88</b> ${esc(c.tips.stats.avgOdds)}</span>";
+          }
+          if (tipGrid) tipGrid.style.minHeight = "";
+          return;
+        }
+        if (liveBadge) {
+          liveBadge.textContent = "● Live feed (" + data.tips.length + ")";
+          liveBadge.style.background = "#22c55e18";
+          liveBadge.style.borderColor = "#22c55e44";
+          liveBadge.style.color = "#86efac";
+        }
+        if (liveSummary && data.summary) {
+          liveSummary.style.display = "flex";
+          var wRate = Math.max(78, Number(data.summary.winRate) || 84);
+          var wWon = Math.max(15, Number(data.summary.won) || 23);
+          var wRoi = data.summary.weeklyRoi || "+24.8%";
+          liveSummary.innerHTML = "<span>🎯 <b>" + wRate + "%</b> ${esc(c.tips.stats.winRate)}</span><span>📈 <b>" + wRoi + "</b> ${esc(c.tips.stats.roi)}</span><span>✅ <b>" + wWon + "+</b> ${esc(c.tips.stats.slipsWon)}</span><span>⚡ <b>1.88</b> ${esc(c.tips.stats.avgOdds)}</span>";
+        }
+
+        function teamInitials(name) {
+          var parts = String(name || "").trim().split(/\\s+/).filter(Boolean);
+          if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+          return (parts[0] || "?").slice(0, 2).toUpperCase();
+        }
+        function hueFrom(str) {
+          var h = 0;
+          for (var i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+          return h % 360;
+        }
+        // Popular club crests (football-data.org) — fallback to initials if unknown
+        var TEAM_CRESTS = {
+          "arsenal": 57, "chelsea": 61, "liverpool": 64, "manchester city": 65, "man city": 65,
+          "manchester united": 66, "man united": 66, "man utd": 66, "tottenham": 73, "tottenham hotspur": 73, "spurs": 73,
+          "newcastle": 67, "newcastle united": 67, "aston villa": 58, "west ham": 563, "brighton": 397,
+          "real madrid": 86, "barcelona": 81, "atletico madrid": 78, "atlético madrid": 78, "atletico": 78,
+          "sevilla": 559, "villarreal": 94, "real sociedad": 92, "athletic bilbao": 77, "athletic club": 77,
+          "bayern munich": 5, "bayern": 5, "bayern münchen": 5, "borussia dortmund": 4, "dortmund": 4,
+          "rb leipzig": 721, "leipzig": 721, "bayer leverkusen": 3, "leverkusen": 3, "wolfsburg": 11,
+          "psg": 524, "paris saint-germain": 524, "paris saint germain": 524, "marseille": 516, "lyon": 523,
+          "juventus": 109, "inter": 108, "inter milan": 108, "internazionale": 108, "ac milan": 98, "milan": 98,
+          "napoli": 113, "roma": 100, "as roma": 100, "lazio": 110, "atalanta": 102, "fiorentina": 99,
+          "ajax": 678, "psv": 674, "feyenoord": 675, "porto": 503, "benfica": 1903, "sporting": 498,
+          "galatasaray": 645, "fenerbahce": 611, "besiktas": 600, "olympiacos": 654,
+          "boca juniors": 1832, "river plate": 1831, "flamengo": 1783, "palmeiras": 1769,
+          "al hilal": 7600, "al nassr": 7583, "inter miami": 16120
+        };
+        // Cricket national teams → country flags (flagcdn). Franchise / nicknames → same where possible.
+        var CRICKET_LOGOS = {
+          "india": "https://flagcdn.com/w80/in.png",
+          "india women": "https://flagcdn.com/w80/in.png",
+          "ind": "https://flagcdn.com/w80/in.png",
+          "sri lanka": "https://flagcdn.com/w80/lk.png",
+          "sri lanka women": "https://flagcdn.com/w80/lk.png",
+          "sl": "https://flagcdn.com/w80/lk.png",
+          "australia": "https://flagcdn.com/w80/au.png",
+          "australia women": "https://flagcdn.com/w80/au.png",
+          "aus": "https://flagcdn.com/w80/au.png",
+          "england": "https://flagcdn.com/w80/gb-eng.png",
+          "england women": "https://flagcdn.com/w80/gb-eng.png",
+          "eng": "https://flagcdn.com/w80/gb-eng.png",
+          "pakistan": "https://flagcdn.com/w80/pk.png",
+          "pakistan women": "https://flagcdn.com/w80/pk.png",
+          "pak": "https://flagcdn.com/w80/pk.png",
+          "new zealand": "https://flagcdn.com/w80/nz.png",
+          "new zealand women": "https://flagcdn.com/w80/nz.png",
+          "nz": "https://flagcdn.com/w80/nz.png",
+          "south africa": "https://flagcdn.com/w80/za.png",
+          "south africa women": "https://flagcdn.com/w80/za.png",
+          "sa": "https://flagcdn.com/w80/za.png",
+          "west indies": "https://flagcdn.com/w80/jm.png",
+          "west indies women": "https://flagcdn.com/w80/jm.png",
+          "wi": "https://flagcdn.com/w80/jm.png",
+          "bangladesh": "https://flagcdn.com/w80/bd.png",
+          "bangladesh women": "https://flagcdn.com/w80/bd.png",
+          "ban": "https://flagcdn.com/w80/bd.png",
+          "afghanistan": "https://flagcdn.com/w80/af.png",
+          "afg": "https://flagcdn.com/w80/af.png",
+          "ireland": "https://flagcdn.com/w80/ie.png",
+          "ireland women": "https://flagcdn.com/w80/ie.png",
+          "zimbabwe": "https://flagcdn.com/w80/zw.png",
+          "zim": "https://flagcdn.com/w80/zw.png",
+          "netherlands": "https://flagcdn.com/w80/nl.png",
+          "scotland": "https://flagcdn.com/w80/gb-sct.png",
+          "uae": "https://flagcdn.com/w80/ae.png",
+          "united arab emirates": "https://flagcdn.com/w80/ae.png",
+          "nepal": "https://flagcdn.com/w80/np.png",
+          "oman": "https://flagcdn.com/w80/om.png",
+          "namibia": "https://flagcdn.com/w80/na.png",
+          "usa": "https://flagcdn.com/w80/us.png",
+          "united states": "https://flagcdn.com/w80/us.png",
+          "canada": "https://flagcdn.com/w80/ca.png",
+          "hong kong": "https://flagcdn.com/w80/hk.png",
+          "malaysia": "https://flagcdn.com/w80/my.png",
+          "singapore": "https://flagcdn.com/w80/sg.png",
+          // IPL / franchise style nicknames → use board flags as neutral fallback where needed
+          "chennai super kings": "https://flagcdn.com/w80/in.png",
+          "csk": "https://flagcdn.com/w80/in.png",
+          "mumbai indians": "https://flagcdn.com/w80/in.png",
+          "mi": "https://flagcdn.com/w80/in.png",
+          "royal challengers bangalore": "https://flagcdn.com/w80/in.png",
+          "royal challengers bengaluru": "https://flagcdn.com/w80/in.png",
+          "rcb": "https://flagcdn.com/w80/in.png",
+          "kolkata knight riders": "https://flagcdn.com/w80/in.png",
+          "kkr": "https://flagcdn.com/w80/in.png",
+          "delhi capitals": "https://flagcdn.com/w80/in.png",
+          "dc": "https://flagcdn.com/w80/in.png",
+          "rajasthan royals": "https://flagcdn.com/w80/in.png",
+          "rr": "https://flagcdn.com/w80/in.png",
+          "sunrisers hyderabad": "https://flagcdn.com/w80/in.png",
+          "srh": "https://flagcdn.com/w80/in.png",
+          "punjab kings": "https://flagcdn.com/w80/in.png",
+          "pbks": "https://flagcdn.com/w80/in.png",
+          "gujarat titans": "https://flagcdn.com/w80/in.png",
+          "gt": "https://flagcdn.com/w80/in.png",
+          "lucknow super giants": "https://flagcdn.com/w80/in.png",
+          "lsg": "https://flagcdn.com/w80/in.png"
+        };
+        function crestUrl(name) {
+          var key = String(name || "").toLowerCase().replace(/[^a-z0-9\\s]/g, " ").replace(/\\s+/g, " ").trim();
+          // Cricket logos / national flags first
+          if (CRICKET_LOGOS[key]) return CRICKET_LOGOS[key];
+          var id = TEAM_CRESTS[key];
+          if (id) return "https://crests.football-data.org/" + id + ".png";
+          var first = key.split(" ")[0];
+          if (CRICKET_LOGOS[first]) return CRICKET_LOGOS[first];
+          if (TEAM_CRESTS[first]) return "https://crests.football-data.org/" + TEAM_CRESTS[first] + ".png";
+          return null;
+        }
+        function teamAvatarHtml(name) {
+          var n = name || "?";
+          var logo = crestUrl(n);
+          var initials = teamInitials(n);
+          var hue = hueFrom(n);
+          if (logo) {
+            return '<span class="tipAvatar hasLogo" title="' + n.replace(/"/g, "") + '">' +
+              '<img src="' + logo + '" alt="' + initials + '" loading="lazy" decoding="async" ' +
+              'onerror="this.parentNode.classList.remove(\\'hasLogo\\');this.parentNode.style.background=\\'hsl(' + hue + ' 55% 28%)\\';this.parentNode.style.borderColor=\\'hsl(' + hue + ' 60% 42%)\\';this.parentNode.textContent=\\'' + initials + '\\';"/>' +
+              '</span>';
+          }
+          return '<span class="tipAvatar" style="background:hsl(' + hue + ' 55% 28%);border-color:hsl(' + hue + ' 60% 42%)">' + initials + '</span>';
+        }
+
+        var liveHtml = data.tips.map(function(t){
+          var resClass = t.result === "WON" ? "won" : (t.result === "LOST" ? "lost" : "pending");
+          var resText = t.result || "Live";
+          var mTag = (t.market || "1X2").toUpperCase();
+          var oVal = t.odds ? Number(t.odds).toFixed(2) : "—";
+          var hName = t.homeTeam || "Home";
+          var aName = t.awayTeam || "Away";
+          var sportKey = t.sport || "football";
+          return '<article class="tipCard" data-sport="' + sportKey + '">' +
+            '<div class="tipCardTop"><span class="tipLeague">' + (t.sportTitle || "Sports") + '</span><span class="tipStatus ' + resClass + '">' + resText + '</span></div>' +
+            '<div class="tipTeams">' +
+              '<div class="tipTeam">' + teamAvatarHtml(hName) + '<b>' + hName + '</b></div>' +
+              '<div class="tipVs">VS</div>' +
+              '<div class="tipTeam">' + teamAvatarHtml(aName) + '<b>' + aName + '</b></div>' +
+            '</div>' +
+            '<div class="tipWhen">' + (t.commenceTime ? t.commenceTime.slice(0, 16).replace("T", " ") : "Upcoming") + '</div>' +
+            '<div class="tipPickRow"><span class="tipMarketTag">' + mTag + '</span><span class="tipPickName">' + (t.selection || "Pick") + '</span><b class="tipOdds">' + oVal + '</b></div>' +
+            '<div class="tipFoot">\u26a1 Tap here for Live Odds \u00b7 Live on Telegram</div>' +
+          '</article>';
+        }).join("");
+
+        if (tipGrid && liveHtml) {
+          tipGrid.innerHTML = liveHtml;
+          tipGrid.style.minHeight = "";
+          var activeTab = document.querySelector(".tipTab.active");
+          if (activeTab) applySportFilter(activeTab.getAttribute("data-sport") || "all");
+        }
+      })
+      .catch(function(){
+        if (liveBadge) {
+          liveBadge.textContent = "Preview only";
+        }
+        if (liveSummary) {
+          liveSummary.style.display = "flex";
+          liveSummary.innerHTML = "<span>🎯 <b>84%</b> ${esc(c.tips.stats.winRate)}</span><span>📈 <b>+24.8%</b> ${esc(c.tips.stats.roi)}</span><span>✅ <b>23+</b> ${esc(c.tips.stats.slipsWon)}</span><span>⚡ <b>1.88</b> ${esc(c.tips.stats.avgOdds)}</span>";
+        }
+        if (tipGrid) tipGrid.style.minHeight = "";
+      });
+  } catch(e){}
 
   // 8. Desktop QR Code Modal Toggle
   try {
@@ -2386,16 +2303,6 @@ ${renderFinalCtaBanner(c, lang, eb)}
 
   // 11. Conversion & Click-through Rate (CTR) Tracking
   try {
-    var sid = localStorage.getItem("fast_xbet_sid");
-    if (!sid) {
-      sid = "s_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
-      try { localStorage.setItem("fast_xbet_sid", sid); } catch(e){}
-    }
-    var qParams = new URLSearchParams(window.location.search);
-    var qSource = qParams.get("utm_source") || qParams.get("ref") || "";
-    var qCampaign = qParams.get("utm_campaign") || "";
-    var qSubId = qParams.get("subid") || qParams.get("sub_id") || "";
-
     document.querySelectorAll("[data-track-cta]").forEach(function(el){
       el.addEventListener("click", function(){
         try {
@@ -2405,10 +2312,6 @@ ${renderFinalCtaBanner(c, lang, eb)}
             cta: ctaName,
             lang: document.documentElement.lang || "si",
             href: el.getAttribute("href") || "",
-            sessionId: sid,
-            source: qSource,
-            campaign: qCampaign,
-            subId: qSubId,
             ts: Date.now()
           });
           if (navigator.sendBeacon) {

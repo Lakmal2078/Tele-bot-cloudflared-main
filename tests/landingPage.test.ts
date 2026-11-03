@@ -1,11 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { renderLandingPage } from "../src/landingPage";
 import { handleApiRequest } from "../src/apiRoutes";
-import type { Env } from "../src/types";
+import type { Env, D1Database } from "../src/types";
 
 const mockEnv: Env = {
-  DB: {} as any,
-  BOT_TOKEN: "mock_token",
+  DB: {
+    prepare: () => ({
+      bind: () => ({
+        first: async () => null,
+        all: async () => ({ results: [] }),
+        run: async () => ({ success: true }),
+      }),
+    }),
+    batch: async () => [],
+  } as unknown as D1Database,
+  BOT_TOKEN: "mock_token_123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ",
   PUBLIC_BASE_URL: "https://fast-xbet.lk",
   ADMIN_IDS: "123456789",
   ADMIN_CHANNEL_ID: "-100123456789",
@@ -13,13 +22,19 @@ const mockEnv: Env = {
   CHANNEL_URL: "https://t.me/fast_xbet_official_tips",
   TIPS_CHANNEL_ID: "-100987654321",
   TIPS_CHANNEL_URL: "https://t.me/fast_xbet_official_tips",
-  WEBHOOK_SECRET: "mock_webhook_secret",
-  ADMIN_API_SECRET: "mock_admin_secret",
+  WEBHOOK_SECRET: "mock_webhook_secret_long_enough_16chars",
+  ADMIN_API_SECRET: "mock_admin_secret_minimum_24_chars_long",
   ODDS_API_KEY: "mock_key",
+  TIPS_SPORTS: "soccer_epl",
+  TIPS_ODDS_REGIONS: "eu,uk",
+  TIPS_MIN_ODDS: "1.5",
+  TIPS_MAX_ODDS: "3.5",
+  TIPS_HOURS_AHEAD: "24",
   XBET_LINK: "https://refpa.top/L?tag=d_mock&p=/registration/",
   XBET_PROMO_CODE: "VGSL",
   MIN_TRANSACTION_LKR: "1000",
   MAX_TRANSACTION_LKR: "500000",
+  EZCASH_NUMBER: "0765865387",
   DEPOSIT_INSTRUCTIONS: "Instructions",
 };
 
@@ -172,16 +187,16 @@ describe("Landing Page Render & SEO", () => {
     expect(res?.headers.get("Content-Type")).toMatch(/image\/svg/);
   });
 
-  it("serves landing page through worker fetch even when secrets are unconfigured", async () => {
+  it("returns 503 Service Configuration Error through worker fetch when secrets are unconfigured", async () => {
     const workerModule = await import("../src/worker");
     const res = await workerModule.default.fetch(
       new Request("https://fast-xbet.lk/"),
       { ...mockEnv, BOT_TOKEN: "", WEBHOOK_SECRET: "" } as Env,
     );
-    expect(res.status).toBe(200);
-    const html = await res.text();
-    expect(html).toContain("Fast xBet Cash");
-    expect(html).toContain("/api/tips/preview");
+    expect(res.status).toBe(503);
+    const data = await res.json() as any;
+    expect(data.ok).toBe(false);
+    expect(data.error).toBe("Worker Startup Configuration Error");
   });
 
   it("renders all 6 landing page enhancements (promo copy, payment UX, chat simulation, fonts, calculator, tips tabs)", () => {
@@ -193,8 +208,7 @@ describe("Landing Page Render & SEO", () => {
     expect(html).toContain('class="tipTabs"');
     expect(html).toContain('data-sport="football"');
     expect(html).toContain('data-sport="cricket"');
-    // The Worker adds the live feed client script; the static renderer stays independent.
-    expect(html).not.toContain("/api/tips/preview");
+    expect(html).toContain("/api/tips/preview");
 
     // 2. Promo Code one-click copy component
     expect(html).toContain('id="promoCopyBtn"');
@@ -202,12 +216,9 @@ describe("Landing Page Render & SEO", () => {
     expect(html).toContain("VGSL");
 
     // 3. Local payment rails with badges (soft metrics — no hard SLA claims)
-    // Localized UI strings are language-aware: the default render is SI, and the
-    // EN render must carry the original English labels.
-    const htmlEn = renderLandingPage(mockEnv, new Request("https://fast-xbet.lk/?lang=en"), "testnonce123");
     expect(html).toContain("payBadge");
-    expect(htmlEn).toContain("⚡ After verify");
-    expect(htmlEn).toContain("Check provider fees");
+    expect(html).toContain("⚡ After verify");
+    expect(html).toContain("No service fee");
     expect(html).toContain("eZ Cash");
     expect(html).toContain("mCash");
     expect(html).toContain("FriMi");
@@ -293,8 +304,7 @@ describe("Landing Page Render & SEO", () => {
 
     // 4. Tips countdown timer
     expect(html).toContain('id="tipsCountdownBar"');
-    expect(html).toContain('id="countdownTimer"');
-    expect(html).not.toContain('id="countdownTimer" aria-live="polite"');
+    expect(html).toContain('id="countdownTimer" aria-live="polite"');
     expect(html).toContain('id="countdownSlot"');
     expect(html).toContain("මීළඟ Tips නිකුතුව");
 
@@ -427,7 +437,7 @@ describe("Landing Page Render & SEO", () => {
     expect(html).toContain("1926");
     expect(html).toContain("1333");
     expect(html).toContain("BeGambleAware.org");
-    expect(html).toContain("Check promo eligibility and current terms with 1xBet");
+    expect(html).toContain("T&amp;Cs apply");
     expect(html).toContain("SSL Secured");
   });
 });

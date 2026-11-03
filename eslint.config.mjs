@@ -24,26 +24,6 @@ export default [
     },
   },
   {
-    files: ["**/*.js"],
-    languageOptions: {
-      ecmaVersion: "latest",
-      sourceType: "module",
-    },
-    rules: {
-      "no-undef": "off",
-    },
-  },
-  {
-    ignores: [
-      "dist/**",
-      "node_modules/**",
-      ".wrangler/**",
-      ".mf/**",
-      "**/*.cjs",
-      "**/*.mjs",
-      "vitest*.js",
-      "scripts/**",
-    ],
+    ignores: ["dist/**", "node_modules/**", "**/*.cjs", "**/*.mjs", "scripts/**"],
   },
 ];
-

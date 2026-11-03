@@ -474,48 +474,46 @@ export async function getUserHistory(db: D1Database, userId: number) {
 }
 
 export async function getStats(db: D1Database): Promise<SystemStats> {
-  const totalUsers = await db.prepare(`SELECT COUNT(*) as c FROM users`).first<{ c: number }>();
-  const todayUsers = await db
-    .prepare(`SELECT COUNT(*) as c FROM users WHERE date(created_at) = date('now')`)
-    .first<{ c: number }>();
-
-  const depStats = await db
-    .prepare(`
-      SELECT 
-        COUNT(CASE WHEN status = 'PENDING' THEN 1 END) as pending_count,
-        COUNT(CASE WHEN status = 'APPROVED' THEN 1 END) as approved_count,
-        COALESCE(SUM(CASE WHEN status = 'APPROVED' THEN amount ELSE 0 END), 0) as approved_volume_cents,
-        COUNT(CASE WHEN status = 'REJECTED' THEN 1 END) as rejected_count,
-        COALESCE(SUM(CASE WHEN status = 'APPROVED' AND date(created_at) = date('now') THEN amount ELSE 0 END), 0) as today_volume_cents
-      FROM deposits
-      WHERE deleted_at IS NULL
-    `)
-    .first<{
-      pending_count: number;
-      approved_count: number;
-      approved_volume_cents: number;
-      rejected_count: number;
-      today_volume_cents: number;
-    }>();
-
-  const wdStats = await db
-    .prepare(`
-      SELECT 
-        COUNT(CASE WHEN status = 'PENDING' THEN 1 END) as pending_count,
-        COUNT(CASE WHEN status = 'APPROVED' THEN 1 END) as approved_count,
-        COALESCE(SUM(CASE WHEN status = 'APPROVED' THEN amount ELSE 0 END), 0) as approved_volume_cents,
-        COUNT(CASE WHEN status = 'REJECTED' THEN 1 END) as rejected_count,
-        COALESCE(SUM(CASE WHEN status = 'APPROVED' AND date(created_at) = date('now') THEN amount ELSE 0 END), 0) as today_volume_cents
-      FROM withdrawals
-      WHERE deleted_at IS NULL
-    `)
-    .first<{
-      pending_count: number;
-      approved_count: number;
-      approved_volume_cents: number;
-      rejected_count: number;
-      today_volume_cents: number;
-    }>();
+  const [totalUsers, todayUsers, depStats, wdStats] = await Promise.all([
+    db.prepare(`SELECT COUNT(*) as c FROM users`).first<{ c: number }>(),
+    db.prepare(`SELECT COUNT(*) as c FROM users WHERE date(created_at) = date('now')`).first<{ c: number }>(),
+    db
+      .prepare(`
+        SELECT 
+          COUNT(CASE WHEN status = 'PENDING' THEN 1 END) as pending_count,
+          COUNT(CASE WHEN status = 'APPROVED' THEN 1 END) as approved_count,
+          COALESCE(SUM(CASE WHEN status = 'APPROVED' THEN amount ELSE 0 END), 0) as approved_volume_cents,
+          COUNT(CASE WHEN status = 'REJECTED' THEN 1 END) as rejected_count,
+          COALESCE(SUM(CASE WHEN status = 'APPROVED' AND date(created_at) = date('now') THEN amount ELSE 0 END), 0) as today_volume_cents
+        FROM deposits
+        WHERE deleted_at IS NULL
+      `)
+      .first<{
+        pending_count: number;
+        approved_count: number;
+        approved_volume_cents: number;
+        rejected_count: number;
+        today_volume_cents: number;
+      }>(),
+    db
+      .prepare(`
+        SELECT 
+          COUNT(CASE WHEN status = 'PENDING' THEN 1 END) as pending_count,
+          COUNT(CASE WHEN status = 'APPROVED' THEN 1 END) as approved_count,
+          COALESCE(SUM(CASE WHEN status = 'APPROVED' THEN amount ELSE 0 END), 0) as approved_volume_cents,
+          COUNT(CASE WHEN status = 'REJECTED' THEN 1 END) as rejected_count,
+          COALESCE(SUM(CASE WHEN status = 'APPROVED' AND date(created_at) = date('now') THEN amount ELSE 0 END), 0) as today_volume_cents
+        FROM withdrawals
+        WHERE deleted_at IS NULL
+      `)
+      .first<{
+        pending_count: number;
+        approved_count: number;
+        approved_volume_cents: number;
+        rejected_count: number;
+        today_volume_cents: number;
+      }>(),
+  ]);
 
   return {
     totalUsers: totalUsers?.c ?? 0,
@@ -594,8 +592,15 @@ export async function getTotalUserCount(db: D1Database): Promise<number> {
   return row?.c ?? 0;
 }
 
-export async function getUserIdsPaged(db: D1Database, limit = 500, offset = 0): Promise<number[]> {
+export async function getUserIdsPaged(db: D1Database, limit = 500, offset = 0, afterUserId?: number): Promise<number[]> {
   const safeLimit = Math.max(1, Math.min(limit, 1000));
+  if (typeof afterUserId === "number" && afterUserId > 0) {
+    const result = await db
+      .prepare(`SELECT user_id FROM users WHERE user_id > ? ORDER BY user_id ASC LIMIT ?`)
+      .bind(afterUserId, safeLimit)
+      .all<{ user_id: number }>();
+    return (result.results || []).map((r) => r.user_id);
+  }
   const safeOffset = Math.max(0, offset);
   const result = await db
     .prepare(`SELECT user_id FROM users ORDER BY user_id ASC LIMIT ? OFFSET ?`)

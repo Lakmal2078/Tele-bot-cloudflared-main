@@ -5,7 +5,7 @@ import { cleanupOldR2Logs } from "./logCleanup";
 import { runScheduledTip, TIPS_CRONS } from "./tips";
 import { settlePendingTips } from "./tipsSettlement";
 import { getPublicTips, publicTipsClientScript } from "./publicTips";
-import { assertValidEnv, constantTimeEqual } from "./config";
+import { assertValidEnv, constantTimeEqual, validateEnv } from "./config";
 import { landingPageSecurityHeaders, securityHeaders, webhookRequestAllowed } from "./security";
 import { renderLandingPage, trustedPublicBaseUrl } from "./landingPage";
 import { handleApiRequest, json } from "./apiRoutes";
@@ -62,6 +62,51 @@ async function registerBotCommands(bot: ReturnType<typeof createBot>): Promise<v
   ]);
 }
 
+/**
+ * Validates critical environment variables at startup before processing requests.
+ * Throws a descriptive configuration error if mandatory keys or bindings are missing.
+ */
+export function validateWorkerStartupEnv(env: Partial<Env>): void {
+  const criticalErrors: string[] = [];
+
+  if (!env || typeof env !== "object") {
+    throw new Error("[Worker Startup Validation Error] Worker environment bindings object is missing or invalid.");
+  }
+
+  // 1. Mandatory Telegram Bot & Webhook secrets
+  if (!env.BOT_TOKEN || typeof env.BOT_TOKEN !== "string" || !env.BOT_TOKEN.trim()) {
+    criticalErrors.push("BOT_TOKEN is missing or empty. Please set it via `wrangler secret put BOT_TOKEN` or environment variables.");
+  }
+  if (!env.WEBHOOK_SECRET || typeof env.WEBHOOK_SECRET !== "string" || !env.WEBHOOK_SECRET.trim()) {
+    criticalErrors.push("WEBHOOK_SECRET is missing or empty. Please set it via `wrangler secret put WEBHOOK_SECRET` (min 16 characters).");
+  } else if (env.WEBHOOK_SECRET.trim().length < 16) {
+    criticalErrors.push(`WEBHOOK_SECRET must be at least 16 characters long (current length: ${env.WEBHOOK_SECRET.trim().length}).`);
+  }
+
+  // 2. Mandatory Admin configuration
+  if (!env.ADMIN_IDS || typeof env.ADMIN_IDS !== "string" || !env.ADMIN_IDS.trim()) {
+    criticalErrors.push("ADMIN_IDS is missing or empty. Provide comma-separated numeric Telegram admin user IDs.");
+  }
+
+  // 3. Mandatory D1 Database binding
+  if (!env.DB || typeof env.DB.prepare !== "function") {
+    criticalErrors.push("DB (Cloudflare D1 Database binding) is missing or unconfigured. Verify `[[d1_databases]]` in wrangler.toml.");
+  }
+
+  // 4. Run general environment validation for formatting & dependencies
+  const generalValidationErrors = validateEnv(env);
+  for (const err of generalValidationErrors) {
+    if (!criticalErrors.includes(err)) {
+      criticalErrors.push(err);
+    }
+  }
+
+  if (criticalErrors.length > 0) {
+    const formattedErrors = criticalErrors.map((err) => `  • ${err}`).join("\n");
+    throw new Error(`[Worker Startup Validation Error] Critical configuration missing or invalid:\n${formattedErrors}`);
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
     const id = requestId();
@@ -70,6 +115,19 @@ export default {
       logEvent({ event: "request", requestId: id, method: request.method, route: new URL(request.url).pathname, status: response.status, durationMs: Date.now() - started });
       return withRequestId(response, id);
     };
+
+    try {
+      // Perform worker startup validation check before dispatching routes
+      validateWorkerStartupEnv(env);
+    } catch (startupErr) {
+      console.error("[Worker Startup Failure]", startupErr instanceof Error ? startupErr.message : String(startupErr));
+      return finish(json({
+        ok: false,
+        error: "Worker Startup Configuration Error",
+        message: startupErr instanceof Error ? startupErr.message : "Required environment variables or bindings are missing.",
+        requestId: id,
+      }, 503));
+    }
 
     try {
       const url = new URL(request.url);

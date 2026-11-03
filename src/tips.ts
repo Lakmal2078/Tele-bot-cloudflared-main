@@ -38,7 +38,7 @@ const MAJOR_SPORTS_PRIORITY: readonly string[] = [
   "mma_mixed_martial_arts",
 ];
 
-function sportPriority(key: string): number {
+function _sportPriority(key: string): number {
   const idx = MAJOR_SPORTS_PRIORITY.findIndex((p) => key.includes(p));
   return idx === -1 ? 999 : idx;
 }
@@ -373,15 +373,27 @@ async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
     });
   };
 
-  for (const sport of sports) {
-    try {
-      const filtered = await fetchSportEvents(sport);
-      allEvents.push(...filtered);
-      console.log(`[Tips] ${sport}: ${filtered.length} upcoming event(s)`);
-    } catch (error) {
-      console.warn(`[Tips] Sport feed failed for ${sport}:`, error instanceof Error ? error.message : error);
-      if (String(error).includes("credit guard")) break;
+  const CONCURRENCY = 2;
+  for (let i = 0; i < sports.length; i += CONCURRENCY) {
+    const batch = sports.slice(i, i + CONCURRENCY);
+    const results = await Promise.allSettled(
+      batch.map(async (sport) => {
+        const filtered = await fetchSportEvents(sport);
+        return { sport, filtered };
+      })
+    );
+    let creditExhausted = false;
+    for (const res of results) {
+      if (res.status === "fulfilled") {
+        allEvents.push(...res.value.filtered);
+        console.log(`[Tips] ${res.value.sport}: ${res.value.filtered.length} upcoming event(s)`);
+      } else {
+        const error = res.reason;
+        console.warn(`[Tips] Sport feed failed:`, error instanceof Error ? error.message : error);
+        if (String(error).includes("credit guard")) creditExhausted = true;
+      }
     }
+    if (creditExhausted) break;
   }
 
   // If explicit league keys are currently empty, discover active feeds and retry.

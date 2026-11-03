@@ -13,20 +13,34 @@ function decodeBase64(base64: string): Uint8Array {
   return bytes;
 }
 
-const PUBLIC_FAVICON_PNG: Uint8Array = decodeBase64(FAVICON_PNG_BASE64);
-const PUBLIC_BOT_DESCRIPTION_JPEG: Uint8Array = decodeBase64(BOT_DESCRIPTION_IMAGE_BASE64);
+let cachedFaviconPng: Uint8Array | null = null;
+function getPublicFaviconPng(): Uint8Array {
+  if (!cachedFaviconPng) cachedFaviconPng = decodeBase64(FAVICON_PNG_BASE64);
+  return cachedFaviconPng;
+}
+
+let cachedBotDescriptionJpeg: Uint8Array | null = null;
+function getPublicBotDescriptionJpeg(): Uint8Array {
+  if (!cachedBotDescriptionJpeg) cachedBotDescriptionJpeg = decodeBase64(BOT_DESCRIPTION_IMAGE_BASE64);
+  return cachedBotDescriptionJpeg;
+}
+
 const MAX_ANALYTICS_BODY_BYTES = 8 * 1024;
 const ANALYTICS_RATE_WINDOW_MS = 60_000;
 const ANALYTICS_RATE_LIMIT = 120;
 const analyticsRateBuckets = new Map<string, { count: number; resetAt: number }>();
+let lastAnalyticsSweepAt = 0;
 
 function analyticsRequestAllowed(request: Request, now = Date.now()): boolean {
   const key = request.headers.get("CF-Connecting-IP")?.trim() || "unknown-client";
   let bucket = analyticsRateBuckets.get(key);
   if (!bucket || bucket.resetAt <= now) {
     if (analyticsRateBuckets.size >= 10_000) {
-      for (const [entryKey, entry] of analyticsRateBuckets) {
-        if (entry.resetAt <= now) analyticsRateBuckets.delete(entryKey);
+      if (now - lastAnalyticsSweepAt > 10_000) {
+        lastAnalyticsSweepAt = now;
+        for (const [entryKey, entry] of analyticsRateBuckets) {
+          if (entry.resetAt <= now) analyticsRateBuckets.delete(entryKey);
+        }
       }
       if (analyticsRateBuckets.size >= 10_000) return false;
     }
@@ -455,6 +469,19 @@ export async function handleApiRequest(
 
   // OpenGraph Image JPEG (1200x630 bitmap optimized for WhatsApp & mobile chat previews)
   if ((path === "/og-image.jpg" || path === "/og-image.jpeg") && (method === "GET" || method === "HEAD")) {
+    if (env.ASSETS && typeof env.ASSETS.fetch === "function") {
+      try {
+        const assetRes = await env.ASSETS.fetch(request);
+        if (assetRes && assetRes.status === 200) {
+          const headers = new Headers(assetRes.headers);
+          const currentCache = headers.get("Cache-Control");
+          if (!currentCache || currentCache.includes("max-age=0") || currentCache.includes("no-cache")) {
+            headers.set("Cache-Control", "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400");
+          }
+          return new Response(assetRes.body, { status: assetRes.status, headers });
+        }
+      } catch {}
+    }
     const headers: Record<string, string> = {
       "Content-Type": "image/jpeg",
       "Content-Length": String(OG_IMAGE_JPEG.byteLength),
@@ -470,9 +497,23 @@ export async function handleApiRequest(
 
   // Telegram BotFather Description Photo (640x360 JPEG for "What can this bot do?" card)
   if ((path === "/bot-description-640x360.jpg" || path === "/api/bot/description-photo") && (method === "GET" || method === "HEAD")) {
+    if (env.ASSETS && typeof env.ASSETS.fetch === "function") {
+      try {
+        const assetRes = await env.ASSETS.fetch(request);
+        if (assetRes && assetRes.status === 200) {
+          const headers = new Headers(assetRes.headers);
+          const currentCache = headers.get("Cache-Control");
+          if (!currentCache || currentCache.includes("max-age=0") || currentCache.includes("no-cache")) {
+            headers.set("Cache-Control", "public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400");
+          }
+          return new Response(assetRes.body, { status: assetRes.status, headers });
+        }
+      } catch {}
+    }
+    const botDescJpeg = getPublicBotDescriptionJpeg();
     const headers: Record<string, string> = {
       "Content-Type": "image/jpeg",
-      "Content-Length": String(PUBLIC_BOT_DESCRIPTION_JPEG.byteLength),
+      "Content-Length": String(botDescJpeg.byteLength),
       "Content-Disposition": "inline; filename=\"bot-description-640x360.jpg\"",
       "Access-Control-Allow-Origin": "*",
       "Accept-Ranges": "bytes",
@@ -480,7 +521,7 @@ export async function handleApiRequest(
       "X-Content-Type-Options": "nosniff",
     };
     if (method === "HEAD") return new Response(null, { status: 200, headers });
-    return new Response(PUBLIC_BOT_DESCRIPTION_JPEG, { status: 200, headers });
+    return new Response(botDescJpeg, { status: 200, headers });
   }
 
   // OpenGraph Image PNG (1200x630 bitmap for WhatsApp, Telegram, Facebook, Twitter social previews)
@@ -689,9 +730,10 @@ export async function handleApiRequest(
       }
     }
 
+    const faviconPng = getPublicFaviconPng();
     const headers: Record<string, string> = {
       "Content-Type": "image/png",
-      "Content-Length": String(PUBLIC_FAVICON_PNG.byteLength),
+      "Content-Length": String(faviconPng.byteLength),
       "Content-Disposition": "inline; filename=\"favicon.png\"",
       "Access-Control-Allow-Origin": "*",
       "Accept-Ranges": "bytes",
@@ -699,7 +741,7 @@ export async function handleApiRequest(
       "X-Content-Type-Options": "nosniff",
     };
     if (method === "HEAD") return new Response(null, { status: 200, headers });
-    return new Response(PUBLIC_FAVICON_PNG, { status: 200, headers });
+    return new Response(faviconPng, { status: 200, headers });
   }
 
   // Official Brand Logo / Favicon SVG (/favicon.svg, /logo.svg)
