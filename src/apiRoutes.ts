@@ -15,6 +15,56 @@ function decodeBase64(base64: string): Uint8Array {
 
 const PUBLIC_FAVICON_PNG: Uint8Array = decodeBase64(FAVICON_PNG_BASE64);
 const PUBLIC_BOT_DESCRIPTION_JPEG: Uint8Array = decodeBase64(BOT_DESCRIPTION_IMAGE_BASE64);
+const MAX_ANALYTICS_BODY_BYTES = 8 * 1024;
+const ANALYTICS_RATE_WINDOW_MS = 60_000;
+const ANALYTICS_RATE_LIMIT = 120;
+const analyticsRateBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function analyticsRequestAllowed(request: Request, now = Date.now()): boolean {
+  const key = request.headers.get("CF-Connecting-IP")?.trim() || "unknown-client";
+  let bucket = analyticsRateBuckets.get(key);
+  if (!bucket || bucket.resetAt <= now) {
+    if (analyticsRateBuckets.size >= 10_000) {
+      for (const [entryKey, entry] of analyticsRateBuckets) {
+        if (entry.resetAt <= now) analyticsRateBuckets.delete(entryKey);
+      }
+      if (analyticsRateBuckets.size >= 10_000) return false;
+    }
+    bucket = { count: 0, resetAt: now + ANALYTICS_RATE_WINDOW_MS };
+    analyticsRateBuckets.set(key, bucket);
+  }
+  if (bucket.count >= ANALYTICS_RATE_LIMIT) return false;
+  bucket.count += 1;
+  return true;
+}
+
+async function readBoundedText(request: Request, maxBytes: number): Promise<string | null> {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
 import { constantTimeEqual, isConfiguredAdminId, validateEnv } from "./config";
 import { securityHeaders, landingPageSecurityHeaders, adminAttemptAllowed, recordAdminFailure, isAdminIpAllowed } from "./security";
 import {
@@ -530,19 +580,39 @@ export async function handleApiRequest(
     if (method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
+    if (!analyticsRequestAllowed(request)) {
+      return new Response(JSON.stringify({ ok: false, error: "Rate limit exceeded" }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": "60" },
+      });
+    }
+    if (method === "GET" && request.url.length > MAX_ANALYTICS_BODY_BYTES) {
+      return new Response(JSON.stringify({ ok: false, error: "Request too large" }), {
+        status: 413,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const contentLength = Number(request.headers.get("Content-Length"));
+    if (method === "POST" && request.headers.has("Content-Length") &&
+        (!Number.isFinite(contentLength) || contentLength < 0 || contentLength > MAX_ANALYTICS_BODY_BYTES)) {
+      return new Response(JSON.stringify({ ok: false, error: "Request too large" }), {
+        status: 413,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const analyticsBody = method === "POST" ? await readBoundedText(request.clone(), MAX_ANALYTICS_BODY_BYTES) : "";
+    if (analyticsBody === null) {
+      return new Response(JSON.stringify({ ok: false, error: "Request too large" }), {
+        status: 413,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const persistTask = async () => {
       try {
         let payload: any = {};
         if (method === "POST") {
-          try {
-            payload = await request.clone().json();
-          } catch {
-            try {
-              const text = await request.clone().text();
-              if (text) payload = JSON.parse(text);
-            } catch {}
-          }
+          if (analyticsBody) payload = JSON.parse(analyticsBody);
         } else if (method === "GET") {
           payload = Object.fromEntries(url.searchParams.entries());
         }

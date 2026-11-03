@@ -30,18 +30,18 @@
     "grammy": "^1.35.0"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
+    "@eslint/js": "^9.39.5",
     "@types/node": "^26.6.5",
     "@typescript-eslint/eslint-plugin": "^8.71.2",
     "@typescript-eslint/parser": "^8.71.2",
     "esbuild": "^0.28.2",
-    "eslint": "^10.13.0",
-    "testdriverai": "^7.11.171",
+    "eslint": "^9.39.5",
+    "testdriverai": "^7.2.64",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.2",
     "vitest": "^5.0.5",
-    "wrangler": "4.151.1"
+    "wrangler": "4.157.0"
   },
   "allowScripts": {
     "esbuild": true,

@@ -68,7 +68,7 @@ The canonical public origin is configured with `PUBLIC_BASE_URL`.
 | Odds provider | The Odds API v4 |
 | Tests | Vitest |
 | Lint/type checking | ESLint + TypeScript |
-| Deployment tooling | Wrangler **4.141.0** (pinned in `package.json`) |
+| Deployment tooling | Wrangler **4.157.0** (pinned in `package.json`) |
 | CI/CD | GitHub Actions |
 
 ## Project tree
