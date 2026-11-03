@@ -37,6 +37,8 @@ export function landingPageSecurityHeaders(nonce?: string, options: { isHttps?: 
       "default-src 'none'; " +
       `script-src ${scriptPolicy}; ` +
       `style-src ${stylePolicy}; ` +
+      // The UI uses presentation-only style attributes; scripts remain nonce-only.
+      "style-src-attr 'unsafe-inline'; " +
       "font-src 'self' https://fonts.gstatic.com; " +
       "img-src 'self' data: https:; " +
       "connect-src 'self'; " +

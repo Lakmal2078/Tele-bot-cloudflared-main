@@ -178,10 +178,10 @@ const T: Record<Lang, {
     ],
     tips: {
       kicker: "නොමිලේ ඉඟි (Free Tips)",
-      title: "අද දින විශේෂිත ක්‍රීඩා ඉඟි (Featured Free Tips)",
+      title: "නවතම ක්‍රීඩා ඉඟි",
       desc: "දිනපතා යාවත්කාලීන වන ක්‍රීඩා ඉඟි සහ වෙළඳපල අනුපාත. සජීවී tips, slip codes සහ ක්ෂණික alerts සඳහා Telegram Bot වෙත පිවිසෙන්න.",
-      featuredHeading: "අද දින තෝරාගත් ඉඟි",
-      badge: "Daily Featured",
+      featuredHeading: "නවතම ඉඟි",
+      badge: "ඉඟි පෙරදසුන",
       verifiedBadge: "⚡ Tap here for Live Odds",
       cta: "🎯 අද දින සජීවී Tips Telegram වෙතින් ලබා ගන්න",
       stats: {
@@ -209,7 +209,7 @@ const T: Record<Lang, {
       serviceTagGuided: "Guided ඉල්ලීම",
       payDesc: "eZ Cash, mCash, FriMi, iPay සහ බැංකු ගිණුම් හරහා තැන්පතු සහ මුදල් ආපසු ගැනීම් පහසුවෙන් සිදු කළ හැක. සංවේදී තොරතුරු මෙම පිටුවේ කිසිසේත් හෙළි නොකෙරේ.",
       payAfterVerify: "⚡ තහවුරු කිරීමෙන් පසු",
-      payNoFee: "සේවා ගාස්තුවක් නෑ",
+      payNoFee: "ගාස්තු provider වෙතින් තහවුරු කරන්න",
       payAvailable: "ලබා ගත හැක",
       payViaTelegram: "Telegram හරහා",
       faqHeading: "නිතර අසන ප්‍රශ්න",
@@ -220,8 +220,8 @@ const T: Record<Lang, {
       footerTipsChannel: "Tips Channel එක",
       footerPrivacy: "රහස්‍යතා ප්‍රතිපත්තිය",
       footerTerms: "සේවා කොන්දේසි",
-      calcTitle: "තැන්පතු සහ බෝනස් ගණනය (LKR)",
-      calcSubPrefix: "ප්‍රවර්ධන කේතය සමඟ ක්ෂණික බෝනස් ඇස්තමේන්තුව:",
+      calcTitle: "තැන්පතු මුදල ගණනය (LKR)",
+      calcSubPrefix: "මෙය තැන්පතු මුදල පමණක් පෙන්වයි. බෝනස් ඇතුළත් නැහැ.",
       calcCtaPrefix: "තැන්පතු කරන්න",
       calcCtaSuffix: "— Telegram හරහා",
       qrTitle: "📱 ජංගම දුරකථනයෙන් විවෘත කරන්න",
@@ -303,10 +303,10 @@ const T: Record<Lang, {
     ],
     tips: {
       kicker: "Free Sports Tips",
-      title: "Today’s Featured Free Tips",
+      title: "Latest Free Tips",
       desc: "Daily automated fixtures and real market odds. For real-time odds, slip codes, and instant alerts, access our official Telegram Bot & Channel.",
-      featuredHeading: "Today's Market Picks",
-      badge: "Daily Featured",
+      featuredHeading: "Recent Tips",
+      badge: "Tips preview",
       verifiedBadge: "⚡ Tap here for Live Odds",
       cta: "🎯 Get Today's Full Live Tips on Telegram",
       stats: {
@@ -334,7 +334,7 @@ const T: Record<Lang, {
       serviceTagGuided: "Guided request",
       payDesc: "Deposit and withdraw easily via eZ Cash, mCash, FriMi, iPay and bank accounts. Sensitive credentials are never exposed on this page.",
       payAfterVerify: "⚡ After verify",
-      payNoFee: "No service fee",
+      payNoFee: "Check provider fees",
       payAvailable: "Available",
       payViaTelegram: "via Telegram",
       faqHeading: "Frequently Asked Questions",
@@ -345,8 +345,8 @@ const T: Record<Lang, {
       footerTipsChannel: "Tips Channel",
       footerPrivacy: "Privacy Policy",
       footerTerms: "Terms of Service",
-      calcTitle: "Deposit & Bonus Calculator (LKR)",
-      calcSubPrefix: "Instant bonus estimate with promo code",
+      calcTitle: "Deposit Amount Calculator (LKR)",
+      calcSubPrefix: "Deposit amount only. Bonuses are not included.",
       calcCtaPrefix: "Deposit",
       calcCtaSuffix: "via Telegram",
       qrTitle: "📱 Open on Mobile",
@@ -428,10 +428,10 @@ const T: Record<Lang, {
     ],
     tips: {
       kicker: "இலவச Tips (Free Tips)",
-      title: "இன்றைய சிறப்பு விளையாட்டு குறிப்புகள்",
+      title: "சமீபத்திய விளையாட்டு குறிப்புகள்",
       desc: "தினசரி பகுப்பாய்வு செய்யப்பட்ட விளையாட்டு குறிப்புகள். முழுமையான நேரடி tips, slip codes மற்றும் அறிவிப்புகளுக்கு Telegram Bot-ல் இணையுங்கள்.",
-      featuredHeading: "இன்றைய சந்தை தேர்வுகள்",
-      badge: "Daily Featured",
+      featuredHeading: "சமீபத்திய குறிப்புகள்",
+      badge: "குறிப்புகள் முன்னோட்டம்",
       verifiedBadge: "⚡ Tap here for Live Odds",
       cta: "🎯 Telegram-ல் நேரடி Tips பெறவும்",
       stats: {
@@ -459,7 +459,7 @@ const T: Record<Lang, {
       serviceTagGuided: "Guided கோரிக்கை",
       payDesc: "eZ Cash, mCash, FriMi, iPay மற்றும் வங்கி கணக்குகள் மூலம் எளிதாக deposit மற்றும் withdrawal. முக்கிய தகவல்கள் இந்த பக்கத்தில் வெளிப்படுத்தப்படாது.",
       payAfterVerify: "⚡ சரிபார்ப்புக்குப் பிறகு",
-      payNoFee: "சேவை கட்டணம் இல்லை",
+      payNoFee: "கட்டணத்தை வழங்குநரிடம் சரிபார்க்கவும்",
       payAvailable: "கிடைக்கிறது",
       payViaTelegram: "Telegram வழியாக",
       faqHeading: "அடிக்கடி கேட்கும் கேள்விகள்",
@@ -470,8 +470,8 @@ const T: Record<Lang, {
       footerTipsChannel: "Tips Channel",
       footerPrivacy: "தனியுரிமைக் கொள்கை",
       footerTerms: "சேவை விதிமுறைகள்",
-      calcTitle: "Deposit & Bonus கால்குலேட்டர் (LKR)",
-      calcSubPrefix: "ப்ரோமோ குறியீட்டுடன் உடனடி போனஸ் மதிப்பீடு:",
+      calcTitle: "Deposit Amount Calculator (LKR)",
+      calcSubPrefix: "வைப்புத் தொகை மட்டும். போனஸ் இதில் சேர்க்கப்படவில்லை.",
       calcCtaPrefix: "Deposit செய்க",
       calcCtaSuffix: "— Telegram வழியாக",
       qrTitle: "📱 மொபைலில் திறக்கவும்",
@@ -1041,6 +1041,8 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .tipTabs{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px 0}
 .tipTab{appearance:none;border:1px solid var(--border);background:#ffffff06;color:var(--muted);border-radius:999px;padding:7px 12px;font-size:.65rem;font-weight:700;cursor:pointer}
 .tipTab.active{border-color:#00b4f855;background:#00b4f812;color:#ccefff}
+#tipEmptyState{margin:0 16px 8px}
+[hidden]{display:none!important}
 .tipSummary{display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding:8px 14px;background:#ffffff05;border:1px solid #1e2a3d;border-radius:12px;margin:10px 16px 4px;color:var(--muted);font-size:.67rem}
 .tipSummary span{display:inline-flex;align-items:center;gap:4px}
 .tipSummary b{color:#86efac;font-weight:800}
@@ -1647,7 +1649,7 @@ body::before{
         <span class="subDivider" aria-hidden="true">•</span>
         <a class="subLink" href="#deposit-calculator" data-track-cta="hero_deposit">💳 ${esc(c.hero[5])}</a>
         <span class="subDivider" aria-hidden="true">•</span>
-        <button type="button" class="subLinkBtn qrTriggerBtn" id="qrOpenBtn" aria-label="Scan QR Code to open Telegram on mobile">📱 Scan QR</button>
+        <button type="button" class="subLinkBtn qrTriggerBtn" id="qrOpenBtn">${esc(c.hero[6])}</button>
       </div>
 
       <div class="promoBar">
@@ -1658,7 +1660,7 @@ body::before{
             <span id="promoCopyIcon">📋</span> <span id="promoCopyLabel">Copy Code</span>
           </button>
         </div>
-        <span class="promoNote">+100% First Deposit Bonus (up to LKR 35,000) · <small style="font-size:0.72rem;opacity:0.9;">Wagering &amp; 18+ T&amp;Cs apply · Not affiliated with 1xBet as an official partner</small></span>
+        <span class="promoNote">Check promo eligibility and current terms with 1xBet · 18+ only · Not an official 1xBet partner</span>
       </div>
 
       <div class="pills">
@@ -1675,14 +1677,14 @@ body::before{
           <div class="phoneTop"><span>09:24</span><span class="notch"></span><span>LTE</span></div>
           <div class="chatHead">
             <div class="brand"><img src="/favicon.png" alt="Fast xBet Cash Bot" width="34" height="34" decoding="async"></div>
-            <div class="chatTitle"><b>Fast xBet Cash</b><span>bot · replies in minutes</span></div>
+            <div class="chatTitle"><b>Fast xBet Cash</b><span>bot · response times vary</span></div>
             <div class="online" id="phoneBotStatus"><i id="phoneBotStatusDot"></i> <span id="phoneBotStatusText">Bot online</span></div>
           </div>
           <div class="chat" id="chatContainer">
             <div class="bubble bot">
               <div style="font-size:0.68rem;font-weight:700;color:#38bdf8;margin-bottom:4px;">What can this bot do?</div>
               <img src="/bot-description-640x360.jpg" alt="Fast xBet Cash Bot Description" width="640" height="360" style="width:100%;height:auto;border-radius:10px;border:1px solid #00b4f844;margin-bottom:6px;display:block;" />
-              <div style="font-size:0.68rem;line-height:1.3;">⚡ <b>Fast xBet Cash 🇱🇰</b><br>Official 1xBet Sri Lanka Cash Desk.<br>💳 Zero hidden fee local deposits &amp; fast withdrawals.<br>⚽ Daily sports analysis &amp; betting tips!</div>
+              <div style="font-size:0.68rem;line-height:1.3;">⚡ <b>Fast xBet Cash 🇱🇰</b><br>Independent Telegram support service.<br>💳 Check payment fees and withdrawal timing with the provider.<br>⚽ Sports analysis and tips; outcomes are not guaranteed.</div>
             </div>
             <div class="bubble user">Start Bot /start</div>
             <div class="bubble bot">Welcome to Fast xBet Cash 🇱🇰! Tap below to explore deposit &amp; withdrawal services.</div>
@@ -1733,65 +1735,27 @@ body::before{
         <span class="countdownDot"></span>
         <span>${esc(c.countdown)}</span>
       </div>
-      <strong class="countdownTimer" id="countdownTimer" aria-live="polite">--h --m --s</strong>
+      <strong class="countdownTimer" id="countdownTimer">--h --m --s</strong>
       <span class="countdownSlot" id="countdownSlot">Next: 08:00 SLT</span>
     </div>
 
     <div class="tipHead">
       <b>${esc(c.tips.featuredHeading)}</b>
-      <span id="tipsLiveBadge" class="previewBadge">${esc(c.tips.badge)}</span>
+      <span id="tipsLiveBadge" class="previewBadge" role="status" aria-live="polite">${esc(c.tips.badge)}</span>
     </div>
-    <div class="tipTabs" role="tablist">
-      <button type="button" data-sport="all" class="tipTab active">All</button>
-      <button type="button" data-sport="football" class="tipTab">Football</button>
-      <button type="button" data-sport="cricket" class="tipTab">Cricket</button>
+    <div class="tipTabs" role="group" aria-label="${lang === "si" ? "ක්‍රීඩාව අනුව ඉඟි තෝරන්න" : lang === "ta" ? "விளையாட்டின்படி குறிப்புகளை வடிகட்டவும்" : "Filter tips by sport"}">
+      <button type="button" data-sport="all" class="tipTab active" aria-pressed="true">${lang === "si" ? "සියල්ල" : lang === "ta" ? "அனைத்தும்" : "All"}</button>
+      <button type="button" data-sport="football" class="tipTab" aria-pressed="false">${lang === "si" ? "පාපන්දු" : lang === "ta" ? "கால்பந்து" : "Football"}</button>
+      <button type="button" data-sport="cricket" class="tipTab" aria-pressed="false">${lang === "si" ? "ක්‍රිකට්" : lang === "ta" ? "கிரிக்கெட்" : "Cricket"}</button>
     </div>
-    <div id="tipEmptyState" class="tipEmpty" style="display:none;margin:0 16px 8px">
+    <div id="tipEmptyState" class="tipEmpty">
       <span class="tipEmptyIcon" aria-hidden="true">🏏</span>
       <b>${esc(c.ui.emptyTipsTitle)}</b>
       <span>${esc(c.ui.emptyTipsSub)}</span>
       <a class="btn primary" href="${ebTips}" style="min-height:38px;padding:8px 16px;font-size:.72rem">✈ ${esc(c.hero[4])}</a>
     </div>
-    <div id="tipLiveSummary" class="tipSummary">
-      <span>⚡ <b>Live Feed</b> Telegram Channel</span>
-      <span>📊 <b>Real-Time Odds</b> 1xBet SL</span>
-      <span>🔒 <b>18+ Only</b> Play Responsibly</span>
-    </div>
-    <div class="tipCardGrid" id="tipCardGrid" aria-live="polite">
-      <article class="tipCard" data-sport="football">
-        <div class="tipCardTop"><span class="tipLeague">Premier League</span><span class="tipStatus pending">Today</span></div>
-        <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/57.png" alt="AR" width="48" height="48" loading="lazy" decoding="async"/></span><b>Arsenal</b></div>
-          <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/61.png" alt="CH" width="48" height="48" loading="lazy" decoding="async"/></span><b>Chelsea</b></div>
-        </div>
-        <div class="tipWhen">Today, 17:30</div>
-        <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Arsenal Win</span><b class="tipOdds">1.94</b></div>
-        <div class="tipFoot">${esc(c.tips.verifiedBadge)}</div>
-      </article>
-      <article class="tipCard" data-sport="football">
-        <div class="tipCardTop"><span class="tipLeague">La Liga</span><span class="tipStatus pending">Today</span></div>
-        <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/86.png" alt="RM" width="48" height="48" loading="lazy" decoding="async"/></span><b>Real Madrid</b></div>
-          <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/78.png" alt="AT" width="48" height="48" loading="lazy" decoding="async"/></span><b>Atletico Madrid</b></div>
-        </div>
-        <div class="tipWhen">Today, 20:00</div>
-        <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Real Madrid Win</span><b class="tipOdds">1.78</b></div>
-        <div class="tipFoot">${esc(c.tips.verifiedBadge)}</div>
-      </article>
-      <article class="tipCard" data-sport="football">
-        <div class="tipCardTop"><span class="tipLeague">Bundesliga</span><span class="tipStatus pending">Today</span></div>
-        <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/5.png" alt="BM" width="48" height="48" loading="lazy" decoding="async"/></span><b>Bayern Munich</b></div>
-          <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/524.png" alt="PS" width="48" height="48" loading="lazy" decoding="async"/></span><b>PSG</b></div>
-        </div>
-        <div class="tipWhen">Today, 22:00</div>
-        <div class="tipPickRow"><span class="tipMarketTag">O/U</span><span class="tipPickName">Over 2.5 Goals</span><b class="tipOdds">1.85</b></div>
-        <div class="tipFoot">${esc(c.tips.verifiedBadge)}</div>
-      </article>
-    </div>
+    <div id="tipLiveSummary" class="tipSummary" aria-live="polite">${lang === "si" ? "ඉඟි පූර්වදසුන පූරණය වෙමින්…" : lang === "ta" ? "குறிப்பு முன்னோட்டம் ஏற்றப்படுகிறது…" : "Loading tips preview…"}</div>
+    <div class="tipCardGrid" id="tipCardGrid" aria-live="polite" aria-atomic="true"></div>
     <!-- Interactive Match Odds & Win Calculator (New Feature) -->
     <div class="oddsCalcBox" id="odds-calculator">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
@@ -1828,7 +1792,7 @@ body::before{
             <b id="oddsNetProfit" class="oddsCalcProfit">+ LKR 1,700</b>
           </div>
           <div style="font-size:0.72rem;color:var(--muted);margin-top:6px;border-top:1px dashed rgba(255,255,255,0.1);padding-top:6px;">
-            ⚡ 1xBet Cash Desk හරහා ජයග්‍රහණ විනාඩි 5-15 න් බැංකුවට හෝ eZ Cash / FriMi වෙත ලබාගත හැක.
+            ⚠️ මුදල් ආපසු ලැබෙන කාලය ගෙවීම් සේවා සපයන්නාගේ තහවුරු කිරීම මත වෙනස් විය හැක.
           </div>
         </div>
       </div>
@@ -1888,7 +1852,7 @@ body::before{
     <div class="calcBody">
       <div class="calcLeft">
         <div class="calcSliderLabel">
-          <span>Deposit Amount:</span>
+          <span>Deposit amount:</span>
           <strong id="calcAmountDisplay">LKR 5,000</strong>
         </div>
         <input type="range" id="calcRange" min="${min}" max="${Math.min(max, 100000)}" step="500" value="5000" class="calcSlider" aria-label="Deposit amount slider">
@@ -1902,18 +1866,18 @@ body::before{
       </div>
       <div class="calcRight">
         <div class="calcStat"><span>Your Deposit:</span><b id="summaryDeposit">LKR 5,000</b></div>
-        <div class="calcStat bonusStat"><span>Bonus (${promo}):</span><b id="summaryBonus">+ LKR 5,000 (100%)</b></div>
-        <div class="calcStat totalStat"><span>Playable Balance:</span><b id="summaryTotal" aria-live="polite">LKR 10,000</b></div>
+        <div class="calcStat bonusStat"><span>Promotion:</span><b id="summaryBonus">Not included</b></div>
+        <div class="calcStat totalStat"><span>Estimated deposit:</span><b id="summaryTotal">LKR 5,000</b></div>
         <div class="calcMeta">
           <span>⚡ After verification</span>
-          <span>🛡️ No service fee</span>
+          <span>🛡️ Check provider fees</span>
           <span>💳 Local rails</span>
         </div>
         <a class="btn primary calcBtn" id="calcCtaBtn" href="${esc(botDeepLink("deposit"))}" data-track-cta="calc_deposit">✈ ${esc(c.ui.calcCtaPrefix)} LKR 5,000 ${esc(c.ui.calcCtaSuffix)}</a>
       </div>
     </div>
     <div style="margin-top:14px;padding:8px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;font-size:0.72rem;color:var(--muted);text-align:center;">
-      *100% First Deposit Bonus up to LKR 35,000. 18+ only. Wagering requirements &amp; terms apply. Play responsibly.
+      Promotion terms and eligibility can change. Confirm current terms with the provider before depositing. 18+ only. Play responsibly.
     </div>
   </div>
 
@@ -1978,7 +1942,7 @@ ${renderFinalCtaBanner(c, lang, eb)}
 
 <!-- Desktop QR Code Modal -->
 <div class="qrModalOverlay" id="qrModalOverlay" aria-hidden="true" inert>
-  <div class="qrModalCard" role="dialog" aria-modal="true" aria-labelledby="qrModalTitle">
+  <div class="qrModalCard" role="dialog" aria-modal="true" aria-labelledby="qrModalTitle" tabindex="-1">
     <div class="qrModalTop">
       <h3 id="qrModalTitle">${esc(c.ui.qrTitle)}</h3>
       <button type="button" class="qrCloseBtn" id="qrCloseBtn" aria-label="Close QR modal">&times;</button>
@@ -1994,7 +1958,7 @@ ${renderFinalCtaBanner(c, lang, eb)}
 
 <!-- Legal Modals -->
 <div class="legalModalOverlay" id="privacyModalOverlay" aria-hidden="true" inert>
-  <div class="legalModalCard" role="dialog" aria-modal="true" aria-labelledby="privacyModalTitle">
+  <div class="legalModalCard" role="dialog" aria-modal="true" aria-labelledby="privacyModalTitle" tabindex="-1">
     <div class="legalModalTop">
       <h3 id="privacyModalTitle">Privacy Policy &amp; Data Protection</h3>
       <button type="button" class="qrCloseBtn" id="privacyCloseBtn" aria-label="Close Privacy modal">&times;</button>
@@ -2008,7 +1972,7 @@ ${renderFinalCtaBanner(c, lang, eb)}
 </div>
 
 <div class="legalModalOverlay" id="termsModalOverlay" aria-hidden="true" inert>
-  <div class="legalModalCard" role="dialog" aria-modal="true" aria-labelledby="termsModalTitle">
+  <div class="legalModalCard" role="dialog" aria-modal="true" aria-labelledby="termsModalTitle" tabindex="-1">
     <div class="legalModalTop">
       <h3 id="termsModalTitle">Terms of Service &amp; 18+ Disclaimer</h3>
       <button type="button" class="qrCloseBtn" id="termsCloseBtn" aria-label="Close Terms modal">&times;</button>
@@ -2067,6 +2031,29 @@ ${renderFinalCtaBanner(c, lang, eb)}
 
 <script${n}>
 (function(){
+  // Keep keyboard focus inside the active modal until it closes.
+  document.addEventListener("keydown", function(e){
+    if (e.key !== "Tab") return;
+    var dialog = document.querySelector(".qrModalOverlay.open [role='dialog'], .legalModalOverlay.open [role='dialog']");
+    if (!dialog) return;
+    var items = Array.prototype.slice.call(dialog.querySelectorAll("a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])"))
+      .filter(function(el){ return el.getClientRects().length > 0; });
+    if (!items.length) {
+      e.preventDefault();
+      dialog.focus();
+      return;
+    }
+    var first = items[0];
+    var last = items[items.length - 1];
+    if (e.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  });
+
   // 1. Mobile navigation menu toggle
   var b=document.getElementById("menuToggle"),m=document.getElementById("mobileNav");
   if(b&&m){
@@ -2179,11 +2166,9 @@ ${renderFinalCtaBanner(c, lang, eb)}
       if (calcDisp) calcDisp.textContent = formatted;
       if (sumDep) sumDep.textContent = formatted;
 
-      var bonus = Math.min(val, 35000);
-      var bonusFormatted = "+ LKR " + bonus.toLocaleString("en-LK") + " (100%)";
-      if (sumBonus) sumBonus.textContent = bonusFormatted;
+      if (sumBonus) sumBonus.textContent = "Not included";
 
-      var total = val + bonus;
+      var total = val;
       if (sumTotal) sumTotal.textContent = "LKR " + total.toLocaleString("en-LK");
 
       if (calcCta) {
@@ -2240,7 +2225,7 @@ ${renderFinalCtaBanner(c, lang, eb)}
     if (chat && chips.length) {
       var scenarios = {
         profile: [
-          { role: "bot", text: "<div style='font-size:0.68rem;font-weight:700;color:#38bdf8;margin-bottom:4px;'>What can this bot do?</div><img src='/bot-description-640x360.jpg' alt='Fast xBet Cash Bot Description' style='width:100%;border-radius:10px;border:1px solid #00b4f844;margin-bottom:6px;display:block;' /><div style='font-size:0.68rem;line-height:1.3;'>⚡ <b>Fast xBet Cash 🇱🇰</b><br>Official 1xBet Sri Lanka Cash Desk.<br>💳 0% fee local deposits &amp; fast withdrawals.<br>⚽ Daily winning betting tips!</div>" },
+          { role: "bot", text: "<div style='font-size:0.68rem;font-weight:700;color:#38bdf8;margin-bottom:4px;'>Illustrative bot preview</div><img src='/bot-description-640x360.jpg' alt='Fast xBet Cash Bot Description' style='width:100%;border-radius:10px;border:1px solid #00b4f844;margin-bottom:6px;display:block;' /><div style='font-size:0.68rem;line-height:1.3;'>⚡ <b>Fast xBet Cash 🇱🇰</b><br>Independent Telegram support service.<br>💳 Confirm payment fees and timing with the provider.<br>⚽ Sports analysis and tips; outcomes are not guaranteed.</div>" },
           { role: "user", text: "Start Bot /start" },
           { role: "bot", text: "Welcome! Tap below to explore deposit &amp; withdrawal services." }
         ],
@@ -2263,7 +2248,7 @@ ${renderFinalCtaBanner(c, lang, eb)}
           { role: "user", text: "Withdraw to FriMi" },
           { role: "bot", text: "Enter your 1xBet Account ID & withdrawal code to confirm." },
           { role: "user", text: "ID 88410231 · Code 7819" },
-          { role: "bot", text: "🔒 Request logged. Verified and transferred in 5–15 minutes." }
+          { role: "bot", text: "🔒 Request logged. Processing time depends on provider verification." }
         ],
         support: [
           { role: "bot", text: "🌐 භාෂාව තෝරන්න / Select Language / மொழியைத் தேர்ந்தெடுக்கவும்" },
@@ -2296,228 +2281,7 @@ ${renderFinalCtaBanner(c, lang, eb)}
     }
   } catch(e){}
 
-  // 7. Dynamic Live Tips with D1 Database API & Sport Filter Tabs
-  try {
-    var tipTabs = document.querySelectorAll(".tipTab");
-    var tipGrid = document.getElementById("tipCardGrid");
-    var liveBadge = document.getElementById("tipsLiveBadge");
-    var liveSummary = document.getElementById("tipLiveSummary");
-
-    function applySportFilter(sport) {
-      if (!tipGrid) return;
-      var anyVisible = false;
-      tipGrid.querySelectorAll(".tipCard").forEach(function(card){
-        var cardSport = card.getAttribute("data-sport") || "football";
-        var show = (sport === "all" || cardSport === sport);
-        card.style.display = show ? "flex" : "none";
-        anyVisible = anyVisible || show;
-      });
-      var emptyState = document.getElementById("tipEmptyState");
-      if (emptyState) emptyState.style.display = anyVisible ? "none" : "flex";
-    }
-
-    tipTabs.forEach(function(tab){
-      tab.addEventListener("click", function(){
-        tipTabs.forEach(function(t){ t.classList.remove("active"); });
-        tab.classList.add("active");
-        var sport = tab.getAttribute("data-sport") || "all";
-        applySportFilter(sport);
-      });
-    });
-
-    // Keep static cards visible until live data arrives (avoids blank/black grid flash)
-    if (tipGrid) tipGrid.style.minHeight = tipGrid.offsetHeight + "px";
-
-    fetch("/api/tips/preview", { headers: { Accept: "application/json" }, cache: "no-store" })
-      .then(function(r){ return r.ok ? r.json() : null; })
-      .then(function(data){
-        if (!data || !Array.isArray(data.tips) || data.tips.length === 0) {
-          if (liveBadge) {
-            liveBadge.textContent = "Sample preview";
-          }
-          if (liveSummary) {
-            liveSummary.style.display = "flex";
-            liveSummary.innerHTML = "<span>🎯 <b>84%</b> ${esc(c.tips.stats.winRate)}</span><span>📈 <b>+24.8%</b> ${esc(c.tips.stats.roi)}</span><span>✅ <b>23+</b> ${esc(c.tips.stats.slipsWon)}</span><span>⚡ <b>1.88</b> ${esc(c.tips.stats.avgOdds)}</span>";
-          }
-          if (tipGrid) tipGrid.style.minHeight = "";
-          return;
-        }
-        if (liveBadge) {
-          liveBadge.textContent = "● Live feed (" + data.tips.length + ")";
-          liveBadge.style.background = "#22c55e18";
-          liveBadge.style.borderColor = "#22c55e44";
-          liveBadge.style.color = "#86efac";
-        }
-        if (liveSummary && data.summary) {
-          liveSummary.style.display = "flex";
-          var wRate = Math.max(78, Number(data.summary.winRate) || 84);
-          var wWon = Math.max(15, Number(data.summary.won) || 23);
-          var wRoi = data.summary.weeklyRoi || "+24.8%";
-          liveSummary.innerHTML = "<span>🎯 <b>" + wRate + "%</b> ${esc(c.tips.stats.winRate)}</span><span>📈 <b>" + wRoi + "</b> ${esc(c.tips.stats.roi)}</span><span>✅ <b>" + wWon + "+</b> ${esc(c.tips.stats.slipsWon)}</span><span>⚡ <b>1.88</b> ${esc(c.tips.stats.avgOdds)}</span>";
-        }
-
-        function teamInitials(name) {
-          var parts = String(name || "").trim().split(/\\s+/).filter(Boolean);
-          if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-          return (parts[0] || "?").slice(0, 2).toUpperCase();
-        }
-        function hueFrom(str) {
-          var h = 0;
-          for (var i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
-          return h % 360;
-        }
-        // Popular club crests (football-data.org) — fallback to initials if unknown
-        var TEAM_CRESTS = {
-          "arsenal": 57, "chelsea": 61, "liverpool": 64, "manchester city": 65, "man city": 65,
-          "manchester united": 66, "man united": 66, "man utd": 66, "tottenham": 73, "tottenham hotspur": 73, "spurs": 73,
-          "newcastle": 67, "newcastle united": 67, "aston villa": 58, "west ham": 563, "brighton": 397,
-          "real madrid": 86, "barcelona": 81, "atletico madrid": 78, "atlético madrid": 78, "atletico": 78,
-          "sevilla": 559, "villarreal": 94, "real sociedad": 92, "athletic bilbao": 77, "athletic club": 77,
-          "bayern munich": 5, "bayern": 5, "bayern münchen": 5, "borussia dortmund": 4, "dortmund": 4,
-          "rb leipzig": 721, "leipzig": 721, "bayer leverkusen": 3, "leverkusen": 3, "wolfsburg": 11,
-          "psg": 524, "paris saint-germain": 524, "paris saint germain": 524, "marseille": 516, "lyon": 523,
-          "juventus": 109, "inter": 108, "inter milan": 108, "internazionale": 108, "ac milan": 98, "milan": 98,
-          "napoli": 113, "roma": 100, "as roma": 100, "lazio": 110, "atalanta": 102, "fiorentina": 99,
-          "ajax": 678, "psv": 674, "feyenoord": 675, "porto": 503, "benfica": 1903, "sporting": 498,
-          "galatasaray": 645, "fenerbahce": 611, "besiktas": 600, "olympiacos": 654,
-          "boca juniors": 1832, "river plate": 1831, "flamengo": 1783, "palmeiras": 1769,
-          "al hilal": 7600, "al nassr": 7583, "inter miami": 16120
-        };
-        // Cricket national teams → country flags (flagcdn). Franchise / nicknames → same where possible.
-        var CRICKET_LOGOS = {
-          "india": "https://flagcdn.com/w80/in.png",
-          "india women": "https://flagcdn.com/w80/in.png",
-          "ind": "https://flagcdn.com/w80/in.png",
-          "sri lanka": "https://flagcdn.com/w80/lk.png",
-          "sri lanka women": "https://flagcdn.com/w80/lk.png",
-          "sl": "https://flagcdn.com/w80/lk.png",
-          "australia": "https://flagcdn.com/w80/au.png",
-          "australia women": "https://flagcdn.com/w80/au.png",
-          "aus": "https://flagcdn.com/w80/au.png",
-          "england": "https://flagcdn.com/w80/gb-eng.png",
-          "england women": "https://flagcdn.com/w80/gb-eng.png",
-          "eng": "https://flagcdn.com/w80/gb-eng.png",
-          "pakistan": "https://flagcdn.com/w80/pk.png",
-          "pakistan women": "https://flagcdn.com/w80/pk.png",
-          "pak": "https://flagcdn.com/w80/pk.png",
-          "new zealand": "https://flagcdn.com/w80/nz.png",
-          "new zealand women": "https://flagcdn.com/w80/nz.png",
-          "nz": "https://flagcdn.com/w80/nz.png",
-          "south africa": "https://flagcdn.com/w80/za.png",
-          "south africa women": "https://flagcdn.com/w80/za.png",
-          "sa": "https://flagcdn.com/w80/za.png",
-          "west indies": "https://flagcdn.com/w80/jm.png",
-          "west indies women": "https://flagcdn.com/w80/jm.png",
-          "wi": "https://flagcdn.com/w80/jm.png",
-          "bangladesh": "https://flagcdn.com/w80/bd.png",
-          "bangladesh women": "https://flagcdn.com/w80/bd.png",
-          "ban": "https://flagcdn.com/w80/bd.png",
-          "afghanistan": "https://flagcdn.com/w80/af.png",
-          "afg": "https://flagcdn.com/w80/af.png",
-          "ireland": "https://flagcdn.com/w80/ie.png",
-          "ireland women": "https://flagcdn.com/w80/ie.png",
-          "zimbabwe": "https://flagcdn.com/w80/zw.png",
-          "zim": "https://flagcdn.com/w80/zw.png",
-          "netherlands": "https://flagcdn.com/w80/nl.png",
-          "scotland": "https://flagcdn.com/w80/gb-sct.png",
-          "uae": "https://flagcdn.com/w80/ae.png",
-          "united arab emirates": "https://flagcdn.com/w80/ae.png",
-          "nepal": "https://flagcdn.com/w80/np.png",
-          "oman": "https://flagcdn.com/w80/om.png",
-          "namibia": "https://flagcdn.com/w80/na.png",
-          "usa": "https://flagcdn.com/w80/us.png",
-          "united states": "https://flagcdn.com/w80/us.png",
-          "canada": "https://flagcdn.com/w80/ca.png",
-          "hong kong": "https://flagcdn.com/w80/hk.png",
-          "malaysia": "https://flagcdn.com/w80/my.png",
-          "singapore": "https://flagcdn.com/w80/sg.png",
-          // IPL / franchise style nicknames → use board flags as neutral fallback where needed
-          "chennai super kings": "https://flagcdn.com/w80/in.png",
-          "csk": "https://flagcdn.com/w80/in.png",
-          "mumbai indians": "https://flagcdn.com/w80/in.png",
-          "mi": "https://flagcdn.com/w80/in.png",
-          "royal challengers bangalore": "https://flagcdn.com/w80/in.png",
-          "royal challengers bengaluru": "https://flagcdn.com/w80/in.png",
-          "rcb": "https://flagcdn.com/w80/in.png",
-          "kolkata knight riders": "https://flagcdn.com/w80/in.png",
-          "kkr": "https://flagcdn.com/w80/in.png",
-          "delhi capitals": "https://flagcdn.com/w80/in.png",
-          "dc": "https://flagcdn.com/w80/in.png",
-          "rajasthan royals": "https://flagcdn.com/w80/in.png",
-          "rr": "https://flagcdn.com/w80/in.png",
-          "sunrisers hyderabad": "https://flagcdn.com/w80/in.png",
-          "srh": "https://flagcdn.com/w80/in.png",
-          "punjab kings": "https://flagcdn.com/w80/in.png",
-          "pbks": "https://flagcdn.com/w80/in.png",
-          "gujarat titans": "https://flagcdn.com/w80/in.png",
-          "gt": "https://flagcdn.com/w80/in.png",
-          "lucknow super giants": "https://flagcdn.com/w80/in.png",
-          "lsg": "https://flagcdn.com/w80/in.png"
-        };
-        function crestUrl(name) {
-          var key = String(name || "").toLowerCase().replace(/[^a-z0-9\\s]/g, " ").replace(/\\s+/g, " ").trim();
-          // Cricket logos / national flags first
-          if (CRICKET_LOGOS[key]) return CRICKET_LOGOS[key];
-          var id = TEAM_CRESTS[key];
-          if (id) return "https://crests.football-data.org/" + id + ".png";
-          var first = key.split(" ")[0];
-          if (CRICKET_LOGOS[first]) return CRICKET_LOGOS[first];
-          if (TEAM_CRESTS[first]) return "https://crests.football-data.org/" + TEAM_CRESTS[first] + ".png";
-          return null;
-        }
-        function teamAvatarHtml(name) {
-          var n = name || "?";
-          var logo = crestUrl(n);
-          var initials = teamInitials(n);
-          var hue = hueFrom(n);
-          if (logo) {
-            return '<span class="tipAvatar hasLogo" title="' + n.replace(/"/g, "") + '">' +
-              '<img src="' + logo + '" alt="' + initials + '" width="48" height="48" loading="lazy" decoding="async" ' +
-              'onerror="this.parentNode.classList.remove(\\'hasLogo\\');this.parentNode.style.background=\\'hsl(' + hue + ' 55% 28%)\\';this.parentNode.style.borderColor=\\'hsl(' + hue + ' 60% 42%)\\';this.parentNode.textContent=\\'' + initials + '\\';"/>' +
-              '</span>';
-          }
-          return '<span class="tipAvatar" style="background:hsl(' + hue + ' 55% 28%);border-color:hsl(' + hue + ' 60% 42%)">' + initials + '</span>';
-        }
-
-        var liveHtml = data.tips.map(function(t){
-          var resClass = t.result === "WON" ? "won" : (t.result === "LOST" ? "lost" : "pending");
-          var resText = t.result || "Live";
-          var mTag = (t.market || "1X2").toUpperCase();
-          var oVal = t.odds ? Number(t.odds).toFixed(2) : "—";
-          var hName = t.homeTeam || "Home";
-          var aName = t.awayTeam || "Away";
-          var sportKey = t.sport || "football";
-          return '<article class="tipCard" data-sport="' + sportKey + '">' +
-            '<div class="tipCardTop"><span class="tipLeague">' + (t.sportTitle || "Sports") + '</span><span class="tipStatus ' + resClass + '">' + resText + '</span></div>' +
-            '<div class="tipTeams">' +
-              '<div class="tipTeam">' + teamAvatarHtml(hName) + '<b>' + hName + '</b></div>' +
-              '<div class="tipVs">VS</div>' +
-              '<div class="tipTeam">' + teamAvatarHtml(aName) + '<b>' + aName + '</b></div>' +
-            '</div>' +
-            '<div class="tipWhen">' + (t.commenceTime ? t.commenceTime.slice(0, 16).replace("T", " ") : "Upcoming") + '</div>' +
-            '<div class="tipPickRow"><span class="tipMarketTag">' + mTag + '</span><span class="tipPickName">' + (t.selection || "Pick") + '</span><b class="tipOdds">' + oVal + '</b></div>' +
-            '<div class="tipFoot">\u26a1 Tap here for Live Odds \u00b7 Live on Telegram</div>' +
-          '</article>';
-        }).join("");
-
-        if (tipGrid && liveHtml) {
-          tipGrid.innerHTML = liveHtml;
-          tipGrid.style.minHeight = "";
-          var activeTab = document.querySelector(".tipTab.active");
-          if (activeTab) applySportFilter(activeTab.getAttribute("data-sport") || "all");
-        }
-      })
-      .catch(function(){
-        if (liveBadge) {
-          liveBadge.textContent = "Preview only";
-        }
-        if (liveSummary) {
-          liveSummary.style.display = "flex";
-          liveSummary.innerHTML = "<span>🎯 <b>84%</b> ${esc(c.tips.stats.winRate)}</span><span>📈 <b>+24.8%</b> ${esc(c.tips.stats.roi)}</span><span>✅ <b>23+</b> ${esc(c.tips.stats.slipsWon)}</span><span>⚡ <b>1.88</b> ${esc(c.tips.stats.avgOdds)}</span>";
-        }
-        if (tipGrid) tipGrid.style.minHeight = "";
-      });
-  } catch(e){}
+  // Live tip rendering is handled by publicTipsClientScript added by the Worker.
 
   // 8. Desktop QR Code Modal Toggle
   try {

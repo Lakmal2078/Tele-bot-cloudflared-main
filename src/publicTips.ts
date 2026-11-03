@@ -123,13 +123,11 @@ export async function getPublicTips(env: Env, limit = 12): Promise<PublicTipsRes
 }
 
 /** Client-side enhancement keeps the public page resilient if the preview API is temporarily unavailable. */
-export function publicTipsClientScript(channelUrl: string, nonce?: string): string {
-  const safeChannel = JSON.stringify(channelUrl).replace(/</g, "\u003c");
+export function publicTipsClientScript(nonce?: string): string {
   const nonceAttr = nonce ? ` nonce="${nonce.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}"` : "";
   const body = `(function(){
   var root = document.querySelector("#tips-preview .tips");
   if (!root) return;
-  var channel = CHANNEL_PLACEHOLDER;
   var esc = function(v){
     return String(v == null ? "" : v)
       .replace(/&/g, "&amp;")
@@ -193,18 +191,37 @@ export function publicTipsClientScript(channelUrl: string, nonce?: string): stri
   var render = function(data){
     var tips = Array.isArray(data.tips) ? data.tips : [];
     var summary = data.summary || {};
-    var tabs = '<div class="tipTabs" role="tablist"><button type="button" data-sport="all" class="tipTab active">All</button><button type="button" data-sport="football" class="tipTab">Football</button><button type="button" data-sport="cricket" class="tipTab">Cricket</button></div>';
-    
+    var labels = {
+      si: { all: "සියල්ල", football: "පාපන්දු", cricket: "ක්‍රිකට්", tips: "ඉඟි", none: "දැනට ඉඟි නැහැ", noSettled: "පසුගිය දින 7 තුළ තීරණය කළ ඉඟි නැහැ", settled: "පසුගිය දින 7 තීරණය කළ ඉඟි", rate: "සාර්ථකත්වය", won: "ජයග්‍රහණ", roi: "සතිපතා ROI" },
+      en: { all: "All", football: "Football", cricket: "Cricket", tips: "Tips", none: "No tips available", noSettled: "No settled tip results are available for the last 7 days.", settled: "7-day settled tips", rate: "Strike rate", won: "Won", roi: "Weekly ROI" },
+      ta: { all: "அனைத்தும்", football: "கால்பந்து", cricket: "கிரிக்கெட்", tips: "குறிப்புகள்", none: "குறிப்புகள் இப்போது இல்லை", noSettled: "கடந்த 7 நாட்களில் முடிவுகள் இல்லை", settled: "கடந்த 7 நாட்களின் முடிவுகள்", rate: "வெற்றி விகிதம்", won: "வென்றவை", roi: "வார ROI" }
+    }[document.documentElement.lang] || {
+      all: "All", football: "Football", cricket: "Cricket", tips: "Tips", none: "No tips available", noSettled: "No settled tip results are available for the last 7 days.", settled: "7-day settled tips", rate: "Strike rate", won: "Won", roi: "Weekly ROI"
+    };
+    var badge = document.getElementById("tipsLiveBadge");
+    var summaryEl = document.getElementById("tipLiveSummary");
+    var emptyState = document.getElementById("tipEmptyState");
+    var tipGrid = document.getElementById("tipCardGrid");
+    var tabs = document.querySelectorAll("#tips-preview .tipTab");
+
+    if (badge) badge.textContent = tips.length ? labels.tips + " (" + tips.length + ")" : labels.none;
+    tabs.forEach(function(b){
+      var sport = b.getAttribute("data-sport");
+      b.textContent = sport === "football" ? labels.football : sport === "cricket" ? labels.cricket : labels.all;
+    });
+
     var stats = "";
     if (summary && summary.total && Number(summary.total) > 0) {
       var wRate = Math.round(Number(summary.winRate) || 0);
       var wWon = Number(summary.won) || 0;
       var wRoi = String(summary.weeklyRoi || "").trim();
-      var roiPart = wRoi ? '<span>📈 <b>' + esc(wRoi) + '</b> Weekly ROI</span>' : '';
-      stats = '<div class="tipSummary"><span>🎯 <b>' + wRate + '%</b> Strike Rate (7d)</span>' + roiPart + '<span>✅ <b>' + wWon + '</b> Slips Won</span><span>⚡ <b>Live Feed</b></span></div>';
+      var roiPart = wRoi && wRoi !== "N/A" ? ' · ' + labels.roi + ': ' + esc(wRoi) : '';
+      stats = labels.settled + ': ' + esc(summary.total) + ' · ' + labels.rate + ': ' + esc(wRate) + '% · ' + labels.won + ': ' + esc(wWon) + roiPart;
     } else {
-      stats = '<div class="tipSummary"><span>⚡ <b>Live Analysis</b> Telegram Channel</span><span>📊 <b>Real-Time Odds</b> 1xBet SL</span><span>🔒 <b>18+ Only</b> Play Responsibly</span></div>';
+      stats = labels.noSettled;
     }
+    if (summaryEl) summaryEl.textContent = stats;
+    if (emptyState) emptyState.hidden = tips.length > 0;
 
     var cards = tips.length ? tips.map(function(t){
       var score = t.scoreHome != null && t.scoreAway != null ? " · " + esc(t.scoreHome) + "-" + esc(t.scoreAway) : "";
@@ -215,30 +232,36 @@ export function publicTipsClientScript(channelUrl: string, nonce?: string): stri
         '<div class="tipPickRow"><span class="tipMarketTag">' + esc(marketLabel(t.market)) + '</span><span class="tipPickName">' + esc(pickLabel(t)) + '</span><b class="tipOdds">' + (t.odds ? Number(t.odds).toFixed(2) : "—") + '</b></div>' +
         '<div class="tipFoot">⚡ Tap here for Live Odds · Live on Telegram</div>' +
       '</article>';
-    }).join("") : '<div class="tipEmpty"><b>No public tips are available right now.</b><span>New tips will appear here after the next successful channel publish.</span></div>';
+    }).join("") : "";
 
-    root.innerHTML = '<div class="tipHead"><b>Today\\'s Free Tips</b><span id="tipsLiveBadge" class="previewBadge">Daily Featured</span></div>' +
-      tabs + stats +
-      '<div class="tipCardGrid">' + cards + '</div>' +
-      '<div class="actions" style="margin-top:16px;justify-content:center"><a class="btn primary" href="' + esc(channel) + '" rel="noopener noreferrer">✈ Open Official Telegram Tips →</a></div>';
-
-    var buttons = root.querySelectorAll(".tipTab");
-    buttons.forEach(function(b){
+    if (tipGrid) tipGrid.innerHTML = cards;
+    tabs.forEach(function(b){
       b.addEventListener("click", function(){
-        buttons.forEach(function(x){ x.classList.remove("active"); });
+        tabs.forEach(function(x){
+          x.classList.toggle("active", x === b);
+          x.setAttribute("aria-pressed", x === b ? "true" : "false");
+        });
         b.classList.add("active");
         var sport = b.getAttribute("data-sport");
-        root.querySelectorAll(".tipCardGrid .tipCard").forEach(function(x){
+        if (tipGrid) tipGrid.querySelectorAll(".tipCard").forEach(function(x){
           x.style.display = (sport === "all" || x.getAttribute("data-sport") === sport) ? "flex" : "none";
         });
       });
     });
+
+    var selected = document.querySelector("#tips-preview .tipTab.active");
+    if (selected && tipGrid) {
+      var sport = selected.getAttribute("data-sport");
+      tipGrid.querySelectorAll(".tipCard").forEach(function(x){
+        x.style.display = (sport === "all" || x.getAttribute("data-sport") === sport) ? "flex" : "none";
+      });
+    }
   };
 
   fetch("/api/tips/preview", { headers: { Accept: "application/json" }, cache: "no-store" })
     .then(function(r){ if (!r.ok) throw new Error("preview unavailable"); return r.json(); })
     .then(render)
     .catch(function(){ render({ tips: [], summary: { total: 0, won: 0, lost: 0, winRate: 0, weeklyRoi: "" } }); });
-})();`.replace("CHANNEL_PLACEHOLDER", safeChannel);
+})();`;
   return `<script${nonceAttr}>${body}</script>`;
 }

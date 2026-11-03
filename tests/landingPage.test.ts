@@ -181,6 +181,7 @@ describe("Landing Page Render & SEO", () => {
     expect(res.status).toBe(200);
     const html = await res.text();
     expect(html).toContain("Fast xBet Cash");
+    expect(html).toContain("/api/tips/preview");
   });
 
   it("renders all 6 landing page enhancements (promo copy, payment UX, chat simulation, fonts, calculator, tips tabs)", () => {
@@ -192,7 +193,8 @@ describe("Landing Page Render & SEO", () => {
     expect(html).toContain('class="tipTabs"');
     expect(html).toContain('data-sport="football"');
     expect(html).toContain('data-sport="cricket"');
-    expect(html).toContain("/api/tips/preview");
+    // The Worker adds the live feed client script; the static renderer stays independent.
+    expect(html).not.toContain("/api/tips/preview");
 
     // 2. Promo Code one-click copy component
     expect(html).toContain('id="promoCopyBtn"');
@@ -205,7 +207,7 @@ describe("Landing Page Render & SEO", () => {
     const htmlEn = renderLandingPage(mockEnv, new Request("https://fast-xbet.lk/?lang=en"), "testnonce123");
     expect(html).toContain("payBadge");
     expect(htmlEn).toContain("⚡ After verify");
-    expect(htmlEn).toContain("No service fee");
+    expect(htmlEn).toContain("Check provider fees");
     expect(html).toContain("eZ Cash");
     expect(html).toContain("mCash");
     expect(html).toContain("FriMi");
@@ -291,7 +293,8 @@ describe("Landing Page Render & SEO", () => {
 
     // 4. Tips countdown timer
     expect(html).toContain('id="tipsCountdownBar"');
-    expect(html).toContain('id="countdownTimer" aria-live="polite"');
+    expect(html).toContain('id="countdownTimer"');
+    expect(html).not.toContain('id="countdownTimer" aria-live="polite"');
     expect(html).toContain('id="countdownSlot"');
     expect(html).toContain("මීළඟ Tips නිකුතුව");
 
@@ -424,7 +427,7 @@ describe("Landing Page Render & SEO", () => {
     expect(html).toContain("1926");
     expect(html).toContain("1333");
     expect(html).toContain("BeGambleAware.org");
-    expect(html).toContain("T&amp;Cs apply");
+    expect(html).toContain("Check promo eligibility and current terms with 1xBet");
     expect(html).toContain("SSL Secured");
   });
 });
