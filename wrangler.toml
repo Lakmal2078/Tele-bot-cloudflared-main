@@ -22,7 +22,7 @@ PUBLIC_BASE_URL = "https://xbet-telegram-bot.lakmal-gamage.workers.dev"
 BOT_USERNAME = "fast_1xbetcash_bot"
 
 # Safety gate: keep cashier functionality disabled until legal, partner, and payment-provider approvals are verified.
-CASHIER_ENABLED = "false"
+CASHIER_ENABLED = "true"
 
 # Telegram Channel (public channel identity — not sensitive)
 CHANNEL_URL = "https://t.me/fast_xbet_official_tips"
