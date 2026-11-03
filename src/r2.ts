@@ -1,6 +1,9 @@
 import type { Env } from "./types";
 import { getBucketName, isR2Configured, putObject, listObjects } from "./storage";
 import { getLastCleanupResult } from "./logCleanup";
+import { formatBytes } from "./utils";
+
+export { formatBytes };
 
 export interface R2FileMetadata {
   r2Url: string;
@@ -29,13 +32,6 @@ export interface R2StorageAnalytics {
   timestamp: string;
 }
 
-export function formatBytes(bytes: number): string {
-  if (!bytes || bytes <= 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  const val = bytes / Math.pow(1024, i);
-  return `${val.toFixed(val < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
-}
 
 /**
  * Compiles real-time Cloudflare R2 storage analytics.

@@ -337,12 +337,14 @@ export async function addWithdrawal(
   return result?.id ?? 0;
 }
 
-export async function getPendingDeposits(db: D1Database) {
+export async function getPendingDeposits(db: D1Database, limit: number = 50) {
+  const safeLimit = Math.max(1, Math.min(limit, 100));
   const res = await db
     .prepare(
       `SELECT id, user_id, username, player_id, amount, payment_method, photo_file_id, r2_url, created_at
-       FROM deposits WHERE status = 'PENDING' AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 20`
+       FROM deposits WHERE status = 'PENDING' AND deleted_at IS NULL ORDER BY created_at DESC LIMIT ?`
     )
+    .bind(safeLimit)
     .all<any>();
   return {
     ...res,
@@ -350,12 +352,14 @@ export async function getPendingDeposits(db: D1Database) {
   };
 }
 
-export async function getPendingWithdrawals(db: D1Database) {
+export async function getPendingWithdrawals(db: D1Database, limit: number = 50) {
+  const safeLimit = Math.max(1, Math.min(limit, 100));
   const res = await db
     .prepare(
       `SELECT id, user_id, username, player_id, amount, payment_method, destination_account, security_code, created_at
-       FROM withdrawals WHERE status = 'PENDING' AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 20`
+       FROM withdrawals WHERE status = 'PENDING' AND deleted_at IS NULL ORDER BY created_at DESC LIMIT ?`
     )
+    .bind(safeLimit)
     .all<any>();
   return {
     ...res,
@@ -583,6 +587,21 @@ export async function getUserReferralSummary(db: D1Database, userId: number) {
     activeReferrals: summary?.active_referrals ?? 0,
     totalVolume: fromCents(summary?.total_volume_cents ?? 0),
   };
+}
+
+export async function getTotalUserCount(db: D1Database): Promise<number> {
+  const row = await db.prepare(`SELECT COUNT(*) as c FROM users`).first<{ c: number }>();
+  return row?.c ?? 0;
+}
+
+export async function getUserIdsPaged(db: D1Database, limit = 500, offset = 0): Promise<number[]> {
+  const safeLimit = Math.max(1, Math.min(limit, 1000));
+  const safeOffset = Math.max(0, offset);
+  const result = await db
+    .prepare(`SELECT user_id FROM users ORDER BY user_id ASC LIMIT ? OFFSET ?`)
+    .bind(safeLimit, safeOffset)
+    .all<{ user_id: number }>();
+  return (result.results || []).map((r) => r.user_id);
 }
 
 export async function getAllUserIds(db: D1Database) {

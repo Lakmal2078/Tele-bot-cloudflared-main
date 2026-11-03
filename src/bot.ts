@@ -4,7 +4,7 @@ import type { Env, SystemStats } from "./types";
 import * as db from "./db";
 import { t, Language, PaymentMethod, PAYMENT_METHOD_NAMES } from "./i18n";
 import { backupReceiptToR2, R2FileMetadata } from "./r2";
-import { escapeMarkdown, escapeCode, getTransactionLimits, validateTransactionAmount } from "./utils";
+import { escapeMarkdown, escapeCode, getTransactionLimits, validateTransactionAmount, formatBytes } from "./utils";
 import { logTransactionAudit, logBotError } from "./logger";
 import { cleanupOldR2Logs } from "./logCleanup";
 import * as fraud from "./fraud";
@@ -22,12 +22,6 @@ export type MyContext = Context & {
   waitUntil: (promise: Promise<unknown>) => void;
 };
 
-function formatBytes(bytes: number): string {
-  if (!bytes || bytes <= 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${units[i]}`;
-}
 
 function getMethodDisplayName(method: string | null | undefined, lang: Language): string {
   if (!method) return "BANK";
@@ -2154,7 +2148,6 @@ export function createBot(env: Env) {
           `Destination: \`${escapeCode(row.destination_account || "N/A")}\`\n` +
           `Player ID: \`${escapeCode(row.player_id)}\`\n` +
           `Amount: LKR ${Number(row.amount).toLocaleString()}\n` +
-          `Security Code: \`${escapeCode(row.security_code || "N/A")}\`\n` +
           `Date: ${row.created_at}`,
           { reply_markup: kb, parse_mode: "Markdown" }
         );
@@ -2750,11 +2743,11 @@ export function createBot(env: Env) {
       return;
     }
 
-    // Broadcast handling with Telegram Rate-Limiting & 429 Backoff protection
+    // Broadcast handling with chunked batching & Telegram Rate-Limiting & 429 Backoff protection
     if (state.state === "await_broadcast" && ctx.message.text) {
       if (!adminIds.has(user.id)) return;
-      const userIds = await db.getAllUserIds(env.DB);
-      if (userIds.length === 0) {
+      const totalUsers = await db.getTotalUserCount(env.DB);
+      if (totalUsers === 0) {
         await db.clearUserState(env.DB, user.id);
         await ctx.reply("ℹ️ Broadcast යැවීමට ලියාපදිංචි පරිශීලකයින් නොමැත.", {
           reply_markup: mainMenu(user.id, adminIds, lang),
@@ -2764,7 +2757,7 @@ export function createBot(env: Env) {
 
       await ctx.reply(
         `📢 *Broadcast ආරම්භ විය (Started)*\n\n` +
-        `👥 මුළු සාමාජිකයින්: *${userIds.length}*\n` +
+        `👥 මුළු සාමාජිකයින්: *${totalUsers}*\n` +
         `⏳ Telegram Rate Limit (25 msg/s) ආරක්ෂාව සමඟ යවමින් පවතී...`,
         { parse_mode: "Markdown" }
       );
@@ -2780,31 +2773,41 @@ export function createBot(env: Env) {
         let success = 0;
         let blocked = 0;
         let failed = 0;
+        const batchSize = 250;
+        let offset = 0;
 
-        for (const uid of userIds) {
-          let sent = false;
-          let retries = 0;
-          while (!sent && retries < 3) {
-            try {
-              await api.sendMessage(uid, broadcastText, { parse_mode: "Markdown" });
-              success++;
-              sent = true;
-            } catch (err: any) {
-              if (err?.error_code === 429) {
-                const retryAfter = (err.parameters?.retry_after || 1) * 1000;
-                await new Promise((resolve) => setTimeout(resolve, retryAfter + 100));
-                retries++;
-              } else if (err?.error_code === 403 || err?.description?.includes("blocked")) {
-                blocked++;
+        while (true) {
+          const userIds = await db.getUserIdsPaged(env.DB, batchSize, offset);
+          if (!userIds || userIds.length === 0) break;
+
+          for (const uid of userIds) {
+            let sent = false;
+            let retries = 0;
+            while (!sent && retries < 3) {
+              try {
+                await api.sendMessage(uid, broadcastText, { parse_mode: "Markdown" });
+                success++;
                 sent = true;
-              } else {
-                failed++;
-                sent = true;
+              } catch (err: any) {
+                if (err?.error_code === 429) {
+                  const retryAfter = (err.parameters?.retry_after || 1) * 1000;
+                  await new Promise((resolve) => setTimeout(resolve, retryAfter + 100));
+                  retries++;
+                } else if (err?.error_code === 403 || err?.description?.includes("blocked")) {
+                  blocked++;
+                  sent = true;
+                } else {
+                  failed++;
+                  sent = true;
+                }
               }
             }
+            // Stay within Telegram's ~30 msg/s ceiling.
+            await new Promise((resolve) => setTimeout(resolve, 40));
           }
-          // Stay within Telegram's ~30 msg/s ceiling.
-          await new Promise((resolve) => setTimeout(resolve, 40));
+
+          offset += userIds.length;
+          if (userIds.length < batchSize) break;
         }
 
         await api.sendMessage(
@@ -2813,7 +2816,7 @@ export function createBot(env: Env) {
             `• 📩 සාර්ථකව ලැබුණු ගණන (Delivered): *${success}*\n` +
             `• 🚫 Bot Block කළ ගණන (Blocked): *${blocked}*\n` +
             `• ⚠️ අසාර්ථක වූ ගණන (Failed): *${failed}*\n` +
-            `• 👥 මුළු පරිශීලකයින් (Total): *${userIds.length}*`,
+            `• 👥 මුළු පරිශීලකයින් (Total): *${totalUsers}*`,
           { parse_mode: "Markdown", reply_markup: mainMenu(user.id, adminIds, lang) }
         );
       })();

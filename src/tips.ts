@@ -47,7 +47,6 @@ export interface TipCandidate {
 export interface PostedTipSummary { eventId: string; sportKey: string; sportTitle: string; homeTeam: string; awayTeam: string; commenceTime: string; selection: string; market: string; odds: number; bookmakerCount: number; marketProbability: number; }
 
 function csv(value: string | undefined, fallback: string): string[] { return (value || fallback).split(",").map((item) => item.trim()).filter(Boolean); }
-function _escapeHtml(value: string): string { return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;"); }
 function decimalPrice(price: number): number { return Number.isFinite(price) && price > 1 ? price : 0; }
 function sportMeta(sportKey: string, title: string): { group: string; emoji: string } {
   const key = `${sportKey} ${title}`.toLowerCase();
@@ -757,7 +756,8 @@ async function claimTipSlot(
   `).bind(scheduledKey, slot, leaseToken).run();
 
   const row = await env.DB.prepare(`
-    SELECT id, status, lease_token, lease_expires_at
+    SELECT id, status, lease_token, lease_expires_at,
+           CASE WHEN lease_expires_at IS NOT NULL AND lease_expires_at > datetime('now') THEN 1 ELSE 0 END AS is_lease_active
     FROM tip_posts
     WHERE scheduled_key = ?
   `).bind(scheduledKey).first<{
@@ -765,6 +765,7 @@ async function claimTipSlot(
     status: string;
     lease_token: string | null;
     lease_expires_at: string | null;
+    is_lease_active: number;
   }>();
 
   if (!row) throw new Error("Tip slot record could not be created or loaded");
@@ -773,7 +774,7 @@ async function claimTipSlot(
   const insertChanges = insertResult.meta?.changes ?? 0;
   if (insertChanges > 0) return { claimed: true, id: row.id, leaseToken };
 
-  if (row.status === "PROCESSING" && row.lease_expires_at && row.lease_expires_at > new Date().toISOString().replace("T", " ").slice(0, 19)) {
+  if (row.status === "PROCESSING" && row.is_lease_active === 1) {
     return { claimed: false, id: row.id, leaseToken };
   }
 

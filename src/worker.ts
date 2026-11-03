@@ -204,13 +204,9 @@ ${homeEntries}
       if (!botInstance || cachedToken !== env.BOT_TOKEN) {
         botInstance = createBot(env);
         cachedToken = env.BOT_TOKEN;
-        webhookHandler = null;
+        webhookHandler = webhookCallback(botInstance, "cloudflare-mod", { timeoutMilliseconds: 25000 }) as (request: Request) => Promise<Response>;
         const commandRegistration = registerBotCommands(botInstance).catch((err) => console.error("[Telegram Commands] Registration failed:", err));
         if (ctx?.waitUntil) ctx.waitUntil(commandRegistration);
-      }
-
-      if (!webhookHandler) {
-        webhookHandler = webhookCallback(botInstance, "cloudflare-mod", { timeoutMilliseconds: 25000 }) as (request: Request) => Promise<Response>;
       }
 
       try {
