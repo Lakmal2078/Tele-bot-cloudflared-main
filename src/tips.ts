@@ -20,7 +20,28 @@ const ODDS_API_RETRIES = 2;
 const DEFAULT_TIPS_PER_SLOT = 3;
 const MAX_ODDS_FEEDS_PER_SLOT = 6;
 const MIN_REMAINING_CREDITS = 5; // free-plan friendly: allow tips until nearly exhausted
-const MAX_DISCOVERED_SPORTS_PER_GROUP = 3;
+const MAX_DISCOVERED_SPORTS_PER_GROUP = 1;
+
+const MAJOR_SPORTS_PRIORITY: readonly string[] = [
+  "soccer_uefa_champs_league",
+  "soccer_epl",
+  "soccer_spain_la_liga",
+  "soccer_italy_serie_a",
+  "soccer_germany_bundesliga",
+  "soccer_uefa_europa_league",
+  "basketball_nba",
+  "cricket_odi",
+  "cricket_test_match",
+  "cricket_international_t20",
+  "icehockey_nhl",
+  "tennis_atp",
+  "mma_mixed_martial_arts",
+];
+
+function sportPriority(key: string): number {
+  const idx = MAJOR_SPORTS_PRIORITY.findIndex((p) => key.includes(p));
+  return idx === -1 ? 999 : idx;
+}
 
 interface OddsOutcome { name: string; price: number; }
 interface OddsMarket { key: string; outcomes: OddsOutcome[]; }
