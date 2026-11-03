@@ -96,6 +96,45 @@ export function confidenceStars(confidence?: string): string {
   return "⭐⭐⭐";
 }
 
+interface EvaluatedCandidate {
+  event: OddsEvent;
+  selection: string;
+  market: string;
+  bestPrice: number;
+  averageOdds: number;
+  consensusProbability: number;
+  impliedProbability: number;
+  valueScore: number;
+  bookmakerCount: number;
+  sportGroup: string;
+  emoji: string;
+  isExcluded: boolean;
+}
+
+function selectDiverseCandidates(
+  pool: TipCandidate[],
+  selected: TipCandidate[],
+  usedSports: Set<string>,
+  usedEvents: Set<string>,
+  limit: number
+): void {
+  // First pass: distinct sport categories
+  for (const candidate of pool) {
+    if (selected.length >= limit) break;
+    if (usedSports.has(candidate.sportGroup) || usedEvents.has(candidate.event.id)) continue;
+    selected.push(candidate);
+    usedSports.add(candidate.sportGroup);
+    usedEvents.add(candidate.event.id);
+  }
+  // Second pass: distinct events (if limit not reached)
+  for (const candidate of pool) {
+    if (selected.length >= limit) break;
+    if (usedEvents.has(candidate.event.id)) continue;
+    selected.push(candidate);
+    usedEvents.add(candidate.event.id);
+  }
+}
+
 export function chooseCandidates(
   events: OddsEvent[], minOdds: number, maxOdds: number, limit = DEFAULT_TIPS_PER_SLOT,
   minBookmakers: number | undefined = undefined, excludeEventIds: ReadonlySet<string> = new Set(), quality: Partial<TipQualityConfig> = {},
@@ -106,15 +145,18 @@ export function chooseCandidates(
   const thresholds: TipQualityConfig = qualityMode
     ? { minConsensus: 0.52, minValue: 0.01, minBookmakers: effectiveMinBookmakers, maxStaleHours: 24, ...quality }
     : { minConsensus: 0, minValue: -Infinity, minBookmakers: effectiveMinBookmakers, maxStaleHours: 72 };
-  // Look-ahead for kickoff must use hoursAhead (TIPS_HOURS_AHEAD), NOT maxStaleHours
-  // (maxStaleHours is odds-freshness semantics; misusing it as a 24h kickoff window drops most weekend fixtures).
   const kickoffWindowMs = Math.max(2, hoursAhead) * 3600000;
-  const candidates: TipCandidate[] = [];
+  const now = Date.now();
+
+  const evaluated: EvaluatedCandidate[] = [];
+
   for (const event of events) {
-    if (!event.id || excludeEventIds.has(event.id)) continue;
+    if (!event.id) continue;
     const start = new Date(event.commence_time).getTime();
-    if (!event.commence_time || !Number.isFinite(start) || start <= Date.now() || start > Date.now() + kickoffWindowMs) continue;
+    if (!event.commence_time || !Number.isFinite(start) || start <= now || start > now + kickoffWindowMs) continue;
     const meta = sportMeta(event.sport_key, event.sport_title);
+    const isExcluded = excludeEventIds.has(event.id);
+
     const marketRows: Array<{ prices: Map<string, number>; fair: Map<string, number> }> = [];
     for (const bookmaker of event.bookmakers || []) {
       const market = (bookmaker.markets || []).find((item) => item.key === "h2h");
@@ -122,57 +164,142 @@ export function chooseCandidates(
       if (!market || valid.length < (qualityMode ? 2 : 1)) continue;
       const overround = valid.reduce((sum, outcome) => sum + 1 / outcome.price, 0);
       const prices = new Map(valid.map((outcome) => [outcome.name, outcome.price]));
-      const fair = new Map(valid.map((outcome) => [outcome.name, (1 / outcome.price) / overround]));
+      const fair = new Map(valid.map((outcome) => [outcome.name, (1 / outcome.price) / (overround || 1)]));
       marketRows.push({ prices, fair });
     }
+
     const selections = new Set(marketRows.flatMap((row) => [...row.prices.keys()]));
     for (const selection of selections) {
       const prices = marketRows.map((row) => row.prices.get(selection)).filter((value): value is number => value !== undefined);
       const fairProbabilities = marketRows.map((row) => row.fair.get(selection)).filter((value): value is number => value !== undefined);
       const bookmakerCount = prices.length;
-      if (bookmakerCount < thresholds.minBookmakers || fairProbabilities.length < thresholds.minBookmakers) continue;
-      const consensusProbability = median(fairProbabilities);
+      if (bookmakerCount < 1 || fairProbabilities.length < 1) continue;
 
-      // Outlier guard: discard rogue prices >35% higher than the market median
+      const consensusProbability = median(fairProbabilities);
       const medianPrice = median(prices);
       const sanitizedPrices = prices.filter((p) => p <= medianPrice * 1.35);
-      const effectivePrices = sanitizedPrices.length >= thresholds.minBookmakers ? sanitizedPrices : prices;
+      const effectivePrices = sanitizedPrices.length >= 1 ? sanitizedPrices : prices;
       const bestPrice = Math.max(...effectivePrices);
-
       const valueScore = consensusProbability * bestPrice - 1;
-      if (consensusProbability < thresholds.minConsensus || (qualityMode && (consensusProbability > 0.95 || consensusProbability < 0.05))) continue;
-      if (bestPrice < minOdds || bestPrice > maxOdds || valueScore < thresholds.minValue) continue;
-      candidates.push({
+      const averageOdds = effectivePrices.reduce((sum, price) => sum + price, 0) / effectivePrices.length;
+      const impliedProbability = fairProbabilities.reduce((sum, p) => sum + p, 0) / fairProbabilities.length;
+
+      evaluated.push({
         event,
         selection,
         market: "h2h",
         bestPrice,
+        averageOdds,
         consensusProbability,
+        impliedProbability,
         valueScore,
         bookmakerCount,
-        confidence: confidenceFor(consensusProbability, valueScore),
-        averageOdds: effectivePrices.reduce((sum, price) => sum + price, 0) / effectivePrices.length,
-        impliedProbability: fairProbabilities.reduce((sum, probability) => sum + probability, 0) / fairProbabilities.length,
         sportGroup: meta.group,
         emoji: meta.emoji,
+        isExcluded,
       });
     }
   }
-  candidates.sort((a, b) => qualityMode
-    ? (b.valueScore ?? 0) - (a.valueScore ?? 0) || (b.consensusProbability ?? 0) - (a.consensusProbability ?? 0) || b.bookmakerCount - a.bookmakerCount || (a.bestPrice ?? 0) - (b.bestPrice ?? 0)
-    : (a.averageOdds ?? a.bestPrice ?? 0) - (b.averageOdds ?? b.bestPrice ?? 0));
+
   const selected: TipCandidate[] = [];
-  const usedSports = new Set<string>(); const usedEvents = new Set<string>();
-  for (const candidate of candidates) {
-    if (selected.length >= limit) break;
-    if (usedSports.has(candidate.sportGroup) || usedEvents.has(candidate.event.id)) continue;
-    selected.push(candidate); usedSports.add(candidate.sportGroup); usedEvents.add(candidate.event.id);
+  const usedSports = new Set<string>();
+  const usedEvents = new Set<string>();
+
+  const toCandidate = (item: EvaluatedCandidate): TipCandidate => ({
+    event: item.event,
+    selection: item.selection,
+    market: item.market,
+    bestPrice: item.bestPrice,
+    consensusProbability: item.consensusProbability,
+    valueScore: item.valueScore,
+    bookmakerCount: item.bookmakerCount,
+    confidence: confidenceFor(item.consensusProbability, item.valueScore),
+    averageOdds: item.averageOdds,
+    impliedProbability: item.impliedProbability,
+    sportGroup: item.sportGroup,
+    emoji: item.emoji,
+  });
+
+  // --- Tier 1: Strict Quality Selection ---
+  const tier1Pool = evaluated
+    .filter((item) => {
+      if (item.isExcluded) return false;
+      if (item.bookmakerCount < thresholds.minBookmakers) return false;
+      if (item.consensusProbability < thresholds.minConsensus) return false;
+      if (qualityMode && (item.consensusProbability > 0.95 || item.consensusProbability < 0.05)) return false;
+      if (item.bestPrice < minOdds || item.bestPrice > maxOdds) return false;
+      if (item.valueScore < thresholds.minValue) return false;
+      return true;
+    })
+    .map(toCandidate)
+    .sort((a, b) => qualityMode
+      ? (b.valueScore ?? 0) - (a.valueScore ?? 0) || (b.consensusProbability ?? 0) - (a.consensusProbability ?? 0) || b.bookmakerCount - a.bookmakerCount || (a.bestPrice ?? 0) - (b.bestPrice ?? 0)
+      : (a.averageOdds ?? a.bestPrice ?? 0) - (b.averageOdds ?? b.bestPrice ?? 0));
+
+  selectDiverseCandidates(tier1Pool, selected, usedSports, usedEvents, limit);
+
+  // --- Tier 2: Relaxed Quality Fallback (ensures slots are not left empty) ---
+  if (selected.length < limit && qualityMode) {
+    const tier2Pool = evaluated
+      .filter((item) => {
+        if (item.isExcluded || usedEvents.has(item.event.id)) return false;
+        if (item.bookmakerCount < 1) return false;
+        // Relax consensus floor to 0.30 (allows strong 1X2 selections) and value score to -0.15 (standard bookmaker margin)
+        if (item.consensusProbability < Math.min(thresholds.minConsensus, 0.30)) return false;
+        if (item.consensusProbability > 0.95) return false;
+        if (item.bestPrice < minOdds || item.bestPrice > maxOdds) return false;
+        if (item.valueScore < -0.15) return false;
+        return true;
+      })
+      .map(toCandidate)
+      .sort((a, b) =>
+        (b.consensusProbability ?? 0) - (a.consensusProbability ?? 0) ||
+        b.bookmakerCount - a.bookmakerCount ||
+        (b.valueScore ?? 0) - (a.valueScore ?? 0)
+      );
+
+    selectDiverseCandidates(tier2Pool, selected, usedSports, usedEvents, limit);
   }
-  for (const candidate of candidates) {
-    if (selected.length >= limit) break;
-    if (usedEvents.has(candidate.event.id)) continue;
-    selected.push(candidate); usedEvents.add(candidate.event.id);
+
+  // --- Tier 3: Wider Odds Fallback (if still needing candidates) ---
+  if (selected.length < limit) {
+    const relaxedMinOdds = Math.min(minOdds, 1.25);
+    const relaxedMaxOdds = Math.max(maxOdds, 3.50);
+    const tier3Pool = evaluated
+      .filter((item) => {
+        if (item.isExcluded || usedEvents.has(item.event.id)) return false;
+        if (item.bookmakerCount < 1) return false;
+        if (item.bestPrice < relaxedMinOdds || item.bestPrice > relaxedMaxOdds) return false;
+        return true;
+      })
+      .map(toCandidate)
+      .sort((a, b) =>
+        (b.consensusProbability ?? 0) - (a.consensusProbability ?? 0) ||
+        (a.bestPrice ?? 0) - (b.bestPrice ?? 0)
+      );
+
+    selectDiverseCandidates(tier3Pool, selected, usedSports, usedEvents, limit);
   }
+
+  // --- Tier 4: Future Deduplication Fallback (if today's exclusion left 0 candidates) ---
+  if (selected.length === 0 && excludeEventIds.size > 0) {
+    const relaxedMinOdds = Math.min(minOdds, 1.25);
+    const relaxedMaxOdds = Math.max(maxOdds, 3.50);
+    const tier4Pool = evaluated
+      .filter((item) => {
+        if (item.bookmakerCount < 1) return false;
+        if (item.bestPrice < relaxedMinOdds || item.bestPrice > relaxedMaxOdds) return false;
+        return true;
+      })
+      .map(toCandidate)
+      .sort((a, b) =>
+        (b.consensusProbability ?? 0) - (a.consensusProbability ?? 0) ||
+        (a.bestPrice ?? 0) - (b.bestPrice ?? 0)
+      );
+
+    selectDiverseCandidates(tier4Pool, selected, usedSports, usedEvents, limit);
+  }
+
   return selected;
 }
 
@@ -251,14 +378,29 @@ function sportMatchesGroup(sport: OddsSport, group: string): boolean {
   return false;
 }
 
-async function discoverSpecialSports(apiKey: string, requested: string[], guard: OddsCreditGuard): Promise<string[]> {
-  const autoGroups = requested.filter((value) => value.startsWith("auto:")).map((value) => value.slice(5).toLowerCase());
-  if (autoGroups.length === 0) return [];
+export async function discoverSpecialSports(
+  apiKey: string,
+  requested: string[],
+  guard: OddsCreditGuard
+): Promise<{ discovered: string[]; activeSports: Set<string> }> {
   const url = new URL(`${ODDS_API_BASE}/sports`);
   url.searchParams.set("apiKey", apiKey);
   const sports = await getJson<OddsSport[]>(url, 8000, guard, false);
+  const activeSports = new Set<string>();
+  for (const sport of sports) {
+    if (sport.key && sport.active !== false) {
+      activeSports.add(sport.key);
+    }
+  }
+
+  const autoGroups = requested.filter((value) => value.startsWith("auto:")).map((value) => value.slice(5).toLowerCase());
+  // If user did not provide auto groups, include standard categories so active fixtures can always be found
+  const groupsToDiscover = autoGroups.length > 0
+    ? autoGroups
+    : ["soccer", "cricket", "basketball", "tennis", "table_tennis", "esports"];
+
   const discovered: string[] = [];
-  for (const group of autoGroups) {
+  for (const group of groupsToDiscover) {
     let added = 0;
     for (const sport of sports) {
       if (!sport.key || sport.active === false || !sportMatchesGroup(sport, group)) continue;
@@ -268,18 +410,67 @@ async function discoverSpecialSports(apiKey: string, requested: string[], guard:
     }
     console.log(`[Tips] Auto-discovery ${group}: ${added} active sport feed(s)`);
   }
-  return discovered;
+  return { discovered, activeSports };
 }
 
-function selectPaidFeeds(explicitSports: string[], discoveredSports: string[], maxFeeds: number): string[] {
-  const selected: string[] = [];
-  const add = (sport: string) => {
-    if (!sport || selected.includes(sport) || selected.length >= maxFeeds) return;
-    selected.push(sport);
-  };
+export function selectPaidFeeds(
+  explicitSports: string[],
+  discoveredSports: string[],
+  maxFeeds: number,
+  activeSports?: ReadonlySet<string>
+): string[] {
+  // If active sports are known, filter out explicit league keys that are completely inactive/offseason
+  const validExplicit = activeSports && activeSports.size > 0
+    ? explicitSports.filter((s) => activeSports.has(s))
+    : explicitSports;
+  const usableExplicit = validExplicit.length > 0 ? validExplicit : explicitSports;
 
-  for (const sport of explicitSports) add(sport);
-  for (const sport of discoveredSports) add(sport);
+  // Group feeds by sport category to ensure balanced representation
+  // (e.g. don't consume all slots on 5 soccer leagues when 1 cricket, 1 basketball,
+  // 1 table tennis, 1 esports, and 1 soccer guarantees active fixtures at any time).
+  const poolsByGroup = new Map<string, string[]>();
+  const allFeeds = [...usableExplicit, ...discoveredSports];
+
+  for (const feed of allFeeds) {
+    if (!feed) continue;
+    const meta = sportMeta(feed, feed);
+    const group = meta.group;
+    const list = poolsByGroup.get(group) || [];
+    if (!list.includes(feed)) {
+      list.push(feed);
+      poolsByGroup.set(group, list);
+    }
+  }
+
+  const selected: string[] = [];
+  const groups = [...poolsByGroup.keys()];
+
+  // Round-robin interleave across sport groups
+  let index = 0;
+  let addedInPass = true;
+  while (selected.length < maxFeeds && addedInPass) {
+    addedInPass = false;
+    for (const group of groups) {
+      if (selected.length >= maxFeeds) break;
+      const list = poolsByGroup.get(group) || [];
+      if (index < list.length) {
+        const candidateFeed = list[index];
+        if (!selected.includes(candidateFeed)) {
+          selected.push(candidateFeed);
+          addedInPass = true;
+        }
+      }
+    }
+    index += 1;
+  }
+
+  // Fallback: if round-robin didn't fill maxFeeds, append any remaining
+  for (const feed of allFeeds) {
+    if (selected.length >= maxFeeds) break;
+    if (feed && !selected.includes(feed)) {
+      selected.push(feed);
+    }
+  }
 
   return selected;
 }
@@ -340,13 +531,16 @@ async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
   const guard = new OddsCreditGuard(maxFeeds, MIN_REMAINING_CREDITS);
 
   let discovered: string[] = [];
+  let activeSports: Set<string> | undefined;
   try {
-    discovered = await discoverSpecialSports(env.ODDS_API_KEY, requested, guard);
+    const discovery = await discoverSpecialSports(env.ODDS_API_KEY, requested, guard);
+    discovered = discovery.discovered;
+    activeSports = discovery.activeSports;
   } catch (error) {
     console.warn("[Tips] Special-sport discovery failed:", error instanceof Error ? error.message : error);
   }
 
-  let sports = selectPaidFeeds(explicitSports, discovered, maxFeeds);
+  let sports = selectPaidFeeds(explicitSports, discovered, maxFeeds, activeSports);
   if (sports.length === 0) throw new Error("No configured or discovered sport feeds are available");
 
   const regions = (env.TIPS_ODDS_REGIONS || "eu").split(",").map((value) => value.trim()).filter(Boolean).slice(0, 1).join(",") || "eu";
@@ -374,8 +568,11 @@ async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
   };
 
   const CONCURRENCY = 2;
+  const queriedSports = new Set<string>();
+
   for (let i = 0; i < sports.length; i += CONCURRENCY) {
     const batch = sports.slice(i, i + CONCURRENCY);
+    for (const s of batch) queriedSports.add(s);
     const results = await Promise.allSettled(
       batch.map(async (sport) => {
         const filtered = await fetchSportEvents(sport);
@@ -396,26 +593,30 @@ async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
     if (creditExhausted) break;
   }
 
-  // If explicit league keys are currently empty, discover active feeds and retry.
-  if (allEvents.length === 0 && explicitSports.length > 0 && guard.snapshot().paidRequestAttempts < maxFeeds) {
+  // If initial queries produced fewer than targetCount events, backfill with remaining active feeds
+  if (allEvents.length < targetCount && guard.snapshot().paidRequestAttempts < maxFeeds) {
     try {
-      const fallbackRequested = ["auto:soccer", "auto:cricket", "auto:basketball", "auto:tennis", "auto:mma", "auto:baseball"];
-      const fallbackDiscovered = await discoverSpecialSports(env.ODDS_API_KEY, fallbackRequested, guard);
-      sports = selectPaidFeeds([], fallbackDiscovered, maxFeeds);
-      console.log(`[Tips] Explicit feeds returned no events; trying ${sports.length} active auto-discovered feed(s)`);
-      for (const sport of sports) {
+      const unqueriedDiscovered = discovered.filter((s) => !queriedSports.has(s));
+      const fallbackSports = unqueriedDiscovered.length > 0
+        ? unqueriedDiscovered
+        : (await discoverSpecialSports(env.ODDS_API_KEY, ["auto:table_tennis", "auto:esports", "auto:tennis", "auto:cricket"], guard)).discovered.filter((s) => !queriedSports.has(s));
+
+      console.log(`[Tips] Need more events (${allEvents.length}/${targetCount}); trying ${fallbackSports.length} remaining active feed(s)`);
+      for (const sport of fallbackSports) {
+        if (guard.snapshot().paidRequestAttempts >= maxFeeds) break;
         try {
+          queriedSports.add(sport);
           const filtered = await fetchSportEvents(sport);
           allEvents.push(...filtered);
-          console.log(`[Tips] Fallback ${sport}: ${filtered.length} upcoming event(s)`);
-          if (allEvents.length > 0) break;
+          console.log(`[Tips] Backfill ${sport}: ${filtered.length} upcoming event(s)`);
+          if (allEvents.length >= targetCount * 2) break;
         } catch (error) {
-          console.warn(`[Tips] Fallback sport feed failed for ${sport}:`, error instanceof Error ? error.message : error);
+          console.warn(`[Tips] Backfill sport feed failed for ${sport}:`, error instanceof Error ? error.message : error);
           if (String(error).includes("credit guard")) break;
         }
       }
     } catch (error) {
-      console.warn("[Tips] Active-sport fallback discovery failed:", error instanceof Error ? error.message : error);
+      console.warn("[Tips] Active-sport backfill discovery failed:", error instanceof Error ? error.message : error);
     }
   }
 

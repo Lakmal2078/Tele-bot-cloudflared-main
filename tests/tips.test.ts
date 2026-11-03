@@ -10,6 +10,7 @@ import {
   formatTipMessage,
   isUsableTrackingHost,
   normalizeChannelUrl,
+  selectPaidFeeds,
   slotForCron,
   sriLankaDate,
   type TipCandidate,
@@ -519,6 +520,79 @@ describe("scheduled tips", () => {
       expect(mmaPick?.emoji).toBe("🥊");
       const baseballPick = candidates.find((c) => c.sportGroup === "baseball");
       expect(baseballPick?.emoji).toBe("⚾");
+    });
+
+    it("falls back to relaxed quality when strict consensus and positive value yield zero matches", () => {
+      const future = new Date(Date.now() + 2 * 3600 * 1000).toISOString();
+      // Standard competitive 3-way match: Home 2.40, Draw 3.20, Away 2.90
+      // Home implied prob ~ 38%, which is below strict minConsensus 0.48 or 0.52.
+      // With vigorish, value score is negative (~ -0.06), below strict minValue 0.005.
+      const competitiveEvents = [
+        {
+          id: "comp-match-1",
+          sport_key: "soccer_epl",
+          sport_title: "Premier League",
+          commence_time: future,
+          home_team: "Team A",
+          away_team: "Team B",
+          bookmakers: [
+            {
+              key: "b1",
+              title: "Book 1",
+              markets: [
+                {
+                  key: "h2h",
+                  outcomes: [
+                    { name: "Team A", price: 2.30 },
+                    { name: "Draw", price: 3.10 },
+                    { name: "Team B", price: 3.00 },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ];
+
+      // With strict quality (minConsensus = 0.50, minValue = 0.01)
+      const candidates = chooseCandidates(
+        competitiveEvents,
+        1.3,
+        3.0,
+        1,
+        1,
+        new Set(),
+        { minConsensus: 0.50, minValue: 0.01, minBookmakers: 2 }
+      );
+
+      // Relaxed fallback must rescue this match rather than leaving the channel empty!
+      expect(candidates).toHaveLength(1);
+      expect(candidates[0].selection).toBe("Team A");
+      expect(candidates[0].bestPrice).toBe(2.30);
+    });
+
+    it("interleaves feeds across diverse sport categories so one sport does not monopolize maxFeeds", () => {
+      const explicit = [
+        "soccer_epl",
+        "soccer_spain_la_liga",
+        "soccer_italy_serie_a",
+        "soccer_germany_bundesliga",
+        "soccer_uefa_champs_league",
+      ];
+      const discovered = [
+        "table_tennis_russia_liga_pro",
+        "cricket_international_t20",
+        "esports_cs2",
+      ];
+
+      const selected = selectPaidFeeds(explicit, discovered, 5);
+
+      expect(selected).toHaveLength(5);
+      // Selected feeds must contain table tennis, cricket, and esports alongside soccer
+      expect(selected.some((s) => s.includes("table_tennis"))).toBe(true);
+      expect(selected.some((s) => s.includes("cricket"))).toBe(true);
+      expect(selected.some((s) => s.includes("esports"))).toBe(true);
+      expect(selected.some((s) => s.includes("soccer"))).toBe(true);
     });
   });
 });
