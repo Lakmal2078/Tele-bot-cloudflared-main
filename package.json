@@ -30,13 +30,13 @@
     "grammy": "^1.35.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.5",
-    "@types/node": "^26.6.5",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.6",
     "@typescript-eslint/eslint-plugin": "^8.71.2",
     "@typescript-eslint/parser": "^8.71.2",
     "esbuild": "^0.28.2",
-    "eslint": "^9.39.5",
-    "testdriverai": "^7.2.64",
+    "eslint": "^10.14.0",
+    "testdriverai": "^7.11.171",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.2",
