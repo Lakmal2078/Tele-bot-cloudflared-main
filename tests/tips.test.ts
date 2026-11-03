@@ -211,7 +211,21 @@ describe("scheduled tips", () => {
     const fallback = formatFallbackTip("18:00", "https://t.me/example_channel");
     expect(fallback).toContain("*FREE TIPS UPDATE (ශ්‍රී ලංකා)*");
     expect(fallback).toContain("18:00");
+    expect(fallback).toContain("පෙරහන් සාරාංශය (Scan Summary)");
+    expect(fallback).toContain("Matches Scanned");
+    expect(fallback).toContain("Passed Filter");
     expect(fallback).toContain("[👉 අපගේ Channel එකට එක්වන්න](https://t.me/example_channel)");
+  });
+
+  it("renders contextual scan metrics when stats are provided to fallback tip", () => {
+    const fallback = formatFallbackTip("12:00", "https://t.me/example_channel", {
+      scannedMatches: 28,
+      passedMatches: 0,
+      sportsScanned: 5,
+    });
+    expect(fallback).toContain("Matches Scanned): *28*");
+    expect(fallback).toContain("Passed Filter): *0*");
+    expect(fallback).toContain("Sports Feeds): *5*");
   });
 
   it("builds direct match bet link with specific match and selection parameters", () => {

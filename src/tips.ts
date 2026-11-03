@@ -66,6 +66,11 @@ export interface TipCandidate {
   emoji: string;
 }
 export interface PostedTipSummary { eventId: string; sportKey: string; sportTitle: string; homeTeam: string; awayTeam: string; commenceTime: string; selection: string; market: string; odds: number; bookmakerCount: number; marketProbability: number; }
+export interface FallbackTipStats {
+  scannedMatches: number;
+  passedMatches: number;
+  sportsScanned?: number;
+}
 
 function csv(value: string | undefined, fallback: string): string[] { return (value || fallback).split(",").map((item) => item.trim()).filter(Boolean); }
 function decimalPrice(price: number): number { return Number.isFinite(price) && price > 1 ? price : 0; }
@@ -514,7 +519,7 @@ export async function getTodayPostedEventIds(env: Env): Promise<Set<string>> {
 
 export const getTodaysPostedEventIds = getTodayPostedEventIds;
 
-async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
+async function fetchCandidates(env: Env): Promise<{ candidates: TipCandidate[]; stats: FallbackTipStats }> {
   if (!env.ODDS_API_KEY) throw new Error("ODDS_API_KEY is not configured");
 
   // Prefer active auto-discovered feeds so seasonal league keys cannot silently
@@ -639,7 +644,14 @@ async function fetchCandidates(env: Env): Promise<TipCandidate[]> {
 
   const usage = guard.snapshot();
   console.log(`[Tips] Credit guard: paid_requests=${usage.paidRequestAttempts}/${maxFeeds}, remaining=${usage.remaining ?? "unknown"}, used=${usage.usedFromHeader ?? "unknown"}, selected=${selected.length} tip(s)`);
-  return selected;
+  return {
+    candidates: selected,
+    stats: {
+      scannedMatches: uniqueEvents.length,
+      passedMatches: selected.length,
+      sportsScanned: sports.length,
+    },
+  };
 }
 
 function cleanSportTitle(title: string): string {
@@ -732,17 +744,33 @@ export function formatTipMessage(candidates: TipCandidate[], slot: string, joinU
 
 export const formatTipMessageMarkdown = formatTipMessage;
 
-export function formatFallbackTip(slot: string, joinUrl?: string): string {
+export function formatFallbackTip(
+  slot: string,
+  joinUrl?: string,
+  stats?: Partial<FallbackTipStats>
+): string {
+  const scanned = stats?.scannedMatches ?? 0;
+  const passed = stats?.passedMatches ?? 0;
+  const sports = stats?.sportsScanned;
+
   const lines = [
-    "🇱🇰 *FREE TIPS UPDATE (ශ්‍රී ලංකා)*",
+    "🇱🇰 *FREE TIPS UPDATE (ශ්‍රී ලංකා)* 🎯",
     `⏰ *වේලාව (Time):* ${escapeMarkdown(slot)} (Sri Lanka)`,
     "━━━━━━━━━━━━━━━━━━━━━━━━━",
-    "ℹ️ මෙම slot එක සඳහා ප්‍රමාණවත් ප්‍රමිතියෙන් යුතු තරඟ වාර්තා වී නොමැත.",
-    "✅ අප කිසිවිටකත් අඩු විශ්වාසනීයත්වයකින් යුතු හෝ බොරු tips පළ නොකරයි.",
+    "ℹ️ *මෙම slot එක සඳහා ප්‍රමාණවත් ප්‍රමිතියෙන් යුතු තරඟ වාර්තා වී නොමැත.*",
+    "",
+    "📊 *පෙරහන් සාරාංශය (Scan Summary):*",
+    `• 🔍 පරීක්ෂා කළ තරඟ (Matches Scanned): *${scanned}*`,
+    `• 🎯 පෙරහන සමත් වූ තරඟ (Passed Filter): *${passed}*`,
+    sports ? `• 🌐 පරීක්ෂා කළ ක්‍රීඩා (Sports Feeds): *${sports}*` : null,
+    "• 🛡️ විශ්ලේෂණය (Analysis): *No-Vig Consensus & Real Expected Value*",
+    "",
+    "✅ *අපගේ ප්‍රතිපත්තිය:* අප කිසිවිටකත් අඩු විශ්වාසනීයත්වයකින් යුතු හෝ බොරු tips පළ නොකරයි.",
     "📢 ඊළඟ scheduled tips update එක නියමිත වේලාවට පළ වනු ඇත.",
     "━━━━━━━━━━━━━━━━━━━━━━━━━",
     "⚠️ _18+ පමණි. වගකීමෙන් යුතුව ක්‍රීඩා කරන්න._",
-  ];
+  ].filter((line): line is string => line !== null);
+
   if (joinUrl) {
     lines.push("", `📣 [👉 අපගේ Channel එකට එක්වන්න](${joinUrl})`);
   }
@@ -1189,9 +1217,12 @@ export async function runScheduledTip(
     let message: string;
     let candidates: TipCandidate[] = [];
     let keyboard: TelegramInlineKeyboardMarkup;
+    let fallbackStats: FallbackTipStats = { scannedMatches: 0, passedMatches: 0 };
 
     try {
-      candidates = await fetchCandidates(env);
+      const fetched = await fetchCandidates(env);
+      candidates = fetched.candidates;
+      fallbackStats = fetched.stats;
       if (candidates.length === 0) throw new Error("No qualifying candidates were found");
       message = formatTipMessage(candidates, slot, joinUrl);
       keyboard = buildTipsInlineKeyboard(candidates, xbetLink, joinUrl, trackingBase, claim.id);
@@ -1200,7 +1231,7 @@ export async function runScheduledTip(
         `[Tips] fetchCandidates failed for ${scheduledKey}:`,
         fetchError instanceof Error ? fetchError.message : fetchError
       );
-      message = formatFallbackTip(slot, joinUrl);
+      message = formatFallbackTip(slot, joinUrl, fallbackStats);
       keyboard = buildFallbackInlineKeyboard(xbetLink, joinUrl);
     }
 
