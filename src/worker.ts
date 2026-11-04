@@ -10,6 +10,7 @@ import { landingPageSecurityHeaders, securityHeaders, webhookRequestAllowed } fr
 import { renderLandingPage, trustedPublicBaseUrl } from "./landingPage";
 import { handleApiRequest, json } from "./apiRoutes";
 import { getPublicStatus } from "./publicStatus";
+import { cleanupExpiredRateLimitBuckets } from "./db";
 import { logEvent, requestId, withRequestId } from "./observability";
 import type { Env, ExecutionContext, ScheduledEvent } from "./types";
 
@@ -272,7 +273,9 @@ ${homeEntries}
       } catch (err) {
         console.error("[Worker Webhook Error]:", err);
         logBotError(env, { source: "WorkerWebhookFetch", message: err instanceof Error ? err.message : String(err), stack: err instanceof Error ? err.stack : undefined, context: { flow: "worker_webhook_fetch" } }, ctx?.waitUntil?.bind(ctx));
-        return finish(json({ ok: true }));
+        // Telegram retries webhook updates when it receives a 5xx response.
+        // Acknowledge only successful processing; returning 200 here silently drops failed updates.
+        return finish(json({ ok: false, error: "Webhook processing failed", requestId: id }, 500));
       }
     } catch (err) {
       logEvent({ event: "error", requestId: id, method: request.method, route: new URL(request.url).pathname, status: 500, durationMs: Date.now() - started, error: err instanceof Error ? err.message : String(err) });
@@ -298,6 +301,9 @@ ${homeEntries}
       tasks.push(cleanupOldR2Logs(env, 30)
         .then((res) => console.log(`[Worker Cron] R2 cleanup: scanned=${res.totalScanned}, deleted=${res.totalDeleted}, freed=${(res.bytesFreed / 1024).toFixed(2)}KB, duration=${res.durationMs}ms`))
         .catch((err) => console.error("[Worker Cron] R2 cleanup failed:", err)));
+      tasks.push(cleanupExpiredRateLimitBuckets(env.DB)
+        .then((deleted) => console.log(`[Worker Cron] Rate-limit bucket cleanup: deleted=${deleted}`))
+        .catch((err) => console.error("[Worker Cron] Rate-limit bucket cleanup failed:", err)));
     } else {
       console.warn(`[Worker Cron ALERT] Unmapped scheduled cron trigger received: "${cron}". Check wrangler.toml triggers!`);
     }
