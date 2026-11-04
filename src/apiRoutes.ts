@@ -78,7 +78,7 @@ import {
   hasValidAdminSession,
   readCookie,
 } from "./adminSession";
-import { getStats, getOperationsDashboard, getDailyFinancialTrends, getSupportTickets, updateSupportTicket, createScheduledChannelPost, recordAnalyticsEvent, getAttributionFunnelStats, consumeRateLimitBuckets, getRateLimitBucket, recordRateLimitFailure, clearRateLimitBucket } from "./db";
+import { getStats, getOperationsDashboard, getDailyFinancialTrends, getSupportTickets, updateSupportTicket, createScheduledChannelPost, recordAnalyticsEvent, getAttributionFunnelStats, consumeRateLimitBuckets, clearRateLimitBucket } from "./db";
 import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
 import { getObject } from "./storage";
 import { getR2StorageAnalytics } from "./r2";
@@ -153,17 +153,15 @@ async function adminFailureBucketKey(request: Request, env: Env): Promise<string
 }
 
 async function adminAttemptAllowedPersistent(request: Request, env: Env): Promise<boolean> {
-  const bucket = await getRateLimitBucket(env.DB, await adminFailureBucketKey(request, env));
-  return !bucket || bucket.reset_at <= Date.now() || bucket.count < SECURITY_LIMITS.ADMIN_FAILURE_LIMIT;
-}
-
-async function recordAdminFailurePersistent(request: Request, env: Env): Promise<void> {
-  await recordRateLimitFailure(
+  const [bucket] = await consumeRateLimitBuckets(
     env.DB,
-    await adminFailureBucketKey(request, env),
-    SECURITY_LIMITS.ADMIN_FAILURE_LIMIT,
-    SECURITY_LIMITS.ADMIN_FAILURE_WINDOW_MS
+    [{
+      key: await adminFailureBucketKey(request, env),
+      limit: SECURITY_LIMITS.ADMIN_FAILURE_LIMIT,
+      windowMs: SECURITY_LIMITS.ADMIN_FAILURE_WINDOW_MS,
+    }]
   );
+  return Boolean(bucket?.consumed);
 }
 
 async function clearAdminFailurePersistent(request: Request, env: Env): Promise<void> {
@@ -187,7 +185,6 @@ export async function requireAdmin(request: Request, env: Env): Promise<Response
     await clearAdminFailurePersistent(request, env);
     return null;
   }
-  if (adminCredentialSupplied(request)) await recordAdminFailurePersistent(request, env);
   return unauthorizedResponse();
 }
 
@@ -1190,7 +1187,6 @@ ${homeEntries}
     }
 
     if (!secret || !supplied || !constantTimeEqual(supplied, secret)) {
-      await recordAdminFailurePersistent(request, env);
       const nonce = crypto.randomUUID().replace(/-/g, "");
       return new Response(renderAdminLoginPage(env, nonce, { error: "Invalid admin secret." }), {
         status: 401,
