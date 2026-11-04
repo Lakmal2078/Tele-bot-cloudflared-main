@@ -200,6 +200,56 @@ describe("RateLimiter (global rate limiting)", () => {
     expect(executed).toBe(3);
   });
 
+  it("shares per-user and global limits across separate limiter instances", async () => {
+    const { createD1Database } = await import("../src/sqlite-d1");
+    const db = createD1Database(":memory:");
+    const first = new RateLimiter({ db, windowMs: 60_000, maxPerUser: 1, maxGlobal: 2 });
+    const second = new RateLimiter({ db, windowMs: 60_000, maxPerUser: 1, maxGlobal: 2 });
+    const now = 1_800_000_000_000;
+
+    expect((await first.checkPersistent(11, now)).allowed).toBe(true);
+    const userBlocked = await second.checkPersistent(11, now);
+    expect(userBlocked.allowed).toBe(false);
+    expect(userBlocked.scope).toBe("user");
+
+    expect((await second.checkPersistent(22, now)).allowed).toBe(true);
+    const globalBlocked = await first.checkPersistent(33, now);
+    expect(globalBlocked.allowed).toBe(false);
+    expect(globalBlocked.scope).toBe("global");
+  });
+
+  it("resets persistent rate-limit buckets after their window expires", async () => {
+    const { createD1Database } = await import("../src/sqlite-d1");
+    const db = createD1Database(":memory:");
+    const first = new RateLimiter({ db, windowMs: 1_000, maxPerUser: 1, maxGlobal: 10 });
+    const second = new RateLimiter({ db, windowMs: 1_000, maxPerUser: 1, maxGlobal: 10 });
+    const now = 1_800_000_000_000;
+
+    expect((await first.checkPersistent(77, now)).allowed).toBe(true);
+    expect((await second.checkPersistent(77, now)).allowed).toBe(false);
+    expect((await second.checkPersistent(77, now + 1_001)).allowed).toBe(true);
+  });
+
+  it("shares command-specific limits across limiter instances", async () => {
+    const { createD1Database } = await import("../src/sqlite-d1");
+    const db = createD1Database(":memory:");
+    const options = {
+      db,
+      windowMs: 60_000,
+      maxPerUser: 20,
+      maxGlobal: 100,
+      commandLimits: { tips: { windowMs: 60_000, maxPerUser: 1 } },
+    };
+    const first = new RateLimiter(options);
+    const second = new RateLimiter(options);
+    const now = 1_800_000_000_000;
+
+    expect((await first.checkCommandPersistent("tips", 42, now)).allowed).toBe(true);
+    const blocked = await second.checkCommandPersistent("tips", 42, now);
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.scope).toBe("scope:cmd:tips");
+  });
+
   it("checkScope allows dedicated rate limiting for inline callback queries", () => {
     const clock = makeClock();
     const rl = new RateLimiter();
