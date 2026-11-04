@@ -203,7 +203,7 @@ describe("RateLimiter (global rate limiting)", () => {
   it("shares per-user and global limits across separate limiter instances", async () => {
     const { createD1Database } = await import("../src/sqlite-d1");
     const db = createD1Database(":memory:");
-    const first = new RateLimiter({ db, windowMs: 60_000, maxPerUser: 1, maxGlobal: 3 });
+    const first = new RateLimiter({ db, windowMs: 60_000, maxPerUser: 1, maxGlobal: 2 });
     const second = new RateLimiter({ db, windowMs: 60_000, maxPerUser: 1, maxGlobal: 2 });
     const now = 1_800_000_000_000;
 
