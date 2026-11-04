@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toCents, toPositiveCents } from "../src/db";
+import { addDeposit, addWithdrawal, toCents, toPositiveCents } from "../src/db";
 
 describe("financial amount validation", () => {
   it("converts positive LKR to integer cents", () => {
@@ -70,5 +70,60 @@ describe("optimized database queries", () => {
     // Page 3 using keyset pagination (afterUserId = 40)
     const page3 = await db.getUserIdsPaged(d1, 2, 0, 40);
     expect(page3).toEqual([50]);
+  });
+});
+
+
+type TransactionDatabase = Parameters<typeof addDeposit>[0];
+
+function racingDatabase(winnerId: number, table: "deposits" | "withdrawals") {
+  const state = { selects: 0, inserts: 0 };
+  const fake = {
+    prepare(sql: string) {
+      return {
+        bind() { return this; },
+        async first() {
+          if (sql.includes(`SELECT id FROM ${table}`)) {
+            state.selects += 1;
+            return state.selects >= 3 && winnerId > 0 ? { id: winnerId } : null;
+          }
+          return null;
+        },
+        async run() { return { success: true, meta: { changes: 1 } }; },
+      };
+    },
+    async batch() {
+      state.inserts += 1;
+      throw new Error(`UNIQUE constraint failed: ${table}.idempotency_key`);
+    },
+  };
+  return { db: fake as unknown as TransactionDatabase, state };
+}
+
+describe("financial transaction integrity", () => {
+  it("recovers a concurrent deposit insert by returning the row that won the idempotency race", async () => {
+    const { db, state } = racingDatabase(4242, "deposits");
+    const id = await addDeposit(db, 555, "player", "PLAY-1", 1500, "receipt-1", "BANK", null, "dep-key-1");
+    expect(id).toBe(4242);
+    expect(state.inserts).toBe(1);
+  });
+
+  it("recovers a concurrent withdrawal insert by returning the row that won the idempotency race", async () => {
+    const { db, state } = racingDatabase(777, "withdrawals");
+    const id = await addWithdrawal(db, 555, "player", "PLAY-1", 1500, null, "BANK", "acct-1", "wd-key-1");
+    expect(id).toBe(777);
+    expect(state.inserts).toBe(1);
+  });
+
+  it("does not hide an insert failure when no idempotent transaction exists", async () => {
+    const { db } = racingDatabase(0, "deposits");
+    await expect(addDeposit(db, 555, "player", "PLAY-1", 1500, "receipt-1", "BANK", null, "missing-key"))
+      .rejects.toThrow(/UNIQUE constraint failed/);
+  });
+
+  it("rejects zero and negative withdrawals at the database boundary", async () => {
+    const unused = {} as TransactionDatabase;
+    await expect(addWithdrawal(unused, 555, "player", "PLAY-1", 0, null)).rejects.toThrow("Amount must be greater than zero");
+    await expect(addWithdrawal(unused, 555, "player", "PLAY-1", -1, null)).rejects.toThrow("Amount must be greater than zero");
   });
 });
