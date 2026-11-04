@@ -24,6 +24,19 @@ export function fromCents(cents: number): number {
   return cents / 100;
 }
 
+/** Look up a committed transaction after an idempotency-key uniqueness race. */
+async function idByKey(
+  db: D1Database,
+  table: "deposits" | "withdrawals",
+  idempotencyKey: string
+): Promise<number | null> {
+  const row = await db
+    .prepare(`SELECT id FROM ${table} WHERE idempotency_key = ? AND deleted_at IS NULL`)
+    .bind(idempotencyKey)
+    .first<{ id: number }>();
+  return row?.id != null ? Number(row.id) : null;
+}
+
 function mapDepositRow(row: any): DepositRow | null {
   if (!row) return null;
   return {
@@ -212,18 +225,11 @@ export async function addDeposit(
 ): Promise<number> {
   const amountCents = toPositiveCents(amountLkr);
 
-  // 1. If an idempotency key was supplied, check if an existing deposit row matches
   if (idempotencyKey) {
-    const existing = await db
-      .prepare(`SELECT id FROM deposits WHERE idempotency_key = ? AND deleted_at IS NULL`)
-      .bind(idempotencyKey)
-      .first<{ id: number }>();
-    if (existing?.id) {
-      return Number(existing.id);
-    }
+    const existing = await idByKey(db, "deposits", idempotencyKey);
+    if (existing != null) return existing;
   }
 
-  // 2. Multi-submission deduplication guard: if an identical pending deposit was submitted within 5 minutes, return it
   const recentDupe = await db
     .prepare(
       `SELECT id FROM deposits
@@ -234,9 +240,7 @@ export async function addDeposit(
     )
     .bind(userId, playerId, amountCents, photoFileId, photoFileId)
     .first<{ id: number }>();
-  if (recentDupe?.id) {
-    return Number(recentDupe.id);
-  }
+  if (recentDupe?.id) return Number(recentDupe.id);
 
   const insertStmt = db
     .prepare(
@@ -244,23 +248,42 @@ export async function addDeposit(
        VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
     )
     .bind(userId, username, playerId, amountCents, paymentMethod, photoFileId, r2Url, idempotencyKey ?? null);
-
   const clearStmt = db.prepare(`DELETE FROM user_state WHERE user_id = ?`).bind(userId);
 
+  const recoverFromRace = async (err: unknown): Promise<number> => {
+    if (idempotencyKey) {
+      const winnerId = await idByKey(db, "deposits", idempotencyKey);
+      if (winnerId != null) return winnerId;
+    }
+    throw err;
+  };
+
   if (typeof db.batch === "function") {
-    const results = await db.batch([insertStmt, clearStmt]);
+    let results;
+    try {
+      results = await db.batch([insertStmt, clearStmt]);
+    } catch (err) {
+      return recoverFromRace(err);
+    }
     const first = results?.[0];
-    const id =
-      first?.results?.[0]?.id ??
-      first?.meta?.last_row_id ??
-      (await insertStmt.first<{ id: number }>())?.id ??
-      0;
-    return Number(id) || 0;
+    const id = first?.results?.[0]?.id ?? first?.meta?.last_row_id;
+    if (id != null && Number(id) > 0) return Number(id);
+    if (idempotencyKey) {
+      const committedId = await idByKey(db, "deposits", idempotencyKey);
+      if (committedId != null) return committedId;
+    }
+    throw new Error("Deposit insert succeeded but D1 did not return its row id");
   }
 
-  const result = await insertStmt.first<{ id: number }>();
+  let result: { id: number } | null;
+  try {
+    result = await insertStmt.first<{ id: number }>();
+  } catch (err) {
+    return recoverFromRace(err);
+  }
   await clearStmt.run();
-  return result?.id ?? 0;
+  if (result?.id == null) throw new Error("Deposit insert did not return its row id");
+  return Number(result.id);
 }
 
 export async function updateDepositR2Url(db: D1Database, id: number, r2Url: string) {
@@ -282,35 +305,29 @@ export async function addWithdrawal(
   securityCode: string | null,
   paymentMethod: string = "BANK",
   destinationAccount: string | null = null,
-  idempotencyKey?: string | null
+  idempotencyKey?: string | null,
+  legacyIdempotencyKey?: string | null
 ): Promise<number> {
-  const amountCents = toCents(amountLkr);
+  const amountCents = toPositiveCents(amountLkr);
 
-  // 1. If an idempotency key was supplied, check if an existing withdrawal matches
-  if (idempotencyKey) {
-    const existing = await db
-      .prepare(`SELECT id FROM withdrawals WHERE idempotency_key = ? AND deleted_at IS NULL`)
-      .bind(idempotencyKey)
-      .first<{ id: number }>();
-    if (existing?.id) {
-      return Number(existing.id);
-    }
+  const keys = [...new Set([idempotencyKey, legacyIdempotencyKey].filter((key): key is string => Boolean(key)))];
+  for (const key of keys) {
+    const existing = await idByKey(db, "withdrawals", key);
+    if (existing != null) return existing;
   }
 
-  // 2. Multi-submission deduplication guard: if an identical pending withdrawal exists, return it
   const recentDupe = await db
     .prepare(
       `SELECT id FROM withdrawals
-       WHERE user_id = ? AND player_id = ? AND amount = ? AND status = 'PENDING' AND deleted_at IS NULL
+       WHERE user_id = ? AND player_id = ? AND amount = ? AND payment_method = ?
+         AND status = 'PENDING' AND deleted_at IS NULL
          AND IFNULL(destination_account, '') = IFNULL(?, '')
          AND created_at >= datetime('now', '-5 minutes')
        ORDER BY id DESC LIMIT 1`
     )
-    .bind(userId, playerId, amountCents, destinationAccount)
+    .bind(userId, playerId, amountCents, paymentMethod, destinationAccount)
     .first<{ id: number }>();
-  if (recentDupe?.id) {
-    return Number(recentDupe.id);
-  }
+  if (recentDupe?.id) return Number(recentDupe.id);
 
   const insertStmt = db
     .prepare(
@@ -318,23 +335,42 @@ export async function addWithdrawal(
        VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
     )
     .bind(userId, username, playerId, amountCents, paymentMethod, destinationAccount, securityCode, idempotencyKey ?? null);
-
   const clearStmt = db.prepare(`DELETE FROM user_state WHERE user_id = ?`).bind(userId);
 
+  const recoverFromRace = async (err: unknown): Promise<number> => {
+    if (idempotencyKey) {
+      const winnerId = await idByKey(db, "withdrawals", idempotencyKey);
+      if (winnerId != null) return winnerId;
+    }
+    throw err;
+  };
+
   if (typeof db.batch === "function") {
-    const results = await db.batch([insertStmt, clearStmt]);
+    let results;
+    try {
+      results = await db.batch([insertStmt, clearStmt]);
+    } catch (err) {
+      return recoverFromRace(err);
+    }
     const first = results?.[0];
-    const id =
-      first?.results?.[0]?.id ??
-      first?.meta?.last_row_id ??
-      (await insertStmt.first<{ id: number }>())?.id ??
-      0;
-    return Number(id) || 0;
+    const id = first?.results?.[0]?.id ?? first?.meta?.last_row_id;
+    if (id != null && Number(id) > 0) return Number(id);
+    if (idempotencyKey) {
+      const committedId = await idByKey(db, "withdrawals", idempotencyKey);
+      if (committedId != null) return committedId;
+    }
+    throw new Error("Withdrawal insert succeeded but D1 did not return its row id");
   }
 
-  const result = await insertStmt.first<{ id: number }>();
+  let result: { id: number } | null;
+  try {
+    result = await insertStmt.first<{ id: number }>();
+  } catch (err) {
+    return recoverFromRace(err);
+  }
   await clearStmt.run();
-  return result?.id ?? 0;
+  if (result?.id == null) throw new Error("Withdrawal insert did not return its row id");
+  return Number(result.id);
 }
 
 export async function getPendingDeposits(db: D1Database, limit: number = 50) {
