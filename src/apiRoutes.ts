@@ -1166,9 +1166,10 @@ ${homeEntries}
     if (!adminAttemptAllowed(request)) return tooManyAttemptsResponse();
     const secret = (env.ADMIN_API_SECRET || "").trim();
     let supplied: string;
+    let loginForm: FormData | null = null;
     try {
-      const form = await request.formData();
-      supplied = String(form.get("secret") || "").trim();
+      loginForm = await request.formData();
+      supplied = String(loginForm.get("secret") || "").trim();
     } catch {
       supplied = "";
     }
@@ -1183,10 +1184,14 @@ ${homeEntries}
     }
 
     const token = await createAdminSessionToken(secret);
+    // Only same-origin, absolute paths are accepted as a post-login target so
+    // the login form cannot be used as an open redirect.
+    const requestedNext = loginForm ? String(loginForm.get("next") || "") : "";
+    const next = requestedNext.startsWith("/") && !requestedNext.startsWith("//") ? requestedNext : "/admin";
     return new Response(null, {
       status: 303,
       headers: {
-        Location: "/admin",
+        Location: next,
         "Cache-Control": "no-store",
         "Set-Cookie": adminSessionCookieHeader(request, token),
       },

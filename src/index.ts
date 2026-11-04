@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import http from "node:http";
+import { randomBytes } from "node:crypto";
 import { webhookCallback } from "grammy";
 import { createBot } from "./bot";
 import { createD1Database } from "./sqlite-d1";
@@ -8,8 +9,12 @@ import { logBotError } from "./logger";
 import { validateEnv } from "./config";
 import { landingPageSecurityHeaders } from "./security";
 import { renderLandingPage } from "./landingPage";
-import { handleApiRequest } from "./apiRoutes";
+import { handleApiRequest, adminRequestAuthorized } from "./apiRoutes";
 import { getPublicStatus } from "./publicStatus";
+import { handleOpsRequest } from "./opsRoutes";
+import { LocalTunnelSupervisor, scrapeMetrics } from "./cloudflared/supervisor";
+import { runMonitorCycle, TrafficSampler } from "./cloudflared/runtime";
+import { evaluateAccess, listAccessRules, recordEvent, resolveOpsConfig, type AccessRule, type OpsConfig } from "./cloudflared/store";
 import type { Env } from "./types";
 
 // Load .env file with explicit override support
@@ -39,6 +44,97 @@ const PORT = 3000;
 const HOST = "0.0.0.0";
 const dbPath = process.env.DB_PATH || "data/bot.db";
 const db = createD1Database(dbPath);
+
+/**
+ * Encryption key material for credentials saved on the Service Settings page.
+ * SECURITY_CODE_PEPPER (a deployment secret) is preferred; for local runs
+ * without it, a key is generated once next to the SQLite file, outside the
+ * repository, so stored tokens are still encrypted at rest.
+ */
+function resolveKeyMaterial(): string {
+  const pepper = (process.env.SECURITY_CODE_PEPPER || "").trim();
+  if (pepper.length >= 16) return pepper;
+  try {
+    const keyDir = path.dirname(path.resolve(dbPath));
+    const keyPath = path.join(keyDir, "cloudflared-encryption.key");
+    if (fs.existsSync(keyPath)) {
+      const existing = fs.readFileSync(keyPath, "utf8").trim();
+      if (existing.length >= 32) return existing;
+    }
+    const generated = randomBytes(32).toString("hex");
+    fs.mkdirSync(keyDir, { recursive: true });
+    fs.writeFileSync(keyPath, generated, { mode: 0o600 });
+    console.warn(`[Ops] SECURITY_CODE_PEPPER is not set; using a local credential key at ${keyPath}.`);
+    return generated;
+  } catch (err) {
+    console.warn("[Ops] Could not persist a credential key; saved credentials will not survive a restart:", err);
+    return randomBytes(32).toString("hex");
+  }
+}
+
+const keyMaterial = resolveKeyMaterial();
+
+const tunnelControl = new LocalTunnelSupervisor({
+  binary: process.env.CLOUDFLARED_BIN || "cloudflared",
+  tunnelToken: "",
+  metricsAddr: process.env.CLOUDFLARED_METRICS_ADDR || "127.0.0.1:20241",
+  originService: process.env.CLOUDFLARED_ORIGIN_SERVICE || `http://127.0.0.1:${PORT}`,
+});
+const trafficSampler = new TrafficSampler();
+let lastMonitorMessage: string | null = null;
+let monitorRunning = false;
+
+function applyControlConfig(config: OpsConfig): void {
+  tunnelControl.configure({
+    binary: config.cloudflaredBin || "cloudflared",
+    tunnelToken: config.tunnelToken,
+    metricsAddr: config.metricsAddr || "127.0.0.1:20241",
+    originService: config.originService || `http://127.0.0.1:${PORT}`,
+  });
+}
+
+/** Runs one health/traffic/alert cycle and returns a short result message. */
+async function refreshTunnelState(): Promise<string | null> {
+  if (monitorRunning) return "A monitoring cycle is already running.";
+  monitorRunning = true;
+  try {
+    const config = await resolveOpsConfig(db, keyMaterial, process.env);
+    applyControlConfig(config);
+    if (!config.apiToken && !config.tunnelToken && !tunnelControl.state().running) {
+      lastMonitorMessage = "Nothing to monitor yet: add a Cloudflare API token or a tunnel token on the Service Settings page.";
+      return lastMonitorMessage;
+    }
+    const snapshot = await runMonitorCycle(env, config, { control: tunnelControl, keyMaterial, scrape: scrapeMetrics }, trafficSampler);
+    lastMonitorMessage = `${snapshot.tunnelName} is ${snapshot.status}: ${snapshot.detail}`;
+    return lastMonitorMessage;
+  } catch (err) {
+    lastMonitorMessage = `Monitoring cycle failed: ${err instanceof Error ? err.message : String(err)}`;
+    console.error("[Ops] monitoring cycle failed", err);
+    return lastMonitorMessage;
+  } finally {
+    monitorRunning = false;
+  }
+}
+
+const opsDeps = {
+  control: tunnelControl,
+  keyMaterial,
+  isAdmin: (request: Request) => adminRequestAuthorized(request, env),
+  prepareControl: applyControlConfig,
+  refresh: refreshTunnelState,
+  lastMonitorMessage: () => lastMonitorMessage,
+  sampler: trafficSampler,
+  scrape: scrapeMetrics,
+};
+
+// Access rules are cached briefly so the request gate does not query per asset.
+let accessRuleCache: { rules: AccessRule[]; at: number } | null = null;
+async function activeAccessRules(): Promise<AccessRule[]> {
+  if (accessRuleCache && Date.now() - accessRuleCache.at < 10_000) return accessRuleCache.rules;
+  const rules = await listAccessRules(db).catch(() => [] as AccessRule[]);
+  accessRuleCache = { rules, at: Date.now() };
+  return rules;
+}
 
 const localAssetsFetcher = {
   async fetch(request: Request | string): Promise<Response> {
@@ -104,6 +200,14 @@ const env: Env = {
   MCASH_NUMBER: process.env.MCASH_NUMBER || "",
   FRIMI_NUMBER: process.env.FRIMI_NUMBER || "",
   IPAY_NUMBER: process.env.IPAY_NUMBER || "",
+  SECURITY_CODE_PEPPER: process.env.SECURITY_CODE_PEPPER || "",
+  CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN || "",
+  CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID || "",
+  CLOUDFLARED_TUNNEL_TOKEN: process.env.CLOUDFLARED_TUNNEL_TOKEN || "",
+  CLOUDFLARED_TUNNEL_NAME: process.env.CLOUDFLARED_TUNNEL_NAME || "",
+  CLOUDFLARED_METRICS_ADDR: process.env.CLOUDFLARED_METRICS_ADDR || "",
+  CLOUDFLARED_ORIGIN_SERVICE: process.env.CLOUDFLARED_ORIGIN_SERVICE || "",
+  CLOUDFLARED_BIN: process.env.CLOUDFLARED_BIN || "",
 };
 
 const envErrors = validateEnv(env);
@@ -184,6 +288,34 @@ const server = http.createServer(async (req, res) => {
     const webReq = await nodeToWebRequest(req, host);
     const url = new URL(webReq.url);
 
+    // Access rules gate: only path scopes the operator has configured are
+    // governed; everything else keeps the app's normal authorization.
+    try {
+      const rules = await activeAccessRules();
+      if (rules.some((rule) => Number(rule.enabled) === 1)) {
+        const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+        const ip = String(req.headers["cf-connecting-ip"] || forwarded || "").trim();
+        const email = String(req.headers["cf-access-authenticated-user-email"] || "").trim();
+        const decision = evaluateAccess(rules, { ip, email, path: url.pathname });
+        if (!decision.allowed) {
+          await recordEvent(db, {
+            level: "warn",
+            action: "access_denied",
+            actor: "gate",
+            message: `Denied ${url.pathname} for ${ip || "unknown client"}: ${decision.reason}`,
+          }).catch(() => {});
+          res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
+          res.end("Forbidden");
+          return;
+        }
+        if (decision.rule) {
+          res.setHeader("X-Access-Rule", decision.rule.name.slice(0, 100));
+        }
+      }
+    } catch (err) {
+      console.warn("[Ops] access rule evaluation failed", err);
+    }
+
     // Keep the node preview/runtime contract identical to the deployed Worker.
     if (url.pathname === "/api/status" && (method === "GET" || method === "HEAD")) {
       const status = getPublicStatus(env, "node");
@@ -198,7 +330,15 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // 1. Dispatch shared API routes (health, dashboard, tickets, schedule, receipts, cleanup)
+    // 1. Cloudflared operations pages and admin actions. Dispatched before the
+    // shared API routes, which answer /api/* with their own 404 fallback.
+    const opsResponse = await handleOpsRequest(webReq, env, opsDeps);
+    if (opsResponse) {
+      await sendWebResponse(res, opsResponse);
+      return;
+    }
+
+    // 2. Dispatch shared API routes (health, dashboard, tickets, schedule, receipts, cleanup)
     const apiResponse = await handleApiRequest(webReq, env, { runtime: "node", isPolling: usePolling });
     if (apiResponse) {
       await sendWebResponse(res, apiResponse);
@@ -255,6 +395,16 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => console.log(`[XBet Bot Server] Running on http://${HOST}:${PORT}`));
+
+// Cloudflared monitoring: one health/traffic/alert cycle per minute. The timer
+// is unref'd so it never keeps the process alive on its own.
+const monitorTimer = setInterval(() => {
+  void refreshTunnelState();
+}, 60_000);
+monitorTimer.unref();
+setTimeout(() => {
+  void refreshTunnelState();
+}, 4000).unref();
 
 const shutdown = (signal: string) => {
   console.log(`[XBet Bot Server] Received ${signal}. Shutting down gracefully...`);

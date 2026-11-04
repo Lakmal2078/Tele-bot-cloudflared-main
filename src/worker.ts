@@ -8,7 +8,11 @@ import { getPublicTips, publicTipsClientScript } from "./publicTips";
 import { assertValidEnv, constantTimeEqual, validateEnv } from "./config";
 import { landingPageSecurityHeaders, securityHeaders, webhookRequestAllowed } from "./security";
 import { renderLandingPage, trustedPublicBaseUrl } from "./landingPage";
-import { handleApiRequest, json } from "./apiRoutes";
+import { adminRequestAuthorized, handleApiRequest, json } from "./apiRoutes";
+import { handleOpsRequest } from "./opsRoutes";
+import { UnsupportedTunnelControl } from "./cloudflared/supervisor";
+import { collectHealth, persistHealth } from "./cloudflared/runtime";
+import { resolveOpsConfig } from "./cloudflared/store";
 import { getPublicStatus } from "./publicStatus";
 import { logEvent, requestId, withRequestId } from "./observability";
 import type { Env, ExecutionContext, ScheduledEvent } from "./types";
@@ -208,6 +212,29 @@ ${homeEntries}
         const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(requestedLimit, 20)) : 12;
         return finish(json(await getPublicTips(env, limit), 200, headers));
       }
+
+      // Cloudflared operations pages. The Worker cannot spawn a connector, so
+      // tunnel control reports itself as unsupported while health is read from
+      // the Cloudflare API.
+      const opsKeyMaterial = (env.SECURITY_CODE_PEPPER || "").trim();
+      const tunnelControl = new UnsupportedTunnelControl();
+      const opsResponse = await handleOpsRequest(request, env, {
+        control: tunnelControl,
+        keyMaterial: opsKeyMaterial,
+        isAdmin: (req: Request) => adminRequestAuthorized(req, env),
+        prepareControl: () => {},
+        refresh: async () => {
+          const config = await resolveOpsConfig(env.DB, opsKeyMaterial, env as unknown as Record<string, string | undefined>);
+          if (!config.apiToken) {
+            return "This runtime cannot start a connector. Save a Cloudflare API token on the settings page to read tunnel health.";
+          }
+          const snapshot = await collectHealth(config, { control: tunnelControl, keyMaterial: opsKeyMaterial });
+          await persistHealth(env, config, snapshot, { control: tunnelControl, keyMaterial: opsKeyMaterial });
+          return `${snapshot.tunnelName} is ${snapshot.status}: ${snapshot.detail}`;
+        },
+        lastMonitorMessage: () => null,
+      });
+      if (opsResponse) return finish(opsResponse);
 
       const apiResponse = await handleApiRequest(request, env, { runtime: "cf-worker" });
       if (apiResponse) return finish(apiResponse);

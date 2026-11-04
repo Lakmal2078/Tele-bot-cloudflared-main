@@ -119,6 +119,14 @@ export interface Env {
   // Analytics
   CF_BEACON_TOKEN?: string;
   CLOUDFLARE_ANALYTICS_TOKEN?: string;
+  // Cloudflared operations (tunnel health, connector control, traffic metrics)
+  CLOUDFLARE_API_TOKEN?: string;
+  CLOUDFLARE_ACCOUNT_ID?: string;
+  CLOUDFLARED_TUNNEL_TOKEN?: string;
+  CLOUDFLARED_TUNNEL_NAME?: string;
+  CLOUDFLARED_METRICS_ADDR?: string;
+  CLOUDFLARED_ORIGIN_SERVICE?: string;
+  CLOUDFLARED_BIN?: string;
 }
 
 export interface UserRow {
