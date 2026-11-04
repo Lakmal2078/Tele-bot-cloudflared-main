@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { hasValidAdminSession } from "../src/adminSession";
 import {
   adminAttemptAllowed,
   adminAttemptAllowedNode,
@@ -108,6 +109,22 @@ describe("security headers", () => {
     expect(headers["X-DNS-Prefetch-Control"]).toBe("off");
     expect(headers["X-Permitted-Cross-Domain-Policies"]).toBe("none");
     expect(headers["Origin-Agent-Cluster"]).toBe("?1");
+  });
+
+  it("does not publicly cache a landing page that carries a CSP nonce", () => {
+    const withNonce = landingPageSecurityHeaders("abcdef1234567890");
+    expect(withNonce["Cache-Control"]).toContain("no-store");
+    expect(withNonce["Cache-Control"]).not.toContain("s-maxage");
+
+    const withoutNonce = landingPageSecurityHeaders();
+    expect(withoutNonce["Cache-Control"]).toContain("s-maxage=86400");
+  });
+
+  it("treats a malformed admin session cookie as unauthenticated", async () => {
+    const request = new Request("https://example.test/admin", {
+      headers: { Cookie: "admin_session=%" },
+    });
+    await expect(hasValidAdminSession(request, { ADMIN_API_SECRET: "x".repeat(32) })).resolves.toBe(false);
   });
 
   it("returns strict landing page CSP with frame-ancestors none and nonce support", () => {
