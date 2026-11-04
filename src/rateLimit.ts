@@ -211,7 +211,7 @@ export class RateLimiter {
     userId: number | undefined,
     now: number = Date.now()
   ): Promise<RateLimitResult> {
-    const cleanCmd = commandName.toLowerCase().replace(/^\\//, "").trim();
+    const cleanCmd = commandName.toLowerCase().replace(/^\//, "").trim();
     const rule = this.commandLimits.get(cleanCmd) || this.defaultCommandLimit;
     if (!rule) return { allowed: true };
     return this.checkScopePersistent(`cmd:${cleanCmd}`, userId, rule, now);
