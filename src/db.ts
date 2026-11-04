@@ -43,30 +43,40 @@ export async function consumeRateLimitBuckets(
   now = Date.now()
 ): Promise<RateLimitBucketState[]> {
   if (buckets.length === 0) return [];
-  const values = buckets.map(() => "(?, 1, ?, ?)").join(", ");
-  const bindings = buckets.flatMap((bucket) => [
-    bucket.key,
-    now + Math.max(1, bucket.windowMs),
-    Math.max(1, Math.floor(bucket.limit)),
-  ]);
+  if (!db.batch) throw new Error("D1 batch support is required for atomic rate limiting");
+
+  const keys = buckets.map((bucket) => bucket.key);
+  const statements = [
+    ...buckets.map((bucket) =>
+      db.prepare(
+        "INSERT OR IGNORE INTO rate_limit_buckets (bucket_key, count, reset_at, max_count) VALUES (?, 0, ?, ?)"
+      ).bind(bucket.key, now + Math.max(1, bucket.windowMs), Math.max(1, Math.floor(bucket.limit)))
+    ),
+    db.prepare(
+      `UPDATE rate_limit_buckets
+       SET count = CASE WHEN reset_at <= ? THEN 1 ELSE count + 1 END,
+           reset_at = CASE WHEN reset_at <= ? THEN ? ELSE reset_at END
+       WHERE bucket_key IN (${keys.map(() => "?").join(", ")})
+         AND NOT EXISTS (
+           SELECT 1 FROM rate_limit_buckets
+           WHERE bucket_key IN (${keys.map(() => "?").join(", ")})
+             AND reset_at > ?
+             AND count >= max_count
+         )`
+    ).bind(
+      now,
+      now,
+      ...buckets.map((bucket) => now + Math.max(1, bucket.windowMs)),
+      ...keys,
+      ...keys,
+      now
+    ),
+  ];
+
+  await db.batch(statements);
   const result = await db
-    .prepare(
-      `INSERT INTO rate_limit_buckets (bucket_key, count, reset_at, max_count)
-       VALUES ${values}
-       ON CONFLICT(bucket_key) DO UPDATE SET
-         count = CASE
-           WHEN rate_limit_buckets.reset_at <= ? THEN 1
-           WHEN rate_limit_buckets.count < excluded.max_count + 1 THEN rate_limit_buckets.count + 1
-           ELSE rate_limit_buckets.count
-         END,
-         reset_at = CASE
-           WHEN rate_limit_buckets.reset_at <= ? THEN excluded.reset_at
-           ELSE rate_limit_buckets.reset_at
-         END,
-         max_count = excluded.max_count
-       RETURNING bucket_key, count, reset_at`
-    )
-    .bind(...bindings, now, now)
+    .prepare(`SELECT bucket_key, count, reset_at FROM rate_limit_buckets WHERE bucket_key IN (${keys.map(() => "?").join(", ")})`)
+    .bind(...keys)
     .all<RateLimitBucketState>();
   return result.results || [];
 }
