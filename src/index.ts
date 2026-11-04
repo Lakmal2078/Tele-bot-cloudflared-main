@@ -155,7 +155,7 @@ function trustsForwardedAddressHeaders(): boolean {
 
 function normalizeSocketAddress(address: string): string {
   const trimmed = address.trim();
-  const mapped = /^::ffff:(\\d{1,3}(?:\\.\\d{1,3}){3})$/i.exec(trimmed);
+  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(trimmed);
   return mapped ? mapped[1] : trimmed;
 }
 
