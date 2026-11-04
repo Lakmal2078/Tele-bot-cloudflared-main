@@ -34,6 +34,7 @@ export interface RateLimitBucketState {
   bucket_key: string;
   count: number;
   reset_at: number;
+  consumed?: boolean;
 }
 
 /** Atomically consumes one slot in each bucket, shared by every Worker isolate. */
@@ -73,12 +74,13 @@ export async function consumeRateLimitBuckets(
     ),
   ];
 
-  await db.batch(statements);
+  const batchResults = await db.batch(statements);
+  const consumed = (batchResults[batchResults.length - 1]?.meta?.changes ?? 0) === buckets.length;
   const result = await db
     .prepare(`SELECT bucket_key, count, reset_at FROM rate_limit_buckets WHERE bucket_key IN (${keys.map(() => "?").join(", ")})`)
     .bind(...keys)
     .all<RateLimitBucketState>();
-  return result.results || [];
+  return (result.results || []).map((state) => ({ ...state, consumed }));
 }
 
 /** Read a failure counter without consuming an attempt. */
