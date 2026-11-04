@@ -56,7 +56,7 @@ export async function consumeRateLimitBuckets(
     db.prepare(
       `UPDATE rate_limit_buckets
        SET count = CASE WHEN reset_at <= ? THEN 1 ELSE count + 1 END,
-           reset_at = CASE WHEN reset_at <= ? THEN ? ELSE reset_at END
+           reset_at = CASE WHEN reset_at <= ? THEN CASE bucket_key ${buckets.map(() => "WHEN ? THEN ?").join(" ")} END ELSE reset_at END
        WHERE bucket_key IN (${keys.map(() => "?").join(", ")})
          AND NOT EXISTS (
            SELECT 1 FROM rate_limit_buckets
