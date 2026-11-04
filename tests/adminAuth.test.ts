@@ -201,8 +201,13 @@ describe("tip click endpoint abuse controls", () => {
       prepare(sql: string) {
         const statement = baseDb.prepare(sql);
         if (!sql.includes("INSERT INTO tip_clicks")) return statement;
-        return new Proxy(statement, {
+        let proxy: any;
+        proxy = new Proxy(statement, {
           get(target, property) {
+            if (property === "bind") return (...args: any[]) => {
+              target.bind(...args);
+              return proxy;
+            };
             if (property === "run") {
               return async () => {
                 clickWrites += 1;
@@ -213,6 +218,7 @@ describe("tip click endpoint abuse controls", () => {
             return typeof value === "function" ? value.bind(target) : value;
           },
         });
+        return proxy;
       },
       batch: baseDb.batch.bind(baseDb),
     };
