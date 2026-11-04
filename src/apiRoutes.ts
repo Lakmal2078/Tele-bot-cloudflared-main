@@ -28,6 +28,9 @@ function getPublicBotDescriptionJpeg(): Uint8Array {
 const MAX_ANALYTICS_BODY_BYTES = 8 * 1024;
 const ANALYTICS_RATE_WINDOW_MS = 60_000;
 const ANALYTICS_RATE_LIMIT = 120;
+const MAX_ADMIN_LOGIN_BODY_BYTES = 4 * 1024;
+const TIP_CLICK_RATE_WINDOW_MS = 60_000;
+const TIP_CLICK_RATE_LIMIT = 30;
 
 async function analyticsRequestAllowed(request: Request, env: Env, now = Date.now()): Promise<boolean> {
   const rawIp = request.headers.get("CF-Connecting-IP")?.trim() || "";
@@ -856,13 +859,36 @@ ${homeEntries}
   }
 
   // Affiliate Click Tracking & 302 Redirect for Tip Picks (/go/tip/:id)
-  const tipClickMatch = path.match(/^\/go\/tip\/([a-zA-Z0-9_-]+)/);
+  const tipClickMatch = path.match(/^\/go\/tip\/([^/]+)$/);
   if (tipClickMatch && (method === "GET" || method === "HEAD")) {
     const rawTipId = tipClickMatch[1];
-    const tipPostId = parseInt(rawTipId, 10);
+    const tipPostId = Number(rawTipId);
     const eventId = url.searchParams.get("event") || url.searchParams.get("event_id") || "";
     const selection = url.searchParams.get("pick") || url.searchParams.get("selection") || "";
     const customUrl = url.searchParams.get("url") || "";
+
+    if (!/^\d+$/.test(rawTipId) || !Number.isSafeInteger(tipPostId) || tipPostId <= 0) {
+      return json({ ok: false, error: "Invalid tip id" }, 400);
+    }
+    if (eventId.length > 128 || selection.length > 128 || customUrl.length > 2048) {
+      return json({ ok: false, error: "Tracking parameters are too long" }, 400);
+    }
+
+    if (method === "GET" && env.DB) {
+      const rawIp = request.headers.get("CF-Connecting-IP")?.trim() || "";
+      const ipHash = rawIp ? await hashClientIp(rawIp, env) : null;
+      const [bucket] = await consumeRateLimitBuckets(
+        env.DB,
+        [{
+          key: `tip-click:${ipHash || "unknown-client"}`,
+          limit: TIP_CLICK_RATE_LIMIT,
+          windowMs: TIP_CLICK_RATE_WINDOW_MS,
+        }]
+      );
+      if (!bucket?.consumed) {
+        return json({ ok: false, error: "Too many clicks. Try again later." }, 429, { "Retry-After": "60" });
+      }
+    }
 
     const defaultBase = env.XBET_LINK?.trim() || "";
     let destinationUrl = defaultBase;
@@ -902,7 +928,7 @@ ${homeEntries}
     } catch {}
 
     // Asynchronously log click to DB
-    if (env.DB) {
+    if (env.DB && method === "GET") {
       const userAgent = request.headers.get("user-agent") || "";
       const referer = request.headers.get("referer") || "";
       const rawIp = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "";
@@ -1176,15 +1202,24 @@ ${homeEntries}
   // Admin login: the secret is POSTed once and exchanged for a signed,
   // HttpOnly session cookie so it never appears in a URL.
   if ((path === "/admin/login" || path === "/panel/login") && method === "POST") {
+    if (!isAdminIpAllowed(request, env)) return json({ ok: false, error: "Forbidden" }, 403);
     if (!(await adminAttemptAllowedPersistent(request, env))) return tooManyAttemptsResponse();
-    const secret = (env.ADMIN_API_SECRET || "").trim();
-    let supplied: string;
-    try {
-      const form = await request.formData();
-      supplied = String(form.get("secret") || "").trim();
-    } catch {
-      supplied = "";
+
+    const contentType = request.headers.get("Content-Type")?.split(";", 1)[0].trim().toLowerCase();
+    if (contentType !== "application/x-www-form-urlencoded") {
+      return json({ ok: false, error: "Unsupported Media Type" }, 415);
     }
+    const contentLength = request.headers.get("Content-Length");
+    if (contentLength && (!/^\d+$/.test(contentLength) || Number(contentLength) > MAX_ADMIN_LOGIN_BODY_BYTES)) {
+      return json({ ok: false, error: "Request body too large" }, 413);
+    }
+
+    const bodyText = await readBoundedText(request, MAX_ADMIN_LOGIN_BODY_BYTES);
+    if (bodyText === null) return json({ ok: false, error: "Request body too large" }, 413);
+    const form = new URLSearchParams(bodyText);
+    const suppliedValues = form.getAll("secret");
+    const supplied = suppliedValues.length === 1 ? suppliedValues[0].trim() : "";
+    const secret = (env.ADMIN_API_SECRET || "").trim();
 
     if (!secret || !supplied || !constantTimeEqual(supplied, secret)) {
       const nonce = crypto.randomUUID().replace(/-/g, "");
@@ -1219,6 +1254,7 @@ ${homeEntries}
 
   // Admin panel web interface (/admin, /admin/, /panel)
   if ((path === "/admin" || path === "/admin/" || path === "/panel") && (method === "GET" || method === "HEAD")) {
+    if (!isAdminIpAllowed(request, env)) return json({ ok: false, error: "Forbidden" }, 403);
     // Fail closed: with no ADMIN_API_SECRET configured nobody is authorized.
     if (!(await adminAttemptAllowedPersistent(request, env))) return tooManyAttemptsResponse();
     const isAuth = await adminRequestAuthorized(request, env);
