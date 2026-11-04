@@ -38,6 +38,45 @@ export interface R2StorageAnalytics {
  * Calculates count and byte usage for receipts and logs,
  * newest receipt backup timestamp, and total storage utilization.
  */
+interface PrefixAnalytics {
+  count: number;
+  totalBytes: number;
+  latestUploadedAt: string | null;
+}
+
+async function summarizePrefix(env: Env, prefix: string): Promise<PrefixAnalytics> {
+  let cursor: string | undefined;
+  let count = 0;
+  let totalBytes = 0;
+  let latestUploadedAt: string | null = null;
+  const seenCursors = new Set<string>();
+
+  let hasMore = true;
+  while (hasMore) {
+    const page = await listObjects(env, prefix, cursor);
+    for (const object of page.objects) {
+      count += 1;
+      totalBytes += object.size || 0;
+      if (object.uploaded) {
+        const uploadedAt = object.uploaded.toISOString();
+        if (!latestUploadedAt || uploadedAt > latestUploadedAt) latestUploadedAt = uploadedAt;
+      }
+    }
+
+    if (!page.truncated) {
+      hasMore = false;
+    } else {
+      if (!page.cursor || seenCursors.has(page.cursor)) {
+        throw new Error(`R2 pagination did not advance for prefix: ${prefix}`);
+      }
+      seenCursors.add(page.cursor);
+      cursor = page.cursor;
+    }
+  }
+
+  return { count, totalBytes, latestUploadedAt };
+}
+
 export async function getR2StorageAnalytics(env: Env): Promise<R2StorageAnalytics> {
   const configured = isR2Configured(env);
   const bucket = getBucketName(env);
@@ -63,25 +102,16 @@ export async function getR2StorageAnalytics(env: Env): Promise<R2StorageAnalytic
   }
 
   try {
-    const [receiptsRes, logsRes] = await Promise.all([
-      listObjects(env, "receipts/").catch(() => ({ objects: [], truncated: false })),
-      listObjects(env, "logs/").catch(() => ({ objects: [], truncated: false })),
+    const [receipts, logs] = await Promise.all([
+      summarizePrefix(env, "receipts/"),
+      summarizePrefix(env, "logs/"),
     ]);
 
-    const receiptsCount = receiptsRes.objects.length;
-    const receiptsTotalBytes = receiptsRes.objects.reduce((sum, obj) => sum + (obj.size || 0), 0);
-    let lastReceiptUploadedAt: string | null = null;
-    for (const obj of receiptsRes.objects) {
-      if (obj.uploaded) {
-        const iso = obj.uploaded.toISOString();
-        if (!lastReceiptUploadedAt || iso > lastReceiptUploadedAt) {
-          lastReceiptUploadedAt = iso;
-        }
-      }
-    }
-
-    const logsCount = logsRes.objects.length;
-    const logsTotalBytes = logsRes.objects.reduce((sum, obj) => sum + (obj.size || 0), 0);
+    const receiptsCount = receipts.count;
+    const receiptsTotalBytes = receipts.totalBytes;
+    const lastReceiptUploadedAt = receipts.latestUploadedAt;
+    const logsCount = logs.count;
+    const logsTotalBytes = logs.totalBytes;
 
     const totalObjects = receiptsCount + logsCount;
     const totalStorageBytes = receiptsTotalBytes + logsTotalBytes;

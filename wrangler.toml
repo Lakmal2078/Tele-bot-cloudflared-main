@@ -3,6 +3,18 @@ main = "src/worker.ts"
 compatibility_date = "2026-09-09"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
+upload_source_maps = true
+
+[observability]
+enabled = true
+
+  [observability.logs]
+  enabled = true
+  head_sampling_rate = 0.1
+
+  [observability.traces]
+  enabled = true
+  head_sampling_rate = 0.05
 
 # Cloudflare Workers Static Assets.
 # public/og-image.jpg is the canonical OpenGraph image asset.

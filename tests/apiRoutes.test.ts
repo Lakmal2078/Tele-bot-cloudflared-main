@@ -185,4 +185,50 @@ describe("handleApiRequest", () => {
     const data = (await res?.json()) as any;
     expect(data.error).toContain("adminId must be a registered ID");
   });
+  it("rejects insecure custom tip redirect URLs and falls back to the configured HTTPS URL", async () => {
+    const req = new Request("https://worker.test/go/tip/42?url=http%3A%2F%2F1xbet.com%2Foffer");
+    const res = await handleApiRequest(req, mockEnv);
+    expect(res?.status).toBe(302);
+    expect(res?.headers.get("Location")).toContain("https://example.com/");
+  });
+
+  it("rejects an insecure configured default tip destination", async () => {
+    const insecureEnv = { ...mockEnv, XBET_LINK: "http://example.com" };
+    const req = new Request("https://worker.test/go/tip/42");
+    const res = await handleApiRequest(req, insecureEnv);
+    expect(res?.status).toBe(503);
+    expect(res?.headers.get("Cache-Control")).toBe("no-store");
+  });
+
+  it("registers click persistence with the Cloudflare execution context", async () => {
+    const scheduled: Promise<unknown>[] = [];
+    const executionContext = { waitUntil: (promise: Promise<unknown>) => scheduled.push(promise) };
+    const req = new Request("https://worker.test/go/tip/42");
+    const res = await handleApiRequest(req, mockEnv, { runtime: "cf-worker", executionContext });
+    expect(res?.status).toBe(302);
+    expect(scheduled).toHaveLength(1);
+    await Promise.all(scheduled);
+  });
+
+  it("marks receipt responses as non-cacheable for GET and HEAD", async () => {
+    const receiptEnv = {
+      ...mockEnv,
+      CHAT_MEDIA: {
+        put: async () => ({}),
+        get: async () => ({
+          body: new Uint8Array([1, 2, 3]),
+          size: 3,
+          httpMetadata: { contentType: "image/jpeg" },
+        }),
+      },
+    } as unknown as Env;
+    const headers = { Authorization: `Bearer ${mockEnv.ADMIN_API_SECRET}` };
+
+    for (const method of ["GET", "HEAD"]) {
+      const req = new Request("https://worker.test/api/admin/receipts?key=receipts/test.jpg", { method, headers });
+      const res = await handleApiRequest(req, receiptEnv);
+      expect(res?.status).toBe(200);
+      expect(res?.headers.get("Cache-Control")).toBe("no-store");
+    }
+  });
 });

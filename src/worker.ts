@@ -211,7 +211,7 @@ ${homeEntries}
         return finish(json(await getPublicTips(env, limit), 200, headers));
       }
 
-      const apiResponse = await handleApiRequest(request, env, { runtime: "cf-worker" });
+      const apiResponse = await handleApiRequest(request, env, { runtime: "cf-worker", ...(ctx ? { executionContext: ctx } : {}) });
       if (apiResponse) return finish(apiResponse);
 
       if (method === "GET" || method === "HEAD") {

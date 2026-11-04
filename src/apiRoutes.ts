@@ -1,4 +1,4 @@
-import type { Env } from "./types";
+import type { Env, ExecutionContext } from "./types";
 import { OG_IMAGE_PNG, OG_IMAGE_JPEG } from "./ogImage";
 import { BRAND_LOGO_SVG, BRAND_LOGO_PNG_192 } from "./brandLogo";
 import { FAVICON_PNG_BASE64 } from "./brandFaviconData";
@@ -344,7 +344,7 @@ function adminHtmlHeaders(nonce: string): Record<string, string> {
 export async function handleApiRequest(
   request: Request,
   env: Env,
-  options?: { runtime?: "cf-worker" | "node"; isPolling?: boolean }
+  options?: { runtime?: "cf-worker" | "node"; isPolling?: boolean; executionContext?: Pick<ExecutionContext, "waitUntil"> }
 ): Promise<Response | null> {
   const url = new URL(request.url);
   const path = url.pathname;
@@ -906,7 +906,7 @@ ${homeEntries}
         const isAllowed = allowedHosts.some(
           (h) => parsed.hostname === h || parsed.hostname.endsWith(`.${h}`)
         );
-        if (isAllowed) {
+        if (parsed.protocol === "https:" && isAllowed) {
           destinationUrl = customUrl;
         }
       } catch {}
@@ -919,13 +919,21 @@ ${homeEntries}
       });
     }
 
-    // Attach tracking parameters
+    // Enforce HTTPS for both the configured default and any custom destination.
+    let destObj: URL;
     try {
-      const destObj = new URL(destinationUrl);
-      if (rawTipId) destObj.searchParams.set("sub1", `tip_${rawTipId}`);
-      if (eventId) destObj.searchParams.set("sub2", eventId);
-      destinationUrl = destObj.toString();
-    } catch {}
+      destObj = new URL(destinationUrl);
+    } catch {
+      return json({ ok: false, error: "Tip destination is invalid" }, 503, { "Cache-Control": "no-store" });
+    }
+    if (destObj.protocol !== "https:") {
+      return json({ ok: false, error: "Tip destination must use HTTPS" }, 503, { "Cache-Control": "no-store" });
+    }
+
+    // Attach tracking parameters.
+    if (rawTipId) destObj.searchParams.set("sub1", `tip_${rawTipId}`);
+    if (eventId) destObj.searchParams.set("sub2", eventId);
+    destinationUrl = destObj.toString();
 
     // Asynchronously log click to DB
     if (env.DB && method === "GET") {
@@ -934,7 +942,7 @@ ${homeEntries}
       const rawIp = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "";
       const ipHash = rawIp ? await hashClientIp(rawIp, env) : null;
 
-      env.DB.prepare(`
+      const clickLog = env.DB.prepare(`
         INSERT INTO tip_clicks (tip_post_id, event_id, selection, target_url, user_agent, referer, ip_hash, clicked_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
       `).bind(
@@ -948,6 +956,12 @@ ${homeEntries}
       ).run().catch((err) => {
         console.warn("[Tip Click Log Error]:", err);
       });
+
+      if (options?.executionContext) {
+        options.executionContext.waitUntil(clickLog);
+      } else {
+        await clickLog;
+      }
     }
 
     return new Response(null, {
@@ -1467,7 +1481,7 @@ ${homeEntries}
           "Content-Type": obj.contentType,
           "Content-Security-Policy": "default-src 'none'",
           "X-Content-Type-Options": "nosniff",
-          "Cache-Control": "private, max-age=3600",
+          "Cache-Control": "no-store",
         },
       });
     }
@@ -1478,7 +1492,7 @@ ${homeEntries}
         "Content-Type": obj.contentType,
         "Content-Security-Policy": "default-src 'none'",
         "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "private, max-age=3600",
+        "Cache-Control": "no-store",
       },
     });
   }
