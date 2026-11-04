@@ -2,21 +2,10 @@ import { describe, expect, it } from "vitest";
 import { renderLandingPage } from "../src/landingPage";
 import { handleApiRequest } from "../src/apiRoutes";
 import type { Env, D1Database } from "../src/types";
+import { createMockD1 } from "./helpers/mockD1";
 
 const mockEnv: Env = {
-  DB: {
-    prepare: () => ({
-      bind: () => ({
-        first: async () => null,
-        all: async () => ({ results: [] }),
-        run: async () => ({ success: true }),
-      }),
-    }),
-    batch: async (statements: any[]) => statements.map((_: any, index: number) => ({
-      success: true,
-      meta: { changes: index === statements.length - 1 ? statements.length - 1 : 1 },
-    })),
-  } as unknown as D1Database,
+  DB: createMockD1() as D1Database,
   BOT_TOKEN: "mock_token_123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ",
   PUBLIC_BASE_URL: "https://fast-xbet.lk",
   ADMIN_IDS: "123456789",
