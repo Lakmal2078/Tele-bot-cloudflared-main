@@ -97,6 +97,162 @@ export function renderAdminLoginPage(
       body { padding: 16px 12px; }
       .login-card { width: 100%; padding: 24px 16px; border-radius: 12px; }
     }
+
+    /* Premium Dark Analytics refresh */
+    :root {
+      color-scheme: dark;
+      --surface-0: #070b12;
+      --surface-1: #0c1422;
+      --surface-2: #101c2e;
+      --line: rgba(148, 163, 184, .14);
+      --muted: #8ea0b8;
+      --emerald: #34d399;
+      --cyan: #38bdf8;
+    }
+    html { scroll-behavior: smooth; scroll-padding-top: 20px; }
+    body {
+      background:
+        radial-gradient(ellipse at 12% -8%, rgba(16,185,129,.12), transparent 34rem),
+        radial-gradient(ellipse at 92% 0%, rgba(56,189,248,.10), transparent 30rem),
+        var(--surface-0);
+      padding: 28px 24px 40px;
+    }
+    .container { max-width: 1480px; }
+    .header-bar {
+      background:
+        radial-gradient(circle at 8% 0%, rgba(16,185,129,.12), transparent 42%),
+        linear-gradient(135deg, rgba(16,28,45,.98), rgba(8,15,27,.98));
+      border-color: rgba(56,189,248,.20);
+      border-radius: 20px;
+      padding: 24px 28px;
+      box-shadow: 0 18px 55px rgba(0,0,0,.24), inset 0 1px rgba(255,255,255,.035);
+    }
+    .card, .kpi-card {
+      background: linear-gradient(155deg, rgba(17,29,47,.96), rgba(11,19,32,.98));
+      border: 1px solid var(--line);
+      box-shadow: 0 12px 34px rgba(0,0,0,.16), inset 0 1px rgba(255,255,255,.025);
+    }
+    .card { border-radius: 18px; padding: 24px; }
+    .kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+    .kpi-card {
+      position: relative;
+      overflow: hidden;
+      min-width: 0;
+      border-radius: 16px;
+      padding: 22px;
+      transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+    }
+    .kpi-card::after {
+      content: "";
+      position: absolute;
+      width: 120px; height: 120px;
+      right: -48px; top: -64px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(56,189,248,.12), transparent 70%);
+      pointer-events: none;
+    }
+    .kpi-card:hover { transform: translateY(-2px); border-color: rgba(56,189,248,.28); box-shadow: 0 16px 38px rgba(0,0,0,.24); }
+    .kpi-label { letter-spacing: .08em; font-size: 11px; }
+    .kpi-value { font-size: clamp(21px, 2vw, 29px); letter-spacing: -.04em; }
+    .badge { backdrop-filter: blur(10px); }
+    .chart-box {
+      background: linear-gradient(180deg, rgba(8,17,30,.96), rgba(8,14,25,.96));
+      border-color: rgba(56,189,248,.16);
+      border-radius: 16px;
+      overflow-x: auto;
+    }
+    .r2-stat-card {
+      background: rgba(5,12,22,.52);
+      border-color: rgba(148,163,184,.12);
+      border-radius: 14px;
+    }
+    .table-container {
+      border: 1px solid rgba(148,163,184,.10);
+      border-radius: 12px;
+      overflow-x: auto;
+    }
+    table { min-width: 620px; }
+    tbody tr:hover { background: rgba(56,189,248,.045); }
+    .btn, .btn-tab, .polling-select { transition: background .18s ease, border-color .18s ease, transform .18s ease; }
+    .btn-primary { background: linear-gradient(135deg, #34d399, #10b981); box-shadow: 0 6px 18px rgba(16,185,129,.16); }
+    .btn-tab.active { background: linear-gradient(135deg, #34d399, #10b981); border-color: #34d399; }
+    .mobile-dashboard-nav { display: none; }
+    @media (min-width: 769px) {
+      .operational-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (min-width: 769px) and (max-width: 1100px) {
+      body { padding: 22px 18px 36px; }
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .card { padding: 20px; }
+    }
+    @media (max-width: 768px) {
+      body { padding: 12px 12px calc(92px + env(safe-area-inset-bottom)); }
+      .container { max-width: 100%; }
+      .header-bar { padding: 18px 16px; border-radius: 16px; }
+      .header-bar h1 { font-size: 18px !important; }
+      .header-bar > div:first-child > div { flex-wrap: wrap; }
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .kpi-card { padding: 15px 13px; border-radius: 14px; }
+      .kpi-label { font-size: 10px; letter-spacing: .04em; }
+      .kpi-value { font-size: clamp(17px, 4.5vw, 22px); overflow-wrap: anywhere; }
+      .kpi-sub { font-size: 10px; line-height: 1.45; }
+      .r2-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .r2-stat-card { padding: 13px 11px; min-width: 0; }
+      .r2-stat-card .kpi-value { font-size: 19px !important; }
+      .card { padding: 16px 13px; margin-bottom: 14px; border-radius: 15px; }
+      .chart-box { padding: 12px 8px; margin-left: -2px; margin-right: -2px; }
+      #d3-trends-svg { min-width: 560px; }
+      .table-container { -webkit-overflow-scrolling: touch; }
+      .mobile-dashboard-nav {
+        position: fixed;
+        z-index: 1000;
+        left: 10px; right: 10px;
+        bottom: max(10px, env(safe-area-inset-bottom));
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 4px;
+        padding: 8px;
+        border: 1px solid rgba(148,163,184,.18);
+        border-radius: 17px;
+        background: rgba(8,15,27,.92);
+        box-shadow: 0 12px 36px rgba(0,0,0,.48);
+        backdrop-filter: blur(18px);
+      }
+      .mobile-dashboard-nav a {
+        min-height: 48px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        border-radius: 11px;
+        color: #91a3ba;
+        text-decoration: none;
+        font-size: 10px;
+        font-weight: 650;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .mobile-dashboard-nav a span:first-child { font-size: 17px; line-height: 1.1; }
+      .mobile-dashboard-nav a:active,
+      .mobile-dashboard-nav a:focus-visible {
+        color: #6ee7b7;
+        background: rgba(16,185,129,.12);
+        outline: 1px solid rgba(52,211,153,.32);
+      }
+      .mobile-dashboard-nav a:focus-visible { outline-offset: 1px; }
+    }
+    @media (max-width: 380px) {
+      body { padding-left: 8px; padding-right: 8px; }
+      .kpi-card { padding: 13px 10px; }
+      .kpi-value { font-size: 16px; }
+      .r2-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .mobile-dashboard-nav { left: 6px; right: 6px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+
   </style>
 </head>
 <body>
@@ -1077,6 +1233,13 @@ Tap 'Start' below to begin now! 👇</div>
       </div>
     </div>
   </div>
+
+  <nav class="mobile-dashboard-nav" aria-label="Dashboard quick navigation">
+    <a href="#admin-header"><span aria-hidden="true">⌂</span><span>Overview</span></a>
+    <a href="#section-trends"><span aria-hidden="true">⌁</span><span>Analytics</span></a>
+    <a href="#section-r2-analytics"><span aria-hidden="true">◈</span><span>Storage</span></a>
+    <a href="#section-tickets"><span aria-hidden="true">✉</span><span>Support</span></a>
+  </nav>
 
   <script${nonceAttr}>
   (function(){
