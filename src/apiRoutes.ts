@@ -28,28 +28,17 @@ function getPublicBotDescriptionJpeg(): Uint8Array {
 const MAX_ANALYTICS_BODY_BYTES = 8 * 1024;
 const ANALYTICS_RATE_WINDOW_MS = 60_000;
 const ANALYTICS_RATE_LIMIT = 120;
-const analyticsRateBuckets = new Map<string, { count: number; resetAt: number }>();
-let lastAnalyticsSweepAt = 0;
 
-function analyticsRequestAllowed(request: Request, now = Date.now()): boolean {
-  const key = request.headers.get("CF-Connecting-IP")?.trim() || "unknown-client";
-  let bucket = analyticsRateBuckets.get(key);
-  if (!bucket || bucket.resetAt <= now) {
-    if (analyticsRateBuckets.size >= 10_000) {
-      if (now - lastAnalyticsSweepAt > 10_000) {
-        lastAnalyticsSweepAt = now;
-        for (const [entryKey, entry] of analyticsRateBuckets) {
-          if (entry.resetAt <= now) analyticsRateBuckets.delete(entryKey);
-        }
-      }
-      if (analyticsRateBuckets.size >= 10_000) return false;
-    }
-    bucket = { count: 0, resetAt: now + ANALYTICS_RATE_WINDOW_MS };
-    analyticsRateBuckets.set(key, bucket);
-  }
-  if (bucket.count >= ANALYTICS_RATE_LIMIT) return false;
-  bucket.count += 1;
-  return true;
+async function analyticsRequestAllowed(request: Request, env: Env, now = Date.now()): Promise<boolean> {
+  const rawIp = request.headers.get("CF-Connecting-IP")?.trim() || "";
+  const ipHash = rawIp ? await hashClientIp(rawIp, env) : null;
+  const key = `analytics:${ipHash || "unknown-client"}`;
+  const [bucket] = await consumeRateLimitBuckets(
+    env.DB,
+    [{ key, limit: ANALYTICS_RATE_LIMIT, windowMs: ANALYTICS_RATE_WINDOW_MS }],
+    now
+  );
+  return Boolean(bucket?.consumed);
 }
 
 async function readBoundedText(request: Request, maxBytes: number): Promise<string | null> {
@@ -80,7 +69,7 @@ async function readBoundedText(request: Request, maxBytes: number): Promise<stri
   return new TextDecoder().decode(bytes);
 }
 import { constantTimeEqual, isConfiguredAdminId, validateEnv } from "./config";
-import { securityHeaders, landingPageSecurityHeaders, adminAttemptAllowed, recordAdminFailure, isAdminIpAllowed } from "./security";
+import { securityHeaders, landingPageSecurityHeaders, isAdminIpAllowed, SECURITY_LIMITS } from "./security";
 import {
   ADMIN_SESSION_COOKIE,
   adminSessionCookieHeader,
@@ -89,7 +78,7 @@ import {
   hasValidAdminSession,
   readCookie,
 } from "./adminSession";
-import { getStats, getOperationsDashboard, getDailyFinancialTrends, getSupportTickets, updateSupportTicket, createScheduledChannelPost, recordAnalyticsEvent, getAttributionFunnelStats } from "./db";
+import { getStats, getOperationsDashboard, getDailyFinancialTrends, getSupportTickets, updateSupportTicket, createScheduledChannelPost, recordAnalyticsEvent, getAttributionFunnelStats, consumeRateLimitBuckets, clearRateLimitBucket } from "./db";
 import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
 import { getObject } from "./storage";
 import { getR2StorageAnalytics } from "./r2";
@@ -157,12 +146,34 @@ function tooManyAttemptsResponse(): Response {
   });
 }
 
+async function adminFailureBucketKey(request: Request, env: Env): Promise<string> {
+  const rawIp = request.headers.get("CF-Connecting-IP")?.trim() || "unknown-client";
+  const ipHash = await hashClientIp(rawIp, env);
+  return `admin:failed:${ipHash || "unknown-client"}`;
+}
+
+async function adminAttemptAllowedPersistent(request: Request, env: Env): Promise<boolean> {
+  const [bucket] = await consumeRateLimitBuckets(
+    env.DB,
+    [{
+      key: await adminFailureBucketKey(request, env),
+      limit: SECURITY_LIMITS.ADMIN_FAILURE_LIMIT,
+      windowMs: SECURITY_LIMITS.ADMIN_FAILURE_WINDOW_MS,
+    }]
+  );
+  return Boolean(bucket?.consumed);
+}
+
+async function clearAdminFailurePersistent(request: Request, env: Env): Promise<void> {
+  await clearRateLimitBucket(env.DB, await adminFailureBucketKey(request, env));
+}
+
 /**
  * Brute-force protected admin gate. Returns a Response to send back when the
  * caller is not allowed, or null when the request may proceed.
  */
 export async function requireAdmin(request: Request, env: Env): Promise<Response | null> {
-  if (!adminAttemptAllowed(request)) return tooManyAttemptsResponse();
+  if (!(await adminAttemptAllowedPersistent(request, env))) return tooManyAttemptsResponse();
   // Enforce optional IP allowlist before accepting credentials.
   if (!isAdminIpAllowed(request, env)) {
     return new Response(JSON.stringify({ ok: false, error: "Forbidden" }), {
@@ -170,8 +181,10 @@ export async function requireAdmin(request: Request, env: Env): Promise<Response
       headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
     });
   }
-  if (await adminRequestAuthorized(request, env)) return null;
-  if (adminCredentialSupplied(request)) recordAdminFailure(request);
+  if (await adminRequestAuthorized(request, env)) {
+    await clearAdminFailurePersistent(request, env);
+    return null;
+  }
   return unauthorizedResponse();
 }
 
@@ -621,7 +634,7 @@ export async function handleApiRequest(
     if (method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
-    if (!analyticsRequestAllowed(request)) {
+    if (!(await analyticsRequestAllowed(request, env))) {
       return new Response(JSON.stringify({ ok: false, error: "Rate limit exceeded" }), {
         status: 429,
         headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": "60" },
@@ -1163,7 +1176,7 @@ ${homeEntries}
   // Admin login: the secret is POSTed once and exchanged for a signed,
   // HttpOnly session cookie so it never appears in a URL.
   if ((path === "/admin/login" || path === "/panel/login") && method === "POST") {
-    if (!adminAttemptAllowed(request)) return tooManyAttemptsResponse();
+    if (!(await adminAttemptAllowedPersistent(request, env))) return tooManyAttemptsResponse();
     const secret = (env.ADMIN_API_SECRET || "").trim();
     let supplied: string;
     try {
@@ -1174,7 +1187,6 @@ ${homeEntries}
     }
 
     if (!secret || !supplied || !constantTimeEqual(supplied, secret)) {
-      recordAdminFailure(request);
       const nonce = crypto.randomUUID().replace(/-/g, "");
       return new Response(renderAdminLoginPage(env, nonce, { error: "Invalid admin secret." }), {
         status: 401,
@@ -1182,6 +1194,7 @@ ${homeEntries}
       });
     }
 
+    await clearAdminFailurePersistent(request, env);
     const token = await createAdminSessionToken(secret);
     return new Response(null, {
       status: 303,
@@ -1207,8 +1220,9 @@ ${homeEntries}
   // Admin panel web interface (/admin, /admin/, /panel)
   if ((path === "/admin" || path === "/admin/" || path === "/panel") && (method === "GET" || method === "HEAD")) {
     // Fail closed: with no ADMIN_API_SECRET configured nobody is authorized.
-    if (!adminAttemptAllowed(request)) return tooManyAttemptsResponse();
+    if (!(await adminAttemptAllowedPersistent(request, env))) return tooManyAttemptsResponse();
     const isAuth = await adminRequestAuthorized(request, env);
+    if (isAuth) await clearAdminFailurePersistent(request, env);
 
     // Unauthenticated visitors never see business/financial data: no DB
     // queries are run, and only a bare login form is rendered.

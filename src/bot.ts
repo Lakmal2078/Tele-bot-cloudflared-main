@@ -241,6 +241,7 @@ export function createBot(env: Env) {
   // Command-specific limits protect high-overhead betting tips queries (/tips, /freetips)
   // and other slash commands against automated spamming.
   const rateLimiter = new RateLimiter({
+    db: env.DB,
     windowMs: 60_000,
     maxPerUser: 20,
     maxGlobal: 300,

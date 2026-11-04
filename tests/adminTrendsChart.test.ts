@@ -9,7 +9,7 @@ function createMockD1(): any {
     const stmt: any = {
       bind: (..._args: any[]) => stmt,
       first: async <T = unknown>(): Promise<T | null> => ({ c: 0 } as any),
-      all: async <T = unknown>(): Promise<{ results: T[] }> => ({ results: [] }),
+      all: async <T = unknown>(): Promise<{ results: T[] }> => ({ results: [{ bucket_key: "mock", count: 1, reset_at: Date.now() + 60_000 } as any] }),
       run: async () => ({ success: true, meta: { changes: 1 } }),
     };
     return stmt;
@@ -17,7 +17,10 @@ function createMockD1(): any {
 
   return {
     prepare: (_sql: string) => createStmt(),
-    batch: async () => [],
+    batch: async (statements: any[]) => statements.map((_: any, index: number) => ({
+      success: true,
+      meta: { changes: index === statements.length - 1 ? statements.length - 1 : 1 },
+    })),
     exec: async () => ({ count: 0, duration: 0 }),
   };
 }
