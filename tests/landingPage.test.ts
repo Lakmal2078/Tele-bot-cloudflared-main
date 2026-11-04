@@ -12,7 +12,10 @@ const mockEnv: Env = {
         run: async () => ({ success: true }),
       }),
     }),
-    batch: async () => [],
+    batch: async (statements: any[]) => statements.map((_: any, index: number) => ({
+      success: true,
+      meta: { changes: index === statements.length - 1 ? statements.length - 1 : 1 },
+    })),
   } as unknown as D1Database,
   BOT_TOKEN: "mock_token_123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ",
   PUBLIC_BASE_URL: "https://fast-xbet.lk",
