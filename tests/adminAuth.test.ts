@@ -72,6 +72,41 @@ describe("admin session cookie login", () => {
     expect(res?.headers.get("Set-Cookie")).toBeNull();
   });
 
+  it("requires URL-encoded login content", async () => {
+    const res = await handleApiRequest(
+      req("https://localhost/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret: SECRET }),
+      }),
+      baseEnv
+    );
+    expect(res?.status).toBe(415);
+    expect(res?.headers.get("Set-Cookie")).toBeNull();
+  });
+
+  it("rejects login bodies larger than 4 KiB", async () => {
+    const body = new URLSearchParams({ secret: SECRET, extra: "x".repeat(5 * 1024) });
+    const res = await handleApiRequest(
+      req("https://localhost/admin/login", { method: "POST", body }),
+      baseEnv
+    );
+    expect(res?.status).toBe(413);
+    expect(res?.headers.get("Set-Cookie")).toBeNull();
+  });
+
+  it("rejects duplicate secret form fields", async () => {
+    const body = new URLSearchParams();
+    body.append("secret", SECRET);
+    body.append("secret", SECRET);
+    const res = await handleApiRequest(
+      req("https://localhost/admin/login", { method: "POST", body }),
+      baseEnv
+    );
+    expect(res?.status).toBe(401);
+    expect(res?.headers.get("Set-Cookie")).toBeNull();
+  });
+
   it("clears the cookie on logout", async () => {
     const res = await handleApiRequest(
       req("https://localhost/admin/logout", { method: "POST" }),
@@ -109,6 +144,111 @@ describe("admin panel fails closed (M3)", () => {
     const html = (await res?.text()) || "";
     expect(html).toContain("Admin Login");
     expect(html).not.toContain("Total Users");
+  });
+});
+
+describe("admin IP allowlist enforcement", () => {
+  const allowlistedEnv = { ...baseEnv, ADMIN_IP_ALLOWLIST: "203.0.113.10" };
+
+  it("blocks valid-secret login attempts from an IP outside the allowlist", async () => {
+    const body = new URLSearchParams({ secret: SECRET });
+    const res = await handleApiRequest(
+      req("https://localhost/admin/login", {
+        method: "POST",
+        headers: { "CF-Connecting-IP": "203.0.113.11" },
+        body,
+      }),
+      allowlistedEnv
+    );
+    expect(res?.status).toBe(403);
+    expect(res?.headers.get("Set-Cookie")).toBeNull();
+  });
+
+  it("blocks an authenticated dashboard session outside the allowlist", async () => {
+    const token = await createAdminSessionToken(SECRET);
+    const res = await handleApiRequest(
+      req("https://localhost/admin", {
+        headers: {
+          "CF-Connecting-IP": "203.0.113.11",
+          Cookie: `${ADMIN_SESSION_COOKIE}=${token}`,
+        },
+      }),
+      allowlistedEnv
+    );
+    expect(res?.status).toBe(403);
+  });
+
+  it("allows login from an IP in the allowlist", async () => {
+    const body = new URLSearchParams({ secret: SECRET });
+    const res = await handleApiRequest(
+      req("https://localhost/admin/login", {
+        method: "POST",
+        headers: { "CF-Connecting-IP": "203.0.113.10" },
+        body,
+      }),
+      allowlistedEnv
+    );
+    expect(res?.status).toBe(303);
+  });
+});
+
+describe("tip click endpoint abuse controls", () => {
+  function createClickTrackingEnv() {
+    const baseDb = createMockD1();
+    let clickWrites = 0;
+    const DB = {
+      ...baseDb,
+      prepare(sql: string) {
+        const statement = baseDb.prepare(sql);
+        if (!sql.includes("INSERT INTO tip_clicks")) return statement;
+        return new Proxy(statement, {
+          get(target, property) {
+            if (property === "run") {
+              return async () => {
+                clickWrites += 1;
+                return target.run();
+              };
+            }
+            const value = Reflect.get(target, property);
+            return typeof value === "function" ? value.bind(target) : value;
+          },
+        });
+      },
+      batch: baseDb.batch.bind(baseDb),
+    };
+    return { env: { ...baseEnv, DB } as Env, clickWrites: () => clickWrites };
+  }
+
+  it("rejects malformed tip IDs and oversized tracking values before writing", async () => {
+    const { env, clickWrites } = createClickTrackingEnv();
+    const invalidId = await handleApiRequest(
+      req("https://localhost/go/tip/not-a-number", {
+        headers: { "CF-Connecting-IP": "198.51.100.40" },
+      }),
+      env
+    );
+    expect(invalidId?.status).toBe(400);
+
+    const oversized = await handleApiRequest(
+      req(`https://localhost/go/tip/12?event=${"e".repeat(129)}`, {
+        headers: { "CF-Connecting-IP": "198.51.100.40" },
+      }),
+      env
+    );
+    expect(oversized?.status).toBe(400);
+    expect(clickWrites()).toBe(0);
+  });
+
+  it("rate-limits click logging to 30 requests per IP per minute", async () => {
+    const { env, clickWrites } = createClickTrackingEnv();
+    const headers = { "CF-Connecting-IP": "198.51.100.41" };
+    let last: Response | null = null;
+    for (let index = 0; index < 31; index += 1) {
+      last = await handleApiRequest(req("https://localhost/go/tip/12", { headers }), env);
+    }
+    expect(last?.status).toBe(429);
+    expect(last?.headers.get("Retry-After")).toBe("60");
+    expect(clickWrites()).toBe(30);
   });
 });
 
