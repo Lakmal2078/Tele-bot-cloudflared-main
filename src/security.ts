@@ -27,7 +27,10 @@ export function securityHeaders(): Record<string, string> {
 export function landingPageSecurityHeaders(nonce?: string, options: { isHttps?: boolean } = {}): Record<string, string> {
   const isHttps = options.isHttps ?? true;
   const headers = { ...securityHeaders() };
-  headers["Cache-Control"] = "public, max-age=1800, s-maxage=86400, stale-while-revalidate=86400";
+  // CSP nonces are response-scoped; never cache HTML that embeds one.
+  headers["Cache-Control"] = nonce
+    ? "private, no-store, max-age=0, must-revalidate"
+    : "public, max-age=1800, s-maxage=86400, stale-while-revalidate=86400";
   headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
   const scriptPolicy = nonce ? `'nonce-${nonce}'` : "'unsafe-inline'";
   const stylePolicy = nonce ? `'nonce-${nonce}' https://fonts.googleapis.com` : "'unsafe-inline' https://fonts.googleapis.com";
