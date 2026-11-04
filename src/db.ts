@@ -312,7 +312,13 @@ export async function addWithdrawal(
 
   const keys = [...new Set([idempotencyKey, legacyIdempotencyKey].filter((key): key is string => Boolean(key)))];
   for (const key of keys) {
-    const existing = await idByKey(db, "withdrawals", key);
+    const existing = key === legacyIdempotencyKey && key !== idempotencyKey
+      ? await db
+          .prepare(`SELECT id FROM withdrawals WHERE idempotency_key = ? AND payment_method = ? AND deleted_at IS NULL`)
+          .bind(key, paymentMethod)
+          .first<{ id: number }>()
+          .then((row) => row?.id != null ? Number(row.id) : null)
+      : await idByKey(db, "withdrawals", key);
     if (existing != null) return existing;
   }
 
