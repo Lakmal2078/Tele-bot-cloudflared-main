@@ -154,27 +154,19 @@ export class RateLimiter {
     }
 
     const states = await consumeRateLimitBuckets(this.db, specs, now);
-    const global = states.find((state) => state.bucket_key === specs[0].key);
-    if (global && global.count > this.maxGlobal) {
+    if (states.length > 0 && !states[0].consumed) {
+      const global = states.find((state) => state.bucket_key === specs[0].key);
+      const user = userId !== undefined
+        ? states.find((state) => state.bucket_key === specs[1].key)
+        : undefined;
+      const blockedByUser = Boolean(user && user.count >= this.maxPerUser);
+      const blocked = blockedByUser ? user! : global!;
       return {
         allowed: false,
-        retryAfterMs: Math.max(0, global.reset_at - now),
-        scope: "global",
+        retryAfterMs: Math.max(0, blocked.reset_at - now),
+        scope: blockedByUser ? "user" : "global",
         blockMessage: this.blockMessage,
       };
-    }
-
-    if (userId !== undefined) {
-      const userKey = specs[1].key;
-      const user = states.find((state) => state.bucket_key === userKey);
-      if (user && user.count > this.maxPerUser) {
-        return {
-          allowed: false,
-          retryAfterMs: Math.max(0, user.reset_at - now),
-          scope: "user",
-          blockMessage: this.blockMessage,
-        };
-      }
     }
     return { allowed: true };
   }
@@ -195,7 +187,7 @@ export class RateLimiter {
       [{ key, limit: rule.maxPerUser, windowMs }],
       now
     );
-    if (bucket && bucket.count > rule.maxPerUser) {
+    if (bucket && !bucket.consumed) {
       return {
         allowed: false,
         retryAfterMs: Math.max(0, bucket.reset_at - now),
