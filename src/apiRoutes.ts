@@ -30,8 +30,7 @@ const ANALYTICS_RATE_WINDOW_MS = 60_000;
 const ANALYTICS_RATE_LIMIT = 120;
 
 async function analyticsRequestAllowed(request: Request, env: Env, now = Date.now()): Promise<boolean> {
-  const rawIp = request.headers.get("CF-Connecting-IP")?.trim() ||
-    request.headers.get("X-Forwarded-For")?.split(",")[0]?.trim() || "";
+  const rawIp = request.headers.get("CF-Connecting-IP")?.trim() || "";
   const ipHash = rawIp ? await hashClientIp(rawIp, env) : null;
   const key = `analytics:${ipHash || "unknown-client"}`;
   const [bucket] = await consumeRateLimitBuckets(
@@ -39,7 +38,7 @@ async function analyticsRequestAllowed(request: Request, env: Env, now = Date.no
     [{ key, limit: ANALYTICS_RATE_LIMIT, windowMs: ANALYTICS_RATE_WINDOW_MS }],
     now
   );
-  return Boolean(bucket && bucket.count <= ANALYTICS_RATE_LIMIT);
+  return Boolean(bucket?.consumed);
 }
 
 async function readBoundedText(request: Request, maxBytes: number): Promise<string | null> {
