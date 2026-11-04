@@ -164,6 +164,20 @@ describe("cashier safety and business configuration", () => {
     expect(retry.withdrawalId).toBe(originalId);
   });
 
+  it("does not let a legacy withdrawal key deduplicate a different payment method", async () => {
+    const d1 = createD1Database(":memory:");
+    const env: Env = { ...baseEnv, DB: d1 };
+    await db.saveUser(d1, 1004, "player", "Player", null, "si");
+    const legacyKey = generateIdempotencyKey("wd", 1004, "PLAYER4", 1500, "12345");
+    const originalId = await db.addWithdrawal(d1, 1004, "player", "PLAYER4", 1500, null, "COMMERCIAL", "12345", legacyKey);
+
+    const otherMethod = await processWithdrawalSubmission({
+      env, userId: 1004, username: "player", playerId: "PLAYER4", amount: 1500,
+      securityCode: null, paymentMethod: "EZCASH", destinationAccount: "12345",
+    });
+    expect(otherMethod.withdrawalId).not.toBe(originalId);
+  });
+
   it("orchestrates deposit submission with idempotency deduplication", async () => {
     const d1 = createD1Database(":memory:");
     const env: Env = {
