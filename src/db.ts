@@ -67,7 +67,7 @@ export async function consumeRateLimitBuckets(
     ).bind(
       now,
       now,
-      ...buckets.map((bucket) => now + Math.max(1, bucket.windowMs)),
+      ...buckets.flatMap((bucket) => [bucket.key, now + Math.max(1, bucket.windowMs)]),
       ...keys,
       ...keys,
       now
