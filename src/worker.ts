@@ -2,7 +2,7 @@ import { webhookCallback } from "grammy";
 import { createBot, executionContextStorage } from "./bot";
 import { logBotError } from "./logger";
 import { cleanupOldR2Logs } from "./logCleanup";
-import { runScheduledTip, TIPS_CRONS } from "./tips";
+import { runScheduledTip, runOddsApiHealthCheck, TIPS_CRONS } from "./tips";
 import { settlePendingTips } from "./tipsSettlement";
 import { getPublicTips, publicTipsClientScript } from "./publicTips";
 import { assertValidEnv, constantTimeEqual, validateEnv } from "./config";
@@ -18,6 +18,7 @@ export const WORKER_CRONS = {
   FREE_TIPS: [TIPS_CRONS.SL_0800, TIPS_CRONS.SL_1200, TIPS_CRONS.SL_1800] as const,
   SETTLEMENT: TIPS_CRONS.SETTLEMENT,
   R2_CLEANUP: "0 2 * * *" as const,
+  ODDS_API_HEALTH: "7,22,37,52 * * * *" as const,
 };
 
 let botInstance: ReturnType<typeof createBot> | null = null;
@@ -293,6 +294,10 @@ ${homeEntries}
       tasks.push(runScheduledTip(env, cron)
         .then((result) => console.log(`[Worker Cron] Free tip ${result.status} for ${result.slot} Sri Lanka time`))
         .catch((err) => console.error("[Worker Cron] Free tip publishing failed:", err)));
+    } else if (cron === WORKER_CRONS.ODDS_API_HEALTH) {
+      tasks.push(runOddsApiHealthCheck(env)
+        .then(() => console.log("[Worker Cron] Odds API health check completed"))
+        .catch((err) => console.error("[Worker Cron] Odds API health check failed:", err)));
     } else if (cron === WORKER_CRONS.SETTLEMENT) {
       tasks.push(settlePendingTips(env)
         .then((summary) => console.log(`[Worker Cron] Tips settlement completed: posts=${summary.settledPosts}/${summary.checkedPosts}, won=${summary.wonPicks}, lost=${summary.lostPicks}, void=${summary.voidPicks}, tgUpdates=${summary.editedTelegramMessages}`))

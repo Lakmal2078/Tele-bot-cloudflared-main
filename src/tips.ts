@@ -1223,10 +1223,14 @@ export async function runScheduledTip(
       const fetched = await fetchCandidates(env);
       candidates = fetched.candidates;
       fallbackStats = fetched.stats;
+      await recordOddsApiDataResult(env, fetched.stats.scannedMatches);
       if (candidates.length === 0) throw new Error("No qualifying candidates were found");
       message = formatTipMessage(candidates, slot, joinUrl);
       keyboard = buildTipsInlineKeyboard(candidates, xbetLink, joinUrl, trackingBase, claim.id);
     } catch (fetchError) {
+      await recordOddsApiDataResult(env, 0).catch((monitorError) =>
+        console.warn("[Odds API Monitor] Could not persist empty/failed feed result:", monitorError)
+      );
       console.warn(
         `[Tips] fetchCandidates failed for ${scheduledKey}:`,
         fetchError instanceof Error ? fetchError.message : fetchError
@@ -1257,5 +1261,125 @@ export async function runScheduledTip(
     ).catch(() => {});
 
     return { status: "failed", slot };
+  }
+}
+
+
+interface OddsApiMonitorState {
+  api_failure_since: string | null;
+  api_failure_count: number;
+  api_alerted: number;
+  empty_since: string | null;
+  empty_count: number;
+  empty_alerted: number;
+}
+
+const ODDS_API_FAILURE_ALERT_MS = 30 * 60 * 1000;
+const ODDS_EMPTY_ALERT_MS = 4 * 60 * 60 * 1000;
+
+async function getOddsApiMonitorState(env: Env): Promise<OddsApiMonitorState> {
+  await env.DB.prepare("INSERT OR IGNORE INTO odds_api_monitor_state (id) VALUES (1)").run();
+  const state = await env.DB.prepare(
+    `SELECT api_failure_since, api_failure_count, api_alerted,
+            empty_since, empty_count, empty_alerted
+     FROM odds_api_monitor_state WHERE id = 1`
+  ).first<OddsApiMonitorState>();
+  if (!state) throw new Error("Odds API monitor state is unavailable");
+  return state;
+}
+
+async function saveOddsApiMonitorState(env: Env, state: OddsApiMonitorState): Promise<void> {
+  await env.DB.prepare(
+    `UPDATE odds_api_monitor_state
+     SET api_failure_since = ?, api_failure_count = ?, api_alerted = ?,
+         empty_since = ?, empty_count = ?, empty_alerted = ?,
+         updated_at = datetime('now')
+     WHERE id = 1`
+  ).bind(
+    state.api_failure_since, state.api_failure_count, state.api_alerted,
+    state.empty_since, state.empty_count, state.empty_alerted
+  ).run();
+}
+
+async function recordOddsApiConnectivity(env: Env, error?: string): Promise<void> {
+  const state = await getOddsApiMonitorState(env);
+  const now = new Date();
+  let alert: string | null = null;
+
+  if (error) {
+    state.api_failure_since ||= now.toISOString();
+    state.api_failure_count += 1;
+    const elapsed = now.getTime() - Date.parse(state.api_failure_since);
+    if (!state.api_alerted && elapsed >= ODDS_API_FAILURE_ALERT_MS) {
+      state.api_alerted = 1;
+      alert = `🚨 *[ODDS API DOWN]*\n\nThe Odds API has failed health checks for at least 30 minutes.\n⚠️ *Latest error:* ${escapeMarkdown(error.slice(0, 300))}\n🕒 *Since:* ${state.api_failure_since}`;
+    }
+  } else {
+    const wasAlerted = state.api_alerted === 1;
+    state.api_failure_since = null;
+    state.api_failure_count = 0;
+    state.api_alerted = 0;
+    if (wasAlerted) alert = "✅ *[ODDS API RECOVERED]*\n\nThe Odds API health check is responding normally again.";
+  }
+
+  await saveOddsApiMonitorState(env, state);
+  if (alert) await sendAdminAlert(env, alert);
+}
+
+async function recordOddsApiDataResult(env: Env, scannedMatches: number): Promise<void> {
+  const state = await getOddsApiMonitorState(env);
+  const now = new Date();
+  let alert: string | null = null;
+
+  if (scannedMatches > 0) {
+    const wasAlerted = state.empty_alerted === 1;
+    state.empty_since = null;
+    state.empty_count = 0;
+    state.empty_alerted = 0;
+    if (wasAlerted) alert = "✅ *[ODDS DATA RECOVERED]*\n\nThe Odds API is returning upcoming events again.";
+  } else {
+    state.empty_since ||= now.toISOString();
+    state.empty_count += 1;
+    const elapsed = now.getTime() - Date.parse(state.empty_since);
+    if (!state.empty_alerted && elapsed >= ODDS_EMPTY_ALERT_MS) {
+      state.empty_alerted = 1;
+      alert = `⚠️ *[ODDS API EMPTY RESULTS]*\n\nThe odds feed has returned no upcoming events or failed to fetch results for at least 4 hours across scheduled checks.\n🕒 *Since:* ${state.empty_since}\n🔎 Check active sports, regions, and The Odds API account status.`;
+    }
+  }
+
+  await saveOddsApiMonitorState(env, state);
+  if (alert) await sendAdminAlert(env, alert);
+}
+
+/** Lightweight quota-free provider health check; empty odds feeds are tracked on scheduled odds pulls. */
+export async function runOddsApiHealthCheck(env: Env): Promise<void> {
+  if (!env.ODDS_API_KEY) return;
+
+  const url = new URL(`${ODDS_API_BASE}/sports`);
+  url.searchParams.set("apiKey", env.ODDS_API_KEY);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8_000);
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`HTTP ${response.status}: ${body.slice(0, 180)}`);
+    }
+    const payload: unknown = await response.json();
+    if (!Array.isArray(payload) || payload.length === 0) {
+      throw new Error("The Odds API returned an empty or invalid sports list");
+    }
+    await recordOddsApiConnectivity(env);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn("[Odds API Monitor] Health check failed:", message);
+    await recordOddsApiConnectivity(env, message);
+  } finally {
+    clearTimeout(timeout);
   }
 }
