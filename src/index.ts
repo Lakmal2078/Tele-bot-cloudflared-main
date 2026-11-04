@@ -145,13 +145,32 @@ if (env.BOT_TOKEN && env.BOT_TOKEN.trim().length > 0) {
   console.log("[Bot] BOT_TOKEN not configured. Live Telegram bot polling is standby; Web showcase and APIs active.");
 }
 
+/** Forwarded client-address headers are trusted only behind an explicitly configured proxy. */
+const CLIENT_ADDRESS_HEADERS = new Set(["cf-connecting-ip", "x-forwarded-for", "x-real-ip", "forwarded"]);
+
+function trustsForwardedAddressHeaders(): boolean {
+  const flag = String(process.env.TRUST_PROXY_HEADERS || "").trim().toLowerCase();
+  return flag === "true" || flag === "1" || flag === "yes";
+}
+
+function normalizeSocketAddress(address: string): string {
+  const trimmed = address.trim();
+  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(trimmed);
+  return mapped ? mapped[1] : trimmed;
+}
+
 async function nodeToWebRequest(req: http.IncomingMessage, hostHeader: string): Promise<Request> {
   const url = new URL(req.url || "/", `http://${hostHeader}`);
   const headers = new Headers();
+  const trustForwardedAddress = trustsForwardedAddressHeaders();
   for (const [k, v] of Object.entries(req.headers)) {
     if (v === undefined) continue;
+    if (!trustForwardedAddress && CLIENT_ADDRESS_HEADERS.has(k.toLowerCase())) continue;
     if (Array.isArray(v)) for (const item of v) headers.append(k, item);
     else headers.set(k, v);
+  }
+  if (!trustForwardedAddress && req.socket?.remoteAddress) {
+    headers.set("cf-connecting-ip", normalizeSocketAddress(req.socket.remoteAddress));
   }
   const method = (req.method || "GET").toUpperCase();
   const init: RequestInit = { method, headers };

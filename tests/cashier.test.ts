@@ -115,6 +115,69 @@ describe("cashier safety and business configuration", () => {
     expect(key1).toContain("dep_");
   });
 
+  it("keeps long receipt identifiers distinct instead of truncating their differentiating suffix", () => {
+    const prefix = "AgACAgUAAxkBAAIBc2d4AAHcVqQ1ZKmAAZ3k9f8AAAAA";
+    const receiptA = `${prefix}${"A".repeat(40)}1a2b3c4d5e6f7g8h9i0j`;
+    const receiptB = `${prefix}${"A".repeat(40)}9z8y7x6w5v4u3t2s1r0q`;
+    const keyA = generateIdempotencyKey("dep", 9876543210, "PLAYER778899", 1500, receiptA);
+    const keyB = generateIdempotencyKey("dep", 9876543210, "PLAYER778899", 1500, receiptB);
+    expect(keyA).not.toBe(keyB);
+    expect(keyA.endsWith(receiptA)).toBe(true);
+  });
+
+  it("generates distinct withdrawal keys for different payment methods", () => {
+    const bankKey = generateIdempotencyKey("wd", 1001, "PLAYER1", 1500, "COMMERCIAL", "12345");
+    const walletKey = generateIdempotencyKey("wd", 1001, "PLAYER1", 1500, "EZCASH", "12345");
+    expect(bankKey).not.toBe(walletKey);
+  });
+
+  it("does not deduplicate withdrawals submitted through different payment methods", async () => {
+    const d1 = createD1Database(":memory:");
+    const env: Env = { ...baseEnv, DB: d1 };
+    await db.saveUser(d1, 1002, "player", "Player", null, "si");
+
+    const bank = await processWithdrawalSubmission({
+      env, userId: 1002, username: "player", playerId: "PLAYER2", amount: 1500,
+      securityCode: null, paymentMethod: "COMMERCIAL", destinationAccount: "12345",
+    });
+    const wallet = await processWithdrawalSubmission({
+      env, userId: 1002, username: "player", playerId: "PLAYER2", amount: 1500,
+      securityCode: null, paymentMethod: "EZCASH", destinationAccount: "12345",
+    });
+
+    expect(wallet.withdrawalId).not.toBe(bank.withdrawalId);
+    const count = await d1.prepare("SELECT COUNT(*) as count FROM withdrawals WHERE user_id = ?").bind(1002).first<any>();
+    expect(count.count).toBe(2);
+  });
+
+  it("resolves a retry made before payment-method-aware keys to the existing withdrawal", async () => {
+    const d1 = createD1Database(":memory:");
+    const env: Env = { ...baseEnv, DB: d1 };
+    await db.saveUser(d1, 1003, "player", "Player", null, "si");
+    const legacyKey = generateIdempotencyKey("wd", 1003, "PLAYER3", 1500, "12345");
+    const originalId = await db.addWithdrawal(d1, 1003, "player", "PLAYER3", 1500, null, "COMMERCIAL", "12345", legacyKey);
+
+    const retry = await processWithdrawalSubmission({
+      env, userId: 1003, username: "player", playerId: "PLAYER3", amount: 1500,
+      securityCode: null, paymentMethod: "COMMERCIAL", destinationAccount: "12345",
+    });
+    expect(retry.withdrawalId).toBe(originalId);
+  });
+
+  it("does not let a legacy withdrawal key deduplicate a different payment method", async () => {
+    const d1 = createD1Database(":memory:");
+    const env: Env = { ...baseEnv, DB: d1 };
+    await db.saveUser(d1, 1004, "player", "Player", null, "si");
+    const legacyKey = generateIdempotencyKey("wd", 1004, "PLAYER4", 1500, "12345");
+    const originalId = await db.addWithdrawal(d1, 1004, "player", "PLAYER4", 1500, null, "COMMERCIAL", "12345", legacyKey);
+
+    const otherMethod = await processWithdrawalSubmission({
+      env, userId: 1004, username: "player", playerId: "PLAYER4", amount: 1500,
+      securityCode: null, paymentMethod: "EZCASH", destinationAccount: "12345",
+    });
+    expect(otherMethod.withdrawalId).not.toBe(originalId);
+  });
+
   it("orchestrates deposit submission with idempotency deduplication", async () => {
     const d1 = createD1Database(":memory:");
     const env: Env = {

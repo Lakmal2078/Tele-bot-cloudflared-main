@@ -462,7 +462,7 @@ export function generateIdempotencyKey(
     .filter((p) => p !== null && p !== undefined && p !== "")
     .map(String)
     .join("_");
-  return `${kind}_${userId}_${cleanParts}`.slice(0, 100);
+  return `${kind}_${userId}_${cleanParts}`;
 }
 
 export interface ProcessDepositParams {
@@ -611,7 +611,10 @@ export async function processWithdrawalSubmission(params: ProcessWithdrawalParam
     waitUntil,
   } = params;
 
-  const idempKey = params.idempotencyKey || generateIdempotencyKey("wd", userId, playerId, amount, destinationAccount);
+  // Include the payment rail in the key. Keep the previous key as a lookup alias so
+  // retries created before this deployment still resolve to their original withdrawal.
+  const legacyIdempKey = generateIdempotencyKey("wd", userId, playerId, amount, destinationAccount);
+  const idempKey = params.idempotencyKey || generateIdempotencyKey("wd", userId, playerId, amount, paymentMethod, destinationAccount);
 
   const withdrawalId = await db.addWithdrawal(
     env.DB,
@@ -622,7 +625,8 @@ export async function processWithdrawalSubmission(params: ProcessWithdrawalParam
     securityCode,
     paymentMethod,
     destinationAccount,
-    idempKey
+    idempKey,
+    legacyIdempKey
   );
 
   const fraudCheck = await fraud.checkWithdrawalFraud(env.DB, userId, playerId);
