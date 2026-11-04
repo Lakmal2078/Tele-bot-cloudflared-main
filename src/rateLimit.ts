@@ -1,3 +1,6 @@
+import type { D1Database } from "./types";
+import { consumeRateLimitBuckets } from "./db";
+
 /**
  * Global, per-user, and command-specific rate limiting middleware (in-memory sliding-window buckets).
  *
@@ -25,6 +28,8 @@ export interface ScopedRateLimitRule {
 }
 
 export interface RateLimitOptions {
+  /** Shared D1 storage makes limits consistent across Worker isolates. */
+  db?: D1Database;
   /** Sliding window length in milliseconds. Default: 60_000 (1 minute). */
   windowMs?: number;
   /** Max updates a single user may send per window. Default: 20. */
@@ -63,6 +68,7 @@ export class RateLimiter {
   private userBuckets = new Map<number, Bucket>();
   private scopedBuckets = new Map<string, Bucket>();
   private globalBucket: Bucket = { count: 0, resetAt: 0 };
+  private readonly db?: D1Database;
   private readonly windowMs: number;
   private readonly maxPerUser: number;
   private readonly maxGlobal: number;
@@ -72,6 +78,7 @@ export class RateLimiter {
   private readonly commandLimits: Map<string, ScopedRateLimitRule>;
 
   constructor(options: RateLimitOptions = {}) {
+    this.db = options.db;
     this.windowMs = options.windowMs ?? 60_000;
     this.maxPerUser = options.maxPerUser ?? 20;
     this.maxGlobal = options.maxGlobal ?? 300;
@@ -132,6 +139,82 @@ export class RateLimiter {
       this.userBucketFor(userId, now).count++;
     }
     return { allowed: true };
+  }
+
+  /** Persistent counterpart to check(); uses one atomic D1 upsert across all active buckets. */
+  async checkPersistent(userId: number | undefined, now: number = Date.now()): Promise<RateLimitResult> {
+    if (!this.db) return this.check(userId, now);
+    if (userId !== undefined && this.exemptUserIds.has(userId)) return { allowed: true };
+
+    const specs = [
+      { key: `telegram:global:${this.windowMs}`, limit: this.maxGlobal, windowMs: this.windowMs },
+    ];
+    if (userId !== undefined) {
+      specs.push({ key: `telegram:user:${userId}:${this.windowMs}`, limit: this.maxPerUser, windowMs: this.windowMs });
+    }
+
+    const states = await consumeRateLimitBuckets(this.db, specs, now);
+    const global = states.find((state) => state.bucket_key === specs[0].key);
+    if (global && global.count > this.maxGlobal) {
+      return {
+        allowed: false,
+        retryAfterMs: Math.max(0, global.reset_at - now),
+        scope: "global",
+        blockMessage: this.blockMessage,
+      };
+    }
+
+    if (userId !== undefined) {
+      const userKey = specs[1].key;
+      const user = states.find((state) => state.bucket_key === userKey);
+      if (user && user.count > this.maxPerUser) {
+        return {
+          allowed: false,
+          retryAfterMs: Math.max(0, user.reset_at - now),
+          scope: "user",
+          blockMessage: this.blockMessage,
+        };
+      }
+    }
+    return { allowed: true };
+  }
+
+  async checkScopePersistent(
+    scopeName: string,
+    userId: number | undefined,
+    rule: ScopedRateLimitRule,
+    now: number = Date.now()
+  ): Promise<RateLimitResult> {
+    if (!this.db) return this.checkScope(scopeName, userId, rule, now);
+    if (userId === undefined || this.exemptUserIds.has(userId)) return { allowed: true };
+
+    const windowMs = rule.windowMs ?? this.windowMs;
+    const key = `telegram:scope:${scopeName}:${userId}:${windowMs}`;
+    const [bucket] = await consumeRateLimitBuckets(
+      this.db,
+      [{ key, limit: rule.maxPerUser, windowMs }],
+      now
+    );
+    if (bucket && bucket.count > rule.maxPerUser) {
+      return {
+        allowed: false,
+        retryAfterMs: Math.max(0, bucket.reset_at - now),
+        scope: `scope:${scopeName}`,
+        blockMessage: rule.blockMessage || this.blockMessage,
+      };
+    }
+    return { allowed: true };
+  }
+
+  async checkCommandPersistent(
+    commandName: string,
+    userId: number | undefined,
+    now: number = Date.now()
+  ): Promise<RateLimitResult> {
+    const cleanCmd = commandName.toLowerCase().replace(/^\\//, "").trim();
+    const rule = this.commandLimits.get(cleanCmd) || this.defaultCommandLimit;
+    if (!rule) return { allowed: true };
+    return this.checkScopePersistent(`cmd:${cleanCmd}`, userId, rule, now);
   }
 
   /**
@@ -215,7 +298,7 @@ export class RateLimiter {
   scopeMiddleware(scopeName: string, rule: ScopedRateLimitRule) {
     return async (ctx: any, next: () => Promise<void>): Promise<void> => {
       const userId: number | undefined = ctx?.from?.id;
-      const result = this.checkScope(scopeName, userId, rule);
+      const result = await this.checkScopePersistent(scopeName, userId, rule);
       if (!result.allowed) {
         const secs = Math.max(1, Math.ceil((result.retryAfterMs ?? 1000) / 1000));
         const msg = result.blockMessage || this.blockMessage;
@@ -247,7 +330,7 @@ export class RateLimiter {
       const userId: number | undefined = ctx?.from?.id;
 
       // 1. General per-user & global rate limit check
-      const globalResult = this.check(userId);
+      const globalResult = await this.checkPersistent(userId);
       if (!globalResult.allowed) {
         await this.handleBlocked(ctx, globalResult);
         return; // blocked
@@ -256,7 +339,7 @@ export class RateLimiter {
       // 2. If this update is a slash command, check against configured command limits
       const cmd = RateLimiter.extractCommand(ctx);
       if (cmd) {
-        const cmdResult = this.checkCommand(cmd, userId);
+        const cmdResult = await this.checkCommandPersistent(cmd, userId);
         if (!cmdResult.allowed) {
           await this.handleBlocked(ctx, cmdResult);
           return; // blocked command
