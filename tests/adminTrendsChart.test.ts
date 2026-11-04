@@ -17,7 +17,10 @@ function createMockD1(): any {
 
   return {
     prepare: (_sql: string) => createStmt(),
-    batch: async () => [],
+    batch: async (statements: any[]) => statements.map((_: any, index: number) => ({
+      success: true,
+      meta: { changes: index === statements.length - 1 ? statements.length - 1 : 1 },
+    })),
     exec: async () => ({ count: 0, duration: 0 }),
   };
 }
