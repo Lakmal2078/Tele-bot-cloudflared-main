@@ -16,9 +16,9 @@ import type { Env, ExecutionContext, ScheduledEvent } from "./types";
 
 export const WORKER_CRONS = {
   FREE_TIPS: [TIPS_CRONS.SL_0800, TIPS_CRONS.SL_1200, TIPS_CRONS.SL_1800] as const,
-  SETTLEMENT: TIPS_CRONS.SETTLEMENT,
   R2_CLEANUP: "0 2 * * *" as const,
-  ODDS_API_HEALTH: "7,22,37,52 * * * *" as const,
+  // Combine health checks (07/22/37/52) and hourly settlement (15) into one trigger.
+  MAINTENANCE: "7,15,22,37,52 * * * *" as const,
 };
 
 let botInstance: ReturnType<typeof createBot> | null = null;
@@ -294,14 +294,17 @@ ${homeEntries}
       tasks.push(runScheduledTip(env, cron)
         .then((result) => console.log(`[Worker Cron] Free tip ${result.status} for ${result.slot} Sri Lanka time`))
         .catch((err) => console.error("[Worker Cron] Free tip publishing failed:", err)));
-    } else if (cron === WORKER_CRONS.ODDS_API_HEALTH) {
+    } else if (cron === WORKER_CRONS.MAINTENANCE) {
       tasks.push(runOddsApiHealthCheck(env)
         .then(() => console.log("[Worker Cron] Odds API health check completed"))
         .catch((err) => console.error("[Worker Cron] Odds API health check failed:", err)));
-    } else if (cron === WORKER_CRONS.SETTLEMENT) {
-      tasks.push(settlePendingTips(env)
-        .then((summary) => console.log(`[Worker Cron] Tips settlement completed: posts=${summary.settledPosts}/${summary.checkedPosts}, won=${summary.wonPicks}, lost=${summary.lostPicks}, void=${summary.voidPicks}, tgUpdates=${summary.editedTelegramMessages}`))
-        .catch((err) => console.error("[Worker Cron] Tips settlement failed:", err)));
+
+      // The merged trigger also fires at minute 15 for hourly settlement.
+      if (new Date(event.scheduledTime).getUTCMinutes() === 15) {
+        tasks.push(settlePendingTips(env)
+          .then((summary) => console.log(`[Worker Cron] Tips settlement completed: posts=${summary.settledPosts}/${summary.checkedPosts}, won=${summary.wonPicks}, lost=${summary.lostPicks}, void=${summary.voidPicks}, tgUpdates=${summary.editedTelegramMessages}`))
+          .catch((err) => console.error("[Worker Cron] Tips settlement failed:", err)));
+      }
     } else if (cron === WORKER_CRONS.R2_CLEANUP) {
       tasks.push(cleanupOldR2Logs(env, 30)
         .then((res) => console.log(`[Worker Cron] R2 cleanup: scanned=${res.totalScanned}, deleted=${res.totalDeleted}, freed=${(res.bytesFreed / 1024).toFixed(2)}KB, duration=${res.durationMs}ms`))
