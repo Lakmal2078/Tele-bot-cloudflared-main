@@ -8,22 +8,7 @@ import {
 import { SECURITY_LIMITS } from "../src/security";
 import type { Env } from "../src/types";
 
-function createMockD1(): any {
-  const createStmt = () => {
-    const stmt: any = {
-      bind: (..._args: any[]) => stmt,
-      first: async () => ({ c: 0 }),
-      all: async () => ({ results: [] }),
-      run: async () => ({ success: true, meta: { changes: 1 } }),
-    };
-    return stmt;
-  };
-  return {
-    prepare: (_sql: string) => createStmt(),
-    batch: async () => [],
-    exec: async () => ({ count: 0, duration: 0 }),
-  };
-}
+import { createMockD1 } from "./helpers/mockD1";
 
 const SECRET = "super_secret_admin_token_12345";
 

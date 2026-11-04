@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDeposit, addWithdrawal, toCents, toPositiveCents } from "../src/db";
+import { addDeposit, addWithdrawal, toCents, toPositiveCents, consumeRateLimitBuckets, getRateLimitBucket, recordRateLimitFailure, clearRateLimitBucket, cleanupExpiredRateLimitBuckets } from "../src/db";
 
 describe("financial amount validation", () => {
   it("converts positive LKR to integer cents", () => {
@@ -125,5 +125,85 @@ describe("financial transaction integrity", () => {
     const unused = {} as TransactionDatabase;
     await expect(addWithdrawal(unused, 555, "player", "PLAY-1", 0, null)).rejects.toThrow("Amount must be greater than zero");
     await expect(addWithdrawal(unused, 555, "player", "PLAY-1", -1, null)).rejects.toThrow("Amount must be greater than zero");
+  });
+});
+
+
+describe("shared D1 rate-limit storage", () => {
+  it("atomically increments and caps shared request buckets", async () => {
+    const { createD1Database } = await import("../src/sqlite-d1");
+    const db = createD1Database(":memory:");
+    const now = 1_800_000_000_000;
+    const spec = [{ key: "test:user:1", limit: 2, windowMs: 60_000 }];
+
+    const [first] = await consumeRateLimitBuckets(db, spec, now);
+    const [second] = await consumeRateLimitBuckets(db, spec, now);
+    const [blocked] = await consumeRateLimitBuckets(db, spec, now);
+    const [stillBlocked] = await consumeRateLimitBuckets(db, spec, now);
+
+    expect(first.count).toBe(1);
+    expect(second.count).toBe(2);
+    expect(blocked.count).toBe(2);
+    expect(blocked.consumed).toBe(false);
+    expect(stillBlocked.count).toBe(2);
+    expect(stillBlocked.consumed).toBe(false);
+  });
+
+  it("does not consume the global bucket when the per-user bucket is already full", async () => {
+    const { createD1Database } = await import("../src/sqlite-d1");
+    const db = createD1Database(":memory:");
+    const now = 1_800_000_000_000;
+    const buckets = [
+      { key: "global", limit: 10, windowMs: 60_000 },
+      { key: "user:1", limit: 1, windowMs: 60_000 },
+    ];
+
+    const first = await consumeRateLimitBuckets(db, buckets, now);
+    const blocked = await consumeRateLimitBuckets(db, buckets, now);
+    expect(first.every((bucket) => bucket.consumed)).toBe(true);
+    expect(blocked.every((bucket) => !bucket.consumed)).toBe(true);
+    expect(blocked.find((bucket) => bucket.bucket_key === "global")?.count).toBe(1);
+    expect(blocked.find((bucket) => bucket.bucket_key === "user:1")?.count).toBe(1);
+  });
+
+  it("does not consume a user bucket when the global bucket is full", async () => {
+    const { createD1Database } = await import("../src/sqlite-d1");
+    const db = createD1Database(":memory:");
+    const now = 1_800_000_000_000;
+    const buckets = [
+      { key: "global:cap", limit: 1, windowMs: 60_000 },
+      { key: "user:cap", limit: 10, windowMs: 60_000 },
+    ];
+
+    const first = await consumeRateLimitBuckets(db, buckets, now);
+    const blocked = await consumeRateLimitBuckets(db, buckets, now);
+    expect(first.every((bucket) => bucket.consumed)).toBe(true);
+    expect(blocked.every((bucket) => !bucket.consumed)).toBe(true);
+    expect(blocked.find((bucket) => bucket.bucket_key === "user:cap")?.count).toBe(1);
+  });
+
+  it("stores admin failure counters without persisting client IP addresses", async () => {
+    const { createD1Database } = await import("../src/sqlite-d1");
+    const db = createD1Database(":memory:");
+    const now = 1_800_000_000_000;
+    await recordRateLimitFailure(db, "admin:failed:hashed-client", 10, 60_000, now);
+    await recordRateLimitFailure(db, "admin:failed:hashed-client", 10, 60_000, now);
+
+    const bucket = await getRateLimitBucket(db, "admin:failed:hashed-client");
+    expect(bucket?.count).toBe(2);
+    expect(bucket?.bucket_key).not.toContain("203.0.113.1");
+
+    await clearRateLimitBucket(db, "admin:failed:hashed-client");
+    expect(await getRateLimitBucket(db, "admin:failed:hashed-client")).toBeNull();
+  });
+
+  it("cleans expired shared rate-limit buckets", async () => {
+    const { createD1Database } = await import("../src/sqlite-d1");
+    const db = createD1Database(":memory:");
+    const now = 1_800_000_000_000;
+    await consumeRateLimitBuckets(db, [{ key: "expired:1", limit: 2, windowMs: 1000 }], now);
+    const deleted = await cleanupExpiredRateLimitBuckets(db, now + 1001);
+    expect(deleted).toBe(1);
+    expect(await getRateLimitBucket(db, "expired:1")).toBeNull();
   });
 });
