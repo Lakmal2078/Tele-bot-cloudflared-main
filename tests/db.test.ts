@@ -143,8 +143,27 @@ describe("shared D1 rate-limit storage", () => {
 
     expect(first.count).toBe(1);
     expect(second.count).toBe(2);
-    expect(blocked.count).toBe(3);
-    expect(stillBlocked.count).toBe(3);
+    expect(blocked.count).toBe(2);
+    expect(blocked.consumed).toBe(false);
+    expect(stillBlocked.count).toBe(2);
+    expect(stillBlocked.consumed).toBe(false);
+  });
+
+  it("does not consume the global bucket when the per-user bucket is already full", async () => {
+    const { createD1Database } = await import("../src/sqlite-d1");
+    const db = createD1Database(":memory:");
+    const now = 1_800_000_000_000;
+    const buckets = [
+      { key: "global", limit: 10, windowMs: 60_000 },
+      { key: "user:1", limit: 1, windowMs: 60_000 },
+    ];
+
+    const first = await consumeRateLimitBuckets(db, buckets, now);
+    const blocked = await consumeRateLimitBuckets(db, buckets, now);
+    expect(first.every((bucket) => bucket.consumed)).toBe(true);
+    expect(blocked.every((bucket) => !bucket.consumed)).toBe(true);
+    expect(blocked.find((bucket) => bucket.bucket_key === "global")?.count).toBe(1);
+    expect(blocked.find((bucket) => bucket.bucket_key === "user:1")?.count).toBe(1);
   });
 
   it("stores admin failure counters without persisting client IP addresses", async () => {
