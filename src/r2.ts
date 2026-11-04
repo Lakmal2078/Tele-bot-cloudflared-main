@@ -51,7 +51,8 @@ async function summarizePrefix(env: Env, prefix: string): Promise<PrefixAnalytic
   let latestUploadedAt: string | null = null;
   const seenCursors = new Set<string>();
 
-  do {
+  let hasMore = true;
+  while (hasMore) {
     const page = await listObjects(env, prefix, cursor);
     for (const object of page.objects) {
       count += 1;
@@ -62,13 +63,16 @@ async function summarizePrefix(env: Env, prefix: string): Promise<PrefixAnalytic
       }
     }
 
-    if (!page.truncated) break;
-    if (!page.cursor || seenCursors.has(page.cursor)) {
-      throw new Error(`R2 pagination did not advance for prefix: ${prefix}`);
+    if (!page.truncated) {
+      hasMore = false;
+    } else {
+      if (!page.cursor || seenCursors.has(page.cursor)) {
+        throw new Error(`R2 pagination did not advance for prefix: ${prefix}`);
+      }
+      seenCursors.add(page.cursor);
+      cursor = page.cursor;
     }
-    seenCursors.add(page.cursor);
-    cursor = page.cursor;
-  } while (true);
+  }
 
   return { count, totalBytes, latestUploadedAt };
 }
