@@ -24,6 +24,95 @@ export function fromCents(cents: number): number {
   return cents / 100;
 }
 
+export interface RateLimitBucketSpec {
+  key: string;
+  limit: number;
+  windowMs: number;
+}
+
+export interface RateLimitBucketState {
+  bucket_key: string;
+  count: number;
+  reset_at: number;
+}
+
+/** Atomically consumes one slot in each bucket, shared by every Worker isolate. */
+export async function consumeRateLimitBuckets(
+  db: D1Database,
+  buckets: RateLimitBucketSpec[],
+  now = Date.now()
+): Promise<RateLimitBucketState[]> {
+  if (buckets.length === 0) return [];
+  const values = buckets.map(() => "(?, 1, ?, ?)").join(", ");
+  const bindings = buckets.flatMap((bucket) => [
+    bucket.key,
+    now + Math.max(1, bucket.windowMs),
+    Math.max(1, Math.floor(bucket.limit)),
+  ]);
+  const result = await db
+    .prepare(
+      `INSERT INTO rate_limit_buckets (bucket_key, count, reset_at, max_count)
+       VALUES ${values}
+       ON CONFLICT(bucket_key) DO UPDATE SET
+         count = CASE
+           WHEN rate_limit_buckets.reset_at <= ? THEN 1
+           WHEN rate_limit_buckets.count < excluded.max_count + 1 THEN rate_limit_buckets.count + 1
+           ELSE rate_limit_buckets.count
+         END,
+         reset_at = CASE
+           WHEN rate_limit_buckets.reset_at <= ? THEN excluded.reset_at
+           ELSE rate_limit_buckets.reset_at
+         END,
+         max_count = excluded.max_count
+       RETURNING bucket_key, count, reset_at`
+    )
+    .bind(...bindings, now, now)
+    .all<RateLimitBucketState>();
+  return result.results || [];
+}
+
+/** Read a failure counter without consuming an attempt. */
+export async function getRateLimitBucket(
+  db: D1Database,
+  key: string
+): Promise<RateLimitBucketState | null> {
+  return db
+    .prepare("SELECT bucket_key, count, reset_at FROM rate_limit_buckets WHERE bucket_key = ?")
+    .bind(key)
+    .first<RateLimitBucketState>();
+}
+
+/** Increment a failure-only counter; expired windows restart at one. */
+export async function recordRateLimitFailure(
+  db: D1Database,
+  key: string,
+  limit: number,
+  windowMs: number,
+  now = Date.now()
+): Promise<RateLimitBucketState | null> {
+  return db
+    .prepare(
+      `INSERT INTO rate_limit_buckets (bucket_key, count, reset_at, max_count)
+       VALUES (?, 1, ?, ?)
+       ON CONFLICT(bucket_key) DO UPDATE SET
+         count = CASE WHEN rate_limit_buckets.reset_at <= ? THEN 1 ELSE rate_limit_buckets.count + 1 END,
+         reset_at = CASE WHEN rate_limit_buckets.reset_at <= ? THEN excluded.reset_at ELSE rate_limit_buckets.reset_at END,
+         max_count = excluded.max_count
+       RETURNING bucket_key, count, reset_at`
+    )
+    .bind(key, now + windowMs, limit, now, now)
+    .first<RateLimitBucketState>();
+}
+
+export async function clearRateLimitBucket(db: D1Database, key: string): Promise<void> {
+  await db.prepare("DELETE FROM rate_limit_buckets WHERE bucket_key = ?").bind(key).run();
+}
+
+export async function cleanupExpiredRateLimitBuckets(db: D1Database, now = Date.now()): Promise<number> {
+  const result = await db.prepare("DELETE FROM rate_limit_buckets WHERE reset_at <= ?").bind(now).run();
+  return result.meta?.changes ?? 0;
+}
+
 /** Look up a committed transaction after an idempotency-key uniqueness race. */
 async function idByKey(
   db: D1Database,
