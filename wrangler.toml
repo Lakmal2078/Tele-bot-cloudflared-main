@@ -15,7 +15,7 @@ binding = "ASSETS"
 [vars]
 BOT_MODE = "production"
 # Trusted public HTTPS origin used for canonical and absolute SEO URLs.
-PUBLIC_BASE_URL = "https://xbet-telegram-bot.agent-1xfast-srilanka.workers.dev"
+PUBLIC_BASE_URL = "https://xbet-telegram-bot.lakmal-gamage.workers.dev"
 BOT_USERNAME = "fast_1xbetcash_bot"
 CHANNEL_URL = "https://t.me/fast_xbet_official_tips"
 CHANNEL_USERNAME = "@fast_xbet_official_tips"
