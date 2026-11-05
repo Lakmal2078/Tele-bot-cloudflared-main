@@ -10,6 +10,7 @@ import { landingPageSecurityHeaders, securityHeaders, webhookRequestAllowed } fr
 import { renderLandingPage, trustedPublicBaseUrl } from "./landingPage";
 import { handleApiRequest, json } from "./apiRoutes";
 import { getPublicStatus } from "./publicStatus";
+import { buildSeoGuideSitemapEntries, renderSeoContentPage, resolveSeoGuidePath } from "./seoContentPages";
 import { cleanupExpiredRateLimitBuckets } from "./db";
 import { logEvent, requestId, withRequestId } from "./observability";
 import type { Env, ExecutionContext, ScheduledEvent } from "./types";
@@ -162,6 +163,29 @@ export default {
         }
       }
 
+      // Serve localized, server-rendered SEO guides before static-asset fallback.
+      if (method === "GET" || method === "HEAD") {
+        const guideRoute = resolveSeoGuidePath(path);
+        if (guideRoute && path !== guideRoute.canonicalPath) {
+          url.pathname = guideRoute.canonicalPath;
+          return finish(new Response(null, {
+            status: 301,
+            headers: { Location: url.toString(), "Cache-Control": "public, max-age=86400" },
+          }));
+        }
+        if (guideRoute) {
+          if (env.BOT_MODE === "production" && !trustedPublicBaseUrl(env, request)) {
+            return finish(new Response("Service configuration error", { status: 503, headers: securityHeaders() }));
+          }
+          const nonce = crypto.randomUUID().replace(/-/g, "");
+          const html = renderSeoContentPage(env, request, nonce);
+          if (html) {
+            const headers = { "Content-Type": "text/html; charset=utf-8", ...landingPageSecurityHeaders(nonce, { isHttps: url.protocol === "https:" }) };
+            return finish(new Response(method === "HEAD" ? null : html, { status: 200, headers }));
+          }
+        }
+      }
+
       if (path === "/api/status" && (method === "GET" || method === "HEAD")) {
         const headers = { "Cache-Control": "no-store", ...securityHeaders() };
         if (method === "HEAD") return finish(new Response(null, { status: 200, headers }));
@@ -208,6 +232,7 @@ Sitemap: ${baseUrl}/sitemap.xml
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>`).join("\n");
+        const guideEntries = buildSeoGuideSitemapEntries(baseUrl);
         const body = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
 ${homeEntries}
@@ -216,6 +241,7 @@ ${homeEntries}
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
+${guideEntries}
 </urlset>`;
         const headers: Record<string, string> = {
           "Content-Type": "application/xml; charset=utf-8",
