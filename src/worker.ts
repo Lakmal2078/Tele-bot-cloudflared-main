@@ -136,6 +136,32 @@ export default {
       const path = url.pathname;
       const method = request.method.toUpperCase();
 
+      // Normalize locale route spelling to one canonical URL per language.
+      if ((method === "GET" || method === "HEAD") && /^\/(si|en|ta)\/?$/i.test(path)) {
+        const locale = path.split("/").filter(Boolean)[0].toLowerCase();
+        const canonicalPath = locale === "si" ? "/" : "/" + locale + "/";
+        if (path !== canonicalPath) {
+          url.pathname = canonicalPath;
+          return finish(new Response(null, {
+            status: 301,
+            headers: { Location: url.toString(), "Cache-Control": "public, max-age=86400" },
+          }));
+        }
+      }
+
+      // Permanently migrate legacy query-string locale URLs to clean locale paths.
+      if (path === "/" && (method === "GET" || method === "HEAD")) {
+        const legacyLang = url.searchParams.get("lang")?.toLowerCase();
+        if (legacyLang === "en" || legacyLang === "ta" || legacyLang === "si") {
+          url.searchParams.delete("lang");
+          url.pathname = legacyLang === "si" ? "/" : `/${legacyLang}/`;
+          return finish(new Response(null, {
+            status: 301,
+            headers: { Location: url.toString(), "Cache-Control": "public, max-age=86400" },
+          }));
+        }
+      }
+
       if (path === "/api/status" && (method === "GET" || method === "HEAD")) {
         const headers = { "Cache-Control": "no-store", ...securityHeaders() };
         if (method === "HEAD") return finish(new Response(null, { status: 200, headers }));
@@ -169,8 +195,8 @@ Sitemap: ${baseUrl}/sitemap.xml
         const baseUrl = (env.PUBLIC_BASE_URL || "").trim().replace(/\/+$/, "") || trustedPublicBaseUrl(env, request) || "https://fastxbet.lk";
         const homeUrls = [
           { lang: "si", url: `${baseUrl}/` },
-          { lang: "en", url: `${baseUrl}/?lang=en` },
-          { lang: "ta", url: `${baseUrl}/?lang=ta` },
+          { lang: "en", url: `${baseUrl}/en/` },
+          { lang: "ta", url: `${baseUrl}/ta/` },
         ];
         const alternates = [
           ...homeUrls.map(({ lang, url }) => `<xhtml:link rel="alternate" hreflang="${lang}" href="${url}"/>`),
@@ -215,7 +241,8 @@ ${homeEntries}
       if (apiResponse) return finish(apiResponse);
 
       if (method === "GET" || method === "HEAD") {
-        if (path !== "/") {
+        const isLocaleLanding = /^\/(si|en|ta)\/?$/i.test(path);
+        if (path !== "/" && !isLocaleLanding) {
           if (env.ASSETS && typeof env.ASSETS.fetch === "function") {
             try {
               const assetRes = await env.ASSETS.fetch(request);

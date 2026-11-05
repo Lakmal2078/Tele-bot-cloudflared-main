@@ -46,8 +46,8 @@ describe("Landing Page Render & SEO", () => {
   it("uses PUBLIC_BASE_URL and ignores attacker-controlled host headers", () => {
     const req = new Request("https://attacker.example/?lang=en", { headers: { Host: "attacker.example", "X-Forwarded-Host": "attacker.example" } });
     const html = renderLandingPage(mockEnv, req);
-    expect(html).toContain('<link rel="canonical" href="https://fast-xbet.lk/?lang=en">');
-    expect(html).toContain('property="og:url" content="https://fast-xbet.lk/?lang=en"');
+    expect(html).toContain('<link rel="canonical" href="https://fast-xbet.lk/en/">');
+    expect(html).toContain('property="og:url" content="https://fast-xbet.lk/en/"');
     expect(html).not.toContain("attacker.example");
   });
 
@@ -58,7 +58,7 @@ describe("Landing Page Render & SEO", () => {
   });
 
   it("detects language from ?lang=en query parameter", () => {
-    const req = new Request("https://fast-xbet.lk/?lang=en");
+    const req = new Request("https://fast-xbet.lk/en/");
     const html = renderLandingPage(mockEnv, req);
     expect(html).toContain('<html lang="en">');
     expect(html).toContain("Open Telegram Bot");
@@ -103,12 +103,13 @@ describe("Landing Page Render & SEO", () => {
 
   it("self-canonicalizes explicit language URLs while keeping the root stable", () => {
     const si = renderLandingPage(mockEnv, new Request("https://fast-xbet.lk/?lang=si"));
-    const en = renderLandingPage(mockEnv, new Request("https://fast-xbet.lk/?lang=en"));
+    const en = renderLandingPage(mockEnv, new Request("https://fast-xbet.lk/en/"));
     const ta = renderLandingPage(mockEnv, new Request("https://fast-xbet.lk/?lang=ta"));
     const negotiated = renderLandingPage(mockEnv, new Request("https://fast-xbet.lk/", { headers: { "Accept-Language": "en-US,en;q=0.9" } }));
     expect(si).toContain('<link rel="canonical" href="https://fast-xbet.lk/">');
-    expect(en).toContain('<link rel="canonical" href="https://fast-xbet.lk/?lang=en">');
-    expect(ta).toContain('<link rel="canonical" href="https://fast-xbet.lk/?lang=ta">');
+    expect(en).toContain('<link rel="canonical" href="https://fast-xbet.lk/en/">');
+    expect(ta).toContain('<link rel="canonical" href="https://fast-xbet.lk/ta/">');
+    expect(negotiated).toContain('<html lang="si">');
     expect(negotiated).toContain('<link rel="canonical" href="https://fast-xbet.lk/">');
   });
 
@@ -121,8 +122,44 @@ describe("Landing Page Render & SEO", () => {
     expect(html).toContain('hreflang="ta"');
     expect(html).toContain('hreflang="x-default" href="https://fast-xbet.lk/"');
     expect(html).toContain('hreflang="si" href="https://fast-xbet.lk/"');
-    expect(html).toContain('hreflang="en" href="https://fast-xbet.lk/?lang=en"');
-    expect(html).toContain('hreflang="ta" href="https://fast-xbet.lk/?lang=ta"');
+    expect(html).toContain('hreflang="en" href="https://fast-xbet.lk/en/"');
+    expect(html).toContain('hreflang="ta" href="https://fast-xbet.lk/ta/"');
+  });
+
+  it("serves clean localized landing routes with matching canonical URLs", async () => {
+    const workerModule = await import("../src/worker");
+    const en = await workerModule.default.fetch(new Request("https://fast-xbet.lk/en/"), mockEnv);
+    const ta = await workerModule.default.fetch(new Request("https://fast-xbet.lk/ta/"), mockEnv);
+    expect(en.status).toBe(200);
+    expect(await en.text()).toContain('<html lang="en">');
+    expect(ta.status).toBe(200);
+    expect(await ta.text()).toContain('<html lang="ta">');
+  });
+
+  it("normalizes locale route trailing slashes", async () => {
+    const workerModule = await import("../src/worker");
+    const en = await workerModule.default.fetch(new Request("https://fast-xbet.lk/en"), mockEnv);
+    const si = await workerModule.default.fetch(new Request("https://fast-xbet.lk/si/"), mockEnv);
+    expect(en.status).toBe(301);
+    expect(en.headers.get("Location")).toBe("https://fast-xbet.lk/en/");
+    expect(si.status).toBe(301);
+    expect(si.headers.get("Location")).toBe("https://fast-xbet.lk/");
+  });
+
+  it("permanently redirects legacy locale query URLs to clean paths", async () => {
+    const workerModule = await import("../src/worker");
+    const res = await workerModule.default.fetch(new Request("https://fast-xbet.lk/?lang=en&utm_source=test"), mockEnv);
+    expect(res.status).toBe(301);
+    expect(res.headers.get("Location")).toBe("https://fast-xbet.lk/en/?utm_source=test");
+  });
+
+  it("redirects privacy aliases to the canonical privacy route", async () => {
+    const legacy = await handleApiRequest(new Request("https://fast-xbet.lk/privacy-policy"), mockEnv);
+    const legal = await handleApiRequest(new Request("https://fast-xbet.lk/legal/privacy"), mockEnv);
+    expect(legacy?.status).toBe(301);
+    expect(legacy?.headers.get("Location")).toBe("https://fast-xbet.lk/privacy");
+    expect(legal?.status).toBe(301);
+    expect(legal?.headers.get("Location")).toBe("https://fast-xbet.lk/privacy");
   });
 
   it("includes JSON-LD schema with Organization, WebSite, and FAQPage", () => {
@@ -278,7 +315,7 @@ describe("Landing Page Render & SEO", () => {
     expect(html).toContain("qrOpenBtn");
 
     // 2. SEO keywords
-    expect(html).toContain('name="keywords" content="1xBet Sri Lanka Telegram Bot, නොමිලේ ක්‍රීඩා උපදෙස් ශ්‍රී ලංකා');
+    expect(html).not.toContain('name="keywords"');
     expect(html).toContain("<title>Fast xBet Cash 🇱🇰 — 1xBet Sri Lanka Telegram Bot &amp; නොමිලේ ක්‍රීඩා උපදෙස්</title>");
 
     // 3. Winning tips ticker (Recent wins)
@@ -362,8 +399,8 @@ describe("Landing Page Render & SEO", () => {
     expect(sitemapRes.headers.get("Content-Type")).toContain("application/xml");
     const sitemapXml = await sitemapRes.text();
     expect(sitemapXml).toContain("<loc>https://fast-xbet.lk/</loc>");
-    expect(sitemapXml).toContain("<loc>https://fast-xbet.lk/?lang=en</loc>");
-    expect(sitemapXml).toContain("<loc>https://fast-xbet.lk/?lang=ta</loc>");
+    expect(sitemapXml).toContain("<loc>https://fast-xbet.lk/en/</loc>");
+    expect(sitemapXml).toContain("<loc>https://fast-xbet.lk/ta/</loc>");
     expect(sitemapXml.match(/<loc>/g)).toHaveLength(4);
     expect(sitemapXml).toContain('hreflang="si" href="https://fast-xbet.lk/"');
   });
@@ -408,8 +445,8 @@ describe("Landing Page Render & SEO", () => {
     const xml = await res!.text();
     expect(xml).toContain('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"');
     expect(xml).toContain("<loc>https://fast-xbet.lk/</loc>");
-    expect(xml).toContain("<loc>https://fast-xbet.lk/?lang=en</loc>");
-    expect(xml).toContain("<loc>https://fast-xbet.lk/?lang=ta</loc>");
+    expect(xml).toContain("<loc>https://fast-xbet.lk/en/</loc>");
+    expect(xml).toContain("<loc>https://fast-xbet.lk/ta/</loc>");
     expect(xml.match(/<loc>/g)).toHaveLength(4);
     expect(xml).toContain('hreflang="si" href="https://fast-xbet.lk/"');
     expect(xml).toContain('hreflang="en"');
@@ -419,8 +456,8 @@ describe("Landing Page Render & SEO", () => {
   it("preserves query parameters when generating language switch links", () => {
     const req = new Request("https://fast-xbet.lk/?utm_source=facebook&tag=promo100&lang=si");
     const html = renderLandingPage(mockEnv, req);
-    expect(html).toContain('href="/?utm_source=facebook&amp;tag=promo100&amp;lang=en"');
-    expect(html).toContain('href="/?utm_source=facebook&amp;tag=promo100&amp;lang=ta"');
+    expect(html).toContain('href="/en/?utm_source=facebook&amp;tag=promo100"');
+    expect(html).toContain('href="/ta/?utm_source=facebook&amp;tag=promo100"');
   });
 
   it("includes responsible gambling helplines (1926, 1333, begambleaware.org) and bonus compliance", () => {

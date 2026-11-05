@@ -1,4 +1,5 @@
 import type { Env } from "./types";
+import { trustedPublicBaseUrl } from "./landingPage";
 import { BRAND_LOGO_SVG_COMPACT, BRAND_LOGO_FAVICON_DATA_URI } from "./brandLogo";
 
 function escapeHtml(str: string): string {
@@ -17,16 +18,8 @@ export function renderPrivacyPage(env: Env, request: Request, nonce?: string): s
   const botUrl = env.BOT_USERNAME?.startsWith("https://") ? env.BOT_USERNAME : `https://t.me/${rawBot}`;
   const channelUrl = env.CHANNEL_URL?.trim() || "https://t.me/fast_xbet_official_tips";
 
-  // Build the absolute canonical URL for the Privacy Policy page
-  let origin = "https://fast-xbet-cash.pages.dev";
-  try {
-    const parsed = new URL(request.url);
-    if (parsed.origin && parsed.origin !== "null") {
-      origin = parsed.origin;
-    }
-  } catch {
-    // fallback
-  }
+  // Canonical metadata must use the configured public origin, not an untrusted Host header.
+  const origin = trustedPublicBaseUrl(env, request) || new URL(request.url).origin;
   const privacyUrl = `${origin}/privacy`;
 
   return `<!DOCTYPE html>

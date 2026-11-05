@@ -38,10 +38,11 @@ export function trustedPublicBaseUrl(env: Env, request: Request): string | null 
 export function makeLangUrl(request: Request, targetLang: Lang): string {
   try {
     const u = new URL(request.url);
-    u.searchParams.set("lang", targetLang);
-    return `${u.pathname}${u.search}${u.hash}`;
+    u.searchParams.delete("lang");
+    const path = targetLang === "si" ? "/" : `/${targetLang}/`;
+    return `${path}${u.search}${u.hash}`;
   } catch {
-    return `?lang=${targetLang}`;
+    return targetLang === "si" ? "/" : `/${targetLang}/`;
   }
 }
 
@@ -531,20 +532,18 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
   const ea = trustedOrigin ? esc(siteUrl) : "/";
   const localeUrls = trustedOrigin ? {
     si: siteUrl,
-    en: `${siteUrl}?lang=en`,
-    ta: `${siteUrl}?lang=ta`,
+    en: `${trustedOrigin}/en/`,
+    ta: `${trustedOrigin}/ta/`,
   } : null;
   let canonicalUrl = siteUrl;
   try {
     const u = new URL(request.url);
-    const q = u.searchParams.get("lang")?.toLowerCase();
-    if (q === "si" || q === "en" || q === "ta") {
-      lang = q;
+    const pathLang = u.pathname.match(/^\/(si|en|ta)\/?$/i)?.[1]?.toLowerCase();
+    const queryLang = u.searchParams.get("lang")?.toLowerCase();
+    const requestedLang = pathLang || queryLang;
+    if (requestedLang === "si" || requestedLang === "en" || requestedLang === "ta") {
+      lang = requestedLang;
       hasExplicitLang = true;
-    } else {
-      const a = request.headers.get("accept-language") || "";
-      if (/\\bta\\b/i.test(a)) lang = "ta";
-      else if (/\\ben\\b/i.test(a)) lang = "en";
     }
   } catch {}
   if (hasExplicitLang && lang !== "si" && localeUrls) canonicalUrl = localeUrls[lang];
@@ -655,7 +654,6 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>${esc(c.title)}</title>
 <meta name="description" content="${esc(c.desc)}">
-<meta name="keywords" content="1xBet Sri Lanka Telegram Bot, නොමිලේ ක්‍රීඩා උපදෙස් ශ්‍රී ලංකා, xBet cash desk Sri Lanka, 1xbet deposit Sinhala, eZ Cash 1xBet, mCash, FriMi, iPay, Telegram betting tips Sri Lanka, sports betting tips LK">
 <meta name="robots" content="index,follow">
 <meta name="theme-color" content="#070B12">
 <meta name="color-scheme" content="dark">
