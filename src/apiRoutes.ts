@@ -75,12 +75,10 @@ async function readBoundedText(request: Request, maxBytes: number): Promise<stri
 import { constantTimeEqual, isConfiguredAdminId, validateEnv } from "./config";
 import { securityHeaders, landingPageSecurityHeaders, isAdminIpAllowed, SECURITY_LIMITS } from "./security";
 import {
-  ADMIN_SESSION_COOKIE,
   adminSessionCookieHeader,
   clearedAdminSessionCookieHeader,
   createAdminSessionToken,
   hasValidAdminSession,
-  readCookie,
 } from "./adminSession";
 import { getStats, getOperationsDashboard, getDailyFinancialTrends, getSupportTickets, updateSupportTicket, createScheduledChannelPost, recordAnalyticsEvent, getAttributionFunnelStats, consumeRateLimitBuckets, clearRateLimitBucket } from "./db";
 import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
@@ -133,14 +131,6 @@ export async function adminRequestAuthorized(request: Request, env: Env): Promis
   if (adminAuthorized(request, env)) return true;
   if (!(await hasValidAdminSession(request, env))) return false;
   return adminIdHeaderValid(request, env);
-}
-
-function adminCredentialSupplied(request: Request): boolean {
-  return Boolean(
-    request.headers.get("Authorization") ||
-      request.headers.get("x-admin-secret") ||
-      readCookie(request, ADMIN_SESSION_COOKIE)
-  );
 }
 
 function tooManyAttemptsResponse(): Response {
