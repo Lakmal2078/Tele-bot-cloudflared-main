@@ -1,4 +1,5 @@
 import type { Env, ExecutionContext } from "./types";
+import { normalizePublicBaseUrl } from "./landingPage";
 import { OG_IMAGE_PNG, OG_IMAGE_JPEG } from "./ogImage";
 import { BRAND_LOGO_SVG, BRAND_LOGO_PNG_192 } from "./brandLogo";
 import { FAVICON_PNG_BASE64 } from "./brandFaviconData";
@@ -74,12 +75,10 @@ async function readBoundedText(request: Request, maxBytes: number): Promise<stri
 import { constantTimeEqual, isConfiguredAdminId, validateEnv } from "./config";
 import { securityHeaders, landingPageSecurityHeaders, isAdminIpAllowed, SECURITY_LIMITS } from "./security";
 import {
-  ADMIN_SESSION_COOKIE,
   adminSessionCookieHeader,
   clearedAdminSessionCookieHeader,
   createAdminSessionToken,
   hasValidAdminSession,
-  readCookie,
 } from "./adminSession";
 import { getStats, getOperationsDashboard, getDailyFinancialTrends, getSupportTickets, updateSupportTicket, createScheduledChannelPost, recordAnalyticsEvent, getAttributionFunnelStats, consumeRateLimitBuckets, clearRateLimitBucket } from "./db";
 import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
@@ -132,14 +131,6 @@ export async function adminRequestAuthorized(request: Request, env: Env): Promis
   if (adminAuthorized(request, env)) return true;
   if (!(await hasValidAdminSession(request, env))) return false;
   return adminIdHeaderValid(request, env);
-}
-
-function adminCredentialSupplied(request: Request): boolean {
-  return Boolean(
-    request.headers.get("Authorization") ||
-      request.headers.get("x-admin-secret") ||
-      readCookie(request, ADMIN_SESSION_COOKIE)
-  );
 }
 
 function tooManyAttemptsResponse(): Response {
@@ -814,8 +805,8 @@ Sitemap: ${origin}/sitemap.xml
     const origin = (env.PUBLIC_BASE_URL || "").trim().replace(/\/+$/, "") || trustedPublicBaseUrl(env, request) || "https://fastxbet.lk";
     const homeUrls = [
       { lang: "si", url: `${origin}/` },
-      { lang: "en", url: `${origin}/?lang=en` },
-      { lang: "ta", url: `${origin}/?lang=ta` },
+      { lang: "en", url: `${origin}/en/` },
+      { lang: "ta", url: `${origin}/ta/` },
     ];
     const alternates = [
       ...homeUrls.map(({ lang, url }) => `<xhtml:link rel="alternate" hreflang="${lang}" href="${url}"/>`),
@@ -846,8 +837,16 @@ ${homeEntries}
     return new Response(body, { status: 200, headers });
   }
 
-  // Public Privacy Policy Page (/privacy, /privacy-policy, /legal/privacy)
-  if ((path === "/privacy" || path === "/privacy-policy" || path === "/legal/privacy") && (method === "GET" || method === "HEAD")) {
+  // Consolidate historical privacy aliases onto the canonical legal URL.
+  if ((path === "/privacy-policy" || path === "/legal/privacy") && (method === "GET" || method === "HEAD")) {
+    return new Response(null, {
+      status: 301,
+      headers: { Location: `${normalizePublicBaseUrl(env.PUBLIC_BASE_URL) || new URL(request.url).origin}/privacy`, "Cache-Control": "public, max-age=86400" },
+    });
+  }
+
+  // Public Privacy Policy Page (/privacy)
+  if (path === "/privacy" && (method === "GET" || method === "HEAD")) {
     const nonce = crypto.randomUUID().replace(/-/g, "");
     const html = renderPrivacyPage(env, request, nonce);
     const headers = landingPageSecurityHeaders(nonce, { isHttps: request.url.startsWith("https://") });
