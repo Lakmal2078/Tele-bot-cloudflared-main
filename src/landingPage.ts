@@ -385,33 +385,33 @@ function renderHeroEyebrow(c: (typeof T)[Lang], lang: Lang): string {
 function renderHeroHeading(lang: Lang): string {
   if (lang === "si") {
     return `<h1 class="heroHeading">
-      <span class="hero-line">වේගවත් <span class="hl-gradient hl-tips">tips</span>. සරල <span class="hl-gradient hl-cash">cash</span>.</span>
+      <span class="hero-line">ඔබේ සේවාවන්ට <span class="hl-gradient hl-tips">එක්</span></span>
       <br class="hero-br">
-      <span class="hero-line">එක <span class="hl-gradient hl-tg">Telegram</span> එකක්.</span>
+      <span class="hero-line"><span class="hl-gradient hl-cash">Telegram</span> මධ්‍යස්ථානයක්.</span>
     </h1>`;
   }
   if (lang === "ta") {
     return `<h1 class="heroHeading">
-      <span class="hero-line">வேகமான <span class="hl-gradient hl-tips">tips</span>. எளிய <span class="hl-gradient hl-cash">cash</span>.</span>
+      <span class="hero-line">உங்கள் சேவைகளுக்கு</span>
       <br class="hero-br">
-      <span class="hero-line">ஒரே <span class="hl-gradient hl-tg">Telegram</span>.</span>
+      <span class="hero-line">ஒரே <span class="hl-gradient hl-cash">Telegram</span> மையம்.</span>
     </h1>`;
   }
   return `<h1 class="heroHeading">
-    <span class="hero-line">Fast <span class="hl-gradient hl-tips">tips</span>. Simple <span class="hl-gradient hl-cash">cash</span>.</span>
+    <span class="hero-line">One simple</span>
     <br class="hero-br">
-    <span class="hero-line">One <span class="hl-gradient hl-tg">Telegram</span>.</span>
+    <span class="hero-line"><span class="hl-gradient hl-cash">Telegram</span> hub for your needs.</span>
   </h1>`;
 }
 
 function renderHeroSubtitle(c: (typeof T)[Lang], lang: Lang): string {
   if (lang === "si") {
-    return `<p class="hero-subtitle">නොමිලේ ක්‍රීඩා උපදෙස්, <strong class="hero-hl">eZ Cash / mCash / Bank</strong> තැන්පතු සහ මුදල් ආපසු ගැනීම් — එකම Telegram bot එකක් හරහා. Extra apps අවශ්‍ය නැහැ.</p>`;
+    return `<p class="hero-subtitle">තැන්පතු සහ මුදල් ආපසු ගැනීම් සඳහා මඟපෙන්වීම, නොමිලේ ක්‍රීඩා ඉඟි සහ භාෂා තුනක සහාය — සියල්ල එකම Telegram bot එකකින්. <strong class="hero-hl">සරලයි. පැහැදිලියි. පහසුයි.</strong></p>`;
   }
   if (lang === "ta") {
-    return `<p class="hero-subtitle">Free sports tips, <strong class="hero-hl">eZ Cash / mCash / Bank</strong> deposits மற்றும் withdrawals — ஒரே Telegram bot-ல். கூடுதல் செயலிகள் தேவையில்லை.</p>`;
+    return `<p class="hero-subtitle">Deposit மற்றும் withdrawal வழிகாட்டுதல், இலவச விளையாட்டு குறிப்புகள் மற்றும் மூன்று மொழிகளில் உதவி — அனைத்தும் ஒரே Telegram bot-ல். <strong class="hero-hl">எளிமை. தெளிவு. வசதி.</strong></p>`;
   }
-  return `<p class="hero-subtitle">Free sports tips, <strong class="hero-hl">eZ Cash / mCash / Bank</strong> deposits and fast withdrawals — all inside one official Telegram bot. No extra apps needed.</p>`;
+  return `<p class="hero-subtitle">Guided deposits and withdrawals, free sports tips, and support in three languages — all in one Telegram bot. <strong class="hero-hl">Simple, clear, and convenient.</strong></p>`;
 }
 
 function renderHeroTrustRibbon(lang: Lang): string {
@@ -678,7 +678,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
 ${ldScript}
 ${cfAnalyticsScript}
 <style${n}>
-:root{--bg:#0b1220;--bg2:#101b2d;--surface:#142033;--surface2:#1b2b40;--fg:#f8fafc;--muted:#a8b3c5;--faint:#7b8ba3;--signal:#a3e635;--cyan:#67e8f9;--pink:#ff477e;--border:#ffffff12;--shadow:0 25px 70px #0008}
+:root{--bg:#0f172a;--bg2:#111d33;--surface:#17243a;--surface2:#1e2d45;--fg:#ffffff;--muted:#b8c4d6;--faint:#8291a8;--signal:#10b981;--cyan:#34d399;--pink:#fb7185;--border:#ffffff16;--shadow:0 28px 80px #02061799}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth;overflow-x:hidden;max-width:100%}
 body{margin:0;min-width:320px;max-width:100%;background:radial-gradient(circle at 85% 10%,#67e8f914,transparent 32%),radial-gradient(circle at 12% 42%,#ff477e0d,transparent 30%),var(--bg);color:var(--fg);font-family:"Plus Jakarta Sans","Noto Sans Sinhala","Noto Sans Tamil",system-ui,sans-serif;line-height:1.6;overflow-x:hidden;position:relative}
@@ -789,7 +789,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 
 .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
 .heroActions{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px;align-items:center}
-.heroPrimaryBtn{display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:15px 32px;font-size:.95rem;letter-spacing:-.01em;font-weight:900;background:linear-gradient(135deg,#00e676,#a3e635);color:#071006;border-radius:14px;box-shadow:0 14px 34px #a3e6353a,0 0 0 1px #a3e63577;transition:transform .18s ease,box-shadow .18s ease}
+.heroPrimaryBtn{display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:15px 32px;font-size:.95rem;letter-spacing:-.01em;font-weight:900;background:linear-gradient(135deg,#10b981,#34d399);color:#052e2b;border-radius:14px;box-shadow:0 14px 34px #10b9813a,0 0 0 1px #10b98177;transition:transform .18s ease,box-shadow .18s ease}
 .heroPrimaryBtn:hover{transform:translateY(-2px);box-shadow:0 18px 40px #a3e63555,0 0 0 2px #a3e635}
 .heroSubActions{display:flex;align-items:center;gap:12px;margin-top:14px;font-size:.78rem;color:var(--muted)}
 .subLink{color:var(--muted);text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:color .18s ease}
@@ -1316,6 +1316,38 @@ body::before{
   .service,.tipCard{transition:none}
 }
 
+
+/* Premium navy / emerald landing-page refresh */
+.nav{background:rgba(15,23,42,.9);border-bottom-color:#ffffff18}
+.logo span{color:#34d399}
+.links a:hover{background:#10b98114;color:#fff}
+.btn.primary,.primary{background:#10b981;color:#052e2b;box-shadow:0 12px 32px #10b98126}
+.hero{padding:82px 0 68px}
+.hero::before{background:radial-gradient(circle,rgba(16,185,129,.17) 0%,transparent 70%)}
+.hero::after{background:radial-gradient(circle,rgba(52,211,153,.11) 0%,transparent 70%)}
+.heroGraphicBg{opacity:.18;filter:saturate(.55) contrast(1.08)}
+.heroGraphicOverlay{background:linear-gradient(90deg,rgba(15,23,42,.98) 0%,rgba(15,23,42,.9) 52%,rgba(15,23,42,.68) 100%),linear-gradient(180deg,rgba(15,23,42,.12),rgba(15,23,42,.94))}
+.hero-badge{background:rgba(15,23,42,.82);border-color:#10b98155}
+.hero-badge-dot{background:#10b981;box-shadow:0 0 10px #10b981,0 0 20px #10b981}
+.hero-badge-pill{background:#10b9811c;color:#6ee7b7;border-color:#10b98155}
+.hl-tips{background-image:linear-gradient(135deg,#6ee7b7,#10b981);filter:drop-shadow(0 0 18px #10b98144)}
+.hl-cash{background-image:linear-gradient(135deg,#34d399,#a7f3d0);filter:drop-shadow(0 0 18px #10b98144)}
+.hl-tg{background-image:linear-gradient(135deg,#a7f3d0,#10b981);filter:drop-shadow(0 0 18px #10b98144)}
+.heroPrimaryBtn{background:linear-gradient(135deg,#10b981,#6ee7b7);color:#052e2b;box-shadow:0 14px 34px #10b98135,0 0 0 1px #10b98177}
+.heroPrimaryBtn:hover{box-shadow:0 18px 40px #10b98155,0 0 0 2px #10b981}
+.hero-trust-ribbon{border-color:#ffffff18;background:rgba(15,23,42,.78)}
+.trust-title,.tickerItem b{color:#6ee7b7}
+.tickerBar{background:linear-gradient(90deg,#0b1426,#14243b 50%,#0b1426);border-bottom-color:#10b98133}
+.tickerBadge{background:#10b98118;border-color:#10b98155;color:#6ee7b7}
+.phone{border-color:#10b98166;background:#0f172a;box-shadow:0 30px 90px #020617aa,0 0 0 6px #10b9810d}
+.chatHead .brand{border-color:#10b98166}
+.online{background:#10b9811a;color:#6ee7b7}
+.online i{background:#10b981;box-shadow:0 0 10px #10b981}
+.kicker{background:#10b98112;border-color:#10b98144;color:#6ee7b7}
+.section{scroll-margin-top:88px}
+@media(max-width:760px){.hero{padding:54px 0 42px}.heroGrid{gap:32px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.tickerItems{animation:none}}
+
 </style>
 </head>
 <body>
@@ -1443,7 +1475,7 @@ body::before{
             <div class="bubble bot">
               <div style="font-size:0.68rem;font-weight:700;color:#67e8f9;margin-bottom:4px;">What can this bot do?</div>
               <img src="/bot-description-640x360.jpg" alt="Fast xBet Cash Bot Description" width="640" height="360" style="width:100%;height:auto;border-radius:10px;border:1px solid #67e8f944;margin-bottom:6px;display:block;" />
-              <div style="font-size:0.68rem;line-height:1.3;">⚡ <b>Fast xBet Cash 🇱🇰</b><br>Official 1xBet Sri Lanka Cash Desk.<br>💳 Zero hidden fee local deposits &amp; fast withdrawals.<br>⚽ Daily sports analysis &amp; betting tips!</div>
+              <div style="font-size:0.68rem;line-height:1.45;">⚡ <b>Fast xBet Cash 🇱🇰</b><br>ඔබගේ Telegram සහායකයා.<br>💳 Guided deposit &amp; withdrawal support.<br>🎯 Free sports tips · SI / EN / TA</div>
             </div>
             <div class="bubble user">Start Bot /start</div>
             <div class="bubble bot">Welcome to Fast xBet Cash 🇱🇰! Tap below to explore deposit &amp; withdrawal services.</div>
