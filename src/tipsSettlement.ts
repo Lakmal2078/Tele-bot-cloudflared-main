@@ -223,7 +223,11 @@ export async function updateTelegramMessageWithResults(
   picks: PickResultRecord[],
   overallResult: "WON" | "LOST" | "VOID" | "PARTIAL"
 ): Promise<boolean> {
-  if (!env.BOT_TOKEN || !env.TIPS_CHANNEL_ID) return false;
+  const rawChannelTarget = (env.TIPS_CHANNEL_ID || env.CHANNEL_USERNAME || "").trim();
+  if (!env.BOT_TOKEN || !rawChannelTarget) return false;
+  const chatId = rawChannelTarget.startsWith("@")
+    ? rawChannelTarget
+    : rawChannelTarget.replace(/^id:\s*/i, "").trim();
 
   const wonCount = picks.filter((p) => p.result === "WON").length;
   const totalCount = picks.length;
@@ -263,7 +267,7 @@ export async function updateTelegramMessageWithResults(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        chat_id: (env.TIPS_CHANNEL_ID || "").replace(/^id:\s*/i, "").trim(),
+        chat_id: chatId,
         message_id: messageId,
         text: updatedText,
         parse_mode: "Markdown",
@@ -320,7 +324,7 @@ export async function settlePendingTips(
     FROM tip_posts
     WHERE status = 'POSTED'
       AND (result IS NULL OR result = 'PENDING')
-      AND (commence_time IS NULL OR commence_time <= datetime('now', '+3 hours'))
+      AND (commence_time IS NULL OR datetime(commence_time) <= datetime('now', '+3 hours'))
     ORDER BY id ASC
     LIMIT ?
   `;
