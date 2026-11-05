@@ -401,7 +401,10 @@ describe("Landing Page Render & SEO", () => {
     expect(sitemapXml).toContain("<loc>https://fast-xbet.lk/</loc>");
     expect(sitemapXml).toContain("<loc>https://fast-xbet.lk/en/</loc>");
     expect(sitemapXml).toContain("<loc>https://fast-xbet.lk/ta/</loc>");
-    expect(sitemapXml.match(/<loc>/g)).toHaveLength(4);
+    expect(sitemapXml).toContain("<loc>https://fast-xbet.lk/deposit-guide</loc>");
+    expect(sitemapXml).toContain("<loc>https://fast-xbet.lk/en/withdrawal-guide</loc>");
+    expect(sitemapXml).toContain("<loc>https://fast-xbet.lk/ta/free-sports-tips</loc>");
+    expect(sitemapXml.match(/<loc>/g)).toHaveLength(13);
     expect(sitemapXml).toContain('hreflang="si" href="https://fast-xbet.lk/"');
   });
 
@@ -447,7 +450,10 @@ describe("Landing Page Render & SEO", () => {
     expect(xml).toContain("<loc>https://fast-xbet.lk/</loc>");
     expect(xml).toContain("<loc>https://fast-xbet.lk/en/</loc>");
     expect(xml).toContain("<loc>https://fast-xbet.lk/ta/</loc>");
-    expect(xml.match(/<loc>/g)).toHaveLength(4);
+    expect(xml).toContain("<loc>https://fast-xbet.lk/deposit-guide</loc>");
+    expect(xml).toContain("<loc>https://fast-xbet.lk/en/withdrawal-guide</loc>");
+    expect(xml).toContain("<loc>https://fast-xbet.lk/ta/free-sports-tips</loc>");
+    expect(xml.match(/<loc>/g)).toHaveLength(13);
     expect(xml).toContain('hreflang="si" href="https://fast-xbet.lk/"');
     expect(xml).toContain('hreflang="en"');
     expect(xml).toContain('hreflang="ta"');

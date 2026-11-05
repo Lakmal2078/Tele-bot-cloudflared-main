@@ -1791,6 +1791,9 @@ ${renderFinalCtaBanner(c, lang, eb)}
     <b>Quick links</b>
     <div class="footerLinks">
       <a href="#tips-preview">${esc(c.nav[1])}</a>
+      <a href="${lang === "si" ? "" : `/${lang}`}/deposit-guide">${lang === "si" ? "Deposit Guide" : lang === "ta" ? "Deposit வழிகாட்டி" : "Deposit Guide"}</a>
+      <a href="${lang === "si" ? "" : `/${lang}`}/withdrawal-guide">${lang === "si" ? "Withdrawal Guide" : lang === "ta" ? "Withdrawal வழிகாட்டி" : "Withdrawal Guide"}</a>
+      <a href="${lang === "si" ? "" : `/${lang}`}/free-sports-tips">${lang === "si" ? "Free Sports Tips" : lang === "ta" ? "இலவச Sports Tips" : "Free Sports Tips"}</a>
       <a href="#payments">${esc(c.nav[3])}</a>
       <a href="#security">${esc(c.nav[4])}</a>
       <a href="#faq">${esc(c.nav[5])}</a>

@@ -89,6 +89,7 @@ import { checkTelegramBotConnection } from "./telegramStatus";
 import { renderAdminPage, renderAdminLoginPage } from "./adminPage";
 import { renderPrivacyPage } from "./privacyPage";
 import { trustedPublicBaseUrl } from "./landingPage";
+import { buildSeoGuideSitemapEntries } from "./seoContentPages";
 
 /**
  * Header-only admin credential check.
@@ -818,6 +819,7 @@ Sitemap: ${origin}/sitemap.xml
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>`).join("\n");
+    const guideEntries = buildSeoGuideSitemapEntries(origin);
     const body = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
 ${homeEntries}
@@ -826,6 +828,7 @@ ${homeEntries}
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
+${guideEntries}
 </urlset>`;
     const headers: Record<string, string> = {
       "Content-Type": "application/xml; charset=utf-8",
