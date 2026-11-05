@@ -735,6 +735,8 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .tickerItem b{color:#00e676;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:800}
 .wonTag{display:inline-block;padding:2px 6px;border-radius:6px;background:rgba(34,197,94,0.22);color:#86efac;border:1px solid rgba(34,197,94,0.35);font:800 .58rem ui-monospace,SFMono-Regular,Menlo,monospace}
 @keyframes tickerScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.tickerBar.paused .tickerItems,.tickerBar:hover .tickerItems,.tickerBar:focus-within .tickerItems{animation-play-state:paused}
+.tickerPause{appearance:none;flex:none;border:1px solid var(--border);background:#ffffff0a;color:var(--muted);border-radius:999px;padding:3px 10px;font:inherit;font-size:.7rem;font-weight:700;cursor:pointer}
 
 /* Telegram-first branded graphics */
 .heroGraphicBg,.sectionGraphicBg,.finalGraphicBg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;pointer-events:none;user-select:none;}
@@ -1086,7 +1088,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
   --surface2:#0f1d2d;
   --fg:#f5f9ff;
   --muted:#93a7bd;
-  --faint:#60758b;
+  --faint:#7d8fa6;
   --signal:#00e676;
   --cyan:#229ed9;
   --telegram:#229ed9;
@@ -1367,11 +1369,11 @@ body::before{
       <a href="#security">${esc(c.nav[4])}</a>
       <a href="#faq">${esc(c.nav[5])}</a>
     </nav>
-    <div class="botStatusWidget" id="botStatusWidget" role="status" aria-live="polite" title="Telegram Bot Live Ping · Click to re-test connection" tabindex="0">
+    <button type="button" class="botStatusWidget" id="botStatusWidget" title="Telegram Bot Live Ping · Click to re-test connection">
       <span class="botStatusDot checking" id="botStatusDot"></span>
-      <span class="botStatusLabel" id="botStatusLabel">Bot: <b id="botStatusText">Checking...</b></span>
+      <span class="botStatusLabel" id="botStatusLabel" role="status" aria-live="polite">Bot: <b id="botStatusText">Checking...</b></span>
       <span class="botStatusPing" id="botStatusPing"></span>
-    </div>
+    </button>
     <div class="langs" aria-label="Language">
       <a href="${esc(makeLangUrl(request, "si"))}" ${lang === "si" ? 'aria-current="page"' : ""}>SI</a>
       <a href="${esc(makeLangUrl(request, "en"))}" ${lang === "en" ? 'aria-current="page"' : ""}>EN</a>
@@ -1397,9 +1399,10 @@ body::before{
 </header>
 
 <!-- Winning Tips Ticker Bar -->
-<div class="tickerBar" aria-label="Recent Winning Tips (illustrative sample results, past performance is not a guarantee)">
+<div class="tickerBar" role="region" aria-label="Recent Winning Tips (illustrative sample results, past performance is not a guarantee)">
   <div class="wrap tickerInner">
     <span class="tickerBadge">🔥 ${esc(c.ticker)}</span>
+    <button type="button" class="tickerPause" aria-pressed="false" aria-label="Pause ticker animation">Pause</button>
     <div class="tickerScroll">
       <div class="tickerItems">
         <span class="tickerItem">⚽ Arsenal Win @ <b>1.94</b> <i class="wonTag">SAMPLE</i></span>
@@ -1463,7 +1466,7 @@ body::before{
     </div>
 
     <div id="edge-visual">
-      <div class="phone" aria-label="Telegram bot chat preview">
+      <div class="phone" role="region" aria-label="Telegram bot chat preview">
         <div class="phoneInner">
           <div class="phoneTop"><span>09:24</span><span class="notch"></span><span>LTE</span></div>
           <div class="chatHead">
@@ -1534,10 +1537,10 @@ body::before{
       <b>${esc(c.tips.featuredHeading)}</b>
       <span id="tipsLiveBadge" class="previewBadge">${esc(c.tips.badge)}</span>
     </div>
-    <div class="tipTabs" role="tablist">
-      <button type="button" data-sport="all" class="tipTab active">All</button>
-      <button type="button" data-sport="football" class="tipTab">Football</button>
-      <button type="button" data-sport="cricket" class="tipTab">Cricket</button>
+    <div class="tipTabs" role="group" aria-label="Filter tips by sport">
+      <button type="button" data-sport="all" class="tipTab active" aria-pressed="true">All</button>
+      <button type="button" data-sport="football" class="tipTab" aria-pressed="false">Football</button>
+      <button type="button" data-sport="cricket" class="tipTab" aria-pressed="false">Cricket</button>
     </div>
     <div id="tipLiveSummary" class="tipSummary">
       <span>⚡ <b>Live Feed</b> Telegram Channel</span>
@@ -1548,9 +1551,9 @@ body::before{
       <article class="tipCard" data-sport="football">
         <div class="tipCardTop"><span class="tipLeague">Premier League</span><span class="tipStatus pending">Today</span></div>
         <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/57.png" alt="AR" loading="lazy" decoding="async"/></span><b>Arsenal</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/57.png" alt="" loading="lazy" decoding="async"/></span><b>Arsenal</b></div>
           <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/61.png" alt="CH" loading="lazy" decoding="async"/></span><b>Chelsea</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/61.png" alt="" loading="lazy" decoding="async"/></span><b>Chelsea</b></div>
         </div>
         <div class="tipWhen">Today, 17:30</div>
         <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Arsenal Win</span><b class="tipOdds">1.94</b></div>
@@ -1559,9 +1562,9 @@ body::before{
       <article class="tipCard" data-sport="football">
         <div class="tipCardTop"><span class="tipLeague">La Liga</span><span class="tipStatus pending">Today</span></div>
         <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/86.png" alt="RM" loading="lazy" decoding="async"/></span><b>Real Madrid</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/86.png" alt="" loading="lazy" decoding="async"/></span><b>Real Madrid</b></div>
           <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/78.png" alt="AT" loading="lazy" decoding="async"/></span><b>Atletico Madrid</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/78.png" alt="" loading="lazy" decoding="async"/></span><b>Atletico Madrid</b></div>
         </div>
         <div class="tipWhen">Today, 20:00</div>
         <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Real Madrid Win</span><b class="tipOdds">1.78</b></div>
@@ -1570,9 +1573,9 @@ body::before{
       <article class="tipCard" data-sport="football">
         <div class="tipCardTop"><span class="tipLeague">Bundesliga</span><span class="tipStatus pending">Today</span></div>
         <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/5.png" alt="BM" loading="lazy" decoding="async"/></span><b>Bayern Munich</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/5.png" alt="" loading="lazy" decoding="async"/></span><b>Bayern Munich</b></div>
           <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/524.png" alt="PS" loading="lazy" decoding="async"/></span><b>PSG</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/524.png" alt="" loading="lazy" decoding="async"/></span><b>PSG</b></div>
         </div>
         <div class="tipWhen">Today, 22:00</div>
         <div class="tipPickRow"><span class="tipMarketTag">O/U</span><span class="tipPickName">Over 2.5 Goals</span><b class="tipOdds">1.85</b></div>
@@ -2031,8 +2034,9 @@ ${renderFinalCtaBanner(c, lang, eb)}
 
     tipTabs.forEach(function(tab){
       tab.addEventListener("click", function(){
-        tipTabs.forEach(function(t){ t.classList.remove("active"); });
+        tipTabs.forEach(function(t){ t.classList.remove("active"); t.setAttribute("aria-pressed", "false"); });
         tab.classList.add("active");
+        tab.setAttribute("aria-pressed", "true");
         var sport = tab.getAttribute("data-sport") || "all";
         applySportFilter(sport);
       });
@@ -2257,6 +2261,15 @@ ${renderFinalCtaBanner(c, lang, eb)}
       });
       document.addEventListener("keydown", function(e) {
         if (e.key === "Escape" && qrModal.classList.contains("open")) closeQr();
+        if (e.key === "Tab" && qrModal.classList.contains("open")) {
+          var qf = qrModal.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select,textarea,[tabindex]:not([tabindex="-1"])');
+          if (qf.length) {
+            var qFirst = qf[0], qLast = qf[qf.length - 1];
+            if (!qrModal.contains(document.activeElement)) { e.preventDefault(); qFirst.focus(); }
+            else if (e.shiftKey && document.activeElement === qFirst) { e.preventDefault(); qLast.focus(); }
+            else if (!e.shiftKey && document.activeElement === qLast) { e.preventDefault(); qFirst.focus(); }
+          }
+        }
       });
     }
   } catch(e){}
@@ -2305,6 +2318,20 @@ ${renderFinalCtaBanner(c, lang, eb)}
     }
   } catch(e){}
 
+  // Ticker pause control (WCAG 2.2.2)
+  try {
+    var tickerBarEl = document.querySelector(".tickerBar");
+    var tickerPauseBtn = document.querySelector(".tickerPause");
+    if (tickerBarEl && tickerPauseBtn) {
+      tickerPauseBtn.addEventListener("click", function(){
+        var isPaused = tickerBarEl.classList.toggle("paused");
+        tickerPauseBtn.setAttribute("aria-pressed", isPaused ? "true" : "false");
+        tickerPauseBtn.textContent = isPaused ? "Play" : "Pause";
+        tickerPauseBtn.setAttribute("aria-label", isPaused ? "Play ticker animation" : "Pause ticker animation");
+      });
+    }
+  } catch(e){}
+
   // 10. Legal Modals (Privacy & Terms)
   try {
     function setupModal(openBtnId, modalId, closeBtnId) {
@@ -2327,7 +2354,16 @@ ${renderFinalCtaBanner(c, lang, eb)}
       btn.addEventListener("click", openM);
       if (closeBtn) closeBtn.addEventListener("click", closeM);
       modal.addEventListener("click", function(e){ if (e.target === modal) closeM(); });
-      document.addEventListener("keydown", function(e){ if (e.key === "Escape" && modal.classList.contains("open")) closeM(); });
+      document.addEventListener("keydown", function(e){ if (e.key === "Escape" && modal.classList.contains("open")) closeM();
+        if (e.key === "Tab" && modal.classList.contains("open")) {
+          var mf = modal.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select,textarea,[tabindex]:not([tabindex="-1"])');
+          if (mf.length) {
+            var mFirst = mf[0], mLast = mf[mf.length - 1];
+            if (!modal.contains(document.activeElement)) { e.preventDefault(); mFirst.focus(); }
+            else if (e.shiftKey && document.activeElement === mFirst) { e.preventDefault(); mLast.focus(); }
+            else if (!e.shiftKey && document.activeElement === mLast) { e.preventDefault(); mFirst.focus(); }
+          }
+        } });
     }
     setupModal("privacyLink", "privacyModalOverlay", "privacyCloseBtn");
     setupModal("termsLink", "termsModalOverlay", "termsCloseBtn");
@@ -2431,12 +2467,6 @@ ${renderFinalCtaBanner(c, lang, eb)}
 
     if (botWidget) {
       botWidget.addEventListener("click", pingBotStatus);
-      botWidget.addEventListener("keydown", function(e){
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          pingBotStatus();
-        }
-      });
     }
 
     pingBotStatus();
