@@ -37,7 +37,7 @@ export function renderPrivacyPage(env: Env, request: Request, nonce?: string): s
   <title>Privacy Policy | Fast xBet Cash Telegram Bot 🇱🇰</title>
   <meta name="description" content="Official Privacy Policy and Data Protection guidelines for the Fast xBet Cash Telegram Bot (@${escapeHtml(rawBot)}) and 1xBet Sri Lanka Cash Desk.">
   <meta name="robots" content="index, follow">
-  <link rel="icon" type="image/png" href="${BRAND_LOGO_FAVICON_DATA_URI}">
+  <link rel="icon" type="image/jpeg" href="${BRAND_LOGO_FAVICON_DATA_URI}">
   <link rel="canonical" href="${escapeHtml(privacyUrl)}">
 
   <!-- OpenGraph Metadata -->
@@ -45,13 +45,13 @@ export function renderPrivacyPage(env: Env, request: Request, nonce?: string): s
   <meta property="og:title" content="Privacy Policy | Fast xBet Cash Telegram Bot 🇱🇰">
   <meta property="og:description" content="Official Privacy Policy and Data Protection terms for Fast xBet Cash Telegram Bot (@${escapeHtml(rawBot)}).">
   <meta property="og:url" content="${escapeHtml(privacyUrl)}">
-  <meta property="og:image" content="${escapeHtml(origin)}/og-image.png">
-  <meta property="og:image:secure_url" content="${escapeHtml(origin)}/og-image.png">
-  <meta property="og:image:type" content="image/png">
+  <meta property="og:image" content="${escapeHtml(origin)}/og-image.jpg">
+  <meta property="og:image:secure_url" content="${escapeHtml(origin)}/og-image.jpg">
+  <meta property="og:image:type" content="image/jpeg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:image" content="${escapeHtml(origin)}/og-image.png">
+  <meta name="twitter:image" content="${escapeHtml(origin)}/og-image.jpg">
 
   <style${nonceAttr}>
     *, *::before, *::after {

@@ -75,8 +75,8 @@ describe("Landing Page Render & SEO", () => {
     const html = renderLandingPage(mockEnv, req);
     expect(html).toContain('property="og:title"');
     expect(html).toContain('property="og:description"');
-    expect(html).toContain('property="og:image" content="https://fast-xbet.lk/og-image.png">');
-    expect(html).toContain('property="og:image:type" content="image/png"');
+    expect(html).toContain('property="og:image" content="https://fast-xbet.lk/og-image.jpg">');
+    expect(html).toContain('property="og:image:type" content="image/jpeg"');
     expect(html).toContain('property="og:image:width" content="1200"');
     expect(html).toContain('property="og:image:height" content="630"');
     expect(html).toContain('name="twitter:card" content="summary_large_image"');
@@ -289,7 +289,7 @@ describe("Landing Page Render & SEO", () => {
     expect(html).toContain("/assets/telegram/02-free-tips-sports.jpg");
     expect(html).toContain("/assets/telegram/03-deposit-withdraw.jpg");
     expect(html).toContain("/assets/telegram/04-telegram-bot-ui.jpg");
-    expect(html).toContain("/og-image.png");
+    expect(html).toContain("/og-image.jpg");
     expect(html).toContain("/assets/telegram/06-security-support.jpg");
     expect(html).toContain("Illustrative/sample data only");
     expect(html).toContain("Arsenal Win");
@@ -383,7 +383,7 @@ describe("Landing Page Render & SEO", () => {
     const res = await handleApiRequest(new Request("https://fast-xbet.lk/privacy"), mockEnv);
     expect(res).not.toBeNull();
     const html = await res!.text();
-    expect(html).toContain('property="og:image" content="https://fast-xbet.lk/og-image.png"');
+    expect(html).toContain('property="og:image" content="https://fast-xbet.lk/og-image.jpg"');
     expect(html).not.toContain("/api/og.png");
   });
 

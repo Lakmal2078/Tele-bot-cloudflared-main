@@ -9,7 +9,7 @@ const TELEGRAM_GRAPHICS = {
   tips: "/assets/telegram/02-free-tips-sports.jpg",
   payments: "/assets/telegram/03-deposit-withdraw.jpg",
   botUi: "/assets/telegram/04-telegram-bot-ui.jpg",
-  og: "/og-image.png",
+  og: "/og-image.jpg",
   security: "/assets/telegram/06-security-support.jpg"
 } as const;
 
@@ -639,7 +639,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
 <meta property="og:url" content="${esc(canonicalUrl)}">
 <meta property="og:image" content="${ogImageUrl}">
 <meta property="og:image:secure_url" content="${ogImageUrl}">
-<meta property="og:image:type" content="image/png">
+<meta property="og:image:type" content="image/jpeg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <link rel="image_src" href="${ogImageUrl}">
