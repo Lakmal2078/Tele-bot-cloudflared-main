@@ -169,20 +169,20 @@ out=""
 while [[ $# -gt 0 ]]; do
   if [[ "$1" == "--output" ]]; then out="$2"; shift 2; else shift; fi
 done
-printf '%s' "${BODY:-}" > "$out"
-printf '%s' "${HTTP_CODE:-200}"
-exit "${CURL_EXIT:-0}"
+printf '%s' "\\${BODY:-}" > "$out"
+printf '%s' "\\${HTTP_CODE:-200}"
+exit "\\${CURL_EXIT:-0}"
 `);
     chmodSync(fakeCurl, 0o755);
 
     const harness = `set -Eeuo pipefail
-CI_MODE="${CI:-false}"
+CI_MODE="\\${CI:-false}"
 IS_CI=false
 if [[ "$CI_MODE" == "true" || "$CI_MODE" == "1" ]]; then IS_CI=true; fi
-HEALTH_CHECK_PATH="${HEALTH_CHECK_PATH:-/health}"
+HEALTH_CHECK_PATH="\\${HEALTH_CHECK_PATH:-/health}"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
-WORKER_URL="${WORKER_URL:-}"
+WORKER_URL="\\${WORKER_URL:-}"
 info() { :; }
 success() { :; }
 warn() { :; }
