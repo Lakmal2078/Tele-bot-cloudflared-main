@@ -1033,7 +1033,7 @@ ${guideEntries}
     }
     try {
       const body = await request.json() as {
-        tipPostId?: number; eventId?: string; outcome?: "WON" | "LOST" | "VOID"; note?: string;
+        tipPostId?: number; eventId?: string; outcome?: "WON" | "LOST" | "VOID"; note?: string; scoreHome?: string; scoreAway?: string;
       };
       if (!Number.isSafeInteger(body.tipPostId) || !body.eventId?.trim() ||
           !["WON", "LOST", "VOID"].includes(String(body.outcome)) || !body.note?.trim()) {
@@ -1042,7 +1042,7 @@ ${guideEntries}
       const applied = await overrideTipSettlement(env, {
         tipPostId: Number(body.tipPostId), eventId: body.eventId,
         outcome: body.outcome as "WON" | "LOST" | "VOID",
-        note: body.note, adminId,
+        note: body.note, adminId, scoreHome: body.scoreHome, scoreAway: body.scoreAway,
       });
       return json({ ok: applied }, applied ? 200 : 404);
     } catch (error) {
