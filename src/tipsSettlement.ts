@@ -103,10 +103,10 @@ export function evaluatePickResult(
   for (const item of scores) {
     const normItemName = normalizeTeamName(item.name);
     const val = parseNumericScore(item.score);
-    if (normItemName === normHome || normItemName.includes(normHome) || normHome.includes(normItemName)) {
+    if (normItemName && normItemName === normHome) {
       homeScoreNum = val;
       rawHomeScore = item.score;
-    } else if (normItemName === normAway || normItemName.includes(normAway) || normAway.includes(normItemName)) {
+    } else if (normItemName && normItemName === normAway) {
       awayScoreNum = val;
       rawAwayScore = item.score;
     }
@@ -380,7 +380,7 @@ export async function settlePendingTips(
       summary.evaluatedPicks++;
       const event = scoresByEventId.get(pick.event_id);
       const eventStatus = String(event?.status || "").toLowerCase();
-      const explicitlyVoided = Boolean(event?.cancelled) || /cancelled|canceled|postponed|abandoned|walkover/.test(eventStatus);
+      const explicitlyVoided = Boolean(event?.cancelled) || /cancelled|canceled|postponed|abandoned/.test(eventStatus);
       if (explicitlyVoided) {
         pick.result = "VOID"; pick.completed = 1; pick.settled_at = nowIso;
       } else if (event?.completed === true) {
@@ -468,14 +468,38 @@ export async function overrideTipSettlement(
   input: { tipPostId: number; eventId: string; outcome: "WON" | "LOST" | "VOID"; note: string; adminId: string }
 ): Promise<boolean> {
   if (!env.DB || !Number.isSafeInteger(input.tipPostId) || !input.eventId.trim() || !input.note.trim()) return false;
-  const existing = await env.DB.prepare(
+  let existing = await env.DB.prepare(
     "SELECT * FROM tip_results WHERE tip_post_id=? AND event_id=?"
   ).bind(input.tipPostId, input.eventId).first<any>();
-  if (!existing) return false;
+  if (!existing) {
+    const post = await env.DB.prepare(
+      "SELECT id,event_id,sport_key,sport_title,home_team,away_team,commence_time,selection,market,odds,tips_json FROM tip_posts WHERE id=? AND status='POSTED'"
+    ).bind(input.tipPostId).first<any>();
+    if (!post) return false;
+    let pick: any = null;
+    try {
+      const parsed = post.tips_json ? JSON.parse(post.tips_json) : [];
+      if (Array.isArray(parsed)) pick = parsed.find((p:any) => String(p.eventId || "") === input.eventId);
+    } catch {}
+    if (!pick && String(post.event_id || "") === input.eventId) pick = post;
+    if (!pick) return false;
+    await env.DB.prepare(`
+      INSERT INTO tip_results (tip_post_id,event_id,sport_key,sport_title,home_team,away_team,commence_time,selection,market,odds,result,completed,created_at,updated_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?, 'PENDING',0,datetime('now'),datetime('now'))
+      ON CONFLICT(tip_post_id,event_id) DO NOTHING
+    `).bind(input.tipPostId,input.eventId,pick.sportKey || post.sport_key || "unknown",
+      pick.sportTitle || post.sport_title || null,pick.homeTeam || post.home_team || "",
+      pick.awayTeam || post.away_team || "",pick.commenceTime || post.commence_time || null,
+      pick.selection || post.selection || "",pick.market || post.market || "h2h",Number(pick.odds || post.odds || 1)).run();
+    existing = await env.DB.prepare(
+      "SELECT * FROM tip_results WHERE tip_post_id=? AND event_id=?"
+    ).bind(input.tipPostId, input.eventId).first<any>();
+    if (!existing) return false;
+  }
   const now = new Date().toISOString();
   const batch = [
-    env.DB.prepare(`UPDATE tip_results SET result=?, completed=1, settled_at=?, updated_at=datetime('now') WHERE tip_post_id=? AND event_id=?`)
-      .bind(input.outcome, now, input.tipPostId, input.eventId),
+    env.DB.prepare(`UPDATE tip_results SET result=?, completed=1, settled_at=?, score_home=COALESCE(?,score_home), score_away=COALESCE(?,score_away), updated_at=datetime('now') WHERE tip_post_id=? AND event_id=?`)
+      .bind(input.outcome, now, input.scoreHome ?? null, input.scoreAway ?? null, input.tipPostId, input.eventId),
     env.DB.prepare(`INSERT INTO tip_settlement_audit(tip_post_id,event_id,action,outcome,note,admin_id) VALUES(?,?,?,?,?,?)`)
       .bind(input.tipPostId,input.eventId,"ADMIN_OVERRIDE",input.outcome,input.note.slice(0,500),input.adminId.slice(0,64)),
   ];
