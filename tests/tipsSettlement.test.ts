@@ -225,7 +225,7 @@ describe("tip settlement", () => {
       const summary = await settlePendingTips({ DB: db as any, ODDS_API_KEY: "test-key" } as Env, { sendTelegramUpdate: false });
       expect(summary.settledPosts).toBe(0);
       expect(summary.errors.some((error) => error.includes("simulated D1 batch failure"))).toBe(true);
-      expect(statements.some(({ sql }) => sql.includes("UPDATE tip_posts SET result=")).toBe(false);
+      expect(statements.some(({ sql }) => sql.includes("UPDATE tip_posts SET result="))).toBe(false);
       expect(statements.some(({ sql }) => sql.includes("next_retry_at=datetime('now', ?"))).toBe(true);
     } finally {
       vi.unstubAllGlobals();
