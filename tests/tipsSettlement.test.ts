@@ -366,7 +366,7 @@ describe("tip settlement", () => {
       expect(summary.settledPosts).toBe(1);
       expect(batchCalls).toEqual([50, 10, 1]);
       expect(allCalls).toBe(3);
-      expect(statements.filter(({ sql }) => sql.includes("INSERT INTO tip_results")).toHaveLength(pickCount));
+      expect(statements.filter(({ sql }) => sql.includes("INSERT INTO tip_results"))).toHaveLength(pickCount);
     } finally {
       vi.unstubAllGlobals();
     }
