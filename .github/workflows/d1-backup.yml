@@ -2,6 +2,9 @@ name: Manual D1 backup
 
 on:
   workflow_dispatch:
+  schedule:
+    # දිනපතා UTC 18:15 (ශ්‍රී ලංකා වෙලාව 23:45) backup එකක් ස්වයංක්‍රීයව ගනී
+    - cron: "15 18 * * *"
 
 permissions:
   contents: read
