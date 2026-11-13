@@ -1420,6 +1420,10 @@ Tap 'Start' below to begin now! 👇</div>
           stopPolling();
           return null;
         }
+        if (res.status === 400) {
+          r2AnalyticsContinuation = null;
+          throw new Error("Invalid analytics continuation; restarting on next poll");
+        }
         if (!res.ok) throw new Error("HTTP " + res.status);
         return res.json();
       })
