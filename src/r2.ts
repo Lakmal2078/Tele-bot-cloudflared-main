@@ -115,6 +115,10 @@ async function getAnalyticsTokenKey(env: Env): Promise<CryptoKey> {
   if (!secret) throw new Error("R2 analytics continuation signing is not configured");
   return crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
 }
+async function fingerprintCursor(cursor: string): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(cursor)));
+  return [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
 function emptyPrefixScan(): PrefixScanState {
   return { count: 0, totalBytes: 0, latestUploadedAt: null, complete: false, cursorHistory: [] };
 }
@@ -127,7 +131,7 @@ function isPrefixScanState(value: unknown): value is PrefixScanState {
     typeof s.complete === "boolean" &&
     (s.cursor === undefined || (typeof s.cursor === "string" && s.cursor.length > 0 && s.cursor.length <= 4096)) &&
     Array.isArray(s.cursorHistory) && s.cursorHistory.length <= R2_ANALYTICS_CURSOR_HISTORY_LIMIT &&
-    s.cursorHistory.every((c) => typeof c === "string" && c.length > 0 && c.length <= 4096);
+    s.cursorHistory.every((c) => /^[a-f0-9]{64}$/.test(c));
 }
 async function decodeAnalyticsContinuation(env: Env, token: string | null, bucket: string): Promise<R2AnalyticsScanState> {
   if (!token) return { version: 1, bucket, receipts: emptyPrefixScan(), logs: emptyPrefixScan(), pagesProcessed: 0 };
@@ -179,11 +183,15 @@ async function processAnalyticsPrefix(env: Env, prefix: string, state: PrefixSca
     delete state.cursor;
   } else {
     const next = page.cursor;
-    if (typeof next !== "string" || !next || next.length > 4096 || next === state.cursor || state.cursorHistory.includes(next)) {
+    if (typeof next !== "string" || !next || next.length > 4096 || next === state.cursor) {
       throw new Error("R2 pagination returned a missing, malformed, or repeated continuation cursor");
     }
+    const fingerprint = await fingerprintCursor(next);
+    if (state.cursorHistory.includes(fingerprint)) {
+      throw new Error("R2 pagination returned a repeated continuation cursor");
+    }
     state.cursor = next;
-    state.cursorHistory = [...state.cursorHistory, next].slice(-R2_ANALYTICS_CURSOR_HISTORY_LIMIT);
+    state.cursorHistory = [...state.cursorHistory, fingerprint].slice(-R2_ANALYTICS_CURSOR_HISTORY_LIMIT);
   }
   return page.objects.length;
 }
