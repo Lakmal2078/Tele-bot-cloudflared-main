@@ -65,6 +65,10 @@ export interface R2StorageAnalytics {
   totalFormattedSize: string;
   lastCleanup: any;
   timestamp: string;
+  scanComplete: boolean;
+  continuation: string | null;
+  pagesProcessed: number;
+  objectsProcessed: number;
 }
 
 
