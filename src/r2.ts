@@ -8,6 +8,10 @@ export { formatBytes };
 const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
 const TELEGRAM_REQUEST_TIMEOUT_MS = 15_000;
 
+async function cancelResponseBody(response: Response): Promise<void> {
+  try { await response.body?.cancel(); } catch { /* Best-effort upstream response cleanup. */ }
+}
+
 async function readBoundedResponse(response: Response, maxBytes: number): Promise<Uint8Array | null> {
   const contentLength = response.headers.get("content-length");
   const declaredLength = contentLength === null ? 0 : Number(contentLength);
@@ -289,6 +293,7 @@ export async function backupReceiptToR2(
     );
     if (!fileInfoRes.ok) {
       console.warn(`[R2] Failed to get file info from Telegram: ${fileInfoRes.statusText}`);
+      await cancelResponseBody(fileInfoRes);
       return null;
     }
 
@@ -314,6 +319,7 @@ export async function backupReceiptToR2(
     });
     if (!fileRes.ok) {
       console.warn(`[R2] Failed to download image from Telegram: ${fileRes.statusText}`);
+      await cancelResponseBody(fileRes);
       return null;
     }
     const bytes = await readBoundedResponse(fileRes, MAX_RECEIPT_BYTES);
