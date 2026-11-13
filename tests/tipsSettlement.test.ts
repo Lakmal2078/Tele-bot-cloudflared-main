@@ -128,6 +128,7 @@ describe("tip settlement", () => {
 
   it("settles posted tips whose ISO commence_time has passed", async () => {
     const statements: Array<{ sql: string; values: unknown[] }> = [];
+    const batchCalls: number[] = [];
     const db = {
       prepare(sql: string) {
         return {
@@ -154,6 +155,10 @@ describe("tip settlement", () => {
           },
         };
       },
+      async batch(batchStatements: unknown[]) {
+        batchCalls.push(batchStatements.length);
+        return batchStatements.map(() => ({ success: true, meta: { changes: 1 } }));
+      },
     };
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify([{
       id: "event-41", sport_key: "soccer_epl", sport_title: "Premier League",
@@ -169,6 +174,8 @@ describe("tip settlement", () => {
       expect(summary.checkedPosts).toBe(1);
       expect(summary.settledPosts).toBe(1);
       expect(summary.wonPicks).toBe(1);
+      expect(batchCalls).toEqual([1]);
+      expect(statements.some(({ sql, values }) => sql.includes("FROM tip_results WHERE tip_post_id IN"))).toBe(true);
       expect(statements.some(({ sql, values }) => sql.includes("INSERT INTO tip_results") && values.includes("WON"))).toBe(true);
       expect(statements.some(({ sql, values }) => sql.includes("UPDATE tip_posts") && values[0] === "WON")).toBe(true);
     } finally {
