@@ -328,13 +328,13 @@ describe("admin security & regression fixes", () => {
     expect(html).toContain("data-copy-target=");
   });
 
-  it("accepts a valid configured numeric X-Admin-Id header on POST /api/admin/tips/settlement/override", async () => {
+  it("does not rely on caller-supplied X-Admin-Id for shared-secret authorization on settlement override", async () => {
     const res = await handleApiRequest(
       req("https://localhost/api/admin/tips/settlement/override", {
         method: "POST",
         headers: {
           "x-admin-secret": SECRET,
-          "x-admin-id": "123456789",
+          "x-admin-id": "999999999",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({

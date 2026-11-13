@@ -5,6 +5,41 @@ import { formatBytes } from "./utils";
 
 export { formatBytes };
 
+const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
+const TELEGRAM_REQUEST_TIMEOUT_MS = 15_000;
+
+async function readBoundedResponse(response: Response, maxBytes: number): Promise<Uint8Array | null> {
+  const declaredLength = Number(response.headers.get("content-length") || 0);
+  if (declaredLength > maxBytes) return null;
+  if (!response.body) return new Uint8Array(0);
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
+
 export interface R2FileMetadata {
   r2Url: string;
   r2Key: string;
@@ -172,7 +207,8 @@ export async function backupReceiptToR2(
   try {
     // 1. Resolve the file path from Telegram
     const fileInfoRes = await fetch(
-      `https://api.telegram.org/bot${botToken}/getFile?file_id=${encodeURIComponent(fileId)}`
+      `https://api.telegram.org/bot${botToken}/getFile?file_id=${encodeURIComponent(fileId)}`,
+      { signal: AbortSignal.timeout(TELEGRAM_REQUEST_TIMEOUT_MS) }
     );
     if (!fileInfoRes.ok) {
       console.warn(`[R2] Failed to get file info from Telegram: ${fileInfoRes.statusText}`);
@@ -190,26 +226,26 @@ export async function backupReceiptToR2(
 
     const filePath = fileInfo.result.file_path;
     const declaredSize = fileInfo.result.file_size ?? 0;
-    const MAX_RECEIPT_BYTES = 5 * 1024 * 1024; // 5 MiB
     if (declaredSize > MAX_RECEIPT_BYTES) {
       console.warn(`[R2] Receipt rejected: declared size ${declaredSize} exceeds ${MAX_RECEIPT_BYTES}`);
       return null;
     }
 
     // 2. Download the file (size-bounded after download)
-    const fileRes = await fetch(`https://api.telegram.org/file/bot${botToken}/${filePath}`);
+    const fileRes = await fetch(`https://api.telegram.org/file/bot${botToken}/${filePath}`, {
+      signal: AbortSignal.timeout(TELEGRAM_REQUEST_TIMEOUT_MS),
+    });
     if (!fileRes.ok) {
       console.warn(`[R2] Failed to download image from Telegram: ${fileRes.statusText}`);
       return null;
     }
-    const arrayBuffer = await fileRes.arrayBuffer();
-    if (arrayBuffer.byteLength > MAX_RECEIPT_BYTES) {
-      console.warn(`[R2] Receipt rejected: actual size ${arrayBuffer.byteLength} exceeds ${MAX_RECEIPT_BYTES}`);
+    const bytes = await readBoundedResponse(fileRes, MAX_RECEIPT_BYTES);
+    if (!bytes) {
+      console.warn(`[R2] Receipt rejected: response exceeds ${MAX_RECEIPT_BYTES} bytes`);
       return null;
     }
 
     // Validate magic bytes (JPEG / PNG / WebP / PDF only).
-    const bytes = new Uint8Array(arrayBuffer);
     const isJpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
     const isPng =
       bytes.length >= 8 &&
@@ -252,7 +288,7 @@ export async function backupReceiptToR2(
         ? "application/pdf"
         : "image/jpeg";
 
-    const stored = await putObject(env, key, arrayBuffer, mimeType);
+    const stored = await putObject(env, key, bytes, mimeType);
     if (!stored) return null;
 
     // Never expose a public R2/object URL for receipts.
@@ -261,7 +297,7 @@ export async function backupReceiptToR2(
     const r2Url = base
       ? `${base}/api/admin/receipts?key=${encodeURIComponent(key)}`
       : `/api/admin/receipts?key=${encodeURIComponent(key)}`;
-    const fileSize = arrayBuffer.byteLength || fileInfo.result.file_size || 0;
+    const fileSize = bytes.byteLength || fileInfo.result.file_size || 0;
 
     console.log(`[R2] Receipt stored (proxy): key=${key} (${fileSize} bytes)`);
     return {

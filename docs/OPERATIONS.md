@@ -37,7 +37,7 @@ The production Worker has five cron triggers:
 - `30 2 * * *` — 08:00 Sri Lanka free tips.
 - `30 6 * * *` — 12:00 Sri Lanka free tips.
 - `30 12 * * *` — 18:00 Sri Lanka free tips.
-- `15 * * * *` — hourly tip settlement.
+- `*/5,7,22,37,52 * * * *` — tip settlement every five minutes, with additional health checks at :07, :22, :37, and :52.
 
 All schedules are expressed in UTC in `wrangler.toml`.
 

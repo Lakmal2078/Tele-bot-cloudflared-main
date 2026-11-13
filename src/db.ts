@@ -1042,7 +1042,7 @@ export async function createScheduledChannelPost(db: D1Database, input: {
 }) {
   const row = await db.prepare(
     `INSERT INTO channel_schedule (title, body, media_url, cta_text, cta_url, language, scheduled_for, status, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'SCHEDULED', ?) RETURNING id`
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?) RETURNING id`
   ).bind(input.title.trim().slice(0, 160), input.body.trim().slice(0, 4000), input.mediaUrl || null, input.ctaText || null,
     input.ctaUrl || null, input.language || "all", input.scheduledFor, input.createdBy).first<{ id: number }>();
   return Number(row?.id || 0);
