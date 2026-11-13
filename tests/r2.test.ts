@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { getR2StorageAnalytics } from "../src/r2";
 import type { Env } from "../src/types";
 
