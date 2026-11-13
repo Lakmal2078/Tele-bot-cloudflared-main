@@ -281,6 +281,28 @@ export async function updateTelegramMessageWithResults(
   }
 }
 
+async function editTelegramOnce(
+  env: Env,
+  postId: number,
+  messageId: number,
+  picks: PickResultRecord[],
+  overall: "WON" | "LOST" | "VOID" | "PARTIAL",
+  nowIso: string
+): Promise<boolean> {
+  const claim = await env.DB.prepare(`
+    UPDATE tip_posts SET telegram_edited_at='SENDING', updated_at=datetime('now')
+    WHERE id=? AND (telegram_edited_at IS NULL OR
+      (telegram_edited_at='SENDING' AND updated_at <= datetime('now','-10 minutes')))
+  `).bind(postId).run();
+  if ((claim.meta?.changes ?? 0) !== 1) return false;
+  const sent = await updateTelegramMessageWithResults(env, messageId, picks, overall);
+  await env.DB.prepare(`
+    UPDATE tip_posts SET telegram_edited_at=?, updated_at=datetime('now')
+    WHERE id=? AND telegram_edited_at='SENDING'
+  `).bind(sent ? nowIso : null, postId).run();
+  return sent;
+}
+
 /**
  * Main settlement routine: inspects pending tip posts, queries scores, records results,
  * and updates Telegram channel posts.
@@ -420,11 +442,8 @@ export async function settlePendingTips(
         WHERE id=? AND (result IS NULL OR result='PENDING')
       `).bind(overall, nowIso, post.id).run();
       summary.settledPosts++;
-      const fresh = await env.DB.prepare("SELECT telegram_edited_at FROM tip_posts WHERE id=?").bind(post.id).first<any>();
-      if (options?.sendTelegramUpdate !== false && post.message_id && !fresh?.telegram_edited_at) {
-        const edited = await updateTelegramMessageWithResults(env, post.message_id, picks, overall as "WON"|"LOST"|"VOID"|"PARTIAL");
-        if (edited) {
-          await env.DB.prepare("UPDATE tip_posts SET telegram_edited_at=?, updated_at=datetime('now') WHERE id=? AND telegram_edited_at IS NULL").bind(nowIso, post.id).run();
+      if (options?.sendTelegramUpdate !== false && post.message_id) {
+        if (await editTelegramOnce(env, Number(post.id), Number(post.message_id), picks, overall as "WON"|"LOST"|"VOID"|"PARTIAL", nowIso)) {
           summary.editedTelegramMessages++;
         }
       }
@@ -446,16 +465,14 @@ export async function settlePendingTips(
   const notifyRows = (await env.DB.prepare(`
     SELECT id,message_id,result FROM tip_posts
     WHERE status='POSTED' AND result IN ('WON','LOST','VOID','PARTIAL')
-      AND telegram_edited_at IS NULL AND message_id IS NOT NULL
+      AND (telegram_edited_at IS NULL OR (telegram_edited_at='SENDING' AND updated_at <= datetime('now','-10 minutes'))) AND message_id IS NOT NULL
     ORDER BY settled_at ASC LIMIT ?
   `).bind(limit).all<any>()).results;
   for (const post of notifyRows) {
     const resultRows = (await env.DB.prepare("SELECT * FROM tip_results WHERE tip_post_id=? ORDER BY id ASC").bind(post.id).all<any>()).results;
     const picks = resultRows.filter((p:any) => ["WON","LOST","VOID"].includes(p.result) && Number(p.completed) === 1) as PickResultRecord[];
     if (!picks.length || picks.length !== resultRows.length) continue;
-    const edited = await updateTelegramMessageWithResults(env, post.message_id, picks, post.result);
-    if (edited) {
-      await env.DB.prepare("UPDATE tip_posts SET telegram_edited_at=?, updated_at=datetime('now') WHERE id=? AND telegram_edited_at IS NULL").bind(nowIso, post.id).run();
+    if (await editTelegramOnce(env, Number(post.id), Number(post.message_id), picks, post.result, nowIso)) {
       summary.editedTelegramMessages++;
     }
   }
@@ -514,9 +531,7 @@ export async function overrideTipSettlement(
     const post = await env.DB.prepare("SELECT message_id,telegram_edited_at FROM tip_posts WHERE id=?").bind(input.tipPostId).first<any>();
     if (post?.message_id && !post.telegram_edited_at) {
       const picks = (await env.DB.prepare("SELECT * FROM tip_results WHERE tip_post_id=?").bind(input.tipPostId).all<any>()).results as PickResultRecord[];
-      if (await updateTelegramMessageWithResults(env,post.message_id,picks,overall)) {
-        await env.DB.prepare("UPDATE tip_posts SET telegram_edited_at=? WHERE id=? AND telegram_edited_at IS NULL").bind(now,input.tipPostId).run();
-      }
+      await editTelegramOnce(env, input.tipPostId, Number(post.message_id), picks, overall, now);
     }
   }
   return true;
