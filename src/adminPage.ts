@@ -139,6 +139,10 @@ export function renderAdminPage(
     totalStorageBytes: 0,
     totalFormattedSize: "0 B",
     timestamp: new Date().toISOString(),
+    scanComplete: true,
+    continuation: null,
+    pagesProcessed: 0,
+    objectsProcessed: 0,
   };
   const r2Configured = Boolean(r2.configured);
 
