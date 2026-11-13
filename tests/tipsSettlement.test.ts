@@ -183,6 +183,70 @@ describe("tip settlement", () => {
     }
   });
 
+  it("batches result writes for a large post instead of issuing one D1 request per pick", async () => {
+    const pickCount = 60;
+    const statements: Array<{ sql: string; values: unknown[] }> = [];
+    const batchCalls: number[] = [];
+    const post = {
+      id: 77, scheduled_key: "2026-11-05:08:00", slot_time: "08:00",
+      event_id: "event-0", sport_key: "soccer_test", sport_title: "Test League",
+      home_team: "Home Team 0", away_team: "Away Team 0",
+      commence_time: new Date(Date.now() - 60_000).toISOString(), market: "h2h",
+      selection: "Home Team 0", odds: 1.8, message_id: null,
+      tips_json: JSON.stringify(Array.from({ length: pickCount }, (_, i) => ({
+        eventId: `event-${i}`, sportKey: "soccer_test", sportTitle: "Test League",
+        homeTeam: `Home Team ${i}`, awayTeam: `Away Team ${i}`,
+        selection: `Home Team ${i}`, market: "h2h", odds: 1.8,
+      }))),
+      result: "PENDING", settled_at: null,
+    };
+    let allCalls = 0;
+    const db = {
+      prepare(sql: string) {
+        return {
+          bind(...values: unknown[]) {
+            statements.push({ sql, values });
+            return {
+              all: async () => {
+                allCalls++;
+                if (sql.includes("SELECT id, scheduled_key")) return { results: [post] };
+                return { results: [] };
+              },
+              first: async () => null,
+              run: async () => ({ success: true, meta: { changes: 1 } }),
+            };
+          },
+        };
+      },
+      async batch(batchStatements: unknown[]) {
+        batchCalls.push(batchStatements.length);
+        return batchStatements.map(() => ({ success: true, meta: { changes: 1 } }));
+      },
+    };
+    const events = Array.from({ length: pickCount }, (_, i) => ({
+      id: `event-${i}`, sport_key: "soccer_test", sport_title: "Test League",
+      commence_time: post.commence_time, completed: true,
+      home_team: `Home Team ${i}`, away_team: `Away Team ${i}`,
+      scores: [{ name: `Home Team ${i}`, score: "2" }, { name: `Away Team ${i}`, score: "0" }],
+    }));
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(events), {
+      status: 200, headers: { "Content-Type": "application/json" },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const summary = await settlePendingTips({ DB: db as any, ODDS_API_KEY: "test-key" } as Env, { sendTelegramUpdate: false });
+      expect(summary.evaluatedPicks).toBe(pickCount);
+      expect(summary.wonPicks).toBe(pickCount);
+      expect(summary.settledPosts).toBe(1);
+      expect(batchCalls).toEqual([50, 10]);
+      expect(allCalls).toBe(3);
+      expect(statements.filter(({ sql }) => sql.includes("INSERT INTO tip_results")).toHaveLength(pickCount));
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("normalizes team names consistently", () => {
     expect(normalizeTeamName("Arsenal FC")).toBe("arsenal");
     expect(normalizeTeamName("Arsenal United")).toBe("arsenal");
