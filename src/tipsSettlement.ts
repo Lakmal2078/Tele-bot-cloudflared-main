@@ -411,14 +411,6 @@ export async function settlePendingTips(
     }
   }
 
-  for (const sport of sportKeys) {
-    try {
-      for (const event of await fetchScoresForSport(env.ODDS_API_KEY, sport, 3)) scoresByEventId.set(event.id, event);
-    } catch (error) {
-      summary.errors.push(`Scores fetch failed for ${sport}: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-
   // Prepare result upserts in memory and send them in bounded transactional batches.
   const resultWrites: Array<{ postId: number; statement: any }> = [];
   for (const post of rows) {
