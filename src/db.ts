@@ -121,8 +121,40 @@ export async function clearRateLimitBucket(db: D1Database, key: string): Promise
 }
 
 export async function cleanupExpiredRateLimitBuckets(db: D1Database, now = Date.now()): Promise<number> {
-  const result = await db.prepare("DELETE FROM rate_limit_buckets WHERE reset_at <= ?").bind(now).run();
-  return result.meta?.changes ?? 0;
+  const [bucketResult, eventResult] = await Promise.all([
+    db.prepare("DELETE FROM rate_limit_buckets WHERE reset_at <= ?").bind(now).run(),
+    db.prepare("DELETE FROM rate_limit_events WHERE expires_at_ms <= ?").bind(now).run(),
+  ]);
+  return (bucketResult.meta?.changes ?? 0) + (eventResult.meta?.changes ?? 0);
+}
+
+/**
+ * Atomically consumes one attempt if fewer than limit accepted attempts remain
+ * in the key's rolling window. The conditional INSERT is a single SQLite write
+ * statement, so concurrent Worker isolates cannot both pass a stale COUNT check.
+ */
+export async function consumeRollingRateLimit(
+  db: D1Database,
+  key: string,
+  limit: number,
+  windowMs: number,
+  now = Date.now()
+): Promise<boolean> {
+  const safeLimit = Math.floor(limit);
+  if (!key.trim() || !Number.isSafeInteger(safeLimit) || safeLimit < 1 ||
+      !Number.isSafeInteger(windowMs) || windowMs < 1 ||
+      !Number.isSafeInteger(now) || !Number.isSafeInteger(now + windowMs)) {
+    throw new Error("Invalid rolling rate-limit parameters");
+  }
+
+  // Cleanup is an optimization only; the insert predicate independently checks expiry.
+  await db.prepare("DELETE FROM rate_limit_events WHERE bucket_key = ? AND expires_at_ms <= ?").bind(key, now).run();
+
+  const inserted = await db.prepare("INSERT INTO rate_limit_events (bucket_key, occurred_at_ms, expires_at_ms) SELECT ?, ?, ? WHERE (SELECT COUNT(*) FROM rate_limit_events WHERE bucket_key = ? AND expires_at_ms > ?) < ? RETURNING id")
+    .bind(key, now, now + windowMs, key, now, safeLimit)
+    .first<{ id: number }>();
+
+  return inserted !== null;
 }
 
 /** Look up a committed transaction after an idempotency-key uniqueness race. */
