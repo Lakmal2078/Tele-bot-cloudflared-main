@@ -1,12 +1,17 @@
 import type { Env } from "./types";
 import { getTipsPerformanceStats } from "./tipsSettlement";
+import { buildEntityCacheKey, resolveTipIconsBatch, type TipSportCategory } from "./teamIcons";
 
 export type PublicTip = {
   id: number;
-  sport: "football" | "cricket" | "basketball" | "tennis" | "esports" | "mma" | "other";
+  sport: TipSportCategory;
   sportTitle: string;
   homeTeam: string;
   awayTeam: string;
+  homeLogoUrl?: string | null;
+  awayLogoUrl?: string | null;
+  homeCountryCode?: string | null;
+  awayCountryCode?: string | null;
   selection: string;
   market: string;
   odds: number | null;
@@ -31,13 +36,14 @@ export type PublicTipsResponse = {
   };
 };
 
-function classifySport(sportKey: string | null, sportTitle: string | null): PublicTip["sport"] {
+export function classifySport(sportKey: string | null, sportTitle: string | null): PublicTip["sport"] {
   const value = `${sportKey || ""} ${sportTitle || ""}`.toLowerCase();
   if (value.includes("cricket")) return "cricket";
+  if (value.includes("table_tennis") || value.includes("table tennis") || value.includes("ping pong")) return "table_tennis";
   if (value.includes("soccer") || value.includes("football")) return "football";
-  if (value.includes("basketball")) return "basketball";
-  if (value.includes("tennis") && !value.includes("table")) return "tennis";
-  if (value.includes("esport") || value.includes("cs2") || value.includes("dota") || value.includes("valorant")) return "esports";
+  if (value.includes("basketball") || value.includes("nba") || value.includes("euroleague")) return "basketball";
+  if (value.includes("tennis") || value.includes("atp") || value.includes("wta")) return "tennis";
+  if (value.includes("esport") || value.includes("cs2") || value.includes("csgo") || value.includes("dota") || value.includes("valorant") || value.includes("league of legends")) return "esports";
   if (value.includes("mma") || value.includes("ufc") || value.includes("boxing")) return "mma";
   return "other";
 }
@@ -143,6 +149,22 @@ export async function getPublicTips(env: Env, limit = 12): Promise<PublicTipsRes
       })
       .slice(0, safeLimit);
 
+    if (tips.length > 0) {
+      const entityQueries = tips.flatMap((t) => [
+        { name: t.homeTeam, sport: t.sport },
+        { name: t.awayTeam, sport: t.sport },
+      ]);
+      const resolvedIcons = await resolveTipIconsBatch(env.DB, entityQueries);
+      for (const tip of tips) {
+        const homeIcon = resolvedIcons.get(buildEntityCacheKey(tip.homeTeam, tip.sport));
+        const awayIcon = resolvedIcons.get(buildEntityCacheKey(tip.awayTeam, tip.sport));
+        tip.homeLogoUrl = homeIcon?.imageUrl ?? null;
+        tip.awayLogoUrl = awayIcon?.imageUrl ?? null;
+        tip.homeCountryCode = homeIcon?.countryCode ?? null;
+        tip.awayCountryCode = awayIcon?.countryCode ?? null;
+      }
+    }
+
     return { ok: true, generatedAt, tips, summary: { days: 7, ...summary } };
   } catch {
     // Graceful public fallback when D1/schema is unavailable.
@@ -174,9 +196,38 @@ export function publicTipsClientScript(nonce?: string): string {
     for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
     return h % 360;
   };
-  var avatar = function(name){
-    var h = hue(name || "x");
-    return '<span class="tipAvatar" style="background:hsl(' + h + ' 55% 28%);border-color:hsl(' + h + ' 60% 42%)">' + esc(initials(name)) + '</span>';
+  var sportGlyph = function(sport){
+    if (sport === "tennis") {
+      return '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7.5 6.5c3 3 3 8 0 11M16.5 6.5c-3 3-3 8 0 11" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
+    }
+    if (sport === "table_tennis") {
+      return '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M14.5 14.5l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="18" cy="7" r="2" fill="currentColor"/></svg>';
+    }
+    if (sport === "basketball") {
+      return '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4 12h16M12 4v16M6.5 6.5c3.5 3.5 3.5 7.5 0 11M17.5 6.5c-3.5 3.5-3.5 7.5 0 11" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
+    }
+    if (sport === "cricket") {
+      return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L16 8l2 2-9 9H7v-2z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="17.5" cy="16.5" r="2.2" fill="currentColor"/></svg>';
+    }
+    if (sport === "esports") {
+      return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9h12a3 3 0 0 1 2.8 4l-1.1 3.5a2 2 0 0 1-3.3.8L14.5 15h-5l-1.9 2.3a2 2 0 0 1-3.3-.8L3.2 13A3 3 0 0 1 6 9z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+    }
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><polygon points="12,7.5 15.8,10.3 14.3,14.8 9.7,14.8 8.2,10.3" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>';
+  };
+  var fallbackAvatarHtml = function(name, sport){
+    return '<span class="tipAvatar isFallback" data-sport-badge="' + esc(sport || "other") + '">' +
+      '<span class="tipSportGlyph" aria-hidden="true">' + sportGlyph(sport) + '</span>' +
+      '<span class="tipInitials">' + esc(initials(name)) + '</span>' +
+    '</span>';
+  };
+  var avatar = function(name, logoUrl, sport){
+    if (logoUrl && /^https:\\/\\//i.test(logoUrl)) {
+      var kindClass = /flagcdn\\.com/i.test(logoUrl) ? " isFlag" : (/cutout|thumb/i.test(logoUrl) ? " isPortrait" : "");
+      return '<span class="tipAvatar hasLogo' + kindClass + '">' +
+        '<img src="' + esc(logoUrl) + '" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-fallback-name="' + esc(name) + '" data-fallback-sport="' + esc(sport || "other") + '"/>' +
+      '</span>';
+    }
+    return fallbackAvatarHtml(name, sport);
   };
   var fmtWhen = function(v){
     if (!v) return "TBD";
@@ -220,23 +271,36 @@ export function publicTipsClientScript(nonce?: string): string {
     var tips = Array.isArray(data.tips) ? data.tips : [];
     var summary = data.summary || {};
     var labels = {
-      si: { all: "සියල්ල", football: "පාපන්දු", cricket: "ක්‍රිකට්", tips: "ඉඟි", none: "දැනට ඉඟි නැහැ", noSettled: "පසුගිය දින 7 තුළ තීරණය කළ ඉඟි නැහැ", settled: "පසුගිය දින 7 තීරණය කළ ඉඟි", rate: "සාර්ථකත්වය", won: "ජයග්‍රහණ", roi: "සතිපතා ROI" },
-      en: { all: "All", football: "Football", cricket: "Cricket", tips: "Tips", none: "No tips available", noSettled: "No settled tip results are available for the last 7 days.", settled: "7-day settled tips", rate: "Strike rate", won: "Won", roi: "Weekly ROI" },
-      ta: { all: "அனைத்தும்", football: "கால்பந்து", cricket: "கிரிக்கெட்", tips: "குறிப்புகள்", none: "குறிப்புகள் இப்போது இல்லை", noSettled: "கடந்த 7 நாட்களில் முடிவுகள் இல்லை", settled: "கடந்த 7 நாட்களின் முடிவுகள்", rate: "வெற்றி விகிதம்", won: "வென்றவை", roi: "வார ROI" }
+      si: { all: "සියල්ල", football: "පාපන්දු", cricket: "ක්‍රිකට්", tennis: "ටෙනිස්", basketball: "පැසිපන්දු", table_tennis: "මේස පන්දු", esports: "ඊ-ක්‍රීඩා", mma: "MMA", other: "වෙනත්", tips: "ඉඟි", none: "දැනට ඉඟි නැහැ", noSettled: "පසුගිය දින 7 තුළ තීරණය කළ ඉඟි නැහැ", settled: "පසුගිය දින 7 තීරණය කළ ඉඟි", rate: "සාර්ථකත්වය", won: "ජයග්‍රහණ", roi: "සතිපතා ROI" },
+      en: { all: "All", football: "Football", cricket: "Cricket", tennis: "Tennis", basketball: "Basketball", table_tennis: "Table Tennis", esports: "Esports", mma: "MMA", other: "Other", tips: "Tips", none: "No tips available", noSettled: "No settled tip results are available for the last 7 days.", settled: "7-day settled tips", rate: "Strike rate", won: "Won", roi: "Weekly ROI" },
+      ta: { all: "அனைத்தும்", football: "கால்பந்து", cricket: "கிரிக்கெட்", tennis: "டென்னிஸ்", basketball: "கூடைப்பந்து", table_tennis: "டேபிள் டென்னிஸ்", esports: "இ-ஸ்போர்ட்ஸ்", mma: "MMA", other: "மற்றவை", tips: "குறிப்புகள்", none: "குறிப்புகள் இப்போது இல்லை", noSettled: "கடந்த 7 நாட்களில் முடிவுகள் இல்லை", settled: "கடந்த 7 நாட்களின் முடிவுகள்", rate: "வெற்றி விகிதம்", won: "வென்றவை", roi: "வார ROI" }
     }[document.documentElement.lang] || {
-      all: "All", football: "Football", cricket: "Cricket", tips: "Tips", none: "No tips available", noSettled: "No settled tip results are available for the last 7 days.", settled: "7-day settled tips", rate: "Strike rate", won: "Won", roi: "Weekly ROI"
+      all: "All", football: "Football", cricket: "Cricket", tennis: "Tennis", basketball: "Basketball", table_tennis: "Table Tennis", esports: "Esports", mma: "MMA", other: "Other", tips: "Tips", none: "No tips available", noSettled: "No settled tip results are available for the last 7 days.", settled: "7-day settled tips", rate: "Strike rate", won: "Won", roi: "Weekly ROI"
     };
     var badge = document.getElementById("tipsLiveBadge");
     var summaryEl = document.getElementById("tipLiveSummary");
     var emptyState = document.getElementById("tipEmptyState");
     var tipGrid = document.getElementById("tipCardGrid");
-    var tabs = document.querySelectorAll("#tips-preview .tipTab");
+    var tabsHost = document.querySelector("#tips-preview .tipTabs");
 
     if (badge) badge.textContent = tips.length ? labels.tips + " (" + tips.length + ")" : labels.none;
-    tabs.forEach(function(b){
-      var sport = b.getAttribute("data-sport");
-      b.textContent = sport === "football" ? labels.football : sport === "cricket" ? labels.cricket : labels.all;
-    });
+
+    var sportOrder = ["football", "cricket", "tennis", "basketball", "table_tennis", "esports", "mma", "other"];
+    if (tabsHost && tips.length) {
+      var prevActive = tabsHost.querySelector(".tipTab.active")?.getAttribute("data-sport") || "all";
+      var present = [];
+      sportOrder.forEach(function(s){
+        if (tips.some(function(t){ return t.sport === s; })) present.push(s);
+      });
+      var activeSport = (prevActive !== "all" && present.indexOf(prevActive) >= 0) ? prevActive : "all";
+      var tabKeys = ["all"].concat(present);
+      tabsHost.innerHTML = tabKeys.map(function(key){
+        var isActive = key === activeSport;
+        var label = labels[key] || key;
+        return '<button type="button" data-sport="' + esc(key) + '" class="tipTab' + (isActive ? ' active' : '') + '" aria-pressed="' + (isActive ? 'true' : 'false') + '">' + esc(label) + '</button>';
+      }).join("");
+    }
+    var tabs = document.querySelectorAll("#tips-preview .tipTab");
 
     var stats = "";
     if (summary && summary.total && Number(summary.total) > 0) {
@@ -255,14 +319,25 @@ export function publicTipsClientScript(nonce?: string): string {
       var score = t.scoreHome != null && t.scoreAway != null ? " · " + esc(t.scoreHome) + "-" + esc(t.scoreAway) : "";
       return '<article class="tipCard" data-sport="' + esc(t.sport) + '">' +
         '<div class="tipCardTop"><span class="tipLeague">' + esc(t.sportTitle) + '</span>' + resultBadge(t.result) + '</div>' +
-        '<div class="tipTeams"><div class="tipTeam">' + avatar(t.homeTeam) + '<b>' + esc(t.homeTeam) + '</b></div><div class="tipVs">VS</div><div class="tipTeam">' + avatar(t.awayTeam) + '<b>' + esc(t.awayTeam) + '</b></div></div>' +
+        '<div class="tipTeams"><div class="tipTeam">' + avatar(t.homeTeam, t.homeLogoUrl, t.sport) + '<b>' + esc(t.homeTeam) + '</b></div><div class="tipVs">VS</div><div class="tipTeam">' + avatar(t.awayTeam, t.awayLogoUrl, t.sport) + '<b>' + esc(t.awayTeam) + '</b></div></div>' +
         '<div class="tipWhen">' + esc(fmtWhen(t.commenceTime)) + score + '</div>' +
         '<div class="tipPickRow"><span class="tipMarketTag">' + esc(marketLabel(t.market)) + '</span><span class="tipPickName">' + esc(pickLabel(t)) + '</span><b class="tipOdds">' + (t.odds ? Number(t.odds).toFixed(2) : "—") + '</b></div>' +
         '<div class="tipFoot">⚡ Tap here for Live Odds · Live on Telegram</div>' +
       '</article>';
     }).join("") : "";
 
-    if (tipGrid) tipGrid.innerHTML = cards;
+    if (tipGrid) {
+      tipGrid.innerHTML = cards;
+      tipGrid.querySelectorAll("img[data-fallback-name]").forEach(function(img){
+        img.addEventListener("error", function(){
+          var parent = img.parentNode;
+          if (!parent || !parent.parentNode) return;
+          var tmp = document.createElement("div");
+          tmp.innerHTML = fallbackAvatarHtml(img.getAttribute("data-fallback-name") || "?", img.getAttribute("data-fallback-sport") || "other");
+          if (tmp.firstElementChild) parent.parentNode.replaceChild(tmp.firstElementChild, parent);
+        }, { once: true });
+      });
+    }
     tabs.forEach(function(b){
       b.addEventListener("click", function(){
         tabs.forEach(function(x){

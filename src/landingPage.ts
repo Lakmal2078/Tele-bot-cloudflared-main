@@ -860,13 +860,13 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .countdownLabel{display:flex;align-items:center;gap:7px;font-size:.68rem;font-weight:700;color:var(--muted)}
 .countdownDot{width:8px;height:8px;border-radius:50%;background:var(--signal);box-shadow:0 0 8px var(--signal);animation:pulse 1.8s infinite ease-in-out}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.85)}}
-.countdownTimer{font:800 .92rem ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--signal);letter-spacing:.05em}
+.countdownTimer{font:800 .92rem ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums;color:var(--signal);letter-spacing:.05em}
 .countdownSlot{padding:3px 8px;border-radius:999px;background:#ffffff08;border:1px solid var(--border);color:var(--muted);font-size:.6rem;font-weight:700}
 .tipHead{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:17px 20px;border-bottom:1px solid var(--border)}
 .tipHead b{font-size:.8rem}
 .previewBadge{padding:5px 10px;border-radius:999px;background:#3b82f618;border:1px solid #3b82f644;color:#93c5fd;font-size:.6rem;font-weight:800}
 .tipTabs{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px 0}
-.tipTab{appearance:none;border:1px solid var(--border);background:#ffffff06;color:var(--muted);border-radius:999px;padding:7px 12px;font-size:.65rem;font-weight:700;cursor:pointer}
+.tipTab{appearance:none;display:inline-flex;align-items:center;min-height:40px;white-space:nowrap;flex-shrink:0;border:1px solid var(--border);background:#ffffff06;color:var(--muted);border-radius:999px;padding:7px 14px;font-size:.66rem;font-weight:700;cursor:pointer;transition:border-color .15s,background .15s,color .15s}
 .tipTab.active{border-color:#67e8f955;background:#67e8f912;color:#cffafe}
 .tipSummary{display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding:8px 14px;background:#ffffff05;border:1px solid #1e2a3d;border-radius:12px;margin:10px 16px 4px;color:var(--muted);font-size:.67rem}
 .tipSummary span{display:inline-flex;align-items:center;gap:4px}
@@ -883,15 +883,21 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .tipTeams{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center}
 .tipTeam{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
 .tipTeam b{font-size:.72rem;line-height:1.2;font-weight:700}
-.tipAvatar{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;border:2px solid #334155;color:#e2e8f0;font-size:.72rem;font-weight:900;letter-spacing:.02em;overflow:hidden;background:#0f172a}
-.tipAvatar img{width:100%;height:100%;object-fit:contain;padding:3px;display:block;background:#ffffff}
-.tipAvatar.hasLogo{border-color:#1e293b;background:#ffffff}
+.tipAvatar{position:relative;display:grid;place-items:center;width:48px;height:48px;border-radius:50%;border:2px solid #2a3950;color:#e2e8f0;font-size:.72rem;font-weight:900;letter-spacing:.03em;overflow:hidden;background:#0f172a;flex-shrink:0}
+.tipAvatar img{width:100%;height:100%;object-fit:contain;padding:4px;display:block;background:#ffffff}
+.tipAvatar.hasLogo{border-color:#24354d;background:#ffffff}
+.tipAvatar.isFlag,.tipAvatar.isPortrait{border-color:#2e4563;background:#0d1828}
+.tipAvatar.isFlag img,.tipAvatar.isPortrait img{padding:0;object-fit:cover;background:transparent}
+.tipAvatar.isFallback{background:linear-gradient(155deg,#162338 0%,#0c1523 100%);border-color:#2b3e59}
+.tipSportGlyph{position:absolute;inset:0;display:grid;place-items:center;color:#67e8f9;opacity:.24;pointer-events:none}
+.tipSportGlyph svg{width:28px;height:28px}
+.tipInitials{position:relative;z-index:1;font-size:.74rem;font-weight:900;letter-spacing:.04em;color:#e2e8f0;text-shadow:0 1px 4px rgba(0,0,0,.75)}
 .tipVs{color:#7b8ba3;font-size:.7rem;font-weight:800;letter-spacing:.08em}
-.tipWhen{text-align:center;color:#a8b3c5;font-size:.68rem;font-weight:600}
+.tipWhen{text-align:center;color:#a8b3c5;font-size:.68rem;font-weight:600;font-variant-numeric:tabular-nums}
 .tipPickRow{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;background:#0a1018;border:1px solid #1e293b}
 .tipMarketTag{flex-shrink:0;padding:4px 8px;border-radius:8px;background:#22c55e22;color:#86efac;font-size:.58rem;font-weight:800}
 .tipPickName{flex:1;color:#e2e8f0;font-size:.68rem;font-weight:700}
-.tipOdds{color:#4ade80;font:900 .85rem ui-monospace,SFMono-Regular,Menlo,monospace}
+.tipOdds{color:#4ade80;font:900 .85rem ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
 .tipFoot{color:#7b8ba3;font-size:.58rem;text-align:left}
 .disclaimer{padding:13px 20px;background:#ff477e07;color:var(--muted);font-size:.65rem}
 
@@ -1535,7 +1541,7 @@ body::before{
       <b>${esc(c.tips.featuredHeading)}</b>
       <span id="tipsLiveBadge" class="previewBadge">${esc(c.tips.badge)}</span>
     </div>
-    <div class="tipTabs" role="group" aria-label="Filter tips by sport">
+    <div class="tipTabs" id="tipTabs" role="group" aria-label="Filter tips by sport">
       <button type="button" data-sport="all" class="tipTab active" aria-pressed="true">All</button>
       <button type="button" data-sport="football" class="tipTab" aria-pressed="false">Football</button>
       <button type="button" data-sport="cricket" class="tipTab" aria-pressed="false">Cricket</button>
@@ -1549,9 +1555,9 @@ body::before{
       <article class="tipCard" data-sport="football">
         <div class="tipCardTop"><span class="tipLeague">Premier League</span><span class="tipStatus pending">Today</span></div>
         <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/57.png" alt="" loading="lazy" decoding="async"/></span><b>Arsenal</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/57.png" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>Arsenal</b></div>
           <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/61.png" alt="" loading="lazy" decoding="async"/></span><b>Chelsea</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/61.png" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>Chelsea</b></div>
         </div>
         <div class="tipWhen">Today, 17:30</div>
         <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Arsenal Win</span><b class="tipOdds">1.94</b></div>
@@ -1560,9 +1566,9 @@ body::before{
       <article class="tipCard" data-sport="football">
         <div class="tipCardTop"><span class="tipLeague">La Liga</span><span class="tipStatus pending">Today</span></div>
         <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/86.png" alt="" loading="lazy" decoding="async"/></span><b>Real Madrid</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/86.png" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>Real Madrid</b></div>
           <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/78.png" alt="" loading="lazy" decoding="async"/></span><b>Atletico Madrid</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/78.png" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>Atletico Madrid</b></div>
         </div>
         <div class="tipWhen">Today, 20:00</div>
         <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Real Madrid Win</span><b class="tipOdds">1.78</b></div>
@@ -1571,9 +1577,9 @@ body::before{
       <article class="tipCard" data-sport="football">
         <div class="tipCardTop"><span class="tipLeague">Bundesliga</span><span class="tipStatus pending">Today</span></div>
         <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/5.png" alt="" loading="lazy" decoding="async"/></span><b>Bayern Munich</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/5.png" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>Bayern Munich</b></div>
           <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/524.png" alt="" loading="lazy" decoding="async"/></span><b>PSG</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/524.png" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>PSG</b></div>
         </div>
         <div class="tipWhen">Today, 22:00</div>
         <div class="tipPickRow"><span class="tipMarketTag">O/U</span><span class="tipPickName">Over 2.5 Goals</span><b class="tipOdds">1.85</b></div>
@@ -2018,12 +2024,27 @@ ${renderFinalCtaBanner(c, lang, eb)}
     }
   } catch(e){}
 
-  // 7. Dynamic Live Tips with D1 Database API & Sport Filter Tabs
+  // 7. Dynamic Live Tips with D1 Database API, Cached Team/Player Icons & Sport Filter Tabs
   try {
-    var tipTabs = document.querySelectorAll(".tipTab");
+    var tipTabsHost = document.getElementById("tipTabs");
     var tipGrid = document.getElementById("tipCardGrid");
     var liveBadge = document.getElementById("tipsLiveBadge");
     var liveSummary = document.getElementById("tipLiveSummary");
+    var pageLang = "${lang}";
+    var SPORT_TAB_LABELS = {
+      si: { all: "සියල්ල", football: "පාපන්දු", cricket: "ක්‍රිකට්", tennis: "ටෙනිස්", basketball: "පැසිපන්දු", table_tennis: "මේස පන්දු", esports: "ඊ-ක්‍රීඩා", mma: "MMA", other: "වෙනත්" },
+      en: { all: "All", football: "Football", cricket: "Cricket", tennis: "Tennis", basketball: "Basketball", table_tennis: "Table Tennis", esports: "Esports", mma: "MMA", other: "Other" },
+      ta: { all: "அனைத்தும்", football: "கால்பந்து", cricket: "கிரிக்கெட்", tennis: "டென்னிஸ்", basketball: "கூடைப்பந்து", table_tennis: "டேபிள் டென்னிஸ்", esports: "இ-ஸ்போர்ட்ஸ்", mma: "MMA", other: "மற்றவை" }
+    };
+    var tabLabels = SPORT_TAB_LABELS[pageLang] || SPORT_TAB_LABELS.en;
+
+    function escHtml(v) {
+      return String(v == null ? "" : v)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
 
     function applySportFilter(sport) {
       if (!tipGrid) return;
@@ -2033,15 +2054,19 @@ ${renderFinalCtaBanner(c, lang, eb)}
       });
     }
 
-    tipTabs.forEach(function(tab){
-      tab.addEventListener("click", function(){
-        tipTabs.forEach(function(t){ t.classList.remove("active"); t.setAttribute("aria-pressed", "false"); });
-        tab.classList.add("active");
-        tab.setAttribute("aria-pressed", "true");
-        var sport = tab.getAttribute("data-sport") || "all";
-        applySportFilter(sport);
+    function bindTabHandlers() {
+      var tabs = document.querySelectorAll("#tipTabs .tipTab");
+      tabs.forEach(function(tab){
+        tab.addEventListener("click", function(){
+          tabs.forEach(function(t){ t.classList.remove("active"); t.setAttribute("aria-pressed", "false"); });
+          tab.classList.add("active");
+          tab.setAttribute("aria-pressed", "true");
+          applySportFilter(tab.getAttribute("data-sport") || "all");
+        });
       });
-    });
+    }
+
+    bindTabHandlers();
 
     // Keep static cards visible until live data arrives (avoids blank/black grid flash)
     if (tipGrid) tipGrid.style.minHeight = tipGrid.offsetHeight + "px";
@@ -2070,21 +2095,49 @@ ${renderFinalCtaBanner(c, lang, eb)}
           liveSummary.style.display = "flex";
           var wRate = Math.max(78, Number(data.summary.winRate) || 84);
           var wWon = Math.max(15, Number(data.summary.won) || 23);
-          var wRoi = data.summary.weeklyRoi || "+24.8%";
+          var wRoi = escHtml(data.summary.weeklyRoi || "+24.8%");
           liveSummary.innerHTML = "<span>🎯 <b>" + wRate + "%</b> ${esc(c.tips.stats.winRate)}</span><span>📈 <b>" + wRoi + "</b> ${esc(c.tips.stats.roi)}</span><span>✅ <b>" + wWon + "+</b> ${esc(c.tips.stats.slipsWon)}</span><span>⚡ <b>1.88</b> ${esc(c.tips.stats.avgOdds)}</span>";
         }
 
         function teamInitials(name) {
           var parts = String(name || "").trim().split(/\\s+/).filter(Boolean);
-          if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+          if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
           return (parts[0] || "?").slice(0, 2).toUpperCase();
         }
-        function hueFrom(str) {
-          var h = 0;
-          for (var i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
-          return h % 360;
+
+        function sportSvgGlyph(sport) {
+          if (sport === "tennis") {
+            return '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7.5 6.5c3 3 3 8 0 11M16.5 6.5c-3 3-3 8 0 11" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
+          }
+          if (sport === "table_tennis") {
+            return '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M14.5 14.5l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="18" cy="7" r="2" fill="currentColor"/></svg>';
+          }
+          if (sport === "basketball") {
+            return '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4 12h16M12 4v16M6.5 6.5c3.5 3.5 3.5 7.5 0 11M17.5 6.5c-3.5 3.5-3.5 7.5 0 11" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
+          }
+          if (sport === "cricket") {
+            return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L16 8l2 2-9 9H7v-2z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="17.5" cy="16.5" r="2.2" fill="currentColor"/></svg>';
+          }
+          if (sport === "esports") {
+            return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9h12a3 3 0 0 1 2.8 4l-1.1 3.5a2 2 0 0 1-3.3.8L14.5 15h-5l-1.9 2.3a2 2 0 0 1-3.3-.8L3.2 13A3 3 0 0 1 6 9z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+          }
+          return '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><polygon points="12,7.5 15.8,10.3 14.3,14.8 9.7,14.8 8.2,10.3" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>';
         }
-        // Popular club crests (football-data.org) — fallback to initials if unknown
+
+        function fallbackAvatarHtml(name, sport, countryCode) {
+          var initials = escHtml(teamInitials(name));
+          if (countryCode && /^[a-z-]{2,8}$/i.test(countryCode)) {
+            return '<span class="tipAvatar hasLogo isFlag" title="' + escHtml(name) + '">' +
+              '<img src="https://flagcdn.com/w80/' + escHtml(countryCode.toLowerCase()) + '.png" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-fallback-name="' + escHtml(name) + '" data-fallback-sport="' + escHtml(sport || "other") + '"/>' +
+            '</span>';
+          }
+          return '<span class="tipAvatar isFallback" title="' + escHtml(name) + '" data-sport-badge="' + escHtml(sport || "other") + '">' +
+            '<span class="tipSportGlyph" aria-hidden="true">' + sportSvgGlyph(sport) + '</span>' +
+            '<span class="tipInitials">' + initials + '</span>' +
+          '</span>';
+        }
+
+        // Local club crests + cricket flags fast-path backup if server field is omitted
         var TEAM_CRESTS = {
           "arsenal": 57, "chelsea": 61, "liverpool": 64, "manchester city": 65, "man city": 65,
           "manchester united": 66, "man united": 66, "man utd": 66, "tottenham": 73, "tottenham hotspur": 73, "spurs": 73,
@@ -2101,119 +2154,71 @@ ${renderFinalCtaBanner(c, lang, eb)}
           "boca juniors": 1832, "river plate": 1831, "flamengo": 1783, "palmeiras": 1769,
           "al hilal": 7600, "al nassr": 7583, "inter miami": 16120
         };
-        // Cricket national teams → country flags (flagcdn). Franchise / nicknames → same where possible.
         var CRICKET_LOGOS = {
-          "india": "https://flagcdn.com/w80/in.png",
-          "india women": "https://flagcdn.com/w80/in.png",
-          "ind": "https://flagcdn.com/w80/in.png",
-          "sri lanka": "https://flagcdn.com/w80/lk.png",
-          "sri lanka women": "https://flagcdn.com/w80/lk.png",
-          "sl": "https://flagcdn.com/w80/lk.png",
-          "australia": "https://flagcdn.com/w80/au.png",
-          "australia women": "https://flagcdn.com/w80/au.png",
-          "aus": "https://flagcdn.com/w80/au.png",
-          "england": "https://flagcdn.com/w80/gb-eng.png",
-          "england women": "https://flagcdn.com/w80/gb-eng.png",
-          "eng": "https://flagcdn.com/w80/gb-eng.png",
-          "pakistan": "https://flagcdn.com/w80/pk.png",
-          "pakistan women": "https://flagcdn.com/w80/pk.png",
-          "pak": "https://flagcdn.com/w80/pk.png",
-          "new zealand": "https://flagcdn.com/w80/nz.png",
-          "new zealand women": "https://flagcdn.com/w80/nz.png",
-          "nz": "https://flagcdn.com/w80/nz.png",
-          "south africa": "https://flagcdn.com/w80/za.png",
-          "south africa women": "https://flagcdn.com/w80/za.png",
-          "sa": "https://flagcdn.com/w80/za.png",
-          "west indies": "https://flagcdn.com/w80/jm.png",
-          "west indies women": "https://flagcdn.com/w80/jm.png",
-          "wi": "https://flagcdn.com/w80/jm.png",
-          "bangladesh": "https://flagcdn.com/w80/bd.png",
-          "bangladesh women": "https://flagcdn.com/w80/bd.png",
-          "ban": "https://flagcdn.com/w80/bd.png",
-          "afghanistan": "https://flagcdn.com/w80/af.png",
-          "afg": "https://flagcdn.com/w80/af.png",
-          "ireland": "https://flagcdn.com/w80/ie.png",
-          "ireland women": "https://flagcdn.com/w80/ie.png",
-          "zimbabwe": "https://flagcdn.com/w80/zw.png",
-          "zim": "https://flagcdn.com/w80/zw.png",
-          "netherlands": "https://flagcdn.com/w80/nl.png",
-          "scotland": "https://flagcdn.com/w80/gb-sct.png",
-          "uae": "https://flagcdn.com/w80/ae.png",
-          "united arab emirates": "https://flagcdn.com/w80/ae.png",
-          "nepal": "https://flagcdn.com/w80/np.png",
-          "oman": "https://flagcdn.com/w80/om.png",
-          "namibia": "https://flagcdn.com/w80/na.png",
-          "usa": "https://flagcdn.com/w80/us.png",
-          "united states": "https://flagcdn.com/w80/us.png",
-          "canada": "https://flagcdn.com/w80/ca.png",
-          "hong kong": "https://flagcdn.com/w80/hk.png",
-          "malaysia": "https://flagcdn.com/w80/my.png",
-          "singapore": "https://flagcdn.com/w80/sg.png",
-          // IPL / franchise style nicknames → use board flags as neutral fallback where needed
-          "chennai super kings": "https://flagcdn.com/w80/in.png",
-          "csk": "https://flagcdn.com/w80/in.png",
-          "mumbai indians": "https://flagcdn.com/w80/in.png",
-          "mi": "https://flagcdn.com/w80/in.png",
-          "royal challengers bangalore": "https://flagcdn.com/w80/in.png",
-          "royal challengers bengaluru": "https://flagcdn.com/w80/in.png",
-          "rcb": "https://flagcdn.com/w80/in.png",
-          "kolkata knight riders": "https://flagcdn.com/w80/in.png",
-          "kkr": "https://flagcdn.com/w80/in.png",
-          "delhi capitals": "https://flagcdn.com/w80/in.png",
-          "dc": "https://flagcdn.com/w80/in.png",
-          "rajasthan royals": "https://flagcdn.com/w80/in.png",
-          "rr": "https://flagcdn.com/w80/in.png",
-          "sunrisers hyderabad": "https://flagcdn.com/w80/in.png",
-          "srh": "https://flagcdn.com/w80/in.png",
-          "punjab kings": "https://flagcdn.com/w80/in.png",
-          "pbks": "https://flagcdn.com/w80/in.png",
-          "gujarat titans": "https://flagcdn.com/w80/in.png",
-          "gt": "https://flagcdn.com/w80/in.png",
-          "lucknow super giants": "https://flagcdn.com/w80/in.png",
-          "lsg": "https://flagcdn.com/w80/in.png"
+          "india": "in", "india women": "in", "ind": "in", "sri lanka": "lk", "sri lanka women": "lk", "sl": "lk",
+          "australia": "au", "australia women": "au", "aus": "au", "england": "gb-eng", "england women": "gb-eng", "eng": "gb-eng",
+          "pakistan": "pk", "pakistan women": "pk", "pak": "pk", "new zealand": "nz", "new zealand women": "nz", "nz": "nz",
+          "south africa": "za", "south africa women": "za", "sa": "za", "west indies": "jm", "west indies women": "jm", "wi": "jm",
+          "bangladesh": "bd", "bangladesh women": "bd", "ban": "bd", "afghanistan": "af", "afg": "af",
+          "ireland": "ie", "ireland women": "ie", "zimbabwe": "zw", "zim": "zw", "netherlands": "nl", "scotland": "gb-sct",
+          "uae": "ae", "united arab emirates": "ae", "nepal": "np", "oman": "om", "namibia": "na",
+          "usa": "us", "united states": "us", "canada": "ca", "hong kong": "hk", "malaysia": "my", "singapore": "sg"
         };
-        function crestUrl(name) {
+        function crestUrl(name, sport) {
           var key = String(name || "").toLowerCase().replace(/[^a-z0-9\\s]/g, " ").replace(/\\s+/g, " ").trim();
-          // Cricket logos / national flags first
-          if (CRICKET_LOGOS[key]) return CRICKET_LOGOS[key];
-          var id = TEAM_CRESTS[key];
-          if (id) return "https://crests.football-data.org/" + id + ".png";
-          var first = key.split(" ")[0];
-          if (CRICKET_LOGOS[first]) return CRICKET_LOGOS[first];
-          if (TEAM_CRESTS[first]) return "https://crests.football-data.org/" + TEAM_CRESTS[first] + ".png";
+          if (sport === "cricket" && CRICKET_LOGOS[key]) return "https://flagcdn.com/w80/" + CRICKET_LOGOS[key] + ".png";
+          if (sport === "football" || !sport) {
+            var id = TEAM_CRESTS[key] || TEAM_CRESTS[key.split(" ")[0]];
+            if (id) return "https://crests.football-data.org/" + id + ".png";
+          }
+          if (CRICKET_LOGOS[key]) return "https://flagcdn.com/w80/" + CRICKET_LOGOS[key] + ".png";
           return null;
         }
-        function teamAvatarHtml(name) {
+        function teamAvatarHtml(name, serverLogoUrl, sport, countryCode) {
           var n = name || "?";
-          var logo = crestUrl(n);
-          var initials = teamInitials(n);
-          var hue = hueFrom(n);
+          var logo = (serverLogoUrl && /^https:\\/\\//i.test(serverLogoUrl)) ? serverLogoUrl : crestUrl(n, sport);
           if (logo) {
-            return '<span class="tipAvatar hasLogo" title="' + n.replace(/"/g, "") + '">' +
-              '<img src="' + logo + '" alt="' + initials + '" loading="lazy" decoding="async" ' +
-              'onerror="this.parentNode.classList.remove(\\'hasLogo\\');this.parentNode.style.background=\\'hsl(' + hue + ' 55% 28%)\\';this.parentNode.style.borderColor=\\'hsl(' + hue + ' 60% 42%)\\';this.parentNode.textContent=\\'' + initials + '\\';"/>' +
-              '</span>';
+            var kindClass = /flagcdn\\.com/i.test(logo) ? " isFlag" : (/cutout|thumb/i.test(logo) ? " isPortrait" : "");
+            return '<span class="tipAvatar hasLogo' + kindClass + '" title="' + escHtml(n) + '">' +
+              '<img src="' + escHtml(logo) + '" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-fallback-name="' + escHtml(n) + '" data-fallback-sport="' + escHtml(sport || "other") + '"' +
+              (countryCode ? ' data-fallback-cc="' + escHtml(countryCode) + '"' : '') + '/>' +
+            '</span>';
           }
-          return '<span class="tipAvatar" style="background:hsl(' + hue + ' 55% 28%);border-color:hsl(' + hue + ' 60% 42%)">' + initials + '</span>';
+          return fallbackAvatarHtml(n, sport, countryCode);
+        }
+
+        if (tipTabsHost) {
+          var prevActive = tipTabsHost.querySelector(".tipTab.active")?.getAttribute("data-sport") || "all";
+          var sportOrder = ["football", "cricket", "tennis", "basketball", "table_tennis", "esports", "mma", "other"];
+          var presentSports = [];
+          sportOrder.forEach(function(s){
+            if (data.tips.some(function(t){ return (t.sport || "other") === s; })) presentSports.push(s);
+          });
+          var activeSport = (prevActive !== "all" && presentSports.indexOf(prevActive) >= 0) ? prevActive : "all";
+          tipTabsHost.innerHTML = ["all"].concat(presentSports).map(function(key){
+            var isActive = key === activeSport;
+            return '<button type="button" data-sport="' + escHtml(key) + '" class="tipTab' + (isActive ? " active" : "") + '" aria-pressed="' + (isActive ? "true" : "false") + '">' + escHtml(tabLabels[key] || key) + '</button>';
+          }).join("");
+          bindTabHandlers();
         }
 
         var liveHtml = data.tips.map(function(t){
-          var resClass = t.result === "WON" ? "won" : (t.result === "LOST" ? "lost" : "pending");
-          var resText = t.result || "Live";
-          var mTag = (t.market || "1X2").toUpperCase();
+          var resClass = t.result === "WON" ? "won" : (t.result === "LOST" ? "lost" : (t.result === "VOID" ? "void" : "pending"));
+          var resText = escHtml(t.result || "Live");
+          var mTag = escHtml((t.market || "1X2").toUpperCase());
           var oVal = t.odds ? Number(t.odds).toFixed(2) : "—";
           var hName = t.homeTeam || "Home";
           var aName = t.awayTeam || "Away";
           var sportKey = t.sport || "football";
-          return '<article class="tipCard" data-sport="' + sportKey + '">' +
-            '<div class="tipCardTop"><span class="tipLeague">' + (t.sportTitle || "Sports") + '</span><span class="tipStatus ' + resClass + '">' + resText + '</span></div>' +
+          return '<article class="tipCard" data-sport="' + escHtml(sportKey) + '">' +
+            '<div class="tipCardTop"><span class="tipLeague">' + escHtml(t.sportTitle || "Sports") + '</span><span class="tipStatus ' + resClass + '">' + resText + '</span></div>' +
             '<div class="tipTeams">' +
-              '<div class="tipTeam">' + teamAvatarHtml(hName) + '<b>' + hName + '</b></div>' +
+              '<div class="tipTeam">' + teamAvatarHtml(hName, t.homeLogoUrl, sportKey, t.homeCountryCode) + '<b>' + escHtml(hName) + '</b></div>' +
               '<div class="tipVs">VS</div>' +
-              '<div class="tipTeam">' + teamAvatarHtml(aName) + '<b>' + aName + '</b></div>' +
+              '<div class="tipTeam">' + teamAvatarHtml(aName, t.awayLogoUrl, sportKey, t.awayCountryCode) + '<b>' + escHtml(aName) + '</b></div>' +
             '</div>' +
-            '<div class="tipWhen">' + (t.commenceTime ? t.commenceTime.slice(0, 16).replace("T", " ") : "Upcoming") + '</div>' +
-            '<div class="tipPickRow"><span class="tipMarketTag">' + mTag + '</span><span class="tipPickName">' + (t.selection || "Pick") + '</span><b class="tipOdds">' + oVal + '</b></div>' +
+            '<div class="tipWhen">' + (t.commenceTime ? escHtml(t.commenceTime.slice(0, 16).replace("T", " ")) : "Upcoming") + '</div>' +
+            '<div class="tipPickRow"><span class="tipMarketTag">' + mTag + '</span><span class="tipPickName">' + escHtml(t.selection || "Pick") + '</span><b class="tipOdds">' + oVal + '</b></div>' +
             '<div class="tipFoot">\u26a1 Tap here for Live Odds \u00b7 Live on Telegram</div>' +
           '</article>';
         }).join("");
@@ -2221,7 +2226,24 @@ ${renderFinalCtaBanner(c, lang, eb)}
         if (tipGrid && liveHtml) {
           tipGrid.innerHTML = liveHtml;
           tipGrid.style.minHeight = "";
-          var activeTab = document.querySelector(".tipTab.active");
+          tipGrid.querySelectorAll("img[data-fallback-name]").forEach(function(img){
+            img.addEventListener("error", function(){
+              var parent = img.parentNode;
+              if (!parent || !parent.parentNode) return;
+              var cc = img.getAttribute("data-fallback-cc");
+              var isFlagImg = parent.classList && parent.classList.contains("isFlag");
+              var tmp = document.createElement("div");
+              tmp.innerHTML = fallbackAvatarHtml(
+                img.getAttribute("data-fallback-name") || "?",
+                img.getAttribute("data-fallback-sport") || "other",
+                isFlagImg ? null : cc
+              );
+              if (tmp.firstElementChild) {
+                parent.parentNode.replaceChild(tmp.firstElementChild, parent);
+              }
+            }, { once: true });
+          });
+          var activeTab = document.querySelector("#tipTabs .tipTab.active");
           if (activeTab) applySportFilter(activeTab.getAttribute("data-sport") || "all");
         }
       })
