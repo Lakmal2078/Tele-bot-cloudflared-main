@@ -65,7 +65,8 @@ jobs:
           echo "::endgroup::"
 
           echo "::group::2. Compress and generate checksum/manifest"
-          gzip -9 "$sql_file"
+          # gzip -9 "$sql_file" මගින් database.sql.gz සෑදෙන නිසා, archive නම ට හරියටම ලිවීමට -c භාවිතා කරයි
+          gzip -9 -c "$sql_file" > "$archive"
           test -s "$archive"
 
           checksum="$(sha256sum "$archive" | awk '{print $1}')"
@@ -99,4 +100,3 @@ jobs:
 
           echo "Backup uploaded and verified: $key"
           echo "SHA-256: $checksum"
-          
