@@ -183,6 +183,55 @@ describe("tip settlement", () => {
     }
   });
 
+  it("does not mark a post settled when its transactional result batch fails", async () => {
+    const statements: Array<{ sql: string; values: unknown[] }> = [];
+    const post = {
+      id: 88, event_id: "event-88", sport_key: "soccer_test", sport_title: "Test League",
+      home_team: "Arsenal", away_team: "Chelsea",
+      commence_time: new Date(Date.now() - 60_000).toISOString(), market: "h2h",
+      selection: "Arsenal", odds: 1.8, message_id: null,
+      tips_json: JSON.stringify([{
+        eventId: "event-88", sportKey: "soccer_test", sportTitle: "Test League",
+        homeTeam: "Arsenal", awayTeam: "Chelsea", selection: "Arsenal", market: "h2h", odds: 1.8,
+      }]),
+      result: "PENDING", settled_at: null,
+    };
+    const db = {
+      prepare(sql: string) {
+        return {
+          bind(...values: unknown[]) {
+            statements.push({ sql, values });
+            return {
+              all: async () => ({ results: sql.includes("SELECT id, scheduled_key") ? [post] : [] }),
+              first: async () => null,
+              run: async () => ({ success: true, meta: { changes: 1 } }),
+            };
+          },
+        };
+      },
+      async batch() {
+        throw new Error("simulated D1 batch failure");
+      },
+    };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify([{
+      id: "event-88", sport_key: "soccer_test", sport_title: "Test League",
+      commence_time: post.commence_time, completed: true,
+      home_team: "Arsenal", away_team: "Chelsea",
+      scores: [{ name: "Arsenal", score: "2" }, { name: "Chelsea", score: "0" }],
+    }]), { status: 200, headers: { "Content-Type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const summary = await settlePendingTips({ DB: db as any, ODDS_API_KEY: "test-key" } as Env, { sendTelegramUpdate: false });
+      expect(summary.settledPosts).toBe(0);
+      expect(summary.errors.some((error) => error.includes("simulated D1 batch failure"))).toBe(true);
+      expect(statements.some(({ sql }) => sql.includes("UPDATE tip_posts SET result=")).toBe(false);
+      expect(statements.some(({ sql }) => sql.includes("next_retry_at=datetime('now', ?"))).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("batches result writes for a large post instead of issuing one D1 request per pick", async () => {
     const pickCount = 60;
     const statements: Array<{ sql: string; values: unknown[] }> = [];
