@@ -755,13 +755,13 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .heroGrid{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1.12fr) minmax(350px,.88fr);gap:56px;align-items:center}
 
 /* Eyebrow Badge */
-.hero-badge-wrap{display:inline-flex;margin-bottom:14px}
-.hero-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 14px 6px 10px;background:linear-gradient(135deg,rgba(10,19,32,0.92),rgba(14,26,44,0.95));border:1px solid rgba(103,232,249,0.3);border-radius:999px;box-shadow:0 6px 20px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.12);backdrop-filter:blur(10px)}
-.hero-flag{font-size:1.15rem;line-height:1;display:inline-block;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))}
-.hero-badge-dot{width:7px;height:7px;border-radius:50%;background:#00e676;box-shadow:0 0 10px #00e676,0 0 20px #00e676;display:inline-block;animation:heroPulseDot 2s ease-in-out infinite}
+.hero-badge-wrap{display:inline-flex;max-width:100%;margin-bottom:14px}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;max-width:100%;min-width:0;box-sizing:border-box;padding:6px 14px 6px 10px;background:linear-gradient(135deg,rgba(10,19,32,0.92),rgba(14,26,44,0.95));border:1px solid rgba(103,232,249,0.3);border-radius:999px;box-shadow:0 6px 20px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.12);backdrop-filter:blur(10px)}
+.hero-flag{flex-shrink:0;font-size:1.15rem;line-height:1;display:inline-block;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))}
+.hero-badge-dot{flex-shrink:0;width:7px;height:7px;border-radius:50%;background:#00e676;box-shadow:0 0 10px #00e676,0 0 20px #00e676;display:inline-block;animation:heroPulseDot 2s ease-in-out infinite}
 @keyframes heroPulseDot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.85)}}
-.hero-badge-text{font-size:.74rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#e2e8f0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-.hero-badge-pill{font-size:.62rem;font-weight:900;letter-spacing:.06em;padding:2px 8px;border-radius:999px;background:rgba(0,230,118,0.18);color:#00e676;border:1px solid rgba(0,230,118,0.38);margin-left:2px}
+.hero-badge-text{min-width:0;font-size:.74rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#e2e8f0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.hero-badge-pill{flex-shrink:0;white-space:nowrap;font-size:.62rem;font-weight:900;letter-spacing:.06em;padding:2px 8px;border-radius:999px;background:rgba(0,230,118,0.18);color:#00e676;border:1px solid rgba(0,230,118,0.38);margin-left:2px}
 
 /* Hero Heading */
 .hero h1,.hero h1.heroHeading{max-width:680px;margin:10px 0 18px;font-family:"Noto Sans Sinhala","Plus Jakarta Sans","Noto Sans Tamil",system-ui,sans-serif;font-size:clamp(2.35rem,5.6vw,4.5rem);line-height:1.22;letter-spacing:-0.015em;font-weight:800;color:#ffffff;word-break:normal;overflow-wrap:normal}
@@ -1047,8 +1047,10 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
   .hero{padding:38px 0 28px;max-width:100%;overflow:hidden}
   .heroGrid{gap:28px;max-width:100%}
   .hero h1,.hero h1.heroHeading{font-size:clamp(1.95rem,8.2vw,2.95rem);line-height:1.24;letter-spacing:-0.01em;word-break:normal;overflow-wrap:normal}
-  .hero-badge{max-width:100%;box-sizing:border-box}
-  .hero-badge-text{font-size:.66rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hero-badge-wrap{display:flex;width:100%;max-width:100%}
+  .hero-badge{max-width:100%;min-width:0;box-sizing:border-box;flex-wrap:wrap;justify-content:center;row-gap:6px;border-radius:18px;padding:7px 12px}
+  .finalBox .hero-badge{margin:0 auto}
+  .hero-badge-text{font-size:.65rem;line-height:1.35;white-space:normal;text-align:center;overflow-wrap:anywhere}
   .actions{display:grid}
   .actions .btn{width:100%}
   .promoBar{max-width:100%;box-sizing:border-box;border-radius:16px;padding:6px 10px;gap:6px}
