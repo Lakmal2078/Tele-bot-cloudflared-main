@@ -26,12 +26,13 @@ export async function checkRateLimit(
   const limit = table === "deposits" ? DEPOSIT_RATE_LIMIT : WITHDRAWAL_RATE_LIMIT;
   let consumed = false;
   try {
-    const [bucket] = await db.consumeRateLimitBuckets(database, [{
-      key: `cashier:${table}:${userId}`,
-      limit: limit.maxRequests,
-      windowMs: limit.windowMinutes * 60_000,
-    }], now);
-    consumed = Boolean(bucket?.consumed);
+    consumed = await db.consumeRollingRateLimit(
+      database,
+      `cashier:${table}:${userId}`,
+      limit.maxRequests,
+      limit.windowMinutes * 60_000,
+      now
+    );
   } catch {
     // Fail closed if the shared D1 limiter is unavailable.
     consumed = false;
