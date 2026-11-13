@@ -26,14 +26,14 @@ A production Telegram bot running on **Cloudflare Workers + TypeScript**. It pro
 ## Features
 
 - Telegram webhook bot built with [grammY](https://grammy.dev/).
-- Languages: **Sinhala (SI)**, **English (EN)**, and **Tamil (TA)**.
+- Languages: **Sinhala (SI)**, **English (EN)**, and **Tamil (TA)** across both the Telegram bot and localized web pages (`/`, `/en/`, `/ta/`).
 - Public commands: `/start`, `/menu`, `/tips`, `/deposit`, `/confirm_deposit`, `/withdraw`, `/register`, `/referrals`, `/history`, `/dashboard`, `/ticket`, `/safety`, `/id`, `/language`, `/help`, `/cancel`.
-- Free sports tips with configurable feeds, quality thresholds, freshness limits, and publishing caps.
-- Automated tip settlement with **WON / LOST / VOID** outcomes.
-- Deposit and withdrawal workflows with receipt storage.
-- Protected admin dashboard for operations, support tickets, financial trends, and tip settlement.
-- Cloudflare D1 for application data and R2 for object storage.
-- Rate limiting, Telegram webhook secret validation, timing-safe secret comparison, and parameterized D1 queries.
+- Free sports tips with configurable feeds, quality thresholds, freshness limits, publishing caps, and dynamic sport filter tabs.
+- Team & player icon resolution (`src/teamIcons.ts`) combining static crests/flags, D1 `team_icon_cache`, TheSportsDB lookup, and SVG fallback badges.
+- Automated tip settlement with **WON / LOST / VOID** outcomes, exponential backoff retries, and audited admin overrides.
+- Deposit and withdrawal workflows with magic-byte validated R2 receipt storage and authenticated admin receipt proxy.
+- Mobile-responsive protected admin dashboard (`/admin`) with D3/SVG trends, R2 analytics, attribution funnel, support tickets, and a **Telegram BotFather Setup Kit** supporting live **640×360 JPEG photo upload & reset** in R2.
+- Security hardening: D1-backed failure-only admin brute-force protection, HMAC-signed `HttpOnly; SameSite=Strict` admin sessions, strict nonce CSP, `X-Frame-Options: DENY` + `frame-ancestors 'none'`, timing-safe credential checks, and parameterized D1 queries.
 - Vitest tests plus ESLint and TypeScript checks.
 
 ## Tech stack
@@ -62,22 +62,29 @@ A production Telegram bot running on **Cloudflare Workers + TypeScript**. It pro
 ├── docs/                    # Architecture, operations, security, and free-tips documentation
 ├── migrations/              # Forward-only Cloudflare D1 SQL migrations
 ├── public/                  # Static landing-page and SEO assets
-├── scripts/                 # Env scan, Cloudflare secret setup, tips-provider check
+├── scripts/                 # Env scan, secure Cloudflare secret setup, tips-provider check
 ├── src/
 │   ├── worker.ts            # Production Worker entry point (fetch and scheduled handlers)
 │   ├── index.ts             # Local Node preview server
 │   ├── bot.ts               # Telegram bot setup and handlers
+│   ├── cashier.ts           # Deposit and withdrawal transaction processing
+│   ├── fraud.ts             # Rate limits and fraud rule evaluation
 │   ├── tips.ts              # Free-tip selection and publishing
 │   ├── tipsSettlement.ts    # Tip result evaluation and settlement
-│   ├── publicTips.ts        # Public tips feed and landing-page tip cards
-│   ├── apiRoutes.ts         # HTTP API routing and admin endpoints
+│   ├── publicTips.ts        # Public tips feed, dynamic sport tabs, and landing-page tip cards
+│   ├── teamIcons.ts         # Team/player logo cache (D1 + TheSportsDB + SVG fallback)
+│   ├── apiRoutes.ts         # HTTP API routing, BotFather photo upload/reset, and admin endpoints
+│   ├── adminPage.ts         # Responsive Admin Dashboard HTML and client controls
+│   ├── adminChart.ts        # SVG financial trends chart renderer
 │   ├── landingPage.ts       # Public landing page HTML
+│   ├── seoContentPages.ts   # Localized SEO guide pages
 │   ├── privacyPage.ts       # Privacy policy HTML
 │   ├── db.ts                # D1 data access
-│   ├── storage.ts           # R2 storage access
+│   ├── storage.ts           # R2 / S3 object storage access
 │   └── ...                  # Other Worker modules
 ├── tests/                   # Vitest test suite
 ├── deploy.sh                # Deployment script used by CI
+├── package-lock.json        # Deterministic npm lockfile for CI & audit
 ├── validate-migrations.mjs  # Migration validation
 ├── wrangler.toml            # Worker name, bindings, vars, assets, and cron triggers
 ├── .env.example             # Local configuration placeholders
@@ -137,17 +144,17 @@ Affiliate and payment contact values (`XBET_LINK`, `XBET_PROMO_CODE`, `*_NUMBER`
 
 ### Cloudflare Secrets
 
-Set sensitive values with `wrangler secret put` or `scripts/setup-cf-secrets.sh`:
+Set sensitive values with `wrangler secret put` or `bash scripts/setup-cf-secrets-secure.sh` (non-echoing interactive setup with secure secret generation; legacy `scripts/setup-cf-secrets.sh` is also available):
 
 | Secret | Purpose |
 |---|---|
 | `BOT_TOKEN` | Telegram bot token |
-| `WEBHOOK_SECRET` | Telegram `secret_token` checked on every webhook request |
-| `ADMIN_IDS` | Telegram user IDs with admin access |
-| `ADMIN_API_SECRET` | Protects admin API routes |
+| `WEBHOOK_SECRET` | Telegram `secret_token` checked on every webhook request (min 16 chars) |
+| `ADMIN_IDS` | Comma-separated numeric Telegram user IDs with admin access |
+| `ADMIN_API_SECRET` | Protects `/admin` login and admin API routes (min 24 chars) |
 | `ADMIN_CHANNEL_ID` | Channel for admin notifications |
 | `ODDS_API_KEY` | The Odds API key |
-| `SECURITY_CODE_PEPPER` | Pepper for security code hashing |
+| `SECURITY_CODE_PEPPER` | HMAC pepper for withdrawal security codes (min 16 chars; required for withdrawals) |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_PUBLIC_DOMAIN` | R2 access (Node preview and media delivery) |
 | `TIPS_CHANNEL_ID` | Channel ID for free tips publishing |
 | `BANK_DETAILS`, `BOC_DETAILS`, `PEOPLES_DETAILS`, `SAMPATH_DETAILS`, `LOLC_DETAILS` | Bank deposit details |
@@ -178,10 +185,11 @@ npm start                # run the built preview server
 Quality checks:
 
 ```bash
-npm run lint             # ESLint and TypeScript
-npm test                 # Vitest
-npm run validate:migrations
-npm run check            # lint + tests
+npm run lint                  # ESLint and TypeScript
+npm test                      # Vitest suite
+npm run validate:migrations   # Validate sequential D1 SQL migrations
+npm run audit:deps            # Production dependency vulnerability audit
+npm run check                 # lint + tests
 ```
 
 To check that the Worker bundle builds without deploying:
@@ -225,27 +233,32 @@ Further provider notes are in [`docs/free-tips.md`](./docs/free-tips.md).
 
 | Method | Path | Description |
 |---|---|---|
-| GET, HEAD | `/` | Landing page |
+| GET, HEAD | `/`, `/en/`, `/ta/` | Localized landing pages (Sinhala default, English, Tamil) |
 | GET, HEAD | `/privacy`, `/privacy-policy`, `/legal/privacy` | Privacy policy |
 | GET, HEAD | `/robots.txt` | Robots policy generated from `PUBLIC_BASE_URL` |
-| GET, HEAD | `/sitemap.xml` | XML sitemap |
+| GET, HEAD | `/sitemap.xml` | XML sitemap with `hreflang` alternates and SEO guides |
 | GET, HEAD | `/api/tips/preview` | Sanitized public tips feed |
 | GET, HEAD | `/api/status` | Lightweight public status |
 | GET, HEAD | `/health` | Configuration-oriented health response (see [`docs/OPERATIONS.md`](./docs/OPERATIONS.md)) |
-| GET, HEAD | `/og-image.jpg` | OpenGraph image (static asset) |
+| GET, HEAD | `/bot-description-640x360.jpg`, `/api/bot/description-photo` | BotFather 640×360 description photo (Worker-first; serves custom R2 image when uploaded, else default asset) |
+| GET, HEAD | `/og-image.jpg`, `/og-image.png`, `/og-image.svg` | OpenGraph preview images |
+| GET | `/go/tip/:id` | Allowlisted tip click redirect & attribution logger |
+| POST | `/api/analytics/event` | Rate-limited web conversion beacon |
 
 ### Bot and protected operations
 
 | Method | Path | Description |
 |---|---|---|
-| POST | `/webhook` | Telegram webhook (requires the webhook secret) |
+| POST | `/webhook` | Telegram webhook (requires `X-Telegram-Bot-Api-Secret-Token`) |
+| POST | `/admin/login`, `/admin/logout` | Exchanges `ADMIN_API_SECRET` for signed `HttpOnly` session cookie / clears cookie |
+| GET, HEAD | `/admin`, `/panel` | Protected Admin UI (login form when unauthenticated; full dashboard after sign-in) |
 | POST | `/api/tips/settle` | Admin trigger for tip settlement |
-| GET, HEAD | `/api/admin/dashboard` | Admin dashboard data |
-| GET, HEAD | `/api/admin/status` | Admin status |
-| GET, HEAD | `/api/admin/trends` | Financial trends |
-| GET, HEAD | `/api/admin/tickets` | Support tickets |
-| POST | `/api/admin/schedule` | Schedule channel posts |
-| GET, HEAD | `/admin`, `/panel` | Admin UI |
+| POST | `/api/admin/tips/settlement/override` | Manual historical tip settlement override (requires `ADMIN_API_SECRET` + configured `X-Admin-Id`) |
+| POST, DELETE | `/api/admin/bot/description-photo` | Upload (auto-cropped 640×360 JPEG/PNG/WebP) or reset custom BotFather description photo in R2 |
+| GET, HEAD | `/api/admin/dashboard`, `/api/admin/status` | Admin operations dashboard & status |
+| GET, HEAD | `/api/admin/trends`, `/api/admin/r2-analytics` | Financial trends & R2 storage analytics |
+| GET | `/api/admin/receipts` | Authenticated proxy for private R2 deposit receipts |
+| GET, POST | `/api/admin/tickets`, `/api/admin/schedule` | Support ticket management & scheduled post drafts |
 
 Unknown `/api/*` routes return a JSON 404.
 
@@ -291,10 +304,11 @@ Database migrations are forward-only. A rollback must remain compatible with the
 
 - Keep Telegram tokens, webhook secrets, admin secrets, Odds API keys, payment details, affiliate values, and R2 credentials out of source control.
 - Validate the Telegram webhook secret before processing any update.
-- Use timing-safe comparisons for credentials.
-- Protect admin routes with the admin secret and session controls.
-- Use parameterized D1 queries only.
-- Keep D1 migrations forward-only and versioned.
+- Use timing-safe SHA-256 + `timingSafeEqual` comparisons for credentials.
+- Protect `/admin` and admin APIs with signed `HttpOnly; SameSite=Strict` session cookies, optional IP allowlisting (`ADMIN_IP_ALLOWLIST`), and D1-backed failure-only brute-force rate limiting.
+- Enforce strict nonce-based CSP (no inline `onclick` handlers) and anti-clickjacking headers (`X-Frame-Options: DENY`, `frame-ancestors 'none'`) on admin HTML pages.
+- Validate magic bytes and file size bounds on receipt and BotFather photo uploads before writing to R2.
+- Use parameterized D1 queries only and keep D1 migrations forward-only and versioned.
 - Rotate any credential that may have been exposed. See [`docs/SECRETS_ROTATION.md`](./docs/SECRETS_ROTATION.md).
 - Report vulnerabilities as described in [`SECURITY.md`](./SECURITY.md).
 

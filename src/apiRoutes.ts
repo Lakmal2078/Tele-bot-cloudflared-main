@@ -32,6 +32,8 @@ const ANALYTICS_RATE_LIMIT = 120;
 const MAX_ADMIN_LOGIN_BODY_BYTES = 4 * 1024;
 const TIP_CLICK_RATE_WINDOW_MS = 60_000;
 const TIP_CLICK_RATE_LIMIT = 30;
+const BOT_DESCRIPTION_R2_KEY = "branding/bot-description-640x360.jpg";
+const MAX_DESCRIPTION_PHOTO_BYTES = 2 * 1024 * 1024; // 2 MiB
 
 async function analyticsRequestAllowed(request: Request, env: Env, now = Date.now()): Promise<boolean> {
   const rawIp = request.headers.get("CF-Connecting-IP")?.trim() || "";
@@ -72,6 +74,51 @@ async function readBoundedText(request: Request, maxBytes: number): Promise<stri
   }
   return new TextDecoder().decode(bytes);
 }
+
+async function readBoundedBytes(request: Request, maxBytes: number): Promise<Uint8Array | null> {
+  if (!request.body) return new Uint8Array(0);
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
+
+function detectImageSignature(bytes: Uint8Array): "image/jpeg" | "image/png" | "image/webp" | null {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return "image/jpeg";
+  }
+  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+    return "image/png";
+  }
+  if (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+    bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
+  ) {
+    return "image/webp";
+  }
+  return null;
+}
 import { constantTimeEqual, isConfiguredAdminId, validateEnv } from "./config";
 import { securityHeaders, landingPageSecurityHeaders, isAdminIpAllowed, SECURITY_LIMITS } from "./security";
 import {
@@ -82,7 +129,7 @@ import {
 } from "./adminSession";
 import { getStats, getOperationsDashboard, getDailyFinancialTrends, getSupportTickets, updateSupportTicket, createScheduledChannelPost, recordAnalyticsEvent, getAttributionFunnelStats, consumeRateLimitBuckets, getRateLimitBucket, recordRateLimitFailure, clearRateLimitBucket } from "./db";
 import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
-import { getObject } from "./storage";
+import { getObject, putObject, deleteObjects, isR2Configured } from "./storage";
 import { getR2StorageAnalytics } from "./r2";
 import { settlePendingTips, overrideTipSettlement, getTipsPerformanceStats } from "./tipsSettlement";
 import { checkTelegramBotConnection } from "./telegramStatus";
@@ -513,6 +560,28 @@ export async function handleApiRequest(
 
   // Telegram BotFather Description Photo (640x360 JPEG for "What can this bot do?" card)
   if ((path === "/bot-description-640x360.jpg" || path === "/api/bot/description-photo") && (method === "GET" || method === "HEAD")) {
+    if (isR2Configured(env)) {
+      try {
+        const customObj = await getObject(env, BOT_DESCRIPTION_R2_KEY);
+        if (customObj && customObj.body) {
+          const headers: Record<string, string> = {
+            "Content-Type": customObj.contentType || "image/jpeg",
+            "Content-Disposition": "inline; filename=\"bot-description-640x360.jpg\"",
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "public, max-age=300, must-revalidate",
+            "X-Content-Type-Options": "nosniff",
+            "X-Description-Photo-Source": "custom",
+          };
+          if (typeof customObj.size === "number") {
+            headers["Content-Length"] = String(customObj.size);
+          }
+          if (method === "HEAD") return new Response(null, { status: 200, headers });
+          return new Response(customObj.body, { status: 200, headers });
+        }
+      } catch (err) {
+        console.warn("[Bot Description Photo] R2 lookup failed, falling back to default:", err);
+      }
+    }
     if (env.ASSETS && typeof env.ASSETS.fetch === "function") {
       try {
         const assetRes = await env.ASSETS.fetch(request);
@@ -522,6 +591,7 @@ export async function handleApiRequest(
           if (!currentCache || currentCache.includes("max-age=0") || currentCache.includes("no-cache")) {
             headers.set("Cache-Control", "public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400");
           }
+          headers.set("X-Description-Photo-Source", "default");
           return new Response(assetRes.body, { status: assetRes.status, headers });
         }
       } catch {}
@@ -535,6 +605,7 @@ export async function handleApiRequest(
       "Accept-Ranges": "bytes",
       "Cache-Control": "public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400",
       "X-Content-Type-Options": "nosniff",
+      "X-Description-Photo-Source": "default",
     };
     if (method === "HEAD") return new Response(null, { status: 200, headers });
     return new Response(botDescJpeg, { status: 200, headers });
@@ -1012,6 +1083,67 @@ ${guideEntries}
       tips: stats,
       totalClicks: clickCount,
     });
+  }
+
+  // Admin BotFather Description Photo upload / reset (stored in R2)
+  if (path === "/api/admin/bot/description-photo" && (method === "POST" || method === "DELETE")) {
+    const denied = await requireAdmin(request, env);
+    if (denied) return denied;
+    if (!isR2Configured(env)) {
+      return json({ ok: false, error: "Cloudflare R2 storage is not configured" }, 503);
+    }
+
+    if (method === "DELETE") {
+      try {
+        const failed = await deleteObjects(env, [BOT_DESCRIPTION_R2_KEY]);
+        if (failed.length > 0) {
+          return json({ ok: false, error: "Failed to reset custom description photo" }, 500);
+        }
+        return json({
+          ok: true,
+          source: "default",
+          url: `/bot-description-640x360.jpg?v=${Date.now()}`,
+        });
+      } catch (err) {
+        console.error("[Admin Description Photo Reset]", err);
+        return json({ ok: false, error: "Failed to reset description photo" }, 500);
+      }
+    }
+
+    const contentLength = request.headers.get("Content-Length");
+    if (contentLength && (!/^\d+$/.test(contentLength) || Number(contentLength) > MAX_DESCRIPTION_PHOTO_BYTES)) {
+      return json({ ok: false, error: "Image must be 2 MiB or smaller" }, 413);
+    }
+
+    const bytes = await readBoundedBytes(request, MAX_DESCRIPTION_PHOTO_BYTES);
+    if (bytes === null) {
+      return json({ ok: false, error: "Image must be 2 MiB or smaller" }, 413);
+    }
+    if (bytes.byteLength === 0) {
+      return json({ ok: false, error: "Image body is empty" }, 400);
+    }
+
+    const detectedMime = detectImageSignature(bytes);
+    if (!detectedMime) {
+      return json({ ok: false, error: "Unsupported image format. Use JPEG, PNG, or WebP." }, 415);
+    }
+
+    try {
+      const saved = await putObject(env, BOT_DESCRIPTION_R2_KEY, bytes, detectedMime);
+      if (!saved) {
+        return json({ ok: false, error: "Failed to store description photo" }, 500);
+      }
+      return json({
+        ok: true,
+        source: "custom",
+        mimeType: detectedMime,
+        sizeBytes: bytes.byteLength,
+        url: `/bot-description-640x360.jpg?v=${Date.now()}`,
+      });
+    } catch (err) {
+      console.error("[Admin Description Photo Upload]", err);
+      return json({ ok: false, error: "Failed to store description photo" }, 500);
+    }
   }
 
   // Admin-triggered settlement sweep. historicalSweep bypasses retry timers but keeps score validation strict.

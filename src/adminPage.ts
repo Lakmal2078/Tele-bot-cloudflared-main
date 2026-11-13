@@ -1114,7 +1114,7 @@ export function renderAdminPage(
           </p>
         </div>
         <div class="kit-header-actions">
-          <a href="/bot-description-640x360.jpg" download="fast-xbet-bot-description-640x360.jpg" class="btn-tab active" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 12px;">
+          <a id="bot-desc-download-top" href="/bot-description-640x360.jpg" download="fast-xbet-bot-description-640x360.jpg" class="btn-tab active" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 12px;">
             ⬇️ Download Photo (640x360)
           </a>
           <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" class="btn-tab" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 12px;">
@@ -1130,13 +1130,27 @@ export function renderAdminPage(
             <span>🖼️ Description Photo (/setdescriptionphoto)</span>
             <span style="color: #10b981; font-family: monospace;">640 × 360 px</span>
           </div>
-          <a href="/bot-description-640x360.jpg" target="_blank" style="display: block; overflow: hidden; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.3);">
-            <img src="/bot-description-640x360.jpg" alt="Telegram Bot Description Photo" style="width: 100%; height: auto; display: block; aspect-ratio: 16/9; object-fit: cover;" />
+          <a id="bot-desc-preview-link" href="/bot-description-640x360.jpg" target="_blank" style="display: block; overflow: hidden; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.3);">
+            <img id="bot-desc-preview-img" src="/bot-description-640x360.jpg" alt="Telegram Bot Description Photo" style="width: 100%; height: auto; display: block; aspect-ratio: 16/9; object-fit: cover;" />
           </a>
           <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #94a3b8;">
             <span>Aspect Ratio: 16:9 (Telegram standard)</span>
-            <a href="/bot-description-640x360.jpg" download="bot-description-640x360.jpg" style="color: #38bdf8; text-decoration: none; font-weight: 600;">Download JPG</a>
+            <a id="bot-desc-download-card" href="/bot-description-640x360.jpg" download="bot-description-640x360.jpg" style="color: #38bdf8; text-decoration: none; font-weight: 600;">Download JPG</a>
           </div>
+          ${isAuthorized ? `
+          <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
+            <input type="file" id="bot-desc-file-input" accept="image/jpeg,image/png,image/webp" style="display: none;" />
+            <button type="button" id="btn-change-desc-photo" class="btn-tab active" style="flex: 1; text-align: center; justify-content: center; padding: 8px 10px; cursor: pointer;">
+              📷 Change Photo (640×360)
+            </button>
+            <button type="button" id="btn-reset-desc-photo" class="btn-tab" style="text-align: center; justify-content: center; padding: 8px 12px; cursor: pointer;">
+              ↺ Reset
+            </button>
+          </div>
+          <div id="bot-desc-upload-status" aria-live="polite" style="margin-top: 8px; font-size: 11px; color: #94a3b8; line-height: 1.4;">
+            Select any image to auto-crop to 640×360 JPEG and update the live site preview.
+          </div>
+          ` : ""}
         </div>
 
         <!-- Description (Under 512 chars) -->
@@ -1571,6 +1585,130 @@ Tap 'Start' below to begin now! 👇</div>
         });
       });
     });
+
+    // BotFather Description Photo upload (auto center-crop to 640x360 JPEG) & reset
+    var descFileInput = document.getElementById("bot-desc-file-input");
+    var changeDescBtn = document.getElementById("btn-change-desc-photo");
+    var resetDescBtn = document.getElementById("btn-reset-desc-photo");
+    var descStatusEl = document.getElementById("bot-desc-upload-status");
+    var descPreviewImg = document.getElementById("bot-desc-preview-img");
+    var descPreviewLink = document.getElementById("bot-desc-preview-link");
+    var descDownloadTop = document.getElementById("bot-desc-download-top");
+    var descDownloadCard = document.getElementById("bot-desc-download-card");
+
+    function setDescStatus(msg, color) {
+      if (!descStatusEl) return;
+      descStatusEl.textContent = msg;
+      descStatusEl.style.color = color || "#94a3b8";
+    }
+
+    function applyDescPhotoUrl(url) {
+      if (descPreviewImg) descPreviewImg.src = url;
+      if (descPreviewLink) descPreviewLink.href = url;
+      if (descDownloadTop) descDownloadTop.href = url;
+      if (descDownloadCard) descDownloadCard.href = url;
+    }
+
+    if (changeDescBtn && descFileInput) {
+      changeDescBtn.addEventListener("click", function() {
+        descFileInput.value = "";
+        descFileInput.click();
+      });
+
+      descFileInput.addEventListener("change", function() {
+        var file = descFileInput.files && descFileInput.files[0];
+        if (!file) return;
+        setDescStatus("Resizing to 640×360 JPEG and uploading...", "#38bdf8");
+        changeDescBtn.disabled = true;
+
+        var reader = new FileReader();
+        reader.onerror = function() {
+          changeDescBtn.disabled = false;
+          setDescStatus("Could not read selected image.", "#f87171");
+        };
+        reader.onload = function() {
+          var img = new Image();
+          img.onerror = function() {
+            changeDescBtn.disabled = false;
+            setDescStatus("Invalid image file. Please choose a JPEG, PNG, or WebP.", "#f87171");
+          };
+          img.onload = function() {
+            var targetW = 640;
+            var targetH = 360;
+            var canvas = document.createElement("canvas");
+            canvas.width = targetW;
+            canvas.height = targetH;
+            var ctx = canvas.getContext("2d");
+            if (!ctx) {
+              changeDescBtn.disabled = false;
+              setDescStatus("Canvas not supported in this browser.", "#f87171");
+              return;
+            }
+            var srcRatio = img.width / img.height;
+            var dstRatio = targetW / targetH;
+            var sx = 0, sy = 0, sw = img.width, sh = img.height;
+            if (srcRatio > dstRatio) {
+              sw = img.height * dstRatio;
+              sx = (img.width - sw) / 2;
+            } else {
+              sh = img.width / dstRatio;
+              sy = (img.height - sh) / 2;
+            }
+            ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH);
+            canvas.toBlob(function(blob) {
+              if (!blob) {
+                changeDescBtn.disabled = false;
+                setDescStatus("Failed to encode 640×360 JPEG.", "#f87171");
+                return;
+              }
+              fetch("/api/admin/bot/description-photo", {
+                method: "POST",
+                headers: { "Content-Type": "image/jpeg" },
+                body: blob
+              })
+              .then(function(res) { return res.json().then(function(d) { return { ok: res.ok, data: d }; }); })
+              .then(function(result) {
+                changeDescBtn.disabled = false;
+                if (!result.ok || !result.data || !result.data.ok) {
+                  setDescStatus((result.data && result.data.error) || "Upload failed.", "#f87171");
+                  return;
+                }
+                applyDescPhotoUrl(result.data.url || ("/bot-description-640x360.jpg?v=" + Date.now()));
+                setDescStatus("✓ Saved custom 640×360 photo! Download JPG and send it to @BotFather (/setdescriptionphoto).", "#10b981");
+              })
+              .catch(function() {
+                changeDescBtn.disabled = false;
+                setDescStatus("Network error while uploading image.", "#f87171");
+              });
+            }, "image/jpeg", 0.9);
+          };
+          img.src = String(reader.result || "");
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    if (resetDescBtn) {
+      resetDescBtn.addEventListener("click", function() {
+        resetDescBtn.disabled = true;
+        setDescStatus("Restoring default 640×360 photo...", "#38bdf8");
+        fetch("/api/admin/bot/description-photo", { method: "DELETE" })
+          .then(function(res) { return res.json().then(function(d) { return { ok: res.ok, data: d }; }); })
+          .then(function(result) {
+            resetDescBtn.disabled = false;
+            if (!result.ok || !result.data || !result.data.ok) {
+              setDescStatus((result.data && result.data.error) || "Reset failed.", "#f87171");
+              return;
+            }
+            applyDescPhotoUrl(result.data.url || ("/bot-description-640x360.jpg?v=" + Date.now()));
+            setDescStatus("✓ Restored default 640×360 photo.", "#10b981");
+          })
+          .catch(function() {
+            resetDescBtn.disabled = false;
+            setDescStatus("Network error while resetting photo.", "#f87171");
+          });
+      });
+    }
 
     // Initialize auto-polling
     startPolling();

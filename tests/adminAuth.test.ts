@@ -349,5 +349,95 @@ describe("admin security & regression fixes", () => {
     expect(res?.status).toBe(200);
     expect(await res?.json()).toEqual({ ok: true });
   });
+
+  it("supports admin upload, custom R2 serving, and reset of bot description photo", async () => {
+    const store = new Map<string, { body: Uint8Array; contentType: string }>();
+    const mockR2 = {
+      put: async (key: string, body: ArrayBuffer | Uint8Array | string, opts?: { httpMetadata?: { contentType?: string } }) => {
+        const bytes =
+          body instanceof Uint8Array
+            ? body
+            : body instanceof ArrayBuffer
+            ? new Uint8Array(body)
+            : new TextEncoder().encode(String(body));
+        store.set(key, {
+          body: bytes,
+          contentType: opts?.httpMetadata?.contentType || "application/octet-stream",
+        });
+      },
+      get: async (key: string) => {
+        const item = store.get(key);
+        if (!item) return null;
+        return {
+          body: item.body,
+          size: item.body.byteLength,
+          httpMetadata: { contentType: item.contentType },
+        };
+      },
+      delete: async (keys: string | string[]) => {
+        const list = Array.isArray(keys) ? keys : [keys];
+        for (const k of list) store.delete(k);
+      },
+      list: async () => ({ objects: [], truncated: false }),
+    };
+
+    const envWithR2 = { ...baseEnv, CHAT_MEDIA: mockR2 as any };
+
+    // 1. Unauthenticated upload is rejected
+    const unauth = await handleApiRequest(
+      req("https://localhost/api/admin/bot/description-photo", {
+        method: "POST",
+        body: new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
+      }),
+      envWithR2
+    );
+    expect(unauth?.status).toBe(401);
+
+    // 2. Invalid non-image signature is rejected with 415
+    const invalidRes = await handleApiRequest(
+      req("https://localhost/api/admin/bot/description-photo", {
+        method: "POST",
+        headers: { "x-admin-secret": SECRET, "Content-Type": "text/plain" },
+        body: new TextEncoder().encode("<svg onload=alert(1)>"),
+      }),
+      envWithR2
+    );
+    expect(invalidRes?.status).toBe(415);
+
+    // 3. Valid JPEG uploads cleanly and overrides /bot-description-640x360.jpg
+    const jpegBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]);
+    const uploadRes = await handleApiRequest(
+      req("https://localhost/api/admin/bot/description-photo", {
+        method: "POST",
+        headers: { "x-admin-secret": SECRET, "Content-Type": "image/jpeg" },
+        body: jpegBytes,
+      }),
+      envWithR2
+    );
+    expect(uploadRes?.status).toBe(200);
+    const uploadJson = (await uploadRes?.json()) as { ok: boolean; source: string; sizeBytes: number };
+    expect(uploadJson.ok).toBe(true);
+    expect(uploadJson.source).toBe("custom");
+    expect(uploadJson.sizeBytes).toBe(jpegBytes.byteLength);
+
+    const customGet = await handleApiRequest(req("https://localhost/bot-description-640x360.jpg"), envWithR2);
+    expect(customGet?.status).toBe(200);
+    expect(customGet?.headers.get("X-Description-Photo-Source")).toBe("custom");
+    expect(new Uint8Array(await customGet!.arrayBuffer())).toEqual(jpegBytes);
+
+    // 4. Reset restores default bundled photo
+    const resetRes = await handleApiRequest(
+      req("https://localhost/api/admin/bot/description-photo", {
+        method: "DELETE",
+        headers: { "x-admin-secret": SECRET },
+      }),
+      envWithR2
+    );
+    expect(resetRes?.status).toBe(200);
+
+    const defaultGet = await handleApiRequest(req("https://localhost/bot-description-640x360.jpg"), envWithR2);
+    expect(defaultGet?.status).toBe(200);
+    expect(defaultGet?.headers.get("X-Description-Photo-Source")).toBe("default");
+  });
 });
 

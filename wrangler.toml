@@ -23,6 +23,7 @@ enabled = true
 [assets]
 directory = "./public"
 binding = "ASSETS"
+run_worker_first = ["/bot-description-640x360.jpg"]
 
 [vars]
 BOT_MODE = "production"
