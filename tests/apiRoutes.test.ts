@@ -79,6 +79,10 @@ describe("handleApiRequest", () => {
     expect(data.status).toBe("error");
     expect(data.configuration?.healthy).toBe(false);
     expect(data.configuration).not.toHaveProperty("issues");
+    expect(data).not.toHaveProperty("errors");
+    expect(data).not.toHaveProperty("details");
+    expect(JSON.stringify(data)).not.toContain("BOT_TOKEN");
+    expect(JSON.stringify(data)).not.toContain("mock_token");
   });
 
   it("responds to /api/health with HEAD 503 when configuration is invalid", async () => {
