@@ -967,7 +967,7 @@ export function renderAdminPage(
           <div class="kpi-value" id="r2-last-upload" style="color: #e2e8f0; font-size: 15px; font-weight: 700;">
             ${r2.lastReceiptUploadedAt ? new Date(r2.lastReceiptUploadedAt).toLocaleTimeString() : 'No uploads yet'}
           </div>
-          <div class="kpi-sub" id="r2-last-sync-time">Last synced: Just now</div>
+          <div class="kpi-sub" id="r2-last-sync-time">${r2.scanComplete ? "Last synced: Just now" : "Scanning " + r2.objectsProcessed.toLocaleString() + " objects"}</div>
         </div>
       </div>
     </section>
@@ -1413,10 +1413,12 @@ Tap 'Start' below to begin now! 👇</div>
       var metric = searchParams.get("metric") || "volume";
 
       var analyticsUrl = "/api/admin/r2-analytics?days=" + encodeURIComponent(days) + "&metric=" + encodeURIComponent(metric);
-      if (r2AnalyticsContinuation) analyticsUrl += "&continuation=" + encodeURIComponent(r2AnalyticsContinuation);
       fetch(analyticsUrl, {
         cache: "no-store",
-        headers: { "Accept": "application/json" }
+        headers: {
+          "Accept": "application/json",
+          ...(r2AnalyticsContinuation ? { "X-R2-Analytics-Continuation": r2AnalyticsContinuation } : {})
+        }
       })
       .then(function(res) {
         if (res.status === 401 || res.status === 403) {
@@ -1515,8 +1517,10 @@ Tap 'Start' below to begin now! 👇</div>
           }
         }
 
-        if (lastSyncText) {
-          lastSyncText.textContent = "Last synced: " + new Date().toLocaleTimeString();
+        if (lastSyncText && data.r2) {
+          lastSyncText.textContent = data.r2.scanComplete
+            ? "Last synced: " + new Date().toLocaleTimeString()
+            : "Scanning " + (data.r2.objectsProcessed || 0).toLocaleString() + " objects · " + (data.r2.pagesProcessed || 0) + " pages this batch";
         }
         if (pollIntervalMs > 0) {
           setPollingUI("active");
