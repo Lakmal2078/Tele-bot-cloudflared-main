@@ -210,11 +210,11 @@ export function publicTipsClientScript(nonce?: string): string {
     return sel;
   };
   var resultBadge = function(r){
-    if (r === "WON") return '<span class="tipStatus won">Won</span>';
-    if (r === "LOST") return '<span class="tipStatus lost">Lost</span>';
-    if (r === "VOID") return '<span class="tipStatus void">Void</span>';
-    if (r === "PARTIAL") return '<span class="tipStatus partial">Partial</span>';
-    return '<span class="tipStatus pending">Today</span>';
+    if (r === "WON") return '<span class="tipStatus won">WIN</span>';
+    if (r === "LOST") return '<span class="tipStatus lost">LOSS</span>';
+    if (r === "VOID") return '<span class="tipStatus void">VOID</span>';
+    if (r === "PARTIAL") return '<span class="tipStatus partial">PARTIAL</span>';
+    return '<span class="tipStatus pending">PENDING</span>';
   };
   var render = function(data){
     var tips = Array.isArray(data.tips) ? data.tips : [];
