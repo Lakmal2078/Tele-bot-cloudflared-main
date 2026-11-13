@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { addDeposit, addWithdrawal, toCents, toPositiveCents, consumeRateLimitBuckets, getRateLimitBucket, recordRateLimitFailure, clearRateLimitBucket, cleanupExpiredRateLimitBuckets } from "../src/db";
+import * as dbModule from "../src/db";
+import { checkRateLimit } from "../src/fraud";
 
 describe("financial amount validation", () => {
   it("converts positive LKR to integer cents", () => {
@@ -205,5 +207,34 @@ describe("shared D1 rate-limit storage", () => {
     const deleted = await cleanupExpiredRateLimitBuckets(db, now + 1001);
     expect(deleted).toBe(1);
     expect(await getRateLimitBucket(db, "expired:1")).toBeNull();
+  });
+});
+
+
+describe("cashier rate-limit fail-closed behavior", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("blocks deposits when D1 rate-limit storage throws", async () => {
+    const consume = vi.spyOn(dbModule, "consumeRollingRateLimit").mockRejectedValue(new Error("D1 unavailable"));
+    const database = {} as TransactionDatabase;
+    const now = 1_800_000_000_000;
+    const result = await checkRateLimit(database, 123, "deposits", now);
+
+    expect(result.allowed).toBe(false);
+    expect(result.blockMessage).toContain("You've submitted too many requests");
+    expect(consume).toHaveBeenCalledWith(database, "cashier:deposits:123", 3, 600_000, now);
+  });
+
+  it("blocks withdrawals when D1 rate-limit storage returns false", async () => {
+    vi.spyOn(dbModule, "consumeRollingRateLimit").mockResolvedValue(false);
+    const result = await checkRateLimit({} as TransactionDatabase, 456, "withdrawals", 1_800_000_000_000);
+
+    expect(result.allowed).toBe(false);
+    expect(result.blockMessage).toContain("withdrawal");
+  });
+
+  it("allows a cashier request only when the shared limiter consumes a slot", async () => {
+    vi.spyOn(dbModule, "consumeRollingRateLimit").mockResolvedValue(true);
+    await expect(checkRateLimit({} as TransactionDatabase, 789, "deposits")).resolves.toEqual({ allowed: true, flags: [] });
   });
 });

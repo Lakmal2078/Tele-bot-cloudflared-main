@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { getR2StorageAnalytics } from "../src/r2";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { backupReceiptToR2, getR2StorageAnalytics } from "../src/r2";
 import type { Env } from "../src/types";
 
 function createEnv(list: (options: { prefix?: string; cursor?: string }) => Promise<any>): Env {
@@ -112,5 +112,139 @@ describe("getR2StorageAnalytics", () => {
     const unconfigured = await getR2StorageAnalytics({ DB: {} } as Env);
     expect(unconfigured.scanComplete).toBe(true);
     expect(unconfigured.continuation).toBeNull();
+  });
+});
+
+
+function createReceiptEnv() {
+  const put = vi.fn(async () => ({}));
+  const env = {
+    CHAT_MEDIA: { put, get: async () => null, delete: async () => undefined },
+    R2_BUCKET_NAME: "test-bucket",
+    ADMIN_API_SECRET: "test-admin-secret",
+    WEBHOOK_SECRET: "test-webhook-secret",
+    PUBLIC_BASE_URL: "https://worker.example",
+  } as unknown as Env;
+  return { env, put };
+}
+
+function telegramFileInfo(fileSize = 3): Response {
+  return Response.json({ ok: true, result: { file_path: "documents/receipt.jpg", file_size: fileSize } });
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
+describe("backupReceiptToR2 security boundaries", () => {
+  it("rejects an oversized declared Telegram file before downloading it", async () => {
+    const { env, put } = createReceiptEnv();
+    const fetchMock = vi.fn().mockResolvedValue(telegramFileInfo(5 * 1024 * 1024 + 1));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(backupReceiptToR2(env, "bot-token", "file-id", 1)).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it("accepts a receipt exactly at the 5 MiB streamed-body boundary", async () => {
+    const { env, put } = createReceiptEnv();
+    const bytes = new Uint8Array(5 * 1024 * 1024);
+    bytes.set([0xff, 0xd8, 0xff]);
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(telegramFileInfo(bytes.byteLength))
+      .mockResolvedValueOnce(new Response(bytes, { headers: { "content-length": String(bytes.byteLength) } }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await backupReceiptToR2(env, "bot-token", "file-id", 2);
+    expect(result?.fileSize).toBe(5 * 1024 * 1024);
+    expect(result?.mimeType).toBe("image/jpeg");
+    expect(put).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels an oversized streamed response and does not upload it", async () => {
+    const { env, put } = createReceiptEnv();
+    let cancelled = false;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.enqueue(new Uint8Array(5 * 1024 * 1024));
+        controller.enqueue(new Uint8Array([1]));
+      },
+      cancel() { cancelled = true; },
+    });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(telegramFileInfo())
+      .mockResolvedValueOnce(new Response(stream));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(backupReceiptToR2(env, "bot-token", "file-id", 3)).resolves.toBeNull();
+    expect(cancelled).toBe(true);
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it("returns null for non-success Telegram metadata and download responses", async () => {
+    const { env, put } = createReceiptEnv();
+    let metadataBodyCancelled = false;
+    const metadataBody = new ReadableStream<Uint8Array>({ cancel() { metadataBodyCancelled = true; } });
+    const metadataFailure = vi.fn().mockResolvedValue(new Response(metadataBody, { status: 502, statusText: "Bad Gateway" }));
+    vi.stubGlobal("fetch", metadataFailure);
+    await expect(backupReceiptToR2(env, "bot-token", "file-id", 4)).resolves.toBeNull();
+    expect(metadataFailure).toHaveBeenCalledTimes(1);
+    expect(metadataBodyCancelled).toBe(true);
+
+    let downloadBodyCancelled = false;
+    const downloadBody = new ReadableStream<Uint8Array>({ cancel() { downloadBodyCancelled = true; } });
+    const downloadFailure = vi.fn()
+      .mockResolvedValueOnce(telegramFileInfo())
+      .mockResolvedValueOnce(new Response(downloadBody, { status: 503, statusText: "Service Unavailable" }));
+    vi.stubGlobal("fetch", downloadFailure);
+    await expect(backupReceiptToR2(env, "bot-token", "file-id", 5)).resolves.toBeNull();
+    expect(downloadFailure).toHaveBeenCalledTimes(2);
+    expect(downloadBodyCancelled).toBe(true);
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid Telegram metadata and unsupported file signatures", async () => {
+    const { env, put } = createReceiptEnv();
+    const invalidMetadata = vi.fn().mockResolvedValue(Response.json({ ok: true, result: { file_size: 3 } }));
+    vi.stubGlobal("fetch", invalidMetadata);
+    await expect(backupReceiptToR2(env, "bot-token", "file-id", 6)).resolves.toBeNull();
+
+    const invalidContent = vi.fn()
+      .mockResolvedValueOnce(telegramFileInfo())
+      .mockResolvedValueOnce(new Response(new Uint8Array([1, 2, 3])));
+    vi.stubGlobal("fetch", invalidContent);
+    await expect(backupReceiptToR2(env, "bot-token", "file-id", 7)).resolves.toBeNull();
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it("handles Telegram timeout/abort failures without uploading partial content", async () => {
+    const { env, put } = createReceiptEnv();
+    const fetchMock = vi.fn().mockRejectedValue(new DOMException("The operation timed out", "TimeoutError"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(backupReceiptToR2(env, "bot-token", "file-id", 8)).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it("releases an interrupted response stream and never uploads partial bytes", async () => {
+    const { env, put } = createReceiptEnv();
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.enqueue(new Uint8Array([0xff, 0xd8, 0xff]));
+        controller.error(new DOMException("The operation was aborted", "AbortError"));
+      },
+    });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(telegramFileInfo())
+      .mockResolvedValueOnce(new Response(stream));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(backupReceiptToR2(env, "bot-token", "file-id", 9)).resolves.toBeNull();
+    expect(stream.locked).toBe(false);
+    expect(put).not.toHaveBeenCalled();
   });
 });

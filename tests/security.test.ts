@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { chmodSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 import { hasValidAdminSession } from "../src/adminSession";
 import {
   adminAttemptAllowed,
@@ -137,5 +141,111 @@ describe("security headers", () => {
     expect(headersWithNonce["Content-Security-Policy"]).toContain(`'nonce-${testNonce}'`);
     expect(headersWithNonce["Content-Security-Policy"]).toContain("object-src 'none'");
     expect(headersWithNonce["Content-Security-Policy"]).toContain("upgrade-insecure-requests");
+  });
+});
+
+
+describe("deployment health gate failure paths", () => {
+  function runHealthGate(options: {
+    workerUrl?: string;
+    ci?: boolean;
+    curlExit?: number;
+    httpCode?: string;
+    body?: string;
+  }) {
+    const script = readFileSync("deploy.sh", "utf8");
+    const start = script.indexOf("# ── Post-deployment health check");
+    const end = script.indexOf("# ── Auto-register Telegram webhook", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const healthBlock = script.slice(start, end);
+
+    const temp = mkdtempSync(join(tmpdir(), "deploy-health-test-"));
+    const bin = join(temp, "bin");
+    mkdirSync(bin);
+    const fakeCurl = join(bin, "curl");
+    writeFileSync(fakeCurl, `#!/usr/bin/env bash
+out=""
+while [[ $# -gt 0 ]]; do
+  if [[ "$1" == "--output" ]]; then out="$2"; shift 2; else shift; fi
+done
+printf '%s' "\${BODY:-}" > "$out"
+printf '%s' "\${HTTP_CODE:-200}"
+exit "\${CURL_EXIT:-0}"
+`);
+    chmodSync(fakeCurl, 0o755);
+
+    const harness = `set -Eeuo pipefail
+CI_MODE="\${CI:-false}"
+IS_CI=false
+if [[ "$CI_MODE" == "true" || "$CI_MODE" == "1" ]]; then IS_CI=true; fi
+HEALTH_CHECK_PATH="\${HEALTH_CHECK_PATH:-/health}"
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+WORKER_URL="\${WORKER_URL:-}"
+info() { :; }
+success() { :; }
+warn() { :; }
+die() { printf '%s\\n' "$*" >&2; exit 1; }
+${healthBlock}`;
+    try {
+      return spawnSync("bash", ["-c", harness], {
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          PATH: `${bin}:${process.env.PATH || ""}`,
+          WORKER_URL: options.workerUrl ?? "",
+          CI: options.ci === false ? "false" : "true",
+          CURL_EXIT: String(options.curlExit ?? 0),
+          HTTP_CODE: options.httpCode ?? "200",
+          BODY: options.body ?? "",
+        },
+      });
+    } finally {
+      rmSync(temp, { recursive: true, force: true });
+    }
+  }
+
+  it("fails CI when the deployed Worker URL is missing", () => {
+    const result = runHealthGate({});
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Worker URL could not be detected");
+  });
+
+  it("fails CI when curl reports a network or timeout error", () => {
+    const result = runHealthGate({ workerUrl: "https://worker.example", curlExit: 28 });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("curl exit 28");
+  });
+
+  it("fails CI when the health endpoint returns a non-200 status", () => {
+    const result = runHealthGate({ workerUrl: "https://worker.example", httpCode: "503" });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("HTTP 503");
+  });
+
+  it("fails CI for invalid, unhealthy, or empty health responses", () => {
+    const invalid = runHealthGate({ workerUrl: "https://worker.example", body: "{invalid" });
+    expect(invalid.status).toBe(1);
+    expect(invalid.stderr).toContain("status=ok");
+
+    const unhealthy = runHealthGate({
+      workerUrl: "https://worker.example",
+      body: '{"status":"ok","configuration":{"healthy":false}}',
+    });
+    expect(unhealthy.status).toBe(1);
+    expect(unhealthy.stderr).toContain("healthy=false");
+
+    const empty = runHealthGate({ workerUrl: "https://worker.example", body: "" });
+    expect(empty.status).toBe(1);
+    expect(empty.stderr).toContain("empty response body");
+  });
+
+  it("passes CI only for HTTP 200 with status=ok and configuration.healthy=true", () => {
+    const result = runHealthGate({
+      workerUrl: "https://worker.example",
+      body: '{"status":"ok","configuration":{"healthy":true}}',
+    });
+    expect(result.status).toBe(0);
   });
 });

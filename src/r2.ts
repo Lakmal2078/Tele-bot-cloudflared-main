@@ -8,26 +8,43 @@ export { formatBytes };
 const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
 const TELEGRAM_REQUEST_TIMEOUT_MS = 15_000;
 
+async function cancelResponseBody(response: Response): Promise<void> {
+  try { await response.body?.cancel(); } catch { /* Best-effort upstream response cleanup. */ }
+}
+
 async function readBoundedResponse(response: Response, maxBytes: number): Promise<Uint8Array | null> {
-  const declaredLength = Number(response.headers.get("content-length") || 0);
-  if (declaredLength > maxBytes) return null;
+  const contentLength = response.headers.get("content-length");
+  const declaredLength = contentLength === null ? 0 : Number(contentLength);
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+    try { await response.body?.cancel(); } catch { /* Best-effort stream cleanup. */ }
+    return null;
+  }
   if (!response.body) return new Uint8Array(0);
 
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
+  let finished = false;
+  let cancelled = false;
   try {
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        finished = true;
+        break;
+      }
       total += value.byteLength;
       if (total > maxBytes) {
-        await reader.cancel();
+        cancelled = true;
+        try { await reader.cancel(); } catch { /* Best-effort stream cleanup. */ }
         return null;
       }
       chunks.push(value);
     }
   } finally {
+    if (!finished && !cancelled) {
+      try { await reader.cancel(); } catch { /* Preserve the original read/abort error. */ }
+    }
     reader.releaseLock();
   }
 
@@ -276,6 +293,7 @@ export async function backupReceiptToR2(
     );
     if (!fileInfoRes.ok) {
       console.warn(`[R2] Failed to get file info from Telegram: ${fileInfoRes.statusText}`);
+      await cancelResponseBody(fileInfoRes);
       return null;
     }
 
@@ -301,6 +319,7 @@ export async function backupReceiptToR2(
     });
     if (!fileRes.ok) {
       console.warn(`[R2] Failed to download image from Telegram: ${fileRes.statusText}`);
+      await cancelResponseBody(fileRes);
       return null;
     }
     const bytes = await readBoundedResponse(fileRes, MAX_RECEIPT_BYTES);

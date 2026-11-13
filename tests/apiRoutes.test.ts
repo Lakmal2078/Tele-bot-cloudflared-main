@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { handleApiRequest } from "../src/apiRoutes";
+import { handleApiRequest, hashClientIp } from "../src/apiRoutes";
 import type { Env } from "../src/types";
 
 function createMockD1(): any {
@@ -79,6 +79,10 @@ describe("handleApiRequest", () => {
     expect(data.status).toBe("error");
     expect(data.configuration?.healthy).toBe(false);
     expect(data.configuration).not.toHaveProperty("issues");
+    expect(data).not.toHaveProperty("errors");
+    expect(data).not.toHaveProperty("details");
+    expect(JSON.stringify(data)).not.toContain("BOT_TOKEN");
+    expect(JSON.stringify(data)).not.toContain("mock_token");
   });
 
   it("responds to /api/health with HEAD 503 when configuration is invalid", async () => {
@@ -230,5 +234,35 @@ describe("handleApiRequest", () => {
       expect(res?.status).toBe(200);
       expect(res?.headers.get("Cache-Control")).toBe("no-store");
     }
+  });
+});
+
+
+describe("client IP HMAC privacy", () => {
+  const rawIp = "203.0.113.77";
+
+  it("returns stable HMAC output for the same key and IP", async () => {
+    const env = { ...mockEnv, ADMIN_API_SECRET: "stable-admin-secret-0123456789" };
+    const first = await hashClientIp(rawIp, env);
+    const second = await hashClientIp(rawIp, env);
+    expect(first).toBe(second);
+    expect(first).toMatch(/^[a-f0-9]{32}$/);
+  });
+
+  it("changes the HMAC output when the configured key rotates", async () => {
+    const first = await hashClientIp(rawIp, { ...mockEnv, ADMIN_API_SECRET: "old-admin-secret-0123456789" });
+    const rotated = await hashClientIp(rawIp, { ...mockEnv, ADMIN_API_SECRET: "new-admin-secret-0123456789" });
+    expect(first).not.toBe(rotated);
+  });
+
+  it("returns null when no HMAC secret is configured", async () => {
+    await expect(hashClientIp(rawIp, { ...mockEnv, ADMIN_API_SECRET: "", WEBHOOK_SECRET: "" })).resolves.toBeNull();
+  });
+
+  it("never includes the raw IP in the returned identifier", async () => {
+    const hash = await hashClientIp(rawIp, mockEnv);
+    expect(hash).toBeTruthy();
+    expect(hash).not.toContain(rawIp);
+    expect(hash).not.toContain("203.0.113");
   });
 });
