@@ -96,8 +96,15 @@ interface R2AnalyticsScanState {
 }
 const R2_ANALYTICS_PAGE_SIZE = 1000;
 const R2_ANALYTICS_MAX_PAGES_PER_REQUEST = 10;
-const R2_ANALYTICS_CURSOR_HISTORY_LIMIT = 64;
+const R2_ANALYTICS_CURSOR_HISTORY_LIMIT = 32;
 const R2_ANALYTICS_MAX_TOKEN_LENGTH = 16_384;
+
+export class R2AnalyticsContinuationError extends Error {
+  constructor() {
+    super("Invalid R2 analytics continuation");
+    this.name = "R2AnalyticsContinuationError";
+  }
+}
 
 function encodeBase64Url(bytes: Uint8Array): string {
   let binary = "";
@@ -105,7 +112,7 @@ function encodeBase64Url(bytes: Uint8Array): string {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 function decodeBase64Url(value: string): Uint8Array {
-  if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new Error("Invalid R2 analytics continuation");
+  if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new R2AnalyticsContinuationError();
   const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
   const binary = atob(base64 + "=".repeat((4 - (base64.length % 4)) % 4));
   return Uint8Array.from(binary, (character) => character.charCodeAt(0));
@@ -129,26 +136,26 @@ function isPrefixScanState(value: unknown): value is PrefixScanState {
     Number.isSafeInteger(s.totalBytes) && s.totalBytes >= 0 &&
     (s.latestUploadedAt === null || (typeof s.latestUploadedAt === "string" && Number.isFinite(Date.parse(s.latestUploadedAt)))) &&
     typeof s.complete === "boolean" &&
-    (s.cursor === undefined || (typeof s.cursor === "string" && s.cursor.length > 0 && s.cursor.length <= 4096)) &&
+    (s.cursor === undefined || (typeof s.cursor === "string" && s.cursor.length > 0 && s.cursor.length <= 2048)) &&
     Array.isArray(s.cursorHistory) && s.cursorHistory.length <= R2_ANALYTICS_CURSOR_HISTORY_LIMIT &&
     s.cursorHistory.every((c) => /^[a-f0-9]{64}$/.test(c));
 }
 async function decodeAnalyticsContinuation(env: Env, token: string | null, bucket: string): Promise<R2AnalyticsScanState> {
   if (!token) return { version: 1, bucket, receipts: emptyPrefixScan(), logs: emptyPrefixScan(), pagesProcessed: 0 };
-  if (token.length > R2_ANALYTICS_MAX_TOKEN_LENGTH) throw new Error("Invalid R2 analytics continuation");
+  if (token.length > R2_ANALYTICS_MAX_TOKEN_LENGTH) throw new R2AnalyticsContinuationError();
   const parts = token.split(".");
-  if (parts.length !== 2) throw new Error("Invalid R2 analytics continuation");
+  if (parts.length !== 2) throw new R2AnalyticsContinuationError();
   const payload = decodeBase64Url(parts[0]), signature = decodeBase64Url(parts[1]);
   const key = await getAnalyticsTokenKey(env);
-  if (!await crypto.subtle.verify("HMAC", key, signature, payload)) throw new Error("Invalid R2 analytics continuation");
+  if (!await crypto.subtle.verify("HMAC", key, signature, payload)) throw new R2AnalyticsContinuationError();
   let parsed: unknown;
-  try { parsed = JSON.parse(new TextDecoder().decode(payload)); } catch { throw new Error("Invalid R2 analytics continuation"); }
-  if (!parsed || typeof parsed !== "object") throw new Error("Invalid R2 analytics continuation");
+  try { parsed = JSON.parse(new TextDecoder().decode(payload)); } catch { throw new R2AnalyticsContinuationError(); }
+  if (!parsed || typeof parsed !== "object") throw new R2AnalyticsContinuationError();
   const s = parsed as R2AnalyticsScanState;
   if (s.version !== 1 || s.bucket !== bucket || !Number.isSafeInteger(s.pagesProcessed) || s.pagesProcessed < 0 ||
       !isPrefixScanState(s.receipts) || !isPrefixScanState(s.logs) ||
       (s.receipts.complete && s.receipts.cursor !== undefined) || (s.logs.complete && s.logs.cursor !== undefined)) {
-    throw new Error("Invalid R2 analytics continuation");
+    throw new R2AnalyticsContinuationError();
   }
   return s;
 }
@@ -160,10 +167,10 @@ async function encodeAnalyticsContinuation(env: Env, state: R2AnalyticsScanState
   if (token.length > R2_ANALYTICS_MAX_TOKEN_LENGTH) throw new Error("R2 analytics continuation exceeded its size limit");
   return token;
 }
-async function processAnalyticsPrefix(env: Env, prefix: string, state: PrefixScanState): Promise<number> {
-  if (state.complete) return 0;
+async function processAnalyticsPrefix(env: Env, prefix: string, state: PrefixScanState): Promise<void> {
+  if (state.complete) return;
   const page = await listObjects(env, prefix, state.cursor);
-  if (!Array.isArray(page.objects) || page.objects.length > R2_ANALYTICS_PAGE_SIZE) {
+  if (typeof page.truncated !== "boolean" || !Array.isArray(page.objects) || page.objects.length > R2_ANALYTICS_PAGE_SIZE) {
     throw new Error("R2 analytics page exceeded the configured object limit");
   }
   for (const object of page.objects) {
@@ -183,7 +190,7 @@ async function processAnalyticsPrefix(env: Env, prefix: string, state: PrefixSca
     delete state.cursor;
   } else {
     const next = page.cursor;
-    if (typeof next !== "string" || !next || next.length > 4096 || next === state.cursor) {
+    if (typeof next !== "string" || !next || next.length > 2048 || next === state.cursor) {
       throw new Error("R2 pagination returned a missing, malformed, or repeated continuation cursor");
     }
     const fingerprint = await fingerprintCursor(next);
@@ -193,7 +200,6 @@ async function processAnalyticsPrefix(env: Env, prefix: string, state: PrefixSca
     state.cursor = next;
     state.cursorHistory = [...state.cursorHistory, fingerprint].slice(-R2_ANALYTICS_CURSOR_HISTORY_LIMIT);
   }
-  return page.objects.length;
 }
 
 /**
