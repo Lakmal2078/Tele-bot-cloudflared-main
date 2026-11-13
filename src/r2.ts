@@ -111,11 +111,15 @@ function encodeBase64Url(bytes: Uint8Array): string {
   for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i]);
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
-function decodeBase64Url(value: string): Uint8Array {
+function decodeBase64Url(value: string): ArrayBuffer {
   if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new R2AnalyticsContinuationError();
   const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
-  const binary = atob(base64 + "=".repeat((4 - (base64.length % 4)) % 4));
-  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  try {
+    const binary = atob(base64 + "=".repeat((4 - (base64.length % 4)) % 4));
+    return Uint8Array.from(binary, (character) => character.charCodeAt(0)).buffer;
+  } catch {
+    throw new R2AnalyticsContinuationError();
+  }
 }
 async function getAnalyticsTokenKey(env: Env): Promise<CryptoKey> {
   const secret = (env.ADMIN_API_SECRET || env.WEBHOOK_SECRET || "").trim();
