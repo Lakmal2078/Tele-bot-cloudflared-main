@@ -2,9 +2,13 @@
 
 ## Deploy
 
-Production deployment is performed by GitHub Actions after quality gates. The canonical deployment command is `npm run deploy:cf:ci`.
+Production deployment is performed by GitHub Actions after quality gates. A push to `main` (including a merge) triggers the production workflow. The workflow uses `npm run deploy:cf:ci`; do not run that production deployment command as a local validation step.
+
+For local secret provisioning, use `npm run secrets:cf`. The script prompts without echoing entered values and can generate secure secrets. Alternatively, provision an individual value with `npx wrangler secret put SECRET_NAME`. Never place secret values in source control, command-line arguments, or issue comments.
 
 ## Pre-deploy checks
+
+Run these checks on the feature branch:
 
 ```bash
 npm ci
@@ -12,34 +16,46 @@ npm run lint
 npm test
 npm run validate:migrations
 bash -n deploy.sh
-npm audit --omit=dev --audit-level=high
+npm run audit:deps
 ```
+
+The CI deployment workflow performs the quality gates and migration validation before deployment. Review its result and the deployment health-check result after merging; a successful merge alone is not evidence that production operations were manually verified.
 
 ## Health checks
 
-- `/health` — configuration-oriented health response.
-- `/api/status` — lightweight public reachability status.
+- `/health` (also `/api/health`) — readiness/configuration check. Returns a non-success response when required Worker configuration is invalid; it does not prove that every downstream integration is healthy.
+- `/api/status` — lightweight public reachability/status response; not a full dependency or readiness check.
 - `/og-image.jpg` — canonical static OpenGraph asset.
+
+The deployment script uses `/health` by default for its post-deploy check. Do not paste health response bodies containing operational details into public tickets; never expose secret values.
+
+## Admin settlement override
+
+The historical tip settlement override route is `POST /api/admin/tips/settlement/override`. It requires an authenticated admin session or the shared `ADMIN_API_SECRET` credential in `Authorization: Bearer <secret>` or `X-Admin-Secret`. A caller-supplied `X-Admin-Id` is not an identity assertion and must not be used as proof of the actor. The audit record attributes shared-secret requests to the sentinel actor `shared-admin-secret`.
+
+The request body must include `tipPostId`, `eventId`, `outcome` (`WON`, `LOST`, or `VOID`), and a non-empty audit `note`. Treat this operation as a privileged, audited correction.
 
 ## Incident response
 
-1. Check the latest GitHub Actions run.
-2. Check Worker logs using the request ID returned in `X-Request-ID`.
+1. Check the latest GitHub Actions run and identify whether the failure occurred in quality gates, migration application, deployment, or the post-deploy health check.
+2. Check Worker logs using the request ID returned in the `X-Request-ID` response header.
 3. Inspect `/health` for configuration problems without exposing secret values.
 4. For secret exposure, revoke/rotate the affected credential immediately.
 5. For database changes, stop further deployment and inspect the migration history before rollback decisions.
 
 ## Scheduled jobs
 
-The production Worker has five cron triggers:
+The five cron triggers are declared in `wrangler.toml` (UTC) and dispatched by `src/worker.ts`:
 
-- `0 2 * * *` — R2 cleanup.
-- `30 2 * * *` — 08:00 Sri Lanka free tips.
-- `30 6 * * *` — 12:00 Sri Lanka free tips.
-- `30 12 * * *` — 18:00 Sri Lanka free tips.
-- `*/5,7,22,37,52 * * * *` — tip settlement every five minutes, with additional health checks at :07, :22, :37, and :52.
+| Cron (UTC) | Sri Lanka time (UTC+05:30) | Behavior |
+|---|---:|---|
+| `0 2 * * *` | 07:30 daily | R2 log cleanup and expired rate-limit record cleanup |
+| `30 2 * * *` | 08:00 daily | Free tips slot 1 |
+| `30 6 * * *` | 12:00 daily | Free tips slot 2 |
+| `30 12 * * *` | 18:00 daily | Free tips slot 3 |
+| `*/5,7,22,37,52 * * * *` | Every five minutes, plus minutes 07, 22, 37, 52 | Pending-tip settlement every five minutes; Odds API health checks additionally at minutes 07, 22, 37, and 52 |
 
-All schedules are expressed in UTC in `wrangler.toml`.
+The free-tip slot values are defined by `TIPS_CRONS` in `src/tips.ts`; the combined maintenance trigger is defined by `WORKER_CRONS` in `src/worker.ts`. Keep this table synchronized with both files and `wrangler.toml`. Scheduled handlers must be safe to retry.
 
 ## Rollback
 
