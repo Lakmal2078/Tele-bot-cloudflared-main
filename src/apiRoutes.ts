@@ -1287,9 +1287,13 @@ ${guideEntries}
       const daysParam = parseInt(url.searchParams.get("days") || "7", 10);
       const safeDays = Math.max(1, Math.min(daysParam, 90));
       const metric = url.searchParams.get("metric") === "count" ? "count" : "volume";
+      const continuation = url.searchParams.get("continuation");
+      if (continuation && continuation.length > 16_384) {
+        return json({ ok: false, error: "Invalid analytics continuation" }, 400);
+      }
 
       const [r2, stats, trends, dashboard, funnel] = await Promise.all([
-        getR2StorageAnalytics(env),
+        getR2StorageAnalytics(env, continuation),
         getStats(env.DB),
         getDailyFinancialTrends(env.DB, safeDays),
         getOperationsDashboard(env.DB).catch(() => null),
@@ -1321,6 +1325,9 @@ ${guideEntries}
         polledAt: new Date().toISOString(),
       });
     } catch (error) {
+      if (error instanceof Error && error.message.toLowerCase().includes("continuation")) {
+        return json({ ok: false, error: "Invalid analytics continuation" }, 400);
+      }
       console.error("[Admin R2 Analytics] query failed", error);
       return json({ ok: false, error: "Analytics data unavailable" }, 503);
     }
