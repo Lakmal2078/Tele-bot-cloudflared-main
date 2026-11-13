@@ -84,7 +84,8 @@ describe("getR2StorageAnalytics", () => {
     const env = createEnv(list);
     const partial = await getR2StorageAnalytics(env);
     expect(partial.continuation).toBeTruthy();
-    await expect(getR2StorageAnalytics(env, partial.continuation!.slice(0, -1) + "x")).rejects.toThrow(/continuation/i);
+    const tampered = (partial.continuation![0] === "A" ? "B" : "A") + partial.continuation!.slice(1);
+    await expect(getR2StorageAnalytics(env, tampered)).rejects.toThrow(/continuation/i);
     const otherBucket = { ...env, R2_BUCKET_NAME: "other-bucket" } as Env;
     await expect(getR2StorageAnalytics(otherBucket, partial.continuation)).rejects.toThrow(/continuation/i);
   });
