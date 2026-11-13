@@ -450,13 +450,15 @@ export async function settlePendingTips(
     } else {
       const kickoff = post.commence_time ? new Date(post.commence_time).getTime() : now.getTime();
       const ageHours = Math.max(0, (now.getTime() - kickoff) / 3600000);
-      const delayHours = ageHours < 6 ? 1 : ageHours < 24 ? 3 : ageHours < 72 ? 6 : 24;
+      // Retry quickly after kickoff while the provider is publishing live/final scores.
+      // The five-minute cron respects this per-post backoff to avoid hammering the scores API.
+      const retryMinutes = ageHours < 6 ? 5 : ageHours < 24 ? 15 : ageHours < 72 ? 30 : 120;
       await env.DB.prepare(`
         UPDATE tip_posts SET settlement_attempts=COALESCE(settlement_attempts,0)+1,
           last_checked_at=?, next_retry_at=datetime('now', ?),
           settlement_note=?, updated_at=datetime('now')
         WHERE id=? AND (result IS NULL OR result='PENDING')
-      `).bind(nowIso, `+${delayHours} hours`, picks.length ? "Scores missing, incomplete, or team names did not match; retained as PENDING" : "No valid picks found for settlement", post.id).run();
+      `).bind(nowIso, `+${retryMinutes} minutes`, picks.length ? "Scores missing, incomplete, or team names did not match; retained as PENDING" : "No valid picks found for settlement", post.id).run();
       summary.requeuedBackoff = (summary.requeuedBackoff || 0) + 1;
     }
   }
