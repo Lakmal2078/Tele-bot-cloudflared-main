@@ -139,6 +139,10 @@ export function renderAdminPage(
     totalStorageBytes: 0,
     totalFormattedSize: "0 B",
     timestamp: new Date().toISOString(),
+    scanComplete: true,
+    continuation: null,
+    pagesProcessed: 0,
+    objectsProcessed: 0,
   };
   const r2Configured = Boolean(r2.configured);
 
@@ -963,7 +967,7 @@ export function renderAdminPage(
           <div class="kpi-value" id="r2-last-upload" style="color: #e2e8f0; font-size: 15px; font-weight: 700;">
             ${r2.lastReceiptUploadedAt ? new Date(r2.lastReceiptUploadedAt).toLocaleTimeString() : 'No uploads yet'}
           </div>
-          <div class="kpi-sub" id="r2-last-sync-time">Last synced: Just now</div>
+          <div class="kpi-sub" id="r2-last-sync-time">${r2.scanComplete ? "Last synced: Just now" : "Scanning " + r2.objectsProcessed.toLocaleString() + " objects"}</div>
         </div>
       </div>
     </section>
@@ -1338,6 +1342,7 @@ Tap 'Start' below to begin now! 👇</div>
     var pollIntervalMs = 15000;
     var pollTimer = null;
     var isPollingInProgress = false;
+    var r2AnalyticsContinuation = ${JSON.stringify(r2.continuation || null)};
     var isTabActive = !document.hidden;
 
     var intervalSelect = document.getElementById("polling-interval-select");
@@ -1407,9 +1412,13 @@ Tap 'Start' below to begin now! 👇</div>
       var days = searchParams.get("days") || "7";
       var metric = searchParams.get("metric") || "volume";
 
-      fetch("/api/admin/r2-analytics?days=" + encodeURIComponent(days) + "&metric=" + encodeURIComponent(metric), {
+      var analyticsUrl = "/api/admin/r2-analytics?days=" + encodeURIComponent(days) + "&metric=" + encodeURIComponent(metric);
+      fetch(analyticsUrl, {
         cache: "no-store",
-        headers: { "Accept": "application/json" }
+        headers: {
+          "Accept": "application/json",
+          ...(r2AnalyticsContinuation ? { "X-R2-Analytics-Continuation": r2AnalyticsContinuation } : {})
+        }
       })
       .then(function(res) {
         if (res.status === 401 || res.status === 403) {
@@ -1417,11 +1426,24 @@ Tap 'Start' below to begin now! 👇</div>
           stopPolling();
           return null;
         }
+        if (res.status === 400) {
+          r2AnalyticsContinuation = null;
+          throw new Error("Invalid analytics continuation; restarting on next poll");
+        }
         if (!res.ok) throw new Error("HTTP " + res.status);
         return res.json();
       })
       .then(function(data) {
         if (!data || !data.ok) return;
+        if (data.r2) {
+          r2AnalyticsContinuation = data.r2.continuation || null;
+          var scanStatusEl = document.getElementById("r2-last-sync-time");
+          if (scanStatusEl) {
+            scanStatusEl.textContent = data.r2.scanComplete
+              ? "Last synced: " + new Date().toLocaleTimeString()
+              : "Scanning " + (data.r2.objectsProcessed || 0).toLocaleString() + " objects · " + (data.r2.pagesProcessed || 0) + " pages this batch";
+          }
+        }
 
         // 1. Update R2 Storage Analytics card
         if (data.r2) {
@@ -1495,8 +1517,10 @@ Tap 'Start' below to begin now! 👇</div>
           }
         }
 
-        if (lastSyncText) {
-          lastSyncText.textContent = "Last synced: " + new Date().toLocaleTimeString();
+        if (lastSyncText && data.r2) {
+          lastSyncText.textContent = data.r2.scanComplete
+            ? "Last synced: " + new Date().toLocaleTimeString()
+            : "Scanning " + (data.r2.objectsProcessed || 0).toLocaleString() + " objects · " + (data.r2.pagesProcessed || 0) + " pages this batch";
         }
         if (pollIntervalMs > 0) {
           setPollingUI("active");

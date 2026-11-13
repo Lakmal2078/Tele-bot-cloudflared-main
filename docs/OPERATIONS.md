@@ -29,6 +29,16 @@ The CI deployment workflow performs the quality gates and migration validation b
 
 The deployment script uses `/health` by default for its post-deploy check. Do not paste health response bodies containing operational details into public tickets; never expose secret values.
 
+## R2 analytics
+
+The admin R2 analytics endpoint processes at most **10 pages per request**, with each R2 listing page limited to **1,000 objects** (maximum 10,000 objects per request). It alternates between the `receipts/` and `logs/` prefixes so a large receipts prefix cannot starve log totals. Only one page at a time is retained in memory.
+
+When a scan spans multiple requests, the endpoint returns cumulative counts and byte totals plus a signed continuation token. The admin dashboard carries that token in the `X-R2-Analytics-Continuation` request header on its next poll. Tokens are HMAC-signed with the admin API secret (or webhook secret fallback) and bound to the configured bucket; they must not be copied into public tickets or logs. The dashboard labels totals as scanning until both prefixes are complete. A new scan begins after completion.
+
+A transient R2 listing failure returns an unavailable response rather than a misleading zero total. Retry the same continuation token to resume from the last successfully returned batch. Repeated, missing, malformed, or stale continuation state should be treated as a scan failure and restarted from the dashboard.
+
+Worker logs record page/object counts and per-prefix completion state only; object keys and raw continuation cursors are not logged.
+
 ## Admin settlement override
 
 The historical tip settlement override route is `POST /api/admin/tips/settlement/override`. It requires an authenticated admin session or the shared `ADMIN_API_SECRET` credential in `Authorization: Bearer <secret>` or `X-Admin-Secret`. A caller-supplied `X-Admin-Id` is not an identity assertion and must not be used as proof of the actor. The audit record attributes shared-secret requests to the sentinel actor `shared-admin-secret`.

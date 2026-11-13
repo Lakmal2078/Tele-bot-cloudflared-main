@@ -2,37 +2,30 @@ import { describe, expect, it } from "vitest";
 import { getR2StorageAnalytics } from "../src/r2";
 import type { Env } from "../src/types";
 
+function createEnv(list: (options: { prefix?: string; cursor?: string }) => Promise<any>): Env {
+  return {
+    CHAT_MEDIA: { put: async () => ({}), list },
+    R2_BUCKET_NAME: "test-bucket",
+    ADMIN_API_SECRET: "test-admin-secret",
+    WEBHOOK_SECRET: "test-webhook-secret",
+  } as unknown as Env;
+}
+
 describe("getR2StorageAnalytics", () => {
-  it("aggregates every R2 page for receipts and logs", async () => {
+  it("aggregates all pages across receipts and logs", async () => {
     const uploadedAt = new Date("2026-11-04T10:00:00.000Z");
     const latestReceiptAt = new Date("2026-11-04T11:00:00.000Z");
-    const firstReceiptPage = Array.from({ length: 1000 }, (_, index) => ({
-      key: `receipts/${index}.jpg`,
-      size: 1,
-      uploaded: uploadedAt,
-    }));
+    const firstReceiptPage = Array.from({ length: 1000 }, (_, index) => ({ key: `receipts/${index}.jpg`, size: 1, uploaded: uploadedAt }));
+    const calls: string[] = [];
     const list = async (options: { prefix?: string; cursor?: string }) => {
-      if (options.prefix === "receipts/" && !options.cursor) {
-        return { objects: firstReceiptPage, truncated: true, cursor: "receipts-page-2" };
-      }
-      if (options.prefix === "receipts/" && options.cursor === "receipts-page-2") {
-        return {
-          objects: [{ key: "receipts/latest.jpg", size: 7, uploaded: latestReceiptAt }],
-          truncated: false,
-        };
-      }
-      if (options.prefix === "logs/") {
-        return { objects: [{ key: "logs/latest.json", size: 2, uploaded: uploadedAt }], truncated: false };
-      }
+      calls.push(`${options.prefix}:${options.cursor || "start"}`);
+      if (options.prefix === "receipts/" && !options.cursor) return { objects: firstReceiptPage, truncated: true, cursor: "receipts-page-2" };
+      if (options.prefix === "receipts/" && options.cursor === "receipts-page-2") return { objects: [{ key: "receipts/latest.jpg", size: 7, uploaded: latestReceiptAt }], truncated: false };
+      if (options.prefix === "logs/" && !options.cursor) return { objects: [{ key: "logs/latest.json", size: 2, uploaded: uploadedAt }], truncated: false };
       throw new Error("Unexpected R2 pagination cursor");
     };
-
-    const env = {
-      CHAT_MEDIA: { put: async () => ({}), list },
-      R2_BUCKET_NAME: "test-bucket",
-    } as unknown as Env;
-
-    const analytics = await getR2StorageAnalytics(env);
+    const analytics = await getR2StorageAnalytics(createEnv(list));
+    expect(analytics.scanComplete).toBe(true);
     expect(analytics.receiptsCount).toBe(1001);
     expect(analytics.receiptsTotalBytes).toBe(1007);
     expect(analytics.lastReceiptUploadedAt).toBe(latestReceiptAt.toISOString());
@@ -40,18 +33,84 @@ describe("getR2StorageAnalytics", () => {
     expect(analytics.logsTotalBytes).toBe(2);
     expect(analytics.totalObjects).toBe(1002);
     expect(analytics.totalStorageBytes).toBe(1009);
+    expect(calls).toEqual(["receipts/:start", "logs/:start", "receipts/:receipts-page-2"]);
   });
 
-  it("does not silently report partial totals when pagination cannot advance", async () => {
-    const env = {
-      CHAT_MEDIA: {
-        put: async () => ({}),
-        list: async () => ({ objects: [{ key: "receipts/one.jpg", size: 10 }], truncated: true }),
-      },
-    } as unknown as Env;
+  it("caps each request at ten pages and resumes without double-counting", async () => {
+    const calls: string[] = [];
+    const list = async ({ prefix, cursor }: { prefix?: string; cursor?: string }) => {
+      calls.push(`${prefix}:${cursor || "start"}`);
+      const index = cursor ? Number(cursor.split("-").pop()) : 0;
+      const next = index + 1;
+      return { objects: [{ key: `${prefix}${next}.json`, size: 5 }], truncated: next < 12, cursor: next < 12 ? `page-${next}` : undefined };
+    };
+    const env = createEnv(list);
+    const first = await getR2StorageAnalytics(env);
+    expect(first.scanComplete).toBe(false);
+    expect(first.pagesProcessed).toBe(10);
+    expect(first.objectsProcessed).toBe(10);
+    expect(first.continuation).toBeTruthy();
+    expect(calls).toHaveLength(10);
 
-    const analytics = await getR2StorageAnalytics(env);
-    expect(analytics.receiptsCount).toBe(0);
-    expect(analytics.receiptsTotalBytes).toBe(0);
+    const second = await getR2StorageAnalytics(env, first.continuation);
+    expect(second.scanComplete).toBe(false);
+    expect(second.pagesProcessed).toBe(10);
+    expect(second.totalObjects).toBe(20);
+    expect(second.continuation).toBeTruthy();
+
+    const third = await getR2StorageAnalytics(env, second.continuation);
+    expect(third.scanComplete).toBe(true);
+    expect(third.continuation).toBeNull();
+    expect(third.totalObjects).toBe(24);
+    expect(third.totalStorageBytes).toBe(120);
+    expect(calls).toHaveLength(24);
+  });
+
+  it("rejects provider pages larger than the documented page bound", async () => {
+    const oversizedPage = createEnv(async () => ({
+      objects: Array.from({ length: 1001 }, (_, index) => ({ key: `receipts/${index}`, size: 1 })),
+      truncated: false,
+    }));
+    await expect(getR2StorageAnalytics(oversizedPage)).rejects.toThrow(/page exceeded/i);
+  });
+
+  it("rejects invalid and bucket-mismatched continuation tokens", async () => {
+    const list = async ({ prefix, cursor }: { prefix?: string; cursor?: string }) => {
+      if (prefix !== "receipts/") return { objects: [], truncated: false };
+      const index = cursor ? Number(cursor.split("-").pop()) : 0;
+      const next = index + 1;
+      return { objects: [], truncated: next < 12, cursor: next < 12 ? `page-${next}` : undefined };
+    };
+    const env = createEnv(list);
+    const partial = await getR2StorageAnalytics(env);
+    expect(partial.continuation).toBeTruthy();
+    const tampered = (partial.continuation![0] === "A" ? "B" : "A") + partial.continuation!.slice(1);
+    await expect(getR2StorageAnalytics(env, tampered)).rejects.toThrow(/continuation/i);
+    const otherBucket = { ...env, R2_BUCKET_NAME: "other-bucket" } as Env;
+    await expect(getR2StorageAnalytics(otherBucket, partial.continuation)).rejects.toThrow(/continuation/i);
+  });
+
+  it("rejects missing and repeated continuation cursors", async () => {
+    const missing = createEnv(async () => ({ objects: [{ key: "receipts/a", size: 1 }], truncated: true }));
+    await expect(getR2StorageAnalytics(missing)).rejects.toThrow(/cursor/i);
+    const repeated = createEnv(async ({ prefix, cursor }) => ({
+      objects: [{ key: `${prefix}a`, size: 1 }], truncated: true, cursor: cursor || "loop",
+    }));
+    await expect(getR2StorageAnalytics(repeated)).rejects.toThrow(/cursor/i);
+  });
+
+  it("propagates transient R2 errors rather than reporting false zero totals", async () => {
+    const env = createEnv(async () => { throw new Error("temporary R2 outage"); });
+    await expect(getR2StorageAnalytics(env)).rejects.toThrow("temporary R2 outage");
+  });
+
+  it("handles empty prefixes and unconfigured storage", async () => {
+    const env = createEnv(async () => ({ objects: [], truncated: false }));
+    const result = await getR2StorageAnalytics(env);
+    expect(result.scanComplete).toBe(true);
+    expect(result.totalObjects).toBe(0);
+    const unconfigured = await getR2StorageAnalytics({ DB: {} } as Env);
+    expect(unconfigured.scanComplete).toBe(true);
+    expect(unconfigured.continuation).toBeNull();
   });
 });
