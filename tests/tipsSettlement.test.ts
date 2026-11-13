@@ -68,6 +68,20 @@ describe("tip settlement", () => {
     expect(result.result).toBe("WON");
   });
 
+  it("does not use positional score fallback when provider team names do not match", () => {
+    const result = evaluatePickResult(
+      "Arsenal",
+      "Arsenal",
+      "Chelsea",
+      [
+        { name: "Unknown Home", score: "3" },
+        { name: "Unknown Away", score: "0" },
+      ],
+      true,
+    );
+    expect(result.result).toBe("PENDING");
+  });
+
   it("does not settle an incomplete event", () => {
     const result = evaluatePickResult(
       "Arsenal",
@@ -121,7 +135,7 @@ describe("tip settlement", () => {
             statements.push({ sql, values });
             return {
               all: async () => ({
-                results: [{
+                results: sql.includes("SELECT id, scheduled_key") ? [{
                   id: 41, scheduled_key: "2026-11-05:08:00", slot_time: "08:00",
                   event_id: "event-41", sport_key: "soccer_epl", sport_title: "Premier League",
                   home_team: "Arsenal", away_team: "Chelsea",
@@ -132,8 +146,9 @@ describe("tip settlement", () => {
                     homeTeam: "Arsenal", awayTeam: "Chelsea",
                     commenceTime: "2026-11-05T15:00:00.000Z", selection: "Arsenal", market: "h2h", odds: 1.8,
                   }]), result: "PENDING", settled_at: null,
-                }],
+                }] : [],
               }),
+              first: async () => null,
               run: async () => ({ success: true, meta: { changes: 1 } }),
             };
           },
@@ -150,7 +165,7 @@ describe("tip settlement", () => {
 
     try {
       const summary = await settlePendingTips({ DB: db as any, ODDS_API_KEY: "test-key" } as Env, { sendTelegramUpdate: false });
-      expect(statements[0]?.sql).toContain("datetime(commence_time) <= datetime('now', '+3 hours')");
+      expect(statements[0]?.sql).toContain("datetime(commence_time) <= datetime('now')");
       expect(summary.checkedPosts).toBe(1);
       expect(summary.settledPosts).toBe(1);
       expect(summary.wonPicks).toBe(1);

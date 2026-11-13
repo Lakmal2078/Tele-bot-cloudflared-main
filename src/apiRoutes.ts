@@ -84,7 +84,7 @@ import { getStats, getOperationsDashboard, getDailyFinancialTrends, getSupportTi
 import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
 import { getObject } from "./storage";
 import { getR2StorageAnalytics } from "./r2";
-import { settlePendingTips, getTipsPerformanceStats } from "./tipsSettlement";
+import { settlePendingTips, overrideTipSettlement, getTipsPerformanceStats } from "./tipsSettlement";
 import { checkTelegramBotConnection } from "./telegramStatus";
 import { renderAdminPage, renderAdminLoginPage } from "./adminPage";
 import { renderPrivacyPage } from "./privacyPage";
@@ -1006,17 +1006,48 @@ ${guideEntries}
     });
   }
 
-  // Trigger manual or admin tips settlement (/api/tips/settle)
+  // Admin-triggered settlement sweep. historicalSweep bypasses retry timers but keeps score validation strict.
   if (path === "/api/tips/settle" && method === "POST") {
-    {
-      const denied = await requireAdmin(request, env);
-      if (denied) return denied;
+    const denied = await requireAdmin(request, env);
+    if (denied) return denied;
+    try {
+      const body = await request.json().catch(() => ({})) as { historicalSweep?: boolean; maxPosts?: number };
+      const summary = await settlePendingTips(env, {
+        bypassBackoff: body.historicalSweep === true,
+        maxPosts: Math.max(1, Math.min(Number(body.maxPosts) || (body.historicalSweep ? 100 : 10), 100)),
+      });
+      return json({ ok: true, summary });
+    } catch (error) {
+      console.error("[Admin Settlement Sweep]", error);
+      return json({ ok: false, error: "Settlement sweep failed" }, 500);
+    }
+  }
+
+  // Explicit admin-only historical result override. Requires both admin API auth and a configured admin ID.
+  if (path === "/api/admin/tips/settlement/override" && method === "POST") {
+    const denied = await requireAdmin(request, env);
+    if (denied) return denied;
+    const adminId = request.headers.get("x-admin-id") || "";
+    if (!/^\\d+$/.test(adminId) || !isConfiguredAdminId(Number(adminId), env)) {
+      return json({ ok: false, error: "A configured X-Admin-Id is required" }, 403);
     }
     try {
-      const summary = await settlePendingTips(env);
-      return json({ ok: true, summary });
-    } catch {
-      return json({ ok: false, error: "Internal server error" }, 500);
+      const body = await request.json() as {
+        tipPostId?: number; eventId?: string; outcome?: "WON" | "LOST" | "VOID"; note?: string; scoreHome?: string; scoreAway?: string;
+      };
+      if (!Number.isSafeInteger(body.tipPostId) || !body.eventId?.trim() ||
+          !["WON", "LOST", "VOID"].includes(String(body.outcome)) || !body.note?.trim()) {
+        return json({ ok: false, error: "tipPostId, eventId, outcome (WON|LOST|VOID), and audit note are required" }, 400);
+      }
+      const applied = await overrideTipSettlement(env, {
+        tipPostId: Number(body.tipPostId), eventId: body.eventId,
+        outcome: body.outcome as "WON" | "LOST" | "VOID",
+        note: body.note, adminId, scoreHome: body.scoreHome, scoreAway: body.scoreAway,
+      });
+      return json({ ok: applied }, applied ? 200 : 404);
+    } catch (error) {
+      console.error("[Admin Settlement Override]", error);
+      return json({ ok: false, error: "Override failed" }, 500);
     }
   }
   if (path === "/api/cleanup/logs/status" && (method === "GET" || method === "HEAD")) {
