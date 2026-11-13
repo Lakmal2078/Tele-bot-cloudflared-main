@@ -175,9 +175,62 @@ describe("tip settlement", () => {
       expect(summary.settledPosts).toBe(1);
       expect(summary.wonPicks).toBe(1);
       expect(batchCalls).toEqual([1, 1]);
-      expect(statements.some(({ sql, values }) => sql.includes("FROM tip_results WHERE tip_post_id IN"))).toBe(true);
+      expect(statements.some(({ sql }) => sql.includes("FROM tip_results WHERE tip_post_id IN"))).toBe(true);
       expect(statements.some(({ sql, values }) => sql.includes("INSERT INTO tip_results") && values.includes("WON"))).toBe(true);
       expect(statements.some(({ sql, values }) => sql.includes("UPDATE tip_posts") && values[0] === "WON")).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not re-evaluate or rewrite a terminal pick on settlement retry", async () => {
+    const statements: Array<{ sql: string; values: unknown[] }> = [];
+    const post = {
+      id: 89, event_id: "event-89", sport_key: "soccer_test", sport_title: "Test League",
+      home_team: "Arsenal", away_team: "Chelsea",
+      commence_time: new Date(Date.now() - 60_000).toISOString(), market: "h2h",
+      selection: "Arsenal", odds: 1.8, message_id: null,
+      tips_json: JSON.stringify([{
+        eventId: "event-89", sportKey: "soccer_test", sportTitle: "Test League",
+        homeTeam: "Arsenal", awayTeam: "Chelsea", selection: "Arsenal", market: "h2h", odds: 1.8,
+      }]),
+      result: "WON", settled_at: new Date().toISOString(),
+    };
+    const db = {
+      prepare(sql: string) {
+        return {
+          bind(...values: unknown[]) {
+            statements.push({ sql, values });
+            return {
+              all: async () => {
+                if (sql.includes("SELECT id, scheduled_key")) return { results: [post] };
+                if (sql.includes("FROM tip_results WHERE tip_post_id IN")) {
+                  return { results: [{
+                    tip_post_id: 89, event_id: "event-89", result: "WON",
+                    score_home: "2", score_away: "0", completed: 1, settled_at: post.settled_at,
+                  }] };
+                }
+                return { results: [] };
+              },
+              first: async () => null,
+              run: async () => ({ success: true, meta: { changes: 1 } }),
+            };
+          },
+        };
+      },
+      async batch(batchStatements: unknown[]) {
+        return batchStatements.map(() => ({ success: true, meta: { changes: 1 } }));
+      },
+    };
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const summary = await settlePendingTips({ DB: db as any, ODDS_API_KEY: "test-key" } as Env, { sendTelegramUpdate: false });
+      expect(summary.skippedCompletedPicks).toBe(1);
+      expect(summary.evaluatedPicks).toBe(0);
+      expect(statements.some(({ sql }) => sql.includes("INSERT INTO tip_results"))).toBe(false);
+      expect(fetchMock).not.toHaveBeenCalled();
     } finally {
       vi.unstubAllGlobals();
     }
