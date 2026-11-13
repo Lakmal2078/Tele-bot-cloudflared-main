@@ -126,6 +126,29 @@ describe("tip settlement", () => {
     }
   });
 
+  it("returns cleanly when there are no pending posts", async () => {
+    const batch = vi.fn();
+    const db = {
+      prepare() {
+        return {
+          bind() {
+            return {
+              all: async () => ({ results: [] }),
+              first: async () => null,
+              run: async () => ({ success: true, meta: { changes: 0 } }),
+            };
+          },
+        };
+      },
+      batch,
+    };
+    const summary = await settlePendingTips({ DB: db as any, ODDS_API_KEY: "test-key" } as Env);
+    expect(summary.checkedPosts).toBe(0);
+    expect(summary.evaluatedPicks).toBe(0);
+    expect(summary.errors).toEqual([]);
+    expect(batch).not.toHaveBeenCalled();
+  });
+
   it("settles posted tips whose ISO commence_time has passed", async () => {
     const statements: Array<{ sql: string; values: unknown[] }> = [];
     const batchCalls: number[] = [];
