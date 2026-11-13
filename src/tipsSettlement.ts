@@ -339,10 +339,11 @@ export async function settlePendingTips(
 
   summary.checkedPosts = rows.length;
   const parsedByPost = new Map<number, PickResultRecord[]>();
+  const rawPicksByPost = new Map<number, any[]>();
   const scoresByEventId = new Map<string, OddsScoreEvent>();
   const sportKeys = new Set<string>();
 
-  // Load existing pick states first; terminal picks are never fetched or evaluated again.
+  // Parse all posts first, then preload existing result rows in bounded queries.
   for (const post of rows) {
     let raw: any[] = [];
     try { raw = post.tips_json ? JSON.parse(post.tips_json) : []; } catch { raw = []; }
@@ -353,13 +354,29 @@ export async function settlePendingTips(
         commenceTime: post.commence_time, selection: post.selection, market: post.market, odds: post.odds,
       }];
     }
+    rawPicksByPost.set(Number(post.id), raw.filter((item) => String(item?.eventId || "")));
+  }
+
+  const existingByKey = new Map<string, any>();
+  const postIds = rows.map((post) => Number(post.id));
+  for (let offset = 0; offset < postIds.length; offset += 100) {
+    const idChunk = postIds.slice(offset, offset + 100);
+    if (!idChunk.length) continue;
+    const placeholders = idChunk.map(() => "?").join(",");
+    const existingRows = (await env.DB.prepare(
+      `SELECT tip_post_id, event_id, result, score_home, score_away, completed, settled_at
+       FROM tip_results WHERE tip_post_id IN (${placeholders})`
+    ).bind(...idChunk).all<any>()).results;
+    for (const existing of existingRows) {
+      existingByKey.set(`${Number(existing.tip_post_id)}:${String(existing.event_id)}`, existing);
+    }
+  }
+
+  for (const post of rows) {
     const picks: PickResultRecord[] = [];
-    for (const item of raw) {
+    for (const item of rawPicksByPost.get(Number(post.id)) || []) {
       const eventId = String(item.eventId || "");
-      if (!eventId) continue;
-      const existing = await env.DB.prepare(
-        "SELECT result, score_home, score_away, completed, settled_at FROM tip_results WHERE tip_post_id = ? AND event_id = ?"
-      ).bind(post.id, eventId).first<any>();
+      const existing = existingByKey.get(`${Number(post.id)}:${eventId}`);
       const terminal = existing && ["WON", "LOST", "VOID"].includes(String(existing.result).toUpperCase()) && Number(existing.completed) === 1;
       if (terminal) {
         summary.skippedCompletedPicks = (summary.skippedCompletedPicks || 0) + 1;
@@ -394,9 +411,18 @@ export async function settlePendingTips(
     }
   }
 
+  for (const sport of sportKeys) {
+    try {
+      for (const event of await fetchScoresForSport(env.ODDS_API_KEY, sport, 3)) scoresByEventId.set(event.id, event);
+    } catch (error) {
+      summary.errors.push(`Scores fetch failed for ${sport}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // Prepare result upserts in memory and send them in bounded transactional batches.
+  const resultWrites: Array<{ postId: number; statement: any }> = [];
   for (const post of rows) {
     const picks = parsedByPost.get(Number(post.id)) || [];
-    let writeFailed = false;
     for (const pick of picks) {
       if (pick.completed === 1) continue;
       summary.evaluatedPicks++;
@@ -414,25 +440,37 @@ export async function settlePendingTips(
       if (pick.result === "WON") summary.wonPicks++;
       if (pick.result === "LOST") summary.lostPicks++;
       if (pick.result === "VOID") summary.voidPicks++;
-      try {
-        await env.DB.prepare(`
-          INSERT INTO tip_results (tip_post_id,event_id,sport_key,sport_title,home_team,away_team,commence_time,selection,market,odds,result,score_home,score_away,completed,settled_at,updated_at)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
-          ON CONFLICT(tip_post_id,event_id) DO UPDATE SET
-            result=excluded.result, score_home=excluded.score_home, score_away=excluded.score_away,
-            completed=excluded.completed, settled_at=excluded.settled_at, updated_at=datetime('now')
-          WHERE tip_results.completed = 0
-        `).bind(pick.tip_post_id,pick.event_id,pick.sport_key,pick.sport_title || null,pick.home_team,pick.away_team,
-          pick.commence_time || null,pick.selection,pick.market,pick.odds,pick.result,pick.score_home || null,
-          pick.score_away || null,pick.completed,pick.settled_at || null).run();
-      } catch (error) {
-        writeFailed = true;
-        summary.errors.push(`tip_results write failed post ${post.id} event ${pick.event_id}: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    }
 
+      const statement = env.DB.prepare(`
+        INSERT INTO tip_results (tip_post_id,event_id,sport_key,sport_title,home_team,away_team,commence_time,selection,market,odds,result,score_home,score_away,completed,settled_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
+        ON CONFLICT(tip_post_id,event_id) DO UPDATE SET
+          result=excluded.result, score_home=excluded.score_home, score_away=excluded.score_away,
+          completed=excluded.completed, settled_at=excluded.settled_at, updated_at=datetime('now')
+        WHERE tip_results.completed = 0
+      `).bind(pick.tip_post_id,pick.event_id,pick.sport_key,pick.sport_title || null,pick.home_team,pick.away_team,
+        pick.commence_time || null,pick.selection,pick.market,pick.odds,pick.result,pick.score_home || null,
+        pick.score_away || null,pick.completed,pick.settled_at || null);
+      resultWrites.push({ postId: Number(post.id), statement });
+    }
+  }
+
+  const failedWritePosts = new Set<number>();
+  const RESULT_BATCH_SIZE = 50;
+  for (let offset = 0; offset < resultWrites.length; offset += RESULT_BATCH_SIZE) {
+    const chunk = resultWrites.slice(offset, offset + RESULT_BATCH_SIZE);
+    try {
+      await env.DB.batch(chunk.map((entry) => entry.statement));
+    } catch (error) {
+      for (const entry of chunk) failedWritePosts.add(entry.postId);
+      summary.errors.push(`tip_results batch write failed for posts ${[...new Set(chunk.map((entry) => entry.postId))].join(",")}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  for (const post of rows) {
+    const picks = parsedByPost.get(Number(post.id)) || [];
     const allTerminal = picks.length > 0 && picks.every(p => p.completed === 1 && ["WON","LOST","VOID"].includes(p.result));
-    if (allTerminal && !writeFailed) {
+    if (allTerminal && !failedWritePosts.has(Number(post.id))) {
       const anyLost = picks.some(p => p.result === "LOST");
       const anyWon = picks.some(p => p.result === "WON");
       const overall = anyLost && anyWon ? "PARTIAL" : anyLost ? "LOST" : anyWon ? "WON" : "VOID";
@@ -450,8 +488,6 @@ export async function settlePendingTips(
     } else {
       const kickoff = post.commence_time ? new Date(post.commence_time).getTime() : now.getTime();
       const ageHours = Math.max(0, (now.getTime() - kickoff) / 3600000);
-      // Retry quickly after kickoff while the provider is publishing live/final scores.
-      // The five-minute cron respects this per-post backoff to avoid hammering the scores API.
       const retryMinutes = ageHours < 6 ? 5 : ageHours < 24 ? 15 : ageHours < 72 ? 30 : 120;
       await env.DB.prepare(`
         UPDATE tip_posts SET settlement_attempts=COALESCE(settlement_attempts,0)+1,
@@ -470,9 +506,25 @@ export async function settlePendingTips(
       AND (telegram_edited_at IS NULL OR (telegram_edited_at='SENDING' AND updated_at <= datetime('now','-10 minutes'))) AND message_id IS NOT NULL
     ORDER BY settled_at ASC LIMIT ?
   `).bind(limit).all<any>()).results;
+  const notifyResultsByPost = new Map<number, PickResultRecord[]>();
+  const notifyPostIds = notifyRows.map((post) => Number(post.id));
+  for (let offset = 0; offset < notifyPostIds.length; offset += 100) {
+    const idChunk = notifyPostIds.slice(offset, offset + 100);
+    if (!idChunk.length) continue;
+    const placeholders = idChunk.map(() => "?").join(",");
+    const resultRows = (await env.DB.prepare(
+      `SELECT * FROM tip_results WHERE tip_post_id IN (${placeholders}) ORDER BY tip_post_id ASC, id ASC`
+    ).bind(...idChunk).all<any>()).results;
+    for (const result of resultRows) {
+      const postId = Number(result.tip_post_id);
+      const current = notifyResultsByPost.get(postId) || [];
+      current.push(result as PickResultRecord);
+      notifyResultsByPost.set(postId, current);
+    }
+  }
   for (const post of notifyRows) {
-    const resultRows = (await env.DB.prepare("SELECT * FROM tip_results WHERE tip_post_id=? ORDER BY id ASC").bind(post.id).all<any>()).results;
-    const picks = resultRows.filter((p:any) => ["WON","LOST","VOID"].includes(p.result) && Number(p.completed) === 1) as PickResultRecord[];
+    const resultRows = notifyResultsByPost.get(Number(post.id)) || [];
+    const picks = resultRows.filter((p) => ["WON","LOST","VOID"].includes(p.result) && Number(p.completed) === 1);
     if (!picks.length || picks.length !== resultRows.length) continue;
     if (await editTelegramOnce(env, Number(post.id), Number(post.message_id), picks, post.result, nowIso)) {
       summary.editedTelegramMessages++;
