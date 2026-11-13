@@ -459,6 +459,15 @@ export async function settlePendingTips(
     }
   }
 
+  const postUpdates: Array<{
+    postId: number;
+    kind: "settled" | "retry";
+    statement: any;
+    picks: PickResultRecord[];
+    overall?: "WON" | "LOST" | "VOID" | "PARTIAL";
+    messageId?: number;
+  }> = [];
+
   for (const post of rows) {
     const picks = parsedByPost.get(Number(post.id)) || [];
     const allTerminal = picks.length > 0 && picks.every(p => p.completed === 1 && ["WON","LOST","VOID"].includes(p.result));
@@ -466,28 +475,47 @@ export async function settlePendingTips(
       const anyLost = picks.some(p => p.result === "LOST");
       const anyWon = picks.some(p => p.result === "WON");
       const overall = anyLost && anyWon ? "PARTIAL" : anyLost ? "LOST" : anyWon ? "WON" : "VOID";
-      await env.DB.prepare(`
+      const statement = env.DB.prepare(`
         UPDATE tip_posts SET result=?, settled_at=COALESCE(settled_at,datetime('now')),
           last_checked_at=?, next_retry_at=NULL, updated_at=datetime('now')
         WHERE id=? AND (result IS NULL OR result='PENDING')
-      `).bind(overall, nowIso, post.id).run();
-      summary.settledPosts++;
-      if (options?.sendTelegramUpdate !== false && post.message_id) {
-        if (await editTelegramOnce(env, Number(post.id), Number(post.message_id), picks, overall as "WON"|"LOST"|"VOID"|"PARTIAL", nowIso)) {
-          summary.editedTelegramMessages++;
-        }
-      }
+      `).bind(overall, nowIso, post.id);
+      postUpdates.push({
+        postId: Number(post.id), kind: "settled", statement, picks, overall,
+        messageId: post.message_id ? Number(post.message_id) : undefined,
+      });
     } else {
       const kickoff = post.commence_time ? new Date(post.commence_time).getTime() : now.getTime();
       const ageHours = Math.max(0, (now.getTime() - kickoff) / 3600000);
       const retryMinutes = ageHours < 6 ? 5 : ageHours < 24 ? 15 : ageHours < 72 ? 30 : 120;
-      await env.DB.prepare(`
+      const statement = env.DB.prepare(`
         UPDATE tip_posts SET settlement_attempts=COALESCE(settlement_attempts,0)+1,
           last_checked_at=?, next_retry_at=datetime('now', ?),
           settlement_note=?, updated_at=datetime('now')
         WHERE id=? AND (result IS NULL OR result='PENDING')
-      `).bind(nowIso, `+${retryMinutes} minutes`, picks.length ? "Scores missing, incomplete, or team names did not match; retained as PENDING" : "No valid picks found for settlement", post.id).run();
-      summary.requeuedBackoff = (summary.requeuedBackoff || 0) + 1;
+      `).bind(nowIso, `+${retryMinutes} minutes`, picks.length ? "Scores missing, incomplete, or team names did not match; retained as PENDING" : "No valid picks found for settlement", post.id);
+      postUpdates.push({ postId: Number(post.id), kind: "retry", statement, picks });
+    }
+  }
+
+  for (let offset = 0; offset < postUpdates.length; offset += RESULT_BATCH_SIZE) {
+    const chunk = postUpdates.slice(offset, offset + RESULT_BATCH_SIZE);
+    try {
+      await env.DB.batch(chunk.map((entry) => entry.statement));
+      for (const entry of chunk) {
+        if (entry.kind === "retry") {
+          summary.requeuedBackoff = (summary.requeuedBackoff || 0) + 1;
+          continue;
+        }
+        summary.settledPosts++;
+        if (options?.sendTelegramUpdate !== false && entry.messageId && entry.overall) {
+          if (await editTelegramOnce(env, entry.postId, entry.messageId, entry.picks, entry.overall, nowIso)) {
+            summary.editedTelegramMessages++;
+          }
+        }
+      }
+    } catch (error) {
+      summary.errors.push(`tip_posts status batch failed for posts ${chunk.map((entry) => entry.postId).join(",")}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
