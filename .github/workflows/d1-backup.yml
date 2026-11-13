@@ -1,0 +1,83 @@
+name: Manual D1 backup
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-d1-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Export production D1 to private R2
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production-backup
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DATABASE_NAME: fastxbetcash_bot-db
+      BACKUP_BUCKET: xbet-bot-backups-private
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install pinned Wrangler
+        run: npm ci
+
+      - name: Export, compress, and verify D1 backup
+        id: backup
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/d1-backup"
+          backup_dir="$RUNNER_TEMP/d1-backup"
+          timestamp="$(date -u +'%Y%m%dT%H%M%SZ')"
+          sql_file="$backup_dir/database.sql"
+          archive="$backup_dir/d1-${timestamp}.sql.gz"
+
+          cleanup() {
+            rm -rf "$backup_dir"
+          }
+          trap cleanup EXIT
+
+          npx wrangler d1 export "$DATABASE_NAME" --remote --skip-confirmation --output="$sql_file"
+          test -s "$sql_file"
+          gzip -9 "$sql_file"
+          test -s "$archive"
+
+          checksum="$(sha256sum "$archive" | awk '{print $1}')"
+          printf '%s  %s\n' "$checksum" "$(basename "$archive")" > "$archive.sha256"
+
+          jq -n \
+            --arg database "$DATABASE_NAME" \
+            --arg bucket "$BACKUP_BUCKET" \
+            --arg createdAt "$timestamp" \
+            --arg commit "$GITHUB_SHA" \
+            --arg archive "$(basename "$archive")" \
+            --arg sha256 "$checksum" \
+            --arg workflowRun "$GITHUB_RUN_ID" \
+            '{database:$database,bucket:$bucket,createdAtUtc:$createdAt,commit:$commit,archive:$archive,sha256:$sha256,workflowRun:$workflowRun}' \
+            > "$archive.json"
+
+          key="backups/d1/$timestamp"
+          npx wrangler r2 object put "$BACKUP_BUCKET/$key/$(basename "$archive")" --file="$archive" --content-type=application/gzip
+          npx wrangler r2 object put "$BACKUP_BUCKET/$key/$(basename "$archive").sha256" --file="$archive.sha256" --content-type=text/plain
+          npx wrangler r2 object put "$BACKUP_BUCKET/$key/$(basename "$archive").json" --file="$archive.json" --content-type=application/json
+
+          npx wrangler r2 object get "$BACKUP_BUCKET/$key/$(basename "$archive")" --file="$backup_dir/roundtrip.sql.gz"
+          remote_checksum="$(sha256sum "$backup_dir/roundtrip.sql.gz" | awk '{print $1}')"
+          test "$checksum" = "$remote_checksum"
+
+          echo "Backup uploaded and verified: $key"
+          echo "SHA-256: $checksum"
