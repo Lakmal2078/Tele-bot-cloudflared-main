@@ -80,7 +80,7 @@ import {
   createAdminSessionToken,
   hasValidAdminSession,
 } from "./adminSession";
-import { getStats, getOperationsDashboard, getDailyFinancialTrends, getSupportTickets, updateSupportTicket, createScheduledChannelPost, recordAnalyticsEvent, getAttributionFunnelStats, consumeRateLimitBuckets, clearRateLimitBucket } from "./db";
+import { getStats, getOperationsDashboard, getDailyFinancialTrends, getSupportTickets, updateSupportTicket, createScheduledChannelPost, recordAnalyticsEvent, getAttributionFunnelStats, consumeRateLimitBuckets, getRateLimitBucket, recordRateLimitFailure, clearRateLimitBucket } from "./db";
 import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
 import { getObject } from "./storage";
 import { getR2StorageAnalytics } from "./r2";
@@ -147,16 +147,22 @@ async function adminFailureBucketKey(request: Request, env: Env): Promise<string
   return `admin:failed:${ipHash || "unknown-client"}`;
 }
 
-async function adminAttemptAllowedPersistent(request: Request, env: Env): Promise<boolean> {
-  const [bucket] = await consumeRateLimitBuckets(
-    env.DB,
-    [{
-      key: await adminFailureBucketKey(request, env),
-      limit: SECURITY_LIMITS.ADMIN_FAILURE_LIMIT,
-      windowMs: SECURITY_LIMITS.ADMIN_FAILURE_WINDOW_MS,
-    }]
+async function isAdminBlockedPersistent(request: Request, env: Env): Promise<boolean> {
+  const bucket = await getRateLimitBucket(env.DB, await adminFailureBucketKey(request, env));
+  return Boolean(
+    bucket &&
+    bucket.reset_at > Date.now() &&
+    bucket.count >= SECURITY_LIMITS.ADMIN_FAILURE_LIMIT
   );
-  return Boolean(bucket?.consumed);
+}
+
+async function recordAdminFailurePersistent(request: Request, env: Env): Promise<void> {
+  await recordRateLimitFailure(
+    env.DB,
+    await adminFailureBucketKey(request, env),
+    SECURITY_LIMITS.ADMIN_FAILURE_LIMIT,
+    SECURITY_LIMITS.ADMIN_FAILURE_WINDOW_MS
+  );
 }
 
 async function clearAdminFailurePersistent(request: Request, env: Env): Promise<void> {
@@ -168,7 +174,7 @@ async function clearAdminFailurePersistent(request: Request, env: Env): Promise<
  * caller is not allowed, or null when the request may proceed.
  */
 export async function requireAdmin(request: Request, env: Env): Promise<Response | null> {
-  if (!(await adminAttemptAllowedPersistent(request, env))) return tooManyAttemptsResponse();
+  if (await isAdminBlockedPersistent(request, env)) return tooManyAttemptsResponse();
   // Enforce optional IP allowlist before accepting credentials.
   if (!isAdminIpAllowed(request, env)) {
     return new Response(JSON.stringify({ ok: false, error: "Forbidden" }), {
@@ -180,6 +186,7 @@ export async function requireAdmin(request: Request, env: Env): Promise<Response
     await clearAdminFailurePersistent(request, env);
     return null;
   }
+  await recordAdminFailurePersistent(request, env);
   return unauthorizedResponse();
 }
 
@@ -327,9 +334,10 @@ function adminHtmlHeaders(nonce: string): Record<string, string> {
     "Content-Type": "text/html; charset=utf-8",
     "Cache-Control": "no-store, must-revalidate",
     "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
-    "Content-Security-Policy": `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}' 'unsafe-inline'; img-src 'self' data: https:; font-src https://fonts.gstatic.com; connect-src 'self';`,
+    "Content-Security-Policy": `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}' 'unsafe-inline'; img-src 'self' data: https:; font-src https://fonts.gstatic.com; connect-src 'self'; frame-ancestors 'none';`,
   };
 }
 
@@ -708,8 +716,8 @@ export async function handleApiRequest(
       }
     };
 
-    if (options && (options as any).ctx && typeof (options as any).ctx.waitUntil === "function") {
-      (options as any).ctx.waitUntil(persistTask());
+    if (options?.executionContext && typeof options.executionContext.waitUntil === "function") {
+      options.executionContext.waitUntil(persistTask());
     } else {
       await persistTask().catch(() => {});
     }
@@ -1028,7 +1036,7 @@ ${guideEntries}
     const denied = await requireAdmin(request, env);
     if (denied) return denied;
     const adminId = request.headers.get("x-admin-id") || "";
-    if (!/^\\d+$/.test(adminId) || !isConfiguredAdminId(Number(adminId), env)) {
+    if (!/^\d+$/.test(adminId) || !isConfiguredAdminId(Number(adminId), env)) {
       return json({ ok: false, error: "A configured X-Admin-Id is required" }, 403);
     }
     try {
@@ -1250,7 +1258,7 @@ ${guideEntries}
   // HttpOnly session cookie so it never appears in a URL.
   if ((path === "/admin/login" || path === "/panel/login") && method === "POST") {
     if (!isAdminIpAllowed(request, env)) return json({ ok: false, error: "Forbidden" }, 403);
-    if (!(await adminAttemptAllowedPersistent(request, env))) return tooManyAttemptsResponse();
+    if (await isAdminBlockedPersistent(request, env)) return tooManyAttemptsResponse();
 
     const contentType = request.headers.get("Content-Type")?.split(";", 1)[0].trim().toLowerCase();
     if (contentType !== "application/x-www-form-urlencoded") {
@@ -1269,6 +1277,7 @@ ${guideEntries}
     const secret = (env.ADMIN_API_SECRET || "").trim();
 
     if (!secret || !supplied || !constantTimeEqual(supplied, secret)) {
+      await recordAdminFailurePersistent(request, env);
       const nonce = crypto.randomUUID().replace(/-/g, "");
       return new Response(renderAdminLoginPage(env, nonce, { error: "Invalid admin secret." }), {
         status: 401,
@@ -1303,7 +1312,7 @@ ${guideEntries}
   if ((path === "/admin" || path === "/admin/" || path === "/panel") && (method === "GET" || method === "HEAD")) {
     if (!isAdminIpAllowed(request, env)) return json({ ok: false, error: "Forbidden" }, 403);
     // Fail closed: with no ADMIN_API_SECRET configured nobody is authorized.
-    if (!(await adminAttemptAllowedPersistent(request, env))) return tooManyAttemptsResponse();
+    if (await isAdminBlockedPersistent(request, env)) return tooManyAttemptsResponse();
     const isAuth = await adminRequestAuthorized(request, env);
     if (isAuth) await clearAdminFailurePersistent(request, env);
 
@@ -1357,14 +1366,7 @@ ${guideEntries}
         nonce
       );
 
-      const headers: Record<string, string> = {
-        "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "no-store, must-revalidate",
-        "X-Content-Type-Options": "nosniff",
-        "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
-        "Content-Security-Policy": `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}' 'unsafe-inline'; img-src 'self' data: https:; font-src https://fonts.gstatic.com; connect-src 'self';`,
-      };
+      const headers: Record<string, string> = adminHtmlHeaders(nonce);
 
       if (method === "HEAD") return new Response(null, { status: 200, headers });
       return new Response(html, { status: 200, headers });

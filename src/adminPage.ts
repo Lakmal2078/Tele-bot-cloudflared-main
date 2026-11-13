@@ -1128,7 +1128,7 @@ What we offer:
 🔒 100% Secure, Verified & 0% Hidden Fees!
 
 Tap 'Start' below to begin now! 👇</div>
-          <button type="button" class="btn-tab" aria-live="polite" onclick="var btn=this;navigator.clipboard.writeText(document.getElementById('copy-desc-box').innerText).then(function(){btn.textContent='✓ Copied!';setTimeout(function(){btn.textContent='📋 Copy Description Text'},2000);})" style="width: 100%; text-align: center; justify-content: center; padding: 8px; cursor: pointer;">
+          <button type="button" class="btn-tab" aria-live="polite" data-copy-target="copy-desc-box" data-copy-label="📋 Copy Description Text" style="width: 100%; text-align: center; justify-content: center; padding: 8px; cursor: pointer;">
             📋 Copy Description Text
           </button>
         </div>
@@ -1140,7 +1140,7 @@ Tap 'Start' below to begin now! 👇</div>
             <span style="color: #10b981; font-family: monospace;">109 / 120 chars</span>
           </div>
           <div id="copy-about-box" style="background: #0a111e; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 12px; font-size: 12px; line-height: 1.5; color: #e2e8f0; font-family: sans-serif; white-space: pre-line; flex: 1; margin-bottom: 10px;">⚡ Fast xBet Cash 🇱🇰 | Official 1xBet Sri Lanka Cash Desk. Instant deposits, fast withdrawals &amp; daily free tips!</div>
-          <button type="button" class="btn-tab" aria-live="polite" onclick="var btn=this;navigator.clipboard.writeText(document.getElementById('copy-about-box').innerText).then(function(){btn.textContent='✓ Copied!';setTimeout(function(){btn.textContent='📋 Copy About Text'},2000);})" style="width: 100%; text-align: center; justify-content: center; padding: 8px; cursor: pointer;">
+          <button type="button" class="btn-tab" aria-live="polite" data-copy-target="copy-about-box" data-copy-label="📋 Copy About Text" style="width: 100%; text-align: center; justify-content: center; padding: 8px; cursor: pointer;">
             📋 Copy About Text
           </button>
         </div>
@@ -1153,7 +1153,7 @@ Tap 'Start' below to begin now! 👇</div>
           </div>
           <div id="copy-privacy-box" style="background: #0a111e; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 12px; font-size: 12px; line-height: 1.5; color: #7dd3fc; font-family: monospace; word-break: break-all; flex: 1; margin-bottom: 10px;">/privacy</div>
           <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-            <button type="button" class="btn-tab" aria-live="polite" onclick="var btn=this;var fullUrl=window.location.origin+'/privacy';navigator.clipboard.writeText(fullUrl).then(function(){btn.textContent='✓ Copied!';setTimeout(function(){btn.textContent='📋 Copy Privacy URL'},2000);})" style="flex: 1; text-align: center; justify-content: center; padding: 8px; cursor: pointer;">
+            <button type="button" class="btn-tab" aria-live="polite" data-copy-path="/privacy" data-copy-label="📋 Copy Privacy URL" style="flex: 1; text-align: center; justify-content: center; padding: 8px; cursor: pointer;">
               📋 Copy Privacy URL
             </button>
             <a href="/privacy" target="_blank" class="btn-tab" style="text-align: center; justify-content: center; padding: 8px 12px; text-decoration: none; display: inline-flex; align-items: center; color: #e2e8f0;">
@@ -1519,6 +1519,29 @@ Tap 'Start' below to begin now! 👇</div>
       if (isTabActive && pollIntervalMs > 0) {
         refreshR2Dashboard();
       }
+    });
+
+    // CSP-safe clipboard copy handlers for BotFather profile cards
+    document.querySelectorAll("[data-copy-target], [data-copy-path]").forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        var targetId = btn.getAttribute("data-copy-target");
+        var copyPath = btn.getAttribute("data-copy-path");
+        var defaultLabel = btn.getAttribute("data-copy-label") || btn.textContent || "Copy";
+        var text = "";
+        if (targetId) {
+          var box = document.getElementById(targetId);
+          text = box ? (box.innerText || box.textContent || "") : "";
+        } else if (copyPath) {
+          text = window.location.origin + copyPath;
+        }
+        if (!text || !navigator.clipboard) return;
+        navigator.clipboard.writeText(text).then(function() {
+          btn.textContent = "✓ Copied!";
+          setTimeout(function() {
+            btn.textContent = defaultLabel;
+          }, 2000);
+        });
+      });
     });
 
     // Initialize auto-polling

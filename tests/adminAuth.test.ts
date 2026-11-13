@@ -284,3 +284,70 @@ describe("tip click IP hashing (L4)", () => {
     expect(a).not.toBe(c);
   });
 });
+
+describe("admin security & regression fixes", () => {
+  it("does not rate-limit repeated GET /admin page loads while still blocking brute-force POST /admin/login", async () => {
+    const db = createMockD1();
+    const env = { ...baseEnv, DB: db };
+    const headers = { "CF-Connecting-IP": "198.51.100.99" };
+
+    for (let i = 0; i < SECURITY_LIMITS.ADMIN_FAILURE_LIMIT + 5; i += 1) {
+      const getRes = await handleApiRequest(req("https://localhost/admin", { headers }), env);
+      expect(getRes?.status).toBe(200);
+      expect(getRes?.headers.get("X-Frame-Options")).toBe("DENY");
+      expect(getRes?.headers.get("Content-Security-Policy")).toContain("frame-ancestors 'none'");
+    }
+
+    let lastLoginRes: Response | null = null;
+    for (let i = 0; i < SECURITY_LIMITS.ADMIN_FAILURE_LIMIT + 1; i += 1) {
+      lastLoginRes = await handleApiRequest(
+        req("https://localhost/admin/login", {
+          method: "POST",
+          headers,
+          body: new URLSearchParams({ secret: "wrong-secret" }),
+        }),
+        env
+      );
+    }
+    expect(lastLoginRes?.status).toBe(429);
+  });
+
+  it("serves authenticated /admin with anti-clickjacking headers and no inline onclick handlers", async () => {
+    const token = await createAdminSessionToken(SECRET);
+    const res = await handleApiRequest(
+      req("https://localhost/admin", {
+        headers: { Cookie: `${ADMIN_SESSION_COOKIE}=${token}` },
+      }),
+      baseEnv
+    );
+    expect(res?.status).toBe(200);
+    expect(res?.headers.get("X-Frame-Options")).toBe("DENY");
+    expect(res?.headers.get("Content-Security-Policy")).toContain("frame-ancestors 'none'");
+    const html = (await res?.text()) || "";
+    expect(html).not.toMatch(/\sonclick=/i);
+    expect(html).toContain("data-copy-target=");
+  });
+
+  it("accepts a valid configured numeric X-Admin-Id header on POST /api/admin/tips/settlement/override", async () => {
+    const res = await handleApiRequest(
+      req("https://localhost/api/admin/tips/settlement/override", {
+        method: "POST",
+        headers: {
+          "x-admin-secret": SECRET,
+          "x-admin-id": "123456789",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tipPostId: 1,
+          eventId: "evt_123",
+          outcome: "WON",
+          note: "Verified match score",
+        }),
+      }),
+      baseEnv
+    );
+    expect(res?.status).toBe(200);
+    expect(await res?.json()).toEqual({ ok: true });
+  });
+});
+
