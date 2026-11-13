@@ -79,5 +79,6 @@ bucket_name = "chat-media"
 
 [triggers]
 # 02:00 UTC = R2 cleanup; 02:30/06:30/12:30 UTC = 08:00/12:00/18:00 SL free tips.
-# Health checks run independently; pending tip settlement checks run every five minutes.
-crons = ["0 2 * * *", "30 2 * * *", "30 6 * * *", "30 12 * * *", "7,22,37,52 * * * *", "*/5 * * * *"]
+# One combined cron entry respects the Free plan's five-trigger account limit.
+# Settlement runs every five minutes; health checks additionally run at :07/:22/:37/:52.
+crons = ["0 2 * * *", "30 2 * * *", "30 6 * * *", "30 12 * * *", "*/5,7,22,37,52 * * * *"]
