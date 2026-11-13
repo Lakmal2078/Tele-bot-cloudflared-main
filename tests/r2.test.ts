@@ -53,10 +53,16 @@ describe("getR2StorageAnalytics", () => {
     expect(calls).toHaveLength(10);
 
     const second = await getR2StorageAnalytics(env, first.continuation);
-    expect(second.scanComplete).toBe(true);
-    expect(second.continuation).toBeNull();
-    expect(second.totalObjects).toBe(24);
-    expect(second.totalStorageBytes).toBe(120);
+    expect(second.scanComplete).toBe(false);
+    expect(second.pagesProcessed).toBe(10);
+    expect(second.totalObjects).toBe(20);
+    expect(second.continuation).toBeTruthy();
+
+    const third = await getR2StorageAnalytics(env, second.continuation);
+    expect(third.scanComplete).toBe(true);
+    expect(third.continuation).toBeNull();
+    expect(third.totalObjects).toBe(24);
+    expect(third.totalStorageBytes).toBe(120);
     expect(calls).toHaveLength(24);
   });
 
