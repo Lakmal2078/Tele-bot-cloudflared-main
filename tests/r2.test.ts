@@ -226,13 +226,11 @@ describe("backupReceiptToR2 security boundaries", () => {
 
   it("cancels and releases an interrupted response stream", async () => {
     const { env, put } = createReceiptEnv();
-    let cancelCalled = false;
     const stream = new ReadableStream<Uint8Array>({
       pull(controller) {
         controller.enqueue(new Uint8Array([0xff, 0xd8, 0xff]));
         controller.error(new DOMException("The operation was aborted", "AbortError"));
       },
-      cancel() { cancelCalled = true; },
     });
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(telegramFileInfo())
