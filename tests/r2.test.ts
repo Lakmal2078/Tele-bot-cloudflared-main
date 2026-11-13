@@ -66,6 +66,14 @@ describe("getR2StorageAnalytics", () => {
     expect(calls).toHaveLength(24);
   });
 
+  it("rejects provider pages larger than the documented page bound", async () => {
+    const oversizedPage = createEnv(async () => ({
+      objects: Array.from({ length: 1001 }, (_, index) => ({ key: `receipts/${index}`, size: 1 })),
+      truncated: false,
+    }));
+    await expect(getR2StorageAnalytics(oversizedPage)).rejects.toThrow(/page exceeded/i);
+  });
+
   it("rejects invalid and bucket-mismatched continuation tokens", async () => {
     const list = async ({ prefix, cursor }: { prefix?: string; cursor?: string }) => ({
       objects: [], truncated: prefix === "receipts/" && !cursor, cursor: prefix === "receipts/" && !cursor ? "next" : undefined,
