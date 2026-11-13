@@ -40,8 +40,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/d1-backup"
+          umask 077
+
+          : "${CLOUDFLARE_API_TOKEN:?Missing CLOUDFLARE_API_TOKEN in production-backup environment}"
+          : "${CLOUDFLARE_ACCOUNT_ID:?Missing CLOUDFLARE_ACCOUNT_ID in production-backup environment}"
+
           backup_dir="$RUNNER_TEMP/d1-backup"
+          mkdir -p "$backup_dir"
           timestamp="$(date -u +'%Y%m%dT%H%M%SZ')"
           sql_file="$backup_dir/database.sql"
           archive="$backup_dir/d1-${timestamp}.sql.gz"
@@ -51,8 +56,12 @@ jobs:
           }
           trap cleanup EXIT
 
+          echo "::group::1. Export remote D1 database"
           npx wrangler d1 export "$DATABASE_NAME" --remote --skip-confirmation --output="$sql_file"
           test -s "$sql_file"
+          echo "::endgroup::"
+
+          echo "::group::2. Compress and generate checksum/manifest"
           gzip -9 "$sql_file"
           test -s "$archive"
 
@@ -69,15 +78,20 @@ jobs:
             --arg workflowRun "$GITHUB_RUN_ID" \
             '{database:$database,bucket:$bucket,createdAtUtc:$createdAt,commit:$commit,archive:$archive,sha256:$sha256,workflowRun:$workflowRun}' \
             > "$archive.json"
+          echo "::endgroup::"
 
+          echo "::group::3. Upload artifacts to remote private R2 bucket"
           key="backups/d1/$timestamp"
-          npx wrangler r2 object put "$BACKUP_BUCKET/$key/$(basename "$archive")" --file="$archive" --content-type=application/gzip
-          npx wrangler r2 object put "$BACKUP_BUCKET/$key/$(basename "$archive").sha256" --file="$archive.sha256" --content-type=text/plain
-          npx wrangler r2 object put "$BACKUP_BUCKET/$key/$(basename "$archive").json" --file="$archive.json" --content-type=application/json
+          npx wrangler r2 object put "$BACKUP_BUCKET/$key/$(basename "$archive")" --remote --file="$archive" --content-type=application/gzip
+          npx wrangler r2 object put "$BACKUP_BUCKET/$key/$(basename "$archive").sha256" --remote --file="$archive.sha256" --content-type=text/plain
+          npx wrangler r2 object put "$BACKUP_BUCKET/$key/$(basename "$archive").json" --remote --file="$archive.json" --content-type=application/json
+          echo "::endgroup::"
 
-          npx wrangler r2 object get "$BACKUP_BUCKET/$key/$(basename "$archive")" --file="$backup_dir/roundtrip.sql.gz"
+          echo "::group::4. Roundtrip download and SHA-256 verification"
+          npx wrangler r2 object get "$BACKUP_BUCKET/$key/$(basename "$archive")" --remote --file="$backup_dir/roundtrip.sql.gz"
           remote_checksum="$(sha256sum "$backup_dir/roundtrip.sql.gz" | awk '{print $1}')"
           test "$checksum" = "$remote_checksum"
+          echo "::endgroup::"
 
           echo "Backup uploaded and verified: $key"
           echo "SHA-256: $checksum"
