@@ -325,7 +325,7 @@ export async function settlePendingTips(
     WHERE status = 'POSTED'
       AND (result IS NULL OR result = 'PENDING')
       AND (commence_time IS NULL OR datetime(commence_time) <= datetime('now', '+3 hours'))
-    ORDER BY id ASC
+    ORDER BY COALESCE(commence_time, created_at) DESC, id DESC
     LIMIT ?
   `;
 

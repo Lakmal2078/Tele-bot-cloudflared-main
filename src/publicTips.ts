@@ -47,12 +47,15 @@ function safeNumber(value: unknown): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-function parseTipsJson(raw: string | null, row: Record<string, unknown>): PublicTip[] {
+function parseTipsJson(raw: string | null, row: Record<string, unknown>, resultsByEvent: Map<string, Record<string, unknown>> = new Map()): PublicTip[] {
   if (raw) {
     try {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        return parsed.slice(0, 8).map((item: any, index: number) => ({
+        return parsed.slice(0, 8).map((item: any, index: number) => {
+          const eventId = String(item?.eventId || "");
+          const settled = resultsByEvent.get(eventId);
+          return {
           id: Number(row.id) * 100 + index,
           sport: classifySport(String(item?.sportKey || ""), String(item?.sportTitle || "")),
           sportTitle: String(item?.sportTitle || row.sport_title || "Sports"),
@@ -62,10 +65,11 @@ function parseTipsJson(raw: string | null, row: Record<string, unknown>): Public
           market: String(item?.market || row.market || "h2h"),
           odds: safeNumber(item?.odds ?? row.odds),
           commenceTime: item?.commenceTime ? String(item.commenceTime) : (row.commence_time ? String(row.commence_time) : null),
-          result: item?.result ? String(item.result).toUpperCase() as PublicTip["result"] : (row.result ? String(row.result).toUpperCase() as PublicTip["result"] : null),
-          scoreHome: item?.scoreHome != null ? String(item.scoreHome) : null,
-          scoreAway: item?.scoreAway != null ? String(item.scoreAway) : null,
-        }));
+          result: settled?.result ? String(settled.result).toUpperCase() as PublicTip["result"] : (item?.result ? String(item.result).toUpperCase() as PublicTip["result"] : (parsed.length === 1 && row.result ? String(row.result).toUpperCase() as PublicTip["result"] : "PENDING")),
+          scoreHome: settled?.score_home != null ? String(settled.score_home) : (item?.scoreHome != null ? String(item.scoreHome) : null),
+          scoreAway: settled?.score_away != null ? String(settled.score_away) : (item?.scoreAway != null ? String(item.scoreAway) : null),
+        };
+        });
       }
     } catch {
       // Fall through to the single-pick row representation.
@@ -73,6 +77,7 @@ function parseTipsJson(raw: string | null, row: Record<string, unknown>): Public
   }
 
   if (!row.home_team || !row.away_team || !row.selection) return [];
+  const settled = resultsByEvent.get(String(row.event_id || ""));
   return [{
     id: Number(row.id),
     sport: classifySport(String(row.sport_key || ""), String(row.sport_title || "")),
@@ -83,9 +88,9 @@ function parseTipsJson(raw: string | null, row: Record<string, unknown>): Public
     market: String(row.market || "h2h"),
     odds: safeNumber(row.odds),
     commenceTime: row.commence_time ? String(row.commence_time) : null,
-    result: row.result ? String(row.result).toUpperCase() as PublicTip["result"] : null,
-    scoreHome: null,
-    scoreAway: null,
+    result: settled?.result ? String(settled.result).toUpperCase() as PublicTip["result"] : (row.result ? String(row.result).toUpperCase() as PublicTip["result"] : "PENDING"),
+    scoreHome: settled?.score_home != null ? String(settled.score_home) : null,
+    scoreAway: settled?.score_away != null ? String(settled.score_away) : null,
   }];
 }
 
@@ -96,24 +101,47 @@ export async function getPublicTips(env: Env, limit = 12): Promise<PublicTipsRes
   if (!env.DB) return { ok: true, generatedAt, tips: [], summary: { days: 7, ...summary } };
 
   try {
+    const safeLimit = Math.max(1, Math.min(limit, 20));
     const rows = (await env.DB.prepare(`
-      SELECT id, sport_key, sport_title, home_team, away_team, commence_time,
+      SELECT id, event_id, sport_key, sport_title, home_team, away_team, commence_time,
              market, selection, odds, tips_json, result
       FROM tip_posts
       WHERE status = 'POSTED'
-        AND (result IN ('WON', 'PENDING') OR result IS NULL)
         AND (posted_at >= datetime('now', '-7 days') OR created_at >= datetime('now', '-7 days'))
-      ORDER BY 
-        CASE WHEN result = 'PENDING' OR result IS NULL THEN 1 WHEN result = 'WON' THEN 2 ELSE 3 END,
-        COALESCE(commence_time, posted_at, created_at) DESC,
-        id DESC
+      ORDER BY COALESCE(commence_time, posted_at, created_at) DESC, id DESC
       LIMIT ?
-    `).bind(Math.max(1, Math.min(limit, 20))).all<Record<string, unknown> | null>()).results;
+    `).bind(safeLimit).all<Record<string, unknown> | null>()).results;
+
+    const postIds = rows.filter((row): row is Record<string, unknown> => Boolean(row)).map((row) => Number(row.id));
+    const resultsByPost = new Map<number, Map<string, Record<string, unknown>>>();
+    if (postIds.length > 0) {
+      const placeholders = postIds.map(() => "?").join(", ");
+      const resultRows = (await env.DB.prepare(`
+        SELECT tip_post_id, event_id, result, score_home, score_away
+        FROM tip_results
+        WHERE tip_post_id IN (${placeholders})
+      `).bind(...postIds).all<Record<string, unknown>>()).results;
+      for (const result of resultRows) {
+        const postId = Number(result.tip_post_id);
+        let byEvent = resultsByPost.get(postId);
+        if (!byEvent) {
+          byEvent = new Map<string, Record<string, unknown>>();
+          resultsByPost.set(postId, byEvent);
+        }
+        byEvent.set(String(result.event_id), result);
+      }
+    }
 
     const tips = rows
-      .flatMap((row) => row ? parseTipsJson(row.tips_json ? String(row.tips_json) : null, row) : [])
-      .filter((tip) => tip.sport === "football" || tip.sport === "cricket")
-      .slice(0, Math.max(1, Math.min(limit, 20)));
+      .flatMap((row) => {
+        if (!row) return [];
+        return parseTipsJson(
+          row.tips_json ? String(row.tips_json) : null,
+          row,
+          resultsByPost.get(Number(row.id)) || new Map()
+        );
+      })
+      .slice(0, safeLimit);
 
     return { ok: true, generatedAt, tips, summary: { days: 7, ...summary } };
   } catch {
@@ -182,11 +210,11 @@ export function publicTipsClientScript(nonce?: string): string {
     return sel;
   };
   var resultBadge = function(r){
-    if (r === "WON") return '<span class="tipStatus won">Won</span>';
-    if (r === "LOST") return '<span class="tipStatus lost">Lost</span>';
-    if (r === "VOID") return '<span class="tipStatus void">Void</span>';
-    if (r === "PARTIAL") return '<span class="tipStatus partial">Partial</span>';
-    return '<span class="tipStatus pending">Today</span>';
+    if (r === "WON") return '<span class="tipStatus won">WIN</span>';
+    if (r === "LOST") return '<span class="tipStatus lost">LOSS</span>';
+    if (r === "VOID") return '<span class="tipStatus void">VOID</span>';
+    if (r === "PARTIAL") return '<span class="tipStatus partial">PARTIAL</span>';
+    return '<span class="tipStatus pending">PENDING</span>';
   };
   var render = function(data){
     var tips = Array.isArray(data.tips) ? data.tips : [];
