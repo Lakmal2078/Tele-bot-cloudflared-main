@@ -40,8 +40,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # තාවකාලික SQL ගොනු runner user ට පමණක් සීමා කිරීම (Security)
           umask 077
 
+          # Environment secrets නොමැති නම් ආරම්භයේදීම පැහැදිලි දෝෂයක් පෙන්වීම
           : "${CLOUDFLARE_API_TOKEN:?Missing CLOUDFLARE_API_TOKEN in production-backup environment}"
           : "${CLOUDFLARE_ACCOUNT_ID:?Missing CLOUDFLARE_ACCOUNT_ID in production-backup environment}"
 
@@ -51,6 +53,7 @@ jobs:
           sql_file="$backup_dir/database.sql"
           archive="$backup_dir/d1-${timestamp}.sql.gz"
 
+          # Job එක අවසන් වූ විගස තාවකාලික backup ගොනු මකා දැමීම
           cleanup() {
             rm -rf "$backup_dir"
           }
@@ -82,6 +85,7 @@ jobs:
 
           echo "::group::3. Upload artifacts to remote private R2 bucket"
           key="backups/d1/$timestamp"
+          # Wrangler v4 හි සැබෑ R2 bucket එකට upload කිරීමට --remote අනිවාර්ය වේ
           npx wrangler r2 object put "$BACKUP_BUCKET/$key/$(basename "$archive")" --remote --file="$archive" --content-type=application/gzip
           npx wrangler r2 object put "$BACKUP_BUCKET/$key/$(basename "$archive").sha256" --remote --file="$archive.sha256" --content-type=text/plain
           npx wrangler r2 object put "$BACKUP_BUCKET/$key/$(basename "$archive").json" --remote --file="$archive.json" --content-type=application/json
@@ -95,3 +99,4 @@ jobs:
 
           echo "Backup uploaded and verified: $key"
           echo "SHA-256: $checksum"
+          
