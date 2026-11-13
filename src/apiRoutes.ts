@@ -130,7 +130,7 @@ import {
 import { getStats, getOperationsDashboard, getDailyFinancialTrends, getSupportTickets, updateSupportTicket, createScheduledChannelPost, recordAnalyticsEvent, getAttributionFunnelStats, consumeRateLimitBuckets, getRateLimitBucket, recordRateLimitFailure, clearRateLimitBucket } from "./db";
 import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
 import { getObject, putObject, deleteObjects, isR2Configured } from "./storage";
-import { getR2StorageAnalytics } from "./r2";
+import { getR2StorageAnalytics, R2AnalyticsContinuationError } from "./r2";
 import { settlePendingTips, overrideTipSettlement, getTipsPerformanceStats } from "./tipsSettlement";
 import { checkTelegramBotConnection } from "./telegramStatus";
 import { renderAdminPage, renderAdminLoginPage } from "./adminPage";
@@ -1325,7 +1325,7 @@ ${guideEntries}
         polledAt: new Date().toISOString(),
       });
     } catch (error) {
-      if (error instanceof Error && error.message.toLowerCase().includes("continuation")) {
+      if (error instanceof R2AnalyticsContinuationError) {
         return json({ ok: false, error: "Invalid analytics continuation" }, 400);
       }
       console.error("[Admin R2 Analytics] query failed", error);
