@@ -11,6 +11,6 @@ export default defineConfig({
       TestDriver(),
     ],
     setupFiles: ['testdriverai/vitest/setup'],
-    include: ['tests/landing-page.test.js'],
+    include: ['tests/landing-page.test.js', 'tests/landing-page-tips.test.js'],
   },
 });
