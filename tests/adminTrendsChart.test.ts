@@ -161,12 +161,16 @@ describe("Admin Page Renderer", () => {
     expect(html).toContain("@media (max-width: 768px)");
     expect(html).toContain("@media (max-width: 480px)");
 
-    // Single-column layout shifts on mobile
+    // Single-column layout shifts on mobile & horizontal overflow guards
     expect(html).toContain(".kpi-grid");
     expect(html).toContain("grid-template-columns: 1fr");
+    expect(html).toContain("grid-template-columns: minmax(0, 1fr)");
+    expect(html).toContain("overflow-x: clip");
     expect(html).toContain(".botfather-grid");
+    expect(html).toContain(".botfather-grid > div");
     expect(html).toContain(".payment-methods-grid");
     expect(html).toContain(".operational-grid");
+    expect(html).toContain("table.table-compact");
   });
 });
 

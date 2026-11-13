@@ -195,6 +195,10 @@ export function renderAdminPage(
   <link rel="apple-touch-icon" sizes="192x192" href="/logo.png">
   <style${nonceAttr}>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      max-width: 100%;
+      overflow-x: clip;
+    }
     body {
       background-color: #070b12;
       color: #f1f5f9;
@@ -204,6 +208,7 @@ export function renderAdminPage(
       min-height: 100vh;
     }
     .container {
+      width: 100%;
       max-width: 1180px;
       margin: 0 auto;
     }
@@ -360,19 +365,38 @@ export function renderAdminPage(
     }
     .botfather-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 16px;
       margin-bottom: 16px;
+    }
+    .botfather-grid > div {
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
+    }
+    .botfather-grid img {
+      max-width: 100%;
+      width: 100%;
+      height: auto;
+      display: block;
     }
     .payment-methods-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 16px;
     }
+    .payment-methods-grid > div {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
     .operational-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
       gap: 24px;
+    }
+    .operational-grid > .card {
+      min-width: 0;
+      max-width: 100%;
     }
     .header-actions {
       display: flex;
@@ -682,7 +706,7 @@ export function renderAdminPage(
       border: 1px solid var(--line);
       box-shadow: 0 12px 34px rgba(0,0,0,.16), inset 0 1px rgba(255,255,255,.025);
     }
-    .card { border-radius: 18px; padding: 24px; }
+    .card { border-radius: 18px; padding: 24px; min-width: 0; max-width: 100%; }
     .kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
     .kpi-card {
       position: relative;
@@ -720,8 +744,10 @@ export function renderAdminPage(
       border: 1px solid rgba(148,163,184,.10);
       border-radius: 12px;
       overflow-x: auto;
+      max-width: 100%;
     }
-    table { min-width: 620px; }
+    table { min-width: 560px; }
+    table.table-compact { min-width: 0; width: 100%; }
     tbody tr:hover { background: rgba(56,189,248,.045); }
     .btn, .btn-tab, .polling-select { transition: background .18s ease, border-color .18s ease, transform .18s ease; }
     .btn-primary { background: linear-gradient(135deg, #34d399, #10b981); box-shadow: 0 6px 18px rgba(16,185,129,.16); }
@@ -737,7 +763,7 @@ export function renderAdminPage(
     }
     @media (max-width: 768px) {
       body { padding: 12px 12px calc(92px + env(safe-area-inset-bottom)); }
-      .container { max-width: 100%; }
+      .container { width: 100%; max-width: 100%; }
       .header-bar { padding: 18px 16px; border-radius: 16px; }
       .header-bar h1 { font-size: 18px !important; }
       .header-bar > div:first-child > div { flex-wrap: wrap; }
@@ -749,9 +775,11 @@ export function renderAdminPage(
       .r2-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
       .r2-stat-card { padding: 13px 11px; min-width: 0; }
       .r2-stat-card .kpi-value { font-size: 19px !important; }
+      .botfather-grid, .operational-grid { grid-template-columns: minmax(0, 1fr); }
+      .payment-methods-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
       .card { padding: 16px 13px; margin-bottom: 14px; border-radius: 15px; }
-      .chart-box { padding: 12px 8px; margin-left: -2px; margin-right: -2px; }
-      #d3-trends-svg { min-width: 560px; }
+      .chart-box { padding: 12px 8px; margin-left: 0; margin-right: 0; }
+      #d3-trends-svg { min-width: 0; width: 100%; height: auto; }
       .table-container { -webkit-overflow-scrolling: touch; }
       .mobile-dashboard-nav {
         position: fixed;
@@ -985,11 +1013,11 @@ export function renderAdminPage(
       </div>
 
       ${funnel && funnel.bySource && funnel.bySource.length > 0 ? `
-      <div class="table-container" style="margin-top: 16px;">
-        <h3 style="font-size: 13px; font-weight: 700; color: #cbd5e1; margin-bottom: 8px;">
-          🏷️ Performance by Attribution Source
-        </h3>
-        <table>
+      <h3 style="font-size: 13px; font-weight: 700; color: #cbd5e1; margin-top: 16px; margin-bottom: 8px;">
+        🏷️ Performance by Attribution Source
+      </h3>
+      <div class="table-container" style="margin-top: 0;">
+        <table class="table-compact">
           <thead>
             <tr>
               <th>Campaign / Source</th>
@@ -999,8 +1027,8 @@ export function renderAdminPage(
           <tbody>
             ${funnel.bySource.map(s => `
               <tr class="border-b border-slate-800/80">
-                <td class="font-mono text-sm text-slate-200">${escapeText(s.source || "direct")}</td>
-                <td class="text-right font-mono text-emerald-400">${s.count.toLocaleString()}</td>
+                <td class="font-mono text-sm text-slate-200" style="word-break: break-word;">${escapeText(s.source || "direct")}</td>
+                <td class="text-right font-mono text-emerald-400" style="text-align: right; white-space: nowrap;">${s.count.toLocaleString()}</td>
               </tr>
             `).join("")}
           </tbody>
@@ -1052,10 +1080,10 @@ export function renderAdminPage(
       </div>
 
       <!-- Detailed Day-by-Day Table -->
-      <div class="table-container">
-        <h3 style="font-size: 14px; font-weight: 700; color: #cbd5e1; margin-bottom: 12px; margin-top: 16px;">
-          📊 Detailed Daily Breakdown
-        </h3>
+      <h3 style="font-size: 14px; font-weight: 700; color: #cbd5e1; margin-bottom: 10px; margin-top: 18px;">
+        📊 Detailed Daily Breakdown
+      </h3>
+      <div class="table-container" style="margin-top: 0;">
         <table>
           <thead>
             <tr>
@@ -1077,9 +1105,9 @@ export function renderAdminPage(
     <section class="card" id="section-bot-profile-kit" style="margin-bottom: 24px; border: 1px solid rgba(56, 189, 248, 0.25); background: linear-gradient(145deg, #0c1524, #080d17);">
       <div class="kit-header">
         <div>
-          <h3 style="font-size: 16px; font-weight: 700; color: #38bdf8; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
-            🤖 Telegram BotFather Setup Kit
-            <span style="font-size: 11px; padding: 2px 8px; border-radius: 999px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-weight: 600;">640x360 Ready</span>
+          <h3 style="font-size: 16px; font-weight: 700; color: #38bdf8; margin-bottom: 4px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+            <span>🤖 Telegram BotFather Setup Kit</span>
+            <span style="font-size: 11px; padding: 2px 8px; border-radius: 999px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-weight: 600; white-space: nowrap; flex-shrink: 0;">640x360 Ready</span>
           </h3>
           <p style="font-size: 13px; color: #94a3b8; margin: 0;">
             Copy verified BotFather configuration texts and download the exact 640x360 description photo.
@@ -1177,27 +1205,27 @@ Tap 'Start' below to begin now! 👇</div>
       </p>
       <div class="payment-methods-grid">
         ${data.paymentMethods ? `
-          <div style="background: #070b12; border: 1px solid rgba(255,255,255,0.06); padding: 12px; border-radius: 8px;">
+          <div style="background: rgba(5, 12, 22, 0.65); border: 1px solid rgba(148, 163, 184, 0.14); padding: 12px; border-radius: 10px;">
             <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px;">Bank Transfer</div>
             <div style="font-size: 13px; font-family: monospace; color: #38bdf8; word-break: break-all;">${escapeText(data.paymentMethods.bank)}</div>
           </div>
-          <div style="background: #070b12; border: 1px solid rgba(255,255,255,0.06); padding: 12px; border-radius: 8px;">
+          <div style="background: rgba(5, 12, 22, 0.65); border: 1px solid rgba(148, 163, 184, 0.14); padding: 12px; border-radius: 10px;">
             <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px;">eZ Cash</div>
             <div style="font-size: 13px; font-family: monospace; color: #10b981;">${escapeText(data.paymentMethods.ezcash)}</div>
           </div>
-          <div style="background: #070b12; border: 1px solid rgba(255,255,255,0.06); padding: 12px; border-radius: 8px;">
+          <div style="background: rgba(5, 12, 22, 0.65); border: 1px solid rgba(148, 163, 184, 0.14); padding: 12px; border-radius: 10px;">
             <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px;">mCash</div>
             <div style="font-size: 13px; font-family: monospace; color: #f59e0b;">${escapeText(data.paymentMethods.mcash)}</div>
           </div>
-          <div style="background: #070b12; border: 1px solid rgba(255,255,255,0.06); padding: 12px; border-radius: 8px;">
+          <div style="background: rgba(5, 12, 22, 0.65); border: 1px solid rgba(148, 163, 184, 0.14); padding: 12px; border-radius: 10px;">
             <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px;">FriMi</div>
             <div style="font-size: 13px; font-family: monospace; color: #a855f7;">${escapeText(data.paymentMethods.frimi)}</div>
           </div>
-          <div style="background: #070b12; border: 1px solid rgba(255,255,255,0.06); padding: 12px; border-radius: 8px;">
+          <div style="background: rgba(5, 12, 22, 0.65); border: 1px solid rgba(148, 163, 184, 0.14); padding: 12px; border-radius: 10px;">
             <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px;">iPay</div>
             <div style="font-size: 13px; font-family: monospace; color: #ef4444;">${escapeText(data.paymentMethods.ipay)}</div>
           </div>
-          <div style="background: #070b12; border: 1px solid rgba(255,255,255,0.06); padding: 12px; border-radius: 8px;">
+          <div style="background: rgba(5, 12, 22, 0.65); border: 1px solid rgba(148, 163, 184, 0.14); padding: 12px; border-radius: 10px;">
             <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px;">WhatsApp Support</div>
             <div style="font-size: 13px; font-family: monospace; color: #22c55e;">${escapeText(data.paymentMethods.whatsapp)}</div>
           </div>
