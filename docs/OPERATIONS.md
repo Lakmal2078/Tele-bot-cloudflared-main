@@ -21,6 +21,33 @@ npm run audit:deps
 
 The CI deployment workflow performs the quality gates and migration validation before deployment. Review its result and the deployment health-check result after merging; a successful merge alone is not evidence that production operations were manually verified.
 
+## D1 backups
+
+The `.github/workflows/d1-backup.yml` workflow is a **manual-only production D1 export**. It is intentionally not scheduled: Cloudflare documents that a remote D1 export can make the database unavailable to serve queries while the export runs. Trigger it only during an approved low-traffic maintenance window.
+
+### One-time GitHub configuration
+
+1. In GitHub repository Settings → Environments, create an environment named `production-backup`.
+2. Configure required reviewers for that environment. Do not allow the backup job to run without an operator approval.
+3. Add environment secrets:
+   - `CLOUDFLARE_API_TOKEN`: a narrowly scoped Cloudflare API token with D1 read and R2 object write permissions for the required account.
+   - `CLOUDFLARE_ACCOUNT_ID`: the Cloudflare account identifier.
+4. Confirm the private bucket `xbet-bot-backups-private` exists, has no public `r2.dev` domain or custom public domain, and is in the intended account.
+
+### Run and verify
+
+1. Open Actions → Manual D1 backup → Run workflow.
+2. Review the target database and maintenance window before approving the `production-backup` environment gate.
+3. The workflow exports `fastxbetcash_bot-db`, compresses the SQL dump, computes SHA-256, and uploads the archive, checksum, and JSON manifest under `backups/d1/<UTC timestamp>/`.
+4. It downloads the uploaded archive from R2 and compares its SHA-256 with the source checksum. A successful job confirms upload/read-back integrity, not a full restore.
+5. Treat the archive as sensitive production data. Keep the bucket private and restrict access to the smallest practical set of operators.
+
+The workflow does not delete older backups and no retention period is configured. Define and approve a retention policy before enabling automatic cleanup. The workflow also does not back up R2 receipt/media objects; that requires a separate data-classification and retention decision.
+
+### Restore drill
+
+A backup is not considered recoverable until it has been restored and validated in the isolated staging D1 database. Do not restore a production dump into the production database as a test. The staging database is currently a separate empty resource; migration/schema preparation and a controlled restore validation remain outstanding.
+
 ## Health checks
 
 - `/health` (also `/api/health`) — readiness/configuration check. Returns a non-success response when required Worker configuration is invalid; it does not prove that every downstream integration is healthy.
