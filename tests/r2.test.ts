@@ -185,17 +185,23 @@ describe("backupReceiptToR2 security boundaries", () => {
 
   it("returns null for non-success Telegram metadata and download responses", async () => {
     const { env, put } = createReceiptEnv();
-    const metadataFailure = vi.fn().mockResolvedValue(new Response("unavailable", { status: 502, statusText: "Bad Gateway" }));
+    let metadataBodyCancelled = false;
+    const metadataBody = new ReadableStream<Uint8Array>({ cancel() { metadataBodyCancelled = true; } });
+    const metadataFailure = vi.fn().mockResolvedValue(new Response(metadataBody, { status: 502, statusText: "Bad Gateway" }));
     vi.stubGlobal("fetch", metadataFailure);
     await expect(backupReceiptToR2(env, "bot-token", "file-id", 4)).resolves.toBeNull();
     expect(metadataFailure).toHaveBeenCalledTimes(1);
+    expect(metadataBodyCancelled).toBe(true);
 
+    let downloadBodyCancelled = false;
+    const downloadBody = new ReadableStream<Uint8Array>({ cancel() { downloadBodyCancelled = true; } });
     const downloadFailure = vi.fn()
       .mockResolvedValueOnce(telegramFileInfo())
-      .mockResolvedValueOnce(new Response("unavailable", { status: 503, statusText: "Service Unavailable" }));
+      .mockResolvedValueOnce(new Response(downloadBody, { status: 503, statusText: "Service Unavailable" }));
     vi.stubGlobal("fetch", downloadFailure);
     await expect(backupReceiptToR2(env, "bot-token", "file-id", 5)).resolves.toBeNull();
     expect(downloadFailure).toHaveBeenCalledTimes(2);
+    expect(downloadBodyCancelled).toBe(true);
     expect(put).not.toHaveBeenCalled();
   });
 
