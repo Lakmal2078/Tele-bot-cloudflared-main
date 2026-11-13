@@ -361,10 +361,26 @@ export function publicTipsClientScript(nonce?: string): string {
     }
   };
 
-  fetch("/api/tips/preview", { headers: { Accept: "application/json" }, cache: "no-store" })
-    .then(function(r){ if (!r.ok) throw new Error("preview unavailable"); return r.json(); })
-    .then(render)
-    .catch(function(){ render({ tips: [], summary: { total: 0, won: 0, lost: 0, winRate: 0, weeklyRoi: "" } }); });
+  var refreshing = false;
+  var refresh = function(){
+    if (refreshing || document.visibilityState === "hidden") return;
+    refreshing = true;
+    fetch("/api/tips/preview", {
+      headers: { Accept: "application/json" },
+      cache: "no-store"
+    })
+      .then(function(r){ if (!r.ok) throw new Error("preview unavailable"); return r.json(); })
+      .then(function(data){
+        if (data && data.ok === true && Array.isArray(data.tips)) render(data);
+      })
+      .catch(function(){ /* Keep the last server-rendered or successfully fetched data. */ })
+      .finally(function(){ refreshing = false; });
+  };
+  refresh();
+  window.setInterval(refresh, 30000);
+  document.addEventListener("visibilitychange", function(){
+    if (document.visibilityState === "visible") refresh();
+  });
 })();`;
   return `<script${nonceAttr}>${body}</script>`;
 }
