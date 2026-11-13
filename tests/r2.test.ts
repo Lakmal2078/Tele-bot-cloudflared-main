@@ -75,9 +75,12 @@ describe("getR2StorageAnalytics", () => {
   });
 
   it("rejects invalid and bucket-mismatched continuation tokens", async () => {
-    const list = async ({ prefix, cursor }: { prefix?: string; cursor?: string }) => ({
-      objects: [], truncated: prefix === "receipts/" && !cursor, cursor: prefix === "receipts/" && !cursor ? "next" : undefined,
-    });
+    const list = async ({ prefix, cursor }: { prefix?: string; cursor?: string }) => {
+      if (prefix !== "receipts/") return { objects: [], truncated: false };
+      const index = cursor ? Number(cursor.split("-").pop()) : 0;
+      const next = index + 1;
+      return { objects: [], truncated: next < 12, cursor: next < 12 ? `page-${next}` : undefined };
+    };
     const env = createEnv(list);
     const partial = await getR2StorageAnalytics(env);
     expect(partial.continuation).toBeTruthy();
