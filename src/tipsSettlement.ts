@@ -482,7 +482,15 @@ export async function settlePendingTips(
 /** Admin-only explicit historical settlement override with an audit trail. */
 export async function overrideTipSettlement(
   env: Env,
-  input: { tipPostId: number; eventId: string; outcome: "WON" | "LOST" | "VOID"; note: string; adminId: string }
+  input: {
+    tipPostId: number;
+    eventId: string;
+    outcome: "WON" | "LOST" | "VOID";
+    note: string;
+    adminId: string;
+    scoreHome?: string;
+    scoreAway?: string;
+  }
 ): Promise<boolean> {
   if (!env.DB || !Number.isSafeInteger(input.tipPostId) || !input.eventId.trim() || !input.note.trim()) return false;
   let existing = await env.DB.prepare(
