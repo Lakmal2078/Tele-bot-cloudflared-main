@@ -1287,7 +1287,7 @@ ${guideEntries}
       const daysParam = parseInt(url.searchParams.get("days") || "7", 10);
       const safeDays = Math.max(1, Math.min(daysParam, 90));
       const metric = url.searchParams.get("metric") === "count" ? "count" : "volume";
-      const continuation = url.searchParams.get("continuation");
+      const continuation = request.headers.get("X-R2-Analytics-Continuation");
       if (continuation && continuation.length > 16_384) {
         return json({ ok: false, error: "Invalid analytics continuation" }, 400);
       }
