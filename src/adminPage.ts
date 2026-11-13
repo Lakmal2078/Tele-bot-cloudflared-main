@@ -1338,6 +1338,7 @@ Tap 'Start' below to begin now! 👇</div>
     var pollIntervalMs = 15000;
     var pollTimer = null;
     var isPollingInProgress = false;
+    var r2AnalyticsContinuation = ${JSON.stringify(r2.continuation || null)};
     var isTabActive = !document.hidden;
 
     var intervalSelect = document.getElementById("polling-interval-select");
@@ -1407,7 +1408,9 @@ Tap 'Start' below to begin now! 👇</div>
       var days = searchParams.get("days") || "7";
       var metric = searchParams.get("metric") || "volume";
 
-      fetch("/api/admin/r2-analytics?days=" + encodeURIComponent(days) + "&metric=" + encodeURIComponent(metric), {
+      var analyticsUrl = "/api/admin/r2-analytics?days=" + encodeURIComponent(days) + "&metric=" + encodeURIComponent(metric);
+      if (r2AnalyticsContinuation) analyticsUrl += "&continuation=" + encodeURIComponent(r2AnalyticsContinuation);
+      fetch(analyticsUrl, {
         cache: "no-store",
         headers: { "Accept": "application/json" }
       })
@@ -1422,6 +1425,15 @@ Tap 'Start' below to begin now! 👇</div>
       })
       .then(function(data) {
         if (!data || !data.ok) return;
+        if (data.r2) {
+          r2AnalyticsContinuation = data.r2.continuation || null;
+          var scanStatusEl = document.getElementById("r2-last-sync-time");
+          if (scanStatusEl) {
+            scanStatusEl.textContent = data.r2.scanComplete
+              ? "Last synced: " + new Date().toLocaleTimeString()
+              : "Scanning " + (data.r2.objectsProcessed || 0).toLocaleString() + " objects · " + (data.r2.pagesProcessed || 0) + " pages this batch";
+          }
+        }
 
         // 1. Update R2 Storage Analytics card
         if (data.r2) {
