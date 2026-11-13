@@ -224,7 +224,7 @@ describe("backupReceiptToR2 security boundaries", () => {
     expect(put).not.toHaveBeenCalled();
   });
 
-  it("cancels and releases an interrupted response stream", async () => {
+  it("releases an interrupted response stream and never uploads partial bytes", async () => {
     const { env, put } = createReceiptEnv();
     const stream = new ReadableStream<Uint8Array>({
       pull(controller) {
@@ -238,6 +238,7 @@ describe("backupReceiptToR2 security boundaries", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(backupReceiptToR2(env, "bot-token", "file-id", 9)).resolves.toBeNull();
+    expect(stream.locked).toBe(false);
     expect(put).not.toHaveBeenCalled();
   });
 });
