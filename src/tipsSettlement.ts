@@ -502,20 +502,21 @@ export async function settlePendingTips(
     const chunk = postUpdates.slice(offset, offset + RESULT_BATCH_SIZE);
     try {
       await env.DB.batch(chunk.map((entry) => entry.statement));
-      for (const entry of chunk) {
-        if (entry.kind === "retry") {
-          summary.requeuedBackoff = (summary.requeuedBackoff || 0) + 1;
-          continue;
-        }
-        summary.settledPosts++;
-        if (options?.sendTelegramUpdate !== false && entry.messageId && entry.overall) {
-          if (await editTelegramOnce(env, entry.postId, entry.messageId, entry.picks, entry.overall, nowIso)) {
-            summary.editedTelegramMessages++;
-          }
-        }
-      }
     } catch (error) {
       summary.errors.push(`tip_posts status batch failed for posts ${chunk.map((entry) => entry.postId).join(",")}: ${error instanceof Error ? error.message : String(error)}`);
+      continue;
+    }
+    for (const entry of chunk) {
+      if (entry.kind === "retry") {
+        summary.requeuedBackoff = (summary.requeuedBackoff || 0) + 1;
+        continue;
+      }
+      summary.settledPosts++;
+      if (options?.sendTelegramUpdate !== false && entry.messageId && entry.overall) {
+        if (await editTelegramOnce(env, entry.postId, entry.messageId, entry.picks, entry.overall, nowIso)) {
+          summary.editedTelegramMessages++;
+        }
+      }
     }
   }
 
