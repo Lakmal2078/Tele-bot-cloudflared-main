@@ -40,7 +40,7 @@ HEALTH_CHECK_PATH="${HEALTH_CHECK_PATH:-/health}"
 command -v node >/dev/null 2>&1 || die "Node.js is required."
 command -v npm  >/dev/null 2>&1 || die "npm is required."
 NODE_MAJOR="$(node -p 'Number(process.versions.node.split(".")[0])')"
-(( NODE_MAJOR >= 18 )) || die "Node.js 18+ is required; found $(node -v)."
+(( NODE_MAJOR >= 22 )) || die "Node.js 22+ is required; found $(node -v)."
 
 # ── Locate wrangler config (toml | jsonc | json) ─────────────────────────
 WRANGLER_CONFIG=""
@@ -259,8 +259,10 @@ fi
 if [[ "${SKIP_HEALTHCHECK:-0}" == "1" ]]; then
   warn "SKIP_HEALTHCHECK=1 — health check skipped (local/manual only)."
 elif [[ -z "$WORKER_URL" ]]; then
+  if $IS_CI; then die "Worker URL could not be detected; refusing to pass CI without a health check."; fi
   warn "Worker URL could not be detected; set WORKER_URL for a post-deploy health check."
 elif ! command -v curl >/dev/null 2>&1; then
+  if $IS_CI; then die "curl is required for the CI post-deployment health check."; fi
   warn "curl not available — skipping health check."
 else
   HEALTH_URL="${WORKER_URL%/}${HEALTH_CHECK_PATH}"
@@ -305,7 +307,8 @@ else
         success "Post-deployment health check passed."
       fi
     else
-      success "Post-deployment health check passed (empty body, HTTP 200)."
+      if $IS_CI; then die "Health endpoint returned an empty response body."; fi
+      warn "Health endpoint returned an empty response body."
     fi
   fi
 fi

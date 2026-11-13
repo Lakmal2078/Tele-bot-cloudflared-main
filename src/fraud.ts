@@ -20,12 +20,24 @@ const WITHDRAWAL_RATE_LIMIT = { windowMinutes: 10, maxRequests: 3 };
 export async function checkRateLimit(
   database: D1Database,
   userId: number,
-  table: "deposits" | "withdrawals"
+  table: "deposits" | "withdrawals",
+  now = Date.now()
 ): Promise<FraudCheckResult> {
   const limit = table === "deposits" ? DEPOSIT_RATE_LIMIT : WITHDRAWAL_RATE_LIMIT;
-  const count = await db.countRecentSubmissions(database, userId, table, limit.windowMinutes);
+  let consumed = false;
+  try {
+    const [bucket] = await db.consumeRateLimitBuckets(database, [{
+      key: `cashier:${table}:${userId}`,
+      limit: limit.maxRequests,
+      windowMs: limit.windowMinutes * 60_000,
+    }], now);
+    consumed = Boolean(bucket?.consumed);
+  } catch {
+    // Fail closed if the shared D1 limiter is unavailable.
+    consumed = false;
+  }
 
-  if (count >= limit.maxRequests) {
+  if (!consumed) {
     const kind = table === "deposits" ? "තැන්පතු (deposit)" : "මුදල් ලබාගැනීමේ (withdrawal)";
     return {
       allowed: false,

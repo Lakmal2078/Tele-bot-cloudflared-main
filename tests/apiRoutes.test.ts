@@ -78,8 +78,7 @@ describe("handleApiRequest", () => {
     const data = (await res?.json()) as any;
     expect(data.status).toBe("error");
     expect(data.configuration?.healthy).toBe(false);
-    expect(Array.isArray(data.configuration?.issues)).toBe(true);
-    expect(data.configuration.issues.length).toBeGreaterThan(0);
+    expect(data.configuration).not.toHaveProperty("issues");
   });
 
   it("responds to /api/health with HEAD 503 when configuration is invalid", async () => {
@@ -147,7 +146,7 @@ describe("handleApiRequest", () => {
     expect(data.error).toContain("Invalid or unsafe storage key");
   });
 
-  it("rejects non-admin actor on /api/admin/schedule", async () => {
+  it("ignores caller-supplied actor identity on /api/admin/schedule", async () => {
     const req = new Request("http://localhost/api/admin/schedule", {
       method: "POST",
       headers: {
@@ -162,12 +161,13 @@ describe("handleApiRequest", () => {
       }),
     });
     const res = await handleApiRequest(req, mockEnv);
-    expect(res?.status).toBe(403);
+    expect(res?.status).toBe(201);
     const data = (await res?.json()) as any;
-    expect(data.error).toContain("createdBy must be a registered ID");
+    expect(data.status).toBe("DRAFT");
+    expect(data.note).toContain("draft-only");
   });
 
-  it("rejects non-admin actor on /api/admin/tickets PATCH", async () => {
+  it("ignores caller-supplied actor identity on /api/admin/tickets PATCH", async () => {
     const req = new Request("http://localhost/api/admin/tickets", {
       method: "PATCH",
       headers: {
@@ -181,9 +181,9 @@ describe("handleApiRequest", () => {
       }),
     });
     const res = await handleApiRequest(req, mockEnv);
-    expect(res?.status).toBe(403);
+    expect(res?.status).toBe(200);
     const data = (await res?.json()) as any;
-    expect(data.error).toContain("adminId must be a registered ID");
+    expect(data.ok).toBe(true);
   });
   it("rejects insecure custom tip redirect URLs and falls back to the configured HTTPS URL", async () => {
     const req = new Request("https://worker.test/go/tip/42?url=http%3A%2F%2F1xbet.com%2Foffer");

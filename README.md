@@ -272,7 +272,7 @@ All schedules are defined in `wrangler.toml` in UTC.
 | `30 2 * * *` | 08:00 | Free tips, slot 1 |
 | `30 6 * * *` | 12:00 | Free tips, slot 2 |
 | `30 12 * * *` | 18:00 | Free tips, slot 3 |
-| `7,15,22,37,52 * * * *` | Every hour | Maintenance: health checks at :07, :22, :37, :52; tip settlement at :15 |
+| `*/5,7,22,37,52 * * * *` | Every 5 minutes | Tip settlement every 5 minutes; health checks additionally at :07, :22, :37, :52 |
 
 Jobs must be safe to retry. A scheduled run can execute more than once.
 

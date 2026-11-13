@@ -119,7 +119,7 @@ function detectImageSignature(bytes: Uint8Array): "image/jpeg" | "image/png" | "
   }
   return null;
 }
-import { constantTimeEqual, isConfiguredAdminId, validateEnv } from "./config";
+import { constantTimeEqual, validateEnv } from "./config";
 import { securityHeaders, landingPageSecurityHeaders, isAdminIpAllowed, SECURITY_LIMITS } from "./security";
 import {
   adminSessionCookieHeader,
@@ -163,22 +163,14 @@ export function adminAuthorized(request: Request, env: Env): boolean {
     return false;
   }
 
-  return adminIdHeaderValid(request, env);
-}
-
-/** If the client identifies as a specific admin via X-Admin-Id, verify it. */
-function adminIdHeaderValid(request: Request, env: Env): boolean {
-  const adminIdHeader = request.headers.get("x-admin-id");
-  if (!adminIdHeader) return true;
-  const adminId = parseInt(adminIdHeader, 10);
-  return Number.isInteger(adminId) && isConfiguredAdminId(adminId, env);
+  // A shared API secret authenticates the service account, not an individual
+  // Telegram operator. Never treat a caller-supplied X-Admin-Id as identity.
+  return true;
 }
 
 /** True when credentials arrive in a header OR a valid admin session cookie. */
 export async function adminRequestAuthorized(request: Request, env: Env): Promise<boolean> {
-  if (adminAuthorized(request, env)) return true;
-  if (!(await hasValidAdminSession(request, env))) return false;
-  return adminIdHeaderValid(request, env);
+  return adminAuthorized(request, env) || hasValidAdminSession(request, env);
 }
 
 function tooManyAttemptsResponse(): Response {
@@ -416,10 +408,7 @@ export async function handleApiRequest(
         service: "telegram-bot",
         runtime: options?.runtime || "cf-worker",
         timestamp: new Date().toISOString(),
-        configuration: {
-          healthy,
-          issues: envErrors,
-        },
+        configuration: { healthy },
       },
       statusCode
     );
@@ -686,15 +675,9 @@ export async function handleApiRequest(
   // Privacy-safe daily salted hash for visitor analytics
   async function hashIpForPrivacy(ip: string | null): Promise<string | null> {
     if (!ip) return null;
-    try {
-      const today = new Date().toISOString().slice(0, 10);
-      const data = new TextEncoder().encode(`salt_${today}_${ip}`);
-      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
-    } catch {
-      return null;
-    }
+    const day = new Date().toISOString().slice(0, 10);
+    // HMAC with a high-entropy server secret; daily context limits linkability.
+    return hashClientIp(`${day}:${ip}`, env);
   }
 
   // Conversion & Click-through Analytics Beacon (/api/analytics/event)
@@ -1167,10 +1150,9 @@ ${guideEntries}
   if (path === "/api/admin/tips/settlement/override" && method === "POST") {
     const denied = await requireAdmin(request, env);
     if (denied) return denied;
-    const adminId = request.headers.get("x-admin-id") || "";
-    if (!/^\d+$/.test(adminId) || !isConfiguredAdminId(Number(adminId), env)) {
-      return json({ ok: false, error: "A configured X-Admin-Id is required" }, 403);
-    }
+    // Never trust a caller-supplied Telegram ID as proof of the actor. This
+    // endpoint authenticates the shared admin credential, so audit it as such.
+    const adminId = "shared-admin-secret";
     try {
       const body = await request.json() as {
         tipPostId?: number; eventId?: string; outcome?: "WON" | "LOST" | "VOID"; note?: string; scoreHome?: string; scoreAway?: string;
@@ -1527,27 +1509,20 @@ ${guideEntries}
           id?: number;
           status?: "OPEN" | "PENDING" | "CLOSED";
           reply?: string;
-          adminId?: number;
         };
 
-        if (!body.id || !body.status || !body.adminId) {
-          return json({ ok: false, error: "id, status and adminId are required" }, 400);
+        if (!body.id || !body.status) {
+          return json({ ok: false, error: "id and status are required" }, 400);
         }
 
-        // P1 #5: Validate adminId against server-side ADMIN_IDS
-        if (!isConfiguredAdminId(body.adminId, env)) {
-          return json(
-            { ok: false, error: "Forbidden: adminId must be a registered ID in ADMIN_IDS" },
-            403
-          );
-        }
-
+        // HTTP admin access uses one shared credential, not an individually
+        // authenticated Telegram identity. Record the shared actor sentinel.
         const updated = await updateSupportTicket(
           env.DB,
           body.id,
           body.status,
           body.reply || null,
-          body.adminId
+          0
         );
         return json({ ok: updated }, updated ? 200 : 404);
       } catch {
@@ -1578,21 +1553,12 @@ ${guideEntries}
         ctaUrl?: string;
         language?: "si" | "en" | "ta";
         scheduledFor?: string;
-        createdBy?: number;
       };
 
-      if (!body.title || !body.body || !body.scheduledFor || !body.createdBy) {
+      if (!body.title || !body.body || !body.scheduledFor) {
         return json(
-          { ok: false, error: "title, body, scheduledFor and createdBy are required" },
+          { ok: false, error: "title, body and scheduledFor are required" },
           400
-        );
-      }
-
-      // P1 #5: Validate createdBy against server-side ADMIN_IDS
-      if (!isConfiguredAdminId(body.createdBy, env)) {
-        return json(
-          { ok: false, error: "Forbidden: createdBy must be a registered ID in ADMIN_IDS" },
-          403
         );
       }
 
@@ -1604,7 +1570,8 @@ ${guideEntries}
         ctaUrl: body.ctaUrl,
         language: body.language,
         scheduledFor: body.scheduledFor,
-        createdBy: body.createdBy,
+        // 0 identifies actions authenticated by the shared admin credential.
+        createdBy: 0,
       });
 
       // Channel scheduling is currently draft-only: no worker publishes these rows.

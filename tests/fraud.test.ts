@@ -1,67 +1,39 @@
 import { describe, it, expect } from "vitest";
 import { checkRateLimit } from "../src/fraud";
 import { toCents, fromCents } from "../src/db";
-import type { D1Database } from "../src/types";
+import { createMockD1 } from "./helpers/mockD1";
 
-/**
- * Minimal in-memory D1 mock: returns a configurable COUNT for
- * `countRecentSubmissions` (the only query checkRateLimit makes).
- */
-function mockD1(count: number): D1Database {
-  const stmt: import("../src/types").D1PreparedStatement = {
-    bind(..._values: unknown[]) {
-      return stmt;
-    },
-    async first<T = unknown>(): Promise<T | null> {
-      return { c: count } as unknown as T;
-    },
-    async run() {
-      return { success: true };
-    },
-    async all<T = unknown>() {
-      return { results: [] as T[], success: true };
-    },
-  };
-
-  return {
-    prepare(_query: string) {
-      return stmt;
-    },
-    exec() {},
-    async batch() {
-      return [];
-    },
-  };
-}
-
-describe("fraud.checkRateLimit (DB-backed deposit/withdrawal limits)", () => {
-  it("allows submissions while under the per-window limit", async () => {
-    const res = await checkRateLimit(mockD1(0), 42, "deposits");
-    expect(res.allowed).toBe(true);
-    expect(res.blockMessage).toBeUndefined();
+describe("fraud.checkRateLimit (atomic D1 deposit/withdrawal limits)", () => {
+  it("allows the first three submissions and atomically blocks the fourth", async () => {
+    const database = createMockD1();
+    const now = 1_800_000_000_000;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const result = await checkRateLimit(database, 42, "deposits", now);
+      expect(result.allowed).toBe(true);
+    }
+    const blocked = await checkRateLimit(database, 42, "deposits", now);
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.blockMessage).toContain("තැන්පතු");
+    expect(blocked.blockMessage).toContain("deposit");
   });
 
-  it("allows submissions exactly at limit - 1", async () => {
-    const res = await checkRateLimit(mockD1(2), 42, "withdrawals"); // limit is 3
-    expect(res.allowed).toBe(true);
+  it("uses separate buckets for deposits and withdrawals", async () => {
+    const database = createMockD1();
+    const now = 1_800_000_000_000;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await checkRateLimit(database, 42, "deposits", now);
+    }
+    expect((await checkRateLimit(database, 42, "withdrawals", now)).allowed).toBe(true);
+    expect((await checkRateLimit(database, 43, "deposits", now)).allowed).toBe(true);
   });
 
-  it("blocks deposits once 3 submissions exist in the window", async () => {
-    const res = await checkRateLimit(mockD1(3), 42, "deposits");
-    expect(res.allowed).toBe(false);
-    expect(res.blockMessage).toContain("තැන්පතු");
-    expect(res.blockMessage).toContain("deposit");
-  });
-
-  it("blocks withdrawals with a withdrawal-specific message", async () => {
-    const res = await checkRateLimit(mockD1(5), 42, "withdrawals");
-    expect(res.allowed).toBe(false);
-    expect(res.blockMessage).toContain("withdrawal");
-  });
-
-  it("blocks far-past counts too (window is queried via SQL)", async () => {
-    const res = await checkRateLimit(mockD1(99), 42, "deposits");
-    expect(res.allowed).toBe(false);
+  it("resets an expired rate-limit window", async () => {
+    const database = createMockD1();
+    const now = 1_800_000_000_000;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await checkRateLimit(database, 42, "withdrawals", now);
+    }
+    expect((await checkRateLimit(database, 42, "withdrawals", now + 600_001)).allowed).toBe(true);
   });
 });
 
