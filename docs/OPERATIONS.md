@@ -30,7 +30,7 @@ The `.github/workflows/d1-backup.yml` workflow is a **manual-only production D1 
 1. In GitHub repository Settings → Environments, create an environment named `production-backup`.
 2. Configure required reviewers for that environment. Do not allow the backup job to run without an operator approval.
 3. Add environment secrets:
-   - `CLOUDFLARE_API_TOKEN`: a narrowly scoped Cloudflare API token with D1 read and R2 object write permissions for the required account.
+   - `CLOUDFLARE_API_TOKEN`: a narrowly scoped Cloudflare API token with D1 read plus R2 object read and write permissions for the required account.
    - `CLOUDFLARE_ACCOUNT_ID`: the Cloudflare account identifier.
 4. Confirm the private bucket `xbet-bot-backups-private` exists, has no public `r2.dev` domain or custom public domain, and is in the intended account.
 
