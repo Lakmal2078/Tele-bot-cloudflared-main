@@ -144,7 +144,7 @@ Affiliate and payment contact values (`XBET_LINK`, `XBET_PROMO_CODE`, `*_NUMBER`
 
 ### Cloudflare Secrets
 
-Set sensitive values with `wrangler secret put` or ``npm run secrets:cf` (non-echoing interactive setup with secure secret generation):
+Set sensitive values with `wrangler secret put` or `npm run secrets:cf` (non-echoing interactive setup with secure secret generation):
 
 | Secret | Purpose |
 |---|---|
