@@ -144,7 +144,7 @@ Affiliate and payment contact values (`XBET_LINK`, `XBET_PROMO_CODE`, `*_NUMBER`
 
 ### Cloudflare Secrets
 
-Set sensitive values with `wrangler secret put` or `bash scripts/setup-cf-secrets-secure.sh` (non-echoing interactive setup with secure secret generation; legacy `scripts/setup-cf-secrets.sh` is also available):
+Set sensitive values with `wrangler secret put` or ``npm run secrets:cf` (non-echoing interactive setup with secure secret generation):
 
 | Secret | Purpose |
 |---|---|
@@ -223,7 +223,7 @@ Selection and publishing pipeline:
    - **Tier 3 (wider odds):** Widens the odds window to capture high-probability favourites.
    - **Tier 4 (deduplication fallback):** Selects the best upcoming candidate even if it was scheduled before, so the channel stays active.
 5. **Delivery:** Posts formatted tips in Sinhala and English to `TIPS_CHANNEL_ID`, falling back to `CHANNEL_USERNAME` if the ID is not set. If no event passes any tier, the bot posts a notice with a scan summary.
-6. **Settlement:** Stores tip records and slot keys in D1. The hourly settlement job checks match results, updates D1, and edits channel posts with the final WIN, LOSS, or VOID outcome.
+6. **Settlement:** Stores tip records and slot keys in D1. The maintenance cron checks match results every five minutes, updates D1, and edits channel posts with the final WIN, LOSS, or VOID outcome.
 
 Further provider notes are in [`docs/free-tips.md`](./docs/free-tips.md).
 
@@ -253,7 +253,7 @@ Further provider notes are in [`docs/free-tips.md`](./docs/free-tips.md).
 | POST | `/admin/login`, `/admin/logout` | Exchanges `ADMIN_API_SECRET` for signed `HttpOnly` session cookie / clears cookie |
 | GET, HEAD | `/admin`, `/panel` | Protected Admin UI (login form when unauthenticated; full dashboard after sign-in) |
 | POST | `/api/tips/settle` | Admin trigger for tip settlement |
-| POST | `/api/admin/tips/settlement/override` | Manual historical tip settlement override (requires `ADMIN_API_SECRET` + configured `X-Admin-Id`) |
+| POST | `/api/admin/tips/settlement/override` | Manual historical tip settlement override (requires an authenticated admin session or `ADMIN_API_SECRET` via `Authorization: Bearer` / `X-Admin-Secret`; audit actor is recorded as `shared-admin-secret`) |
 | POST, DELETE | `/api/admin/bot/description-photo` | Upload (auto-cropped 640×360 JPEG/PNG/WebP) or reset custom BotFather description photo in R2 |
 | GET, HEAD | `/api/admin/dashboard`, `/api/admin/status` | Admin operations dashboard & status |
 | GET, HEAD | `/api/admin/trends`, `/api/admin/r2-analytics` | Financial trends & R2 storage analytics |
@@ -326,7 +326,7 @@ curl "https://api.telegram.org/bot<BOT_TOKEN>/getWebhookInfo"
 
 **Only fallback notices are published.** Check the Odds API key and quota, the sports list, and the quality thresholds (`TIPS_MIN_CONSENSUS`, `TIPS_MIN_VALUE`, `TIPS_MAX_STALE_HOURS`).
 
-**Tips stay pending.** Check the Worker logs and the hourly settlement job. A pending result can be correct if the event has not finished or the score data is not available yet.
+**Tips stay pending.** Check the Worker logs and the five-minute settlement cron. A pending result can be correct if the event has not finished or the score data is not available yet.
 
 **Local preview database errors.** The preview stores data in `data/`. Keep `data/.gitkeep` tracked and delete local database files if they become inconsistent.
 
