@@ -20,7 +20,9 @@ const TIP_LEASE_MINUTES = 15;
 const ODDS_API_RETRIES = 2;
 const DEFAULT_TIPS_PER_SLOT = 3;
 const MAX_ODDS_FEEDS_PER_SLOT = 5;
-const MAX_DISCOVERED_SPORTS_PER_GROUP = 1;
+const MAX_DISCOVERED_SPORTS_PER_GROUP = 4;
+const MAX_EVENT_PROBES_PER_SLOT = 15;
+const EVENT_PROBE_BATCH_SIZE = 3;
 
 const MAJOR_SPORTS_PRIORITY: readonly string[] = [
   "soccer_uefa_champs_league",
@@ -525,6 +527,59 @@ export async function getTodayPostedEventIds(env: Env): Promise<Set<string>> {
 
 export const getTodaysPostedEventIds = getTodayPostedEventIds;
 
+interface OddsUpcomingEvent {
+  id?: string;
+  commence_time?: string;
+}
+
+function isQuotaOrAuthErrorMessage(message: string): boolean {
+  return /\b(401|402|403|429)\b|quota|credit|out_of_usage|unauthorized|api[_\s-]?key/i.test(message);
+}
+
+async function checkFeedUpcomingEvents(
+  env: Env,
+  sport: string,
+  hoursAhead: number,
+  guard: OddsCreditGuard
+): Promise<{ status: "has_events" | "empty" | "error"; count: number; error?: string; fatal?: boolean }> {
+  try {
+    const events = await getJson<OddsUpcomingEvent[]>(
+      env,
+      (apiKey) => {
+        const url = new URL(`${ODDS_API_BASE}/sports/${encodeURIComponent(sport)}/events`);
+        url.searchParams.set("apiKey", apiKey);
+        url.searchParams.set("dateFormat", "iso");
+        return url;
+      },
+      6000,
+      guard,
+      false // 0-credit endpoint on The Odds API v4
+    );
+    if (!Array.isArray(events)) {
+      return { status: "error", count: 0, error: `Invalid /events response for ${sport}` };
+    }
+    const now = Date.now();
+    const windowMs = hoursAhead * 60 * 60 * 1000;
+    const upcomingCount = events.filter((ev) => {
+      if (!ev?.commence_time) return false;
+      const kickoff = new Date(ev.commence_time).getTime();
+      return Number.isFinite(kickoff) && kickoff > now && kickoff <= now + windowMs;
+    }).length;
+    return {
+      status: upcomingCount > 0 ? "has_events" : "empty",
+      count: upcomingCount,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      status: "error",
+      count: 0,
+      error: message,
+      fatal: isQuotaOrAuthErrorMessage(message),
+    };
+  }
+}
+
 async function fetchCandidates(env: Env): Promise<{ candidates: TipCandidate[]; stats: FallbackTipStats }> {
   if (!hasOddsApiKeys(env)) throw new Error("ODDS_API_KEY is not configured");
 
@@ -553,8 +608,13 @@ async function fetchCandidates(env: Env): Promise<{ candidates: TipCandidate[]; 
     console.warn("[Tips] Special-sport discovery failed:", discoveryError);
   }
 
-  const sports = selectPaidFeeds(explicitSports, discovered, maxFeeds, activeSports);
-  if (sports.length === 0) {
+  const candidateQueue = selectPaidFeeds(
+    explicitSports,
+    discovered,
+    Math.max(maxFeeds * 5, 18),
+    activeSports
+  );
+  if (candidateQueue.length === 0) {
     throw new Error(discoveryError ? `Odds API discovery failed: ${discoveryError}` : "No configured or discovered sport feeds are available");
   }
 
@@ -564,6 +624,65 @@ async function fetchCandidates(env: Env): Promise<{ candidates: TipCandidate[]; 
   const hoursAhead = Math.max(2, Number(env.TIPS_HOURS_AHEAD || "48"));
   const quality = getTipQualityConfig(env);
   const targetCount = Math.max(1, tipCount(env));
+
+  // Pre-flight check using 0-credit /events so paid /odds requests are never
+  // wasted on leagues that currently have 0 upcoming fixtures in hoursAhead.
+  const confirmedFeeds: string[] = [];
+  const unverifiedFeeds: string[] = [];
+  const knownEmptyFeeds = new Set<string>();
+  const probeErrors: string[] = [];
+  let probedFeeds = 0;
+
+  const probeLimit = Math.min(candidateQueue.length, MAX_EVENT_PROBES_PER_SLOT);
+  for (let i = 0; i < probeLimit && confirmedFeeds.length < maxFeeds; i += EVENT_PROBE_BATCH_SIZE) {
+    const batch = candidateQueue.slice(i, Math.min(i + EVENT_PROBE_BATCH_SIZE, probeLimit));
+    const results = await Promise.all(
+      batch.map(async (sport) => ({
+        sport,
+        probe: await checkFeedUpcomingEvents(env, sport, hoursAhead, guard),
+      }))
+    );
+    probedFeeds += batch.length;
+    for (const { sport, probe } of results) {
+      if (probe.status === "has_events") {
+        confirmedFeeds.push(sport);
+        console.log(`[Tips] Pre-check ${sport}: ${probe.count} upcoming event(s) (0 credits)`);
+      } else if (probe.status === "empty") {
+        knownEmptyFeeds.add(sport);
+        console.log(`[Tips] Pre-check ${sport}: 0 upcoming events in next ${hoursAhead}h; skipping paid /odds`);
+      } else {
+        if (probe.error) probeErrors.push(probe.error);
+        if (!probe.fatal) {
+          unverifiedFeeds.push(sport);
+        }
+        console.warn(`[Tips] Pre-check ${sport} failed (${probe.fatal ? "fatal" : "fail-open"}):`, probe.error);
+      }
+    }
+    if (results.every((r) => r.probe.fatal)) break;
+  }
+
+  const sports = [...confirmedFeeds];
+  if (sports.length < maxFeeds) {
+    for (const feed of unverifiedFeeds) {
+      if (sports.length >= maxFeeds) break;
+      if (!sports.includes(feed)) sports.push(feed);
+    }
+  }
+
+  if (sports.length === 0) {
+    if (probeErrors.length > 0) {
+      throw new Error(`All ${probedFeeds || candidateQueue.length} Odds API pre-check(s) failed: ${probeErrors[0]}`);
+    }
+    console.log(`[Tips] Pre-check found 0 upcoming events across ${probedFeeds} active feed(s); 0 paid /odds credits used.`);
+    return {
+      candidates: [],
+      stats: {
+        scannedMatches: 0,
+        passedMatches: 0,
+        sportsScanned: probedFeeds || candidateQueue.length,
+      },
+    };
+  }
 
   // Exclude events already posted earlier today to prevent duplicate tips across 08:00, 12:00, and 18:00 slots
   const todayPostedIds = await getTodayPostedEventIds(env);
@@ -659,19 +778,30 @@ async function fetchCandidates(env: Env): Promise<{ candidates: TipCandidate[]; 
     }
   }
 
-  // Phase 3: If we still have fewer than targetCount events and spare feed budget, try unqueried discovered sports.
+  // Phase 3: If we still have fewer than targetCount events and spare feed budget, try remaining unprobed active feeds (verified via 0-credit /events first).
   if (allEvents.length < targetCount && guard.snapshot().paidRequestAttempts < maxFeeds) {
     try {
-      const unqueriedDiscovered = discovered.filter((s) => !queriedSports.has(s));
+      const unqueriedDiscovered = candidateQueue.filter((s) => !queriedSports.has(s) && !knownEmptyFeeds.has(s) && !sports.includes(s));
       const fallbackSports = unqueriedDiscovered.length > 0
         ? unqueriedDiscovered
-        : (await discoverSpecialSports(env, ["auto:soccer", "auto:basketball", "auto:tennis", "auto:cricket", "auto:mma", "auto:icehockey"], guard)).discovered.filter((s) => !queriedSports.has(s));
+        : (await discoverSpecialSports(env, ["auto:soccer", "auto:basketball", "auto:tennis", "auto:cricket", "auto:mma", "auto:icehockey"], guard))
+            .discovered.filter((s) => !queriedSports.has(s) && !knownEmptyFeeds.has(s) && !sports.includes(s));
 
       if (fallbackSports.length > 0) {
-        console.log(`[Tips] Need more events (${allEvents.length}/${targetCount}); trying ${fallbackSports.length} remaining active feed(s)`);
+        console.log(`[Tips] Need more events (${allEvents.length}/${targetCount}); checking ${fallbackSports.length} remaining active feed(s)`);
       }
       for (const sport of fallbackSports) {
-        if (guard.snapshot().paidRequestAttempts >= maxFeeds) break;
+        if (guard.snapshot().paidRequestAttempts >= maxFeeds || probedFeeds >= MAX_EVENT_PROBES_PER_SLOT) break;
+        probedFeeds += 1;
+        const probe = await checkFeedUpcomingEvents(env, sport, hoursAhead, guard);
+        if (probe.status === "empty") {
+          knownEmptyFeeds.add(sport);
+          continue;
+        }
+        if (probe.status === "error" && probe.fatal) {
+          if (probe.error) feedErrors.push(probe.error);
+          continue;
+        }
         try {
           queriedSports.add(sport);
           const filtered = await fetchSportEvents(sport);
@@ -700,7 +830,7 @@ async function fetchCandidates(env: Env): Promise<{ candidates: TipCandidate[]; 
   selected = evaluateCollected();
 
   const usage = guard.snapshot();
-  console.log(`[Tips] Credit guard: key=#${usage.activeKeyIndex + 1}, paid_requests=${usage.paidRequestAttempts}/${maxFeeds}, remaining=${usage.remaining ?? "unknown"}, used=${usage.usedFromHeader ?? "unknown"}, selected=${selected.length} tip(s)`);
+  console.log(`[Tips] Credit guard: key=#${usage.activeKeyIndex + 1}, paid_requests=${usage.paidRequestAttempts}/${maxFeeds}, skipped_empty=${knownEmptyFeeds.size}, remaining=${usage.remaining ?? "unknown"}, used=${usage.usedFromHeader ?? "unknown"}, selected=${selected.length} tip(s)`);
 
   // Never mask a total API/quota outage as "Matches Scanned: 0".
   if (uniqueEvents.length === 0 && succeededFeeds === 0 && feedErrors.length > 0) {
@@ -712,7 +842,7 @@ async function fetchCandidates(env: Env): Promise<{ candidates: TipCandidate[]; 
     stats: {
       scannedMatches: uniqueEvents.length,
       passedMatches: selected.length,
-      sportsScanned: queriedSports.size || sports.length,
+      sportsScanned: Math.max(queriedSports.size, probedFeeds),
     },
   };
 }

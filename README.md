@@ -212,14 +212,14 @@ auto:soccer, auto:cricket, auto:basketball, auto:tennis, auto:mma, auto:icehocke
 ```
 
 **Quota estimate (2 × 500-credit keys = 1,000/month):**
-* **Tip fetching (`TIPS_MAX_FEEDS=3`):** Fetches up to 3 active feeds per slot and stops early at 2 feeds once 3 diverse picks are found (`~220–279` credits/month across 3 daily slots).
+* **Tip fetching (`TIPS_MAX_FEEDS=3`):** Auto-discovers up to 4 active leagues per sport category, pre-checks upcoming fixtures via the **0-credit `/events` endpoint** so empty leagues are skipped without spending quota, and fetches up to 3 active feeds per slot — stopping early at 2 feeds once 3 diverse picks are found (`~220–279` credits/month across 3 daily slots).
 * **Settlement (`/scores?daysFrom=1|3`):** Runs once per hour at `:37` with a 95-minute post-kickoff maturity gate, exponential retry backoff, and a 76-hour cutoff (`~150–240` credits/month).
-* **Automatic failover:** Set both `ODDS_API_KEY` and `ODDS_API_KEY_2` (or comma-separated keys in `ODDS_API_KEY`) so when the first 500-credit key hits `0` remaining / HTTP `401`, requests seamlessly rotate to the second key. `/v4/sports` discovery and health checks remain 0 credits.
+* **Automatic failover:** Set both `ODDS_API_KEY` and `ODDS_API_KEY_2` (or comma-separated keys in `ODDS_API_KEY`) so when the first 500-credit key hits `0` remaining / HTTP `401`, requests seamlessly rotate to the second key. `/v4/sports`, `/v4/sports/{sport}/events`, and health checks remain 0 credits.
 
 Selection and publishing pipeline:
 
-1. **Sport discovery:** Validates active sports using the zero-credit `/v4/sports` endpoint, sorting active leagues by major-league priority and excluding American/Australian football from `auto:soccer`.
-2. **Odds collection:** Collects head-to-head decimal odds from the configured regions with early-stop once 3 diverse picks are found.
+1. **Sport discovery & pre-check:** Validates active sports using the zero-credit `/v4/sports` endpoint (up to 4 leagues per category sorted by priority, excluding American/Australian football from `auto:soccer`), then verifies upcoming matches with zero-credit `/events` before making any paid `/odds` call.
+2. **Odds collection:** Collects head-to-head decimal odds from verified feeds with early-stop once 3 diverse picks are found.
 3. **Consensus and value:** Removes bookmaker margin (no-vig) to estimate consensus probability and computes expected value against the best available price.
 4. **Candidate selection in tiers:**
    - **Tier 1 (strict):** Requires minimum consensus, minimum value, odds in the configured window, and data no older than `TIPS_MAX_STALE_HOURS`.

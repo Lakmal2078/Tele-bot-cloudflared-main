@@ -111,7 +111,9 @@ describe("Odds API multi-key pool and credit-budget safeguards", () => {
           { key: "tennis_atp_finals", group: "Tennis", title: "ATP Finals", active: true },
         ]), { status: 200, headers: { "Content-Type": "application/json" } });
       }
-      oddsUrlsCalled.push(url.pathname);
+      if (url.pathname.endsWith("/odds")) {
+        oddsUrlsCalled.push(url.pathname);
+      }
       if (url.pathname.includes("soccer_epl")) {
         return new Response(JSON.stringify([
           {
@@ -196,6 +198,166 @@ describe("Odds API multi-key pool and credit-budget safeguards", () => {
     expect(result.status).toBe("posted");
     // Only 2 paid /odds calls used (early-stopped before tennis_atp_finals), and americanfootball_cfl was NOT picked for auto:soccer!
     expect(oddsUrlsCalled).toEqual(["/v4/sports/soccer_epl/odds", "/v4/sports/basketball_nba/odds"]);
+  });
+
+  it("skips empty #1 leagues via 0-credit /events and falls through to secondary active leagues within TIPS_MAX_FEEDS=3", async () => {
+    const future1 = new Date(Date.now() + 4 * 3600 * 1000).toISOString();
+    const future2 = new Date(Date.now() + 8 * 3600 * 1000).toISOString();
+    const future3 = new Date(Date.now() + 12 * 3600 * 1000).toISOString();
+    const eventProbePaths: string[] = [];
+    const paidOddsPaths: string[] = [];
+
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const urlStr = String(input);
+      if (urlStr.includes("api.telegram.org")) {
+        return new Response(JSON.stringify({ ok: true, result: { message_id: 666 } }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      const url = new URL(urlStr);
+      if (url.pathname === "/v4/sports") {
+        return new Response(JSON.stringify([
+          { key: "soccer_epl", group: "Soccer", title: "EPL", active: true },
+          { key: "soccer_spain_la_liga", group: "Soccer", title: "La Liga", active: true },
+          { key: "cricket_international_t20", group: "Cricket", title: "Intl T20", active: true },
+          { key: "basketball_nba", group: "Basketball", title: "NBA", active: true },
+          { key: "basketball_euroleague", group: "Basketball", title: "Euroleague", active: true },
+          { key: "tennis_atp_finals", group: "Tennis", title: "ATP Finals", active: true },
+        ]), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+
+      if (url.pathname.endsWith("/events")) {
+        eventProbePaths.push(url.pathname);
+        if (url.pathname.includes("soccer_spain_la_liga")) {
+          return new Response(JSON.stringify([{ id: "liga-1", commence_time: future1 }]), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (url.pathname.includes("basketball_euroleague")) {
+          return new Response(JSON.stringify([{ id: "euro-1", commence_time: future2 }]), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (url.pathname.includes("tennis_atp_finals")) {
+          return new Response(JSON.stringify([{ id: "atp-1", commence_time: future3 }]), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        // #1 leagues (soccer_epl, cricket_international_t20, basketball_nba) have 0 upcoming matches
+        return new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      if (url.pathname.endsWith("/odds")) {
+        paidOddsPaths.push(url.pathname);
+        if (url.pathname.includes("soccer_spain_la_liga")) {
+          return new Response(JSON.stringify([
+            {
+              id: "liga-1",
+              sport_key: "soccer_spain_la_liga",
+              sport_title: "La Liga",
+              commence_time: future1,
+              home_team: "Real Madrid",
+              away_team: "Sevilla",
+              bookmakers: [
+                { key: "b1", title: "B1", markets: [{ key: "h2h", outcomes: [{ name: "Real Madrid", price: 1.52 }, { name: "Draw", price: 4.3 }, { name: "Sevilla", price: 6.2 }] }] },
+                { key: "b2", title: "B2", markets: [{ key: "h2h", outcomes: [{ name: "Real Madrid", price: 1.57 }, { name: "Draw", price: 4.1 }, { name: "Sevilla", price: 6.0 }] }] },
+              ],
+            },
+          ]), { status: 200, headers: { "Content-Type": "application/json", "x-requests-remaining": "497" } });
+        }
+        if (url.pathname.includes("basketball_euroleague")) {
+          return new Response(JSON.stringify([
+            {
+              id: "euro-1",
+              sport_key: "basketball_euroleague",
+              sport_title: "Euroleague",
+              commence_time: future2,
+              home_team: "Fenerbahce",
+              away_team: "Monaco",
+              bookmakers: [
+                { key: "b1", title: "B1", markets: [{ key: "h2h", outcomes: [{ name: "Fenerbahce", price: 1.65 }, { name: "Monaco", price: 2.25 }] }] },
+                { key: "b2", title: "B2", markets: [{ key: "h2h", outcomes: [{ name: "Fenerbahce", price: 1.70 }, { name: "Monaco", price: 2.20 }] }] },
+              ],
+            },
+          ]), { status: 200, headers: { "Content-Type": "application/json", "x-requests-remaining": "496" } });
+        }
+        if (url.pathname.includes("tennis_atp_finals")) {
+          return new Response(JSON.stringify([
+            {
+              id: "atp-1",
+              sport_key: "tennis_atp_finals",
+              sport_title: "ATP Finals",
+              commence_time: future3,
+              home_team: "Sinner",
+              away_team: "Zverev",
+              bookmakers: [
+                { key: "b1", title: "B1", markets: [{ key: "h2h", outcomes: [{ name: "Sinner", price: 1.50 }, { name: "Zverev", price: 2.60 }] }] },
+                { key: "b2", title: "B2", markets: [{ key: "h2h", outcomes: [{ name: "Sinner", price: 1.55 }, { name: "Zverev", price: 2.55 }] }] },
+              ],
+            },
+          ]), { status: 200, headers: { "Content-Type": "application/json", "x-requests-remaining": "495" } });
+        }
+      }
+      return new Response(JSON.stringify([]), { status: 200, headers: { "Content-Type": "application/json" } });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const db = {
+      prepare(sql: string) {
+        return {
+          bind() {
+            return {
+              first: async () => (sql.includes("FROM tip_posts") ? { id: 2, status: "PROCESSING", lease_token: "t", lease_expires_at: null, is_lease_active: 1 } : { api_failure_since: null, api_failure_count: 0, api_alerted: 0, empty_since: null, empty_count: 0, empty_alerted: 0 }),
+              all: async () => ({ results: [] }),
+              run: async () => ({ success: true, meta: { changes: 1 } }),
+            };
+          },
+          all: async () => ({ results: [] }),
+          first: async () => ({ api_failure_since: null, api_failure_count: 0, api_alerted: 0, empty_since: null, empty_count: 0, empty_alerted: 0 }),
+          run: async () => ({ success: true, meta: { changes: 1 } }),
+        };
+      },
+    };
+
+    const env = {
+      DB: db as any,
+      BOT_TOKEN: "123:ABC",
+      CHANNEL_USERNAME: "@test_tips",
+      ODDS_API_KEY: "key-1",
+      TIPS_SPORTS: "auto:soccer,auto:cricket,auto:basketball,auto:tennis",
+      TIPS_MAX_FEEDS: "3",
+      TIPS_PER_SLOT: "3",
+      TIPS_MIN_ODDS: "1.30",
+      TIPS_MAX_ODDS: "3.00",
+      TIPS_HOURS_AHEAD: "72",
+      TIPS_MIN_CONSENSUS: "0.45",
+      TIPS_MIN_VALUE: "0.001",
+      TIPS_MIN_BOOKMAKERS: "1",
+    } as Env;
+
+    const result = await runScheduledTip(env, TIPS_CRONS.SL_1200);
+    expect(result.status).toBe("posted");
+    // Empty #1 leagues were checked via 0-credit /events and NEVER billed on paid /odds
+    expect(eventProbePaths).toContain("/v4/sports/soccer_epl/events");
+    expect(eventProbePaths).toContain("/v4/sports/basketball_nba/events");
+    expect(paidOddsPaths).not.toContain("/v4/sports/soccer_epl/odds");
+    expect(paidOddsPaths).not.toContain("/v4/sports/cricket_international_t20/odds");
+    expect(paidOddsPaths).not.toContain("/v4/sports/basketball_nba/odds");
+    expect(paidOddsPaths.length).toBeLessThanOrEqual(3);
+    expect(paidOddsPaths).toEqual(
+      expect.arrayContaining([
+        "/v4/sports/soccer_spain_la_liga/odds",
+        "/v4/sports/basketball_euroleague/odds",
+        "/v4/sports/tennis_atp_finals/odds",
+      ])
+    );
   });
 
   it("alerts admin and records error instead of silently reporting 0 matches when all Odds API keys fail", async () => {
