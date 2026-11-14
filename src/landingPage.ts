@@ -1029,8 +1029,24 @@ ${cfAnalyticsScript}
     }
     .tipHead, .tipFoot { justify-content: space-between; }
     .tipLeague, .tipWhen, .tipMarketTag { font-size: 12px; color: var(--faint); }
+    .tipTeam { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .tipTeam b { min-width: 0; overflow-wrap: anywhere; }
     .tipTeam, .tipPickName { font-weight: 700; color: var(--fg); }
-    .tipAvatar { width: 28px; height: 28px; border-radius: 50%; object-fit: contain; background: var(--bg-2); }
+    .tipAvatar {
+      flex: 0 0 32px; width: 32px; height: 32px; max-width: 32px; max-height: 32px;
+      display: inline-flex; align-items: center; justify-content: center; overflow: hidden;
+      border-radius: 50%; background: var(--bg-2); line-height: 0;
+    }
+    .tipAvatar img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .tipAvatar.isFlag { border-radius: 4px; }
+    .tipAvatar.isFlag img { width: 100%; height: 100%; object-fit: cover; }
+    .tipAvatar.isPortrait { border-radius: 50%; }
+    .tipAvatar.isFallback {
+      border: 1px solid var(--line-strong); background: rgba(244, 240, 230, .05); color: var(--muted);
+    }
+    .tipSportGlyph { display: inline-flex; width: 18px; height: 18px; }
+    .tipSportGlyph svg { width: 18px; height: 18px; display: block; }
+    .tipInitials { display: none; }
     .tipVs { color: var(--faint); font-size: 12px; font-weight: 700; }
     .tipOdds { font-family: var(--num); font-weight: 800; color: var(--gold); font-size: 18px; }
     .tipStatus { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--line-strong); color: var(--muted); }
@@ -2075,7 +2091,7 @@ ${renderFinalCtaBanner(c, lang, eb)}
           tipGrid.innerHTML = liveHtml;
           tipGrid.style.minHeight = "";
           tipGrid.querySelectorAll("img[data-fallback-name]").forEach(function(img){
-            img.addEventListener("error", function(){
+            var swapToFallback = function(){
               var parent = img.parentNode;
               if (!parent || !parent.parentNode) return;
               var cc = img.getAttribute("data-fallback-cc");
@@ -2089,7 +2105,11 @@ ${renderFinalCtaBanner(c, lang, eb)}
               if (tmp.firstElementChild) {
                 parent.parentNode.replaceChild(tmp.firstElementChild, parent);
               }
-            }, { once: true });
+            };
+            img.addEventListener("error", swapToFallback, { once: true });
+            // An image can fail before this listener is attached (lazy loading / cache);
+            // handle that case so the sport glyph still appears instead of an empty circle.
+            if (img.complete && img.naturalWidth === 0) swapToFallback();
           });
           var activeTab = document.querySelector("#tipTabs .tipTab.active");
           if (activeTab) applySportFilter(activeTab.getAttribute("data-sport") || "all");
