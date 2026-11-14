@@ -537,7 +537,7 @@ export function buildSeoGuideSitemapEntries(baseUrl: string): string {
     return (["si", "en", "ta"] as const).map((locale) =>
       "  <url>\n    <loc>" + escapeHtml(baseUrl + paths[locale]) + "</loc>\n    " + alternates +
       '\n    <xhtml:link rel="alternate" hreflang="x-default" href="' + escapeHtml(baseUrl + paths.si) + '"/>' +
-      "\n    <changefreq>monthly</changefreq>\n    <priority>0.8</priority>\n  </url>"
+      "\n    <lastmod>2026-11-15</lastmod>\n    <changefreq>monthly</changefreq>\n    <priority>0.8</priority>\n  </url>"
     ).join("\n");
   }).join("\n");
 }

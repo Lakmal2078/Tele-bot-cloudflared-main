@@ -83,7 +83,7 @@ const T: Record<Lang, {
   legal: { privacy: string; terms: string };
 }> = {
   si: {
-    title: "Fast xBet Cash 🇱🇰 — 1xBet Sri Lanka Telegram Bot & නොමිලේ ක්‍රීඩා උපදෙස්",
+    title: "Fast xBet Cash 🇱🇰 — නොමිලේ ක්‍රීඩා උපදෙස් | Telegram Bot",
     desc: "1xBet Sri Lanka Telegram Bot හරහා නොමිලේ ක්‍රීඩා උපදෙස්, eZ Cash, mCash, FriMi, iPay සහ බැංකු ගිණුම් තැන්පතු සහ මුදල් ආපසු ගැනීම්. 18+ පමණි.",
     nav: ["මුල් පිටුව", "Free Tips", "ක්‍රමය", "ගෙවීම්", "ආරක්ෂාව", "FAQ"],
     hero: [
@@ -168,7 +168,7 @@ const T: Record<Lang, {
     }
   },
   en: {
-    title: "Fast xBet Cash 🇱🇰 — 1xBet Sri Lanka Telegram Bot & Free Sports Tips",
+    title: "Fast xBet Cash 🇱🇰 — Free Sports Tips | Telegram Bot",
     desc: "1xBet Sri Lanka Telegram Bot for free sports tips, eZ Cash, mCash, FriMi, iPay and bank deposits and withdrawals. 18+ only.",
     nav: ["Home", "Free Tips", "How It Works", "Payments", "Security", "FAQ"],
     hero: [
@@ -253,7 +253,7 @@ const T: Record<Lang, {
     }
   },
   ta: {
-    title: "Fast xBet Cash 🇱🇰 — 1xBet இலங்கை Telegram Bot & இலவச Sports Tips",
+    title: "Fast xBet Cash 🇱🇰 — இலவச Sports Tips | Telegram Bot",
     desc: "1xBet இலங்கை Telegram Bot இலவச sports tips, eZ Cash, mCash, FriMi, iPay மற்றும் வங்கி deposit, withdrawal ஆதரவு. 18+ மட்டும்.",
     nav: ["முகப்பு", "இலவச Tips", "எப்படி வேலை செய்கிறது", "கொடுப்பனவுகள்", "பாதுகாப்பு", "FAQ"],
     hero: [
@@ -487,7 +487,7 @@ function renderFinalCtaBanner(c: (typeof T)[Lang], lang: Lang, eb: string): stri
     f4: "🇱🇰 24/7 Telegram Support"
   };
 
-  return `<section class="final" id="start-now"><img class="finalGraphicBg" src="${TELEGRAM_GRAPHICS.botUi}" alt="" width="1600" height="900" loading="lazy" decoding="async" aria-hidden="true"><div class="finalGraphicOverlay" aria-hidden="true"></div>
+  return `<section class="final" id="start-now"><picture><source type="image/webp" srcset="${TELEGRAM_GRAPHICS.botUi.replace(/\.jpg$/, ".webp")}"><img class="finalGraphicBg" src="${TELEGRAM_GRAPHICS.botUi}" alt="" width="1600" height="900" loading="lazy" decoding="async" aria-hidden="true"></picture><div class="finalGraphicOverlay" aria-hidden="true"></div>
     <div class="wrap sectionGraphicContent">
       <div class="finalBox">
         <div class="hero-badge-wrap" style="justify-content:center; margin-bottom:14px;">
@@ -1207,7 +1207,9 @@ ${cfAnalyticsScript}
       body { padding-bottom: 76px; }
       .calcPresets { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
-</style>
+    /* SEO audit: minimum 44px touch targets */
+    .links a, .subLink, .tipTab, .tipModeTab, .footerLinkBtn, .presetBtn { min-height: 44px; }
+  </style>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -1282,7 +1284,7 @@ ${cfAnalyticsScript}
 
 <main id="main">
 <section class="hero" id="home">
-  <img class="heroGraphicBg" src="${TELEGRAM_GRAPHICS.hero}" alt="" width="1600" height="900" loading="eager" decoding="async" aria-hidden="true">
+  <picture><source type="image/webp" srcset="${TELEGRAM_GRAPHICS.hero.replace(/\.jpg$/, ".webp")}"><img class="heroGraphicBg" src="${TELEGRAM_GRAPHICS.hero}" alt="" width="1600" height="900" loading="eager" decoding="async" aria-hidden="true"></picture>
   <div class="heroGraphicOverlay" aria-hidden="true"></div>
   <div class="wrap heroGrid">
     <div>
@@ -1373,7 +1375,7 @@ ${cfAnalyticsScript}
   <div class="services">${serviceCards}</div>
 </div></section>
 
-<section class="section" id="tips-preview"><img class="sectionGraphicBg" src="${TELEGRAM_GRAPHICS.tips}" alt="" width="1600" height="900" loading="lazy" decoding="async" aria-hidden="true"><div class="sectionGraphicOverlay" aria-hidden="true"></div><div class="wrap sectionGraphicContent">
+<section class="section" id="tips-preview"><picture><source type="image/webp" srcset="${TELEGRAM_GRAPHICS.tips.replace(/\.jpg$/, ".webp")}"><img class="sectionGraphicBg" src="${TELEGRAM_GRAPHICS.tips}" alt="" width="1600" height="900" loading="lazy" decoding="async" aria-hidden="true"></picture><div class="sectionGraphicOverlay" aria-hidden="true"></div><div class="wrap sectionGraphicContent">
   <div class="head">
     <div class="kicker">${esc(c.tips.kicker)}</div>
     <h2>${esc(c.tips.title)}</h2>
@@ -1414,9 +1416,9 @@ ${cfAnalyticsScript}
       <article class="tipCard" data-sport="football">
         <div class="tipCardTop"><span class="tipLeague">Premier League</span><span class="tipStatus pending">Today</span></div>
         <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/57.png" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>Arsenal</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/57.png" alt="Arsenal logo" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>Arsenal</b></div>
           <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/61.png" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>Chelsea</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/61.png" alt="Chelsea logo" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>Chelsea</b></div>
         </div>
         <div class="tipWhen">Today, 17:30</div>
         <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Arsenal Win</span><b class="tipOdds">1.94</b></div>
@@ -1425,9 +1427,9 @@ ${cfAnalyticsScript}
       <article class="tipCard" data-sport="football">
         <div class="tipCardTop"><span class="tipLeague">La Liga</span><span class="tipStatus pending">Today</span></div>
         <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/86.png" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>Real Madrid</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/86.png" alt="Real Madrid logo" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>Real Madrid</b></div>
           <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/78.png" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>Atletico Madrid</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/78.png" alt="Atletico Madrid logo" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>Atletico Madrid</b></div>
         </div>
         <div class="tipWhen">Today, 20:00</div>
         <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Real Madrid Win</span><b class="tipOdds">1.78</b></div>
@@ -1436,9 +1438,9 @@ ${cfAnalyticsScript}
       <article class="tipCard" data-sport="football">
         <div class="tipCardTop"><span class="tipLeague">Bundesliga</span><span class="tipStatus pending">Today</span></div>
         <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/5.png" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>Bayern Munich</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/5.png" alt="Bayern Munich logo" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>Bayern Munich</b></div>
           <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/524.png" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>PSG</b></div>
+          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/524.png" alt="PSG logo" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>PSG</b></div>
         </div>
         <div class="tipWhen">Today, 22:00</div>
         <div class="tipPickRow"><span class="tipMarketTag">O/U</span><span class="tipPickName">Over 2.5 Goals</span><b class="tipOdds">1.85</b></div>
@@ -1476,7 +1478,7 @@ ${cfAnalyticsScript}
   </div>
 </div></section>
 
-<section class="section" id="payments"><img class="sectionGraphicBg" src="${TELEGRAM_GRAPHICS.payments}" alt="" width="1600" height="900" loading="lazy" decoding="async" aria-hidden="true"><div class="sectionGraphicOverlay" aria-hidden="true"></div><div class="wrap sectionGraphicContent">
+<section class="section" id="payments"><picture><source type="image/webp" srcset="${TELEGRAM_GRAPHICS.payments.replace(/\.jpg$/, ".webp")}"><img class="sectionGraphicBg" src="${TELEGRAM_GRAPHICS.payments}" alt="" width="1600" height="900" loading="lazy" decoding="async" aria-hidden="true"></picture><div class="sectionGraphicOverlay" aria-hidden="true"></div><div class="wrap sectionGraphicContent">
   <div class="head">
     <div class="kicker">Payments</div>
     <h2>${esc(c.pay[0])}</h2>
@@ -1533,7 +1535,7 @@ ${cfAnalyticsScript}
 </div></section>
 
 <!-- Data Protection & Cloudflare Edge Infrastructure -->
-<section class="section" id="security"><img class="sectionGraphicBg" src="${TELEGRAM_GRAPHICS.security}" alt="" width="1600" height="900" loading="lazy" decoding="async" aria-hidden="true"><div class="sectionGraphicOverlay" aria-hidden="true"></div><div class="wrap sectionGraphicContent">
+<section class="section" id="security"><picture><source type="image/webp" srcset="${TELEGRAM_GRAPHICS.security.replace(/\.jpg$/, ".webp")}"><img class="sectionGraphicBg" src="${TELEGRAM_GRAPHICS.security}" alt="" width="1600" height="900" loading="lazy" decoding="async" aria-hidden="true"></picture><div class="sectionGraphicOverlay" aria-hidden="true"></div><div class="wrap sectionGraphicContent">
   <div class="securityCard">
     <div class="securityHead">
       <div class="securityIcon">🛡️</div>
