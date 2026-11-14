@@ -1,0 +1,80 @@
+name: D1 backup restore test
+
+# Backup එකක් restore කළ හැකිද කියා තාවකාලික D1 database එකක් සාදා පරීක්ෂා කරයි.
+# අවසානයේ තාවකාලික database එක ස්වයංක්‍රීයව මකයි.
+on:
+  workflow_dispatch:
+    inputs:
+      backup_key:
+        description: "R2 backup prefix (උදා: backups/d1/20261114T182015Z)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: d1-restore-test
+  cancel-in-progress: false
+
+jobs:
+  restore-test:
+    name: Restore backup into temporary D1
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production-backup
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      BACKUP_BUCKET: xbet-bot-backups-private
+      BACKUP_KEY: ${{ inputs.backup_key }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install pinned Wrangler
+        run: npm ci
+
+      - name: Restore into temporary database and verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          : "${CLOUDFLARE_API_TOKEN:?Missing CLOUDFLARE_API_TOKEN}"
+          : "${CLOUDFLARE_ACCOUNT_ID:?Missing CLOUDFLARE_ACCOUNT_ID}"
+
+          work_dir="$RUNNER_TEMP/d1-restore"
+          mkdir -p "$work_dir"
+          temp_db="restore-test-${GITHUB_RUN_ID}"
+          key="$BACKUP_KEY"
+
+          cleanup() {
+            npx wrangler d1 delete "$temp_db" --skip-confirmation || true
+            rm -rf "$work_dir"
+          }
+          trap cleanup EXIT
+
+          echo "::group::1. Download backup from R2"
+          npx wrangler r2 object get "$BACKUP_BUCKET/$key/d1-${key##*/}.sql.gz" --remote --file="$work_dir/backup.sql.gz"
+          test -s "$work_dir/backup.sql.gz"
+          echo "::endgroup::"
+
+          echo "::group::2. Create temporary database and restore"
+          gunzip -c "$work_dir/backup.sql.gz" > "$work_dir/restore.sql"
+          test -s "$work_dir/restore.sql"
+          npx wrangler d1 create "$temp_db"
+          npx wrangler d1 execute "$temp_db" --remote --file="$work_dir/restore.sql"
+          echo "::endgroup::"
+
+          echo "::group::3. Verify restored tables"
+          npx wrangler d1 execute "$temp_db" --remote --command="SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%';"
+          echo "::endgroup::"
+
+          echo "Restore test finished for $key (temp DB removed in cleanup)"
