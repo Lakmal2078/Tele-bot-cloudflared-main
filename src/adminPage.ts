@@ -1,5 +1,8 @@
 import type { Env, SystemStats, DailyTrendItem, AttributionFunnelStats } from "./types";
 import type { R2StorageAnalytics } from "./r2";
+import type { MonthlyCreditSummary } from "./oddsCreditManager";
+import type { ValueAlertRecord } from "./bestOdds";
+import type { DetailedPerformanceReport } from "./tipsPerformance";
 import { renderTrendsChartSvg } from "./adminChart";
 import { BRAND_LOGO_SVG_COMPACT, BRAND_LOGO_FAVICON_DATA_URI } from "./brandLogo";
 
@@ -26,6 +29,15 @@ export interface AdminPageData {
   alerts?: any[];
   tips?: any[];
   funnel?: AttributionFunnelStats;
+  oddsBudget?: MonthlyCreditSummary;
+  tipsPerformance?: DetailedPerformanceReport;
+  recentValueAlerts?: ValueAlertRecord[];
+  oddsMonitor?: {
+    apiFailureSince: string | null;
+    apiFailureCount: number;
+    emptySince: string | null;
+    emptyCount: number;
+  };
   paymentMethods?: {
     bank: string;
     ezcash: string;
@@ -124,7 +136,7 @@ export function renderAdminPage(
   nonce?: string
 ): string {
   const nonceAttr = nonce ? ` nonce="${escapeAttribute(nonce)}"` : "";
-  const { stats, trends, days, metric, isAuthorized, tickets = [], alerts = [], r2Analytics, funnel } = data;
+  const { stats, trends, days, metric, isAuthorized, tickets = [], alerts = [], r2Analytics, funnel, oddsBudget, tipsPerformance, recentValueAlerts = [], oddsMonitor } = data;
   const r2 = r2Analytics || {
     configured: false,
     bucket: "chat-media",
@@ -830,6 +842,71 @@ export function renderAdminPage(
       .r2-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .mobile-dashboard-nav { left: 6px; right: 6px; }
     }
+    .meter-track {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.14);
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .meter-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.25s ease;
+    }
+    .tier-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+    }
+    .tier-normal { background: rgba(16, 185, 129, 0.12); color: #34d399; border-color: rgba(16, 185, 129, 0.28); }
+    .tier-warn { background: rgba(245, 158, 11, 0.12); color: #fbbf24; border-color: rgba(245, 158, 11, 0.3); }
+    .tier-crit { background: rgba(244, 63, 94, 0.14); color: #fb7185; border-color: rgba(244, 63, 94, 0.32); }
+    .tabular { font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .budget-buckets-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .budget-bucket-card {
+      background: rgba(5, 12, 22, 0.56);
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .key-slots-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .odds-health-banner {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      background: rgba(5, 12, 22, 0.52);
+      font-size: 12px;
+    }
+    .odds-actions-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-top: 14px;
+    }
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; }
       *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
@@ -1040,6 +1117,202 @@ export function renderAdminPage(
       </div>
       ` : ""}
     </section>
+
+    ${(() => {
+      const b = oddsBudget;
+      const used = b?.totalUsed ?? 0;
+      const budgetCap = b?.totalBudget ?? 1000;
+      const remaining = b?.remaining ?? Math.max(0, budgetCap - used);
+      const pct = Math.min(100, Math.round((used / Math.max(1, budgetCap)) * 100));
+      const tier = b?.tier ?? "NORMAL";
+      const tierClass = tier === "NORMAL" ? "tier-normal" : (tier === "WARN_800" || tier === "RESTRICT_900") ? "tier-warn" : "tier-crit";
+      const barColor = used >= 950 ? "#f43f5e" : used >= 800 ? "#f59e0b" : "#10b981";
+      const bucketItems: Array<{ key: "tips" | "scores" | "odds_refresh" | "on_demand"; label: string }> = [
+        { key: "tips", label: "Scheduled Tips" },
+        { key: "scores", label: "Live Scores" },
+        { key: "odds_refresh", label: "Odds Refresh & Alerts" },
+        { key: "on_demand", label: "On-Demand (/scores, /odds)" },
+      ];
+      const perf = tipsPerformance;
+      const monHasFailure = Boolean(oddsMonitor && oddsMonitor.apiFailureCount > 0);
+      const monHasEmpty = Boolean(oddsMonitor && oddsMonitor.emptyCount > 0);
+      return `
+    <!-- Odds API 1,000-Credit Budget & Feed Health Section -->
+    <section class="card" id="section-odds-budget" style="margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap;">
+            <h2 style="font-size: 18px; font-weight: 700; color: #f8fafc; margin: 0;">
+              💳 Odds API Credit Budget &amp; Bot Health
+            </h2>
+            <span class="tier-pill ${tierClass}" id="odds-budget-tier">${escapeText(tier)}</span>
+          </div>
+          <p style="font-size: 12px; color: #94a3b8; margin: 0;">
+            Combined monthly limit across dual 500-credit keys (${escapeText(b?.monthUtc || new Date().toISOString().slice(0, 7))}) · Safety reserve: ${b?.safetyReserve ?? 81} credits
+          </p>
+        </div>
+        <div style="text-align: right;">
+          <div class="kpi-value tabular" id="odds-budget-used" style="font-size: 22px; color: ${barColor};">${used.toLocaleString()} / ${budgetCap.toLocaleString()}</div>
+          <div class="kpi-sub tabular" id="odds-budget-remaining">${remaining.toLocaleString()} credits remaining (${pct}% used)</div>
+        </div>
+      </div>
+
+      <div class="meter-track" style="height: 10px; margin-top: 12px;">
+        <div class="meter-fill" id="odds-budget-bar" style="width: ${pct}%; background: ${barColor};"></div>
+      </div>
+
+      <div class="budget-buckets-grid">
+        ${bucketItems.map(({ key, label }) => {
+          const bk = b?.buckets?.[key] ?? { used: 0, cap: key === "tips" ? 519 : key === "on_demand" ? 80 : 160, calls: 0 };
+          const bkPct = Math.min(100, Math.round((bk.used / Math.max(1, bk.cap)) * 100));
+          const bkColor = bkPct >= 95 ? "#f43f5e" : bkPct >= 80 ? "#f59e0b" : "#38bdf8";
+          return `
+            <div class="budget-bucket-card">
+              <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px;">
+                <span style="font-size: 12px; font-weight: 700; color: #cbd5e1;">${escapeText(label)}</span>
+                <span class="tabular" id="bucket-${key}-val" style="font-size: 12px; color: ${bkColor}; font-weight: 700;">${bk.used} / ${bk.cap}</span>
+              </div>
+              <div class="meter-track"><div class="meter-fill" id="bucket-${key}-bar" style="width: ${bkPct}%; background: ${bkColor};"></div></div>
+              <div class="kpi-sub tabular" id="bucket-${key}-calls" style="margin-top: 6px;">${bk.calls} API requests this month</div>
+            </div>`;
+        }).join("")}
+      </div>
+
+      <div class="key-slots-grid">
+        ${(b?.keys && b.keys.length > 0 ? b.keys : [
+          { keySlot: 1, accountLimit: 500, requestsUsed: 0, requestsRemaining: null, lastRequestCost: 0, totalCalls: 0, failedCalls: 0, lastStatus: null, lastEndpoint: null, lastError: null, updatedAt: null },
+          { keySlot: 2, accountLimit: 500, requestsUsed: 0, requestsRemaining: null, lastRequestCost: 0, totalCalls: 0, failedCalls: 0, lastStatus: null, lastEndpoint: null, lastError: null, updatedAt: null },
+        ]).map((k) => `
+          <div class="budget-bucket-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 12px; font-weight: 700; color: #e2e8f0;">🔑 Key Slot #${k.keySlot}</span>
+              <span class="tabular" style="font-size: 11px; color: ${k.failedCalls > 0 ? "#f59e0b" : "#34d399"};">
+                HTTP ${k.lastStatus ?? "—"} · ${k.failedCalls} failures
+              </span>
+            </div>
+            <div class="tabular" style="font-size: 15px; font-weight: 800; color: #f8fafc; margin-top: 6px;">
+              Used: ${k.requestsUsed.toLocaleString()} · Rem: ${k.requestsRemaining != null ? k.requestsRemaining.toLocaleString() : "—"}
+            </div>
+            <div class="kpi-sub" style="margin-top: 4px; word-break: break-all;">
+              Last endpoint: ${escapeText(k.lastEndpoint || "No calls recorded yet")}
+            </div>
+          </div>
+        `).join("")}
+      </div>
+
+      <div class="odds-health-banner">
+        <div style="color: ${monHasFailure || monHasEmpty ? "#fbbf24" : "#34d399"}; font-weight: 600;">
+          ${monHasFailure
+            ? `⚠️ API Failures detected (${oddsMonitor?.apiFailureCount} since ${escapeText(oddsMonitor?.apiFailureSince || "")})`
+            : monHasEmpty
+            ? `⚠️ Empty odds responses (${oddsMonitor?.emptyCount} checks since ${escapeText(oddsMonitor?.emptySince || "")})`
+            : "✓ Odds API feed &amp; scheduled worker pipeline healthy"}
+        </div>
+        <div style="color: #94a3b8; font-size: 11px;">
+          Protection thresholds: WARN 800 · RESTRICT 900 · CRITICAL 950 · HARD STOP 1,000
+        </div>
+      </div>
+
+      ${isAuthorized ? `
+      <div class="odds-actions-row">
+        <button type="button" id="btn-settle-tips" class="btn btn-secondary">⚖️ Settle Pending Tips</button>
+        <button type="button" id="btn-refresh-odds" class="btn btn-primary">💹 Refresh Best Odds (1 cr)</button>
+        <span id="odds-action-status" aria-live="polite" style="font-size: 12px; color: #94a3b8;"></span>
+      </div>` : ""}
+    </section>
+
+    <!-- Tips Results, Win Rate & ROI Performance Tracker -->
+    <section class="card" id="section-tips-performance" style="margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h2 style="font-size: 18px; font-weight: 700; color: #f8fafc; margin: 0 0 4px;">
+            📊 Tips Results, Win Rate &amp; ROI Tracker
+          </h2>
+          <p style="font-size: 12px; color: #94a3b8; margin: 0;">
+            100% D1-backed settlement analytics (0 API credits) · Automated nightly channel summary at 23:00 SLT
+          </p>
+        </div>
+      </div>
+
+      <div class="r2-grid" style="margin-top: 14px;">
+        <div class="r2-stat-card">
+          <div class="kpi-label">Today (SL)</div>
+          <div class="kpi-value tabular" id="perf-today-winrate" style="font-size: 22px; color: #38bdf8;">${(perf?.today?.pickWinRatePct ?? 0).toFixed(1)}%</div>
+          <div class="kpi-sub tabular">${perf?.today?.wonPicks ?? 0}W - ${perf?.today?.lostPicks ?? 0}L · ROI ${(perf?.today?.roiPct ?? 0) >= 0 ? "+" : ""}${(perf?.today?.roiPct ?? 0).toFixed(1)}%</div>
+        </div>
+        <div class="r2-stat-card">
+          <div class="kpi-label">Last 7 Days</div>
+          <div class="kpi-value tabular" id="perf-7d-winrate" style="font-size: 22px; color: #10b981;">${(perf?.days7?.pickWinRatePct ?? 0).toFixed(1)}%</div>
+          <div class="kpi-sub tabular" id="perf-7d-roi">${perf?.days7?.wonPicks ?? 0}W - ${perf?.days7?.lostPicks ?? 0}L · ROI ${(perf?.days7?.roiPct ?? 0) >= 0 ? "+" : ""}${(perf?.days7?.roiPct ?? 0).toFixed(1)}% (${(perf?.days7?.netUnits ?? 0) >= 0 ? "+" : ""}${(perf?.days7?.netUnits ?? 0).toFixed(2)}u)</div>
+        </div>
+        <div class="r2-stat-card">
+          <div class="kpi-label">Last 30 Days</div>
+          <div class="kpi-value tabular" id="perf-30d-winrate" style="font-size: 22px; color: #a855f7;">${(perf?.days30?.pickWinRatePct ?? 0).toFixed(1)}%</div>
+          <div class="kpi-sub tabular">${perf?.days30?.wonPicks ?? 0}W - ${perf?.days30?.lostPicks ?? 0}L · ROI ${(perf?.days30?.roiPct ?? 0) >= 0 ? "+" : ""}${(perf?.days30?.roiPct ?? 0).toFixed(1)}%</div>
+        </div>
+        <div class="r2-stat-card">
+          <div class="kpi-label">All-Time</div>
+          <div class="kpi-value tabular" style="font-size: 22px; color: #f8fafc;">${(perf?.allTime?.pickWinRatePct ?? 0).toFixed(1)}%</div>
+          <div class="kpi-sub tabular">${perf?.allTime?.wonPicks ?? 0}W - ${perf?.allTime?.lostPicks ?? 0}L · Avg Odds ${(perf?.allTime?.avgOdds ?? 0) ? (perf?.allTime?.avgOdds ?? 0).toFixed(2) : "—"}</div>
+        </div>
+      </div>
+
+      ${perf && perf.bySport.length > 0 ? `
+      <h3 style="font-size: 13px; font-weight: 700; color: #cbd5e1; margin-top: 18px; margin-bottom: 8px;">🏆 Performance by Sport</h3>
+      <div class="table-container" style="margin-top: 0;">
+        <table class="table-compact">
+          <thead>
+            <tr>
+              <th>Sport</th>
+              <th style="text-align: right;">W - L - V</th>
+              <th style="text-align: right;">Win Rate</th>
+              <th style="text-align: right;">Net Units</th>
+              <th style="text-align: right;">ROI %</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${perf.bySport.map((sp) => `
+              <tr>
+                <td style="color: #e2e8f0; font-weight: 600;">${escapeText(sp.sportTitle)}</td>
+                <td class="tabular" style="text-align: right;">${sp.wonPicks}W - ${sp.lostPicks}L - ${sp.voidPicks}V</td>
+                <td class="tabular" style="text-align: right; color: #38bdf8;">${sp.winRatePct.toFixed(1)}%</td>
+                <td class="tabular" style="text-align: right; color: ${sp.netUnits >= 0 ? "#10b981" : "#f43f5e"};">${sp.netUnits >= 0 ? "+" : ""}${sp.netUnits.toFixed(2)}u</td>
+                <td class="tabular" style="text-align: right; color: ${sp.roiPct >= 0 ? "#10b981" : "#f43f5e"};">${sp.roiPct >= 0 ? "+" : ""}${sp.roiPct.toFixed(1)}%</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>` : ""}
+
+      <h3 style="font-size: 13px; font-weight: 700; color: #cbd5e1; margin-top: 18px; margin-bottom: 8px;">💎 Recent Value Odds Alerts</h3>
+      ${recentValueAlerts.length > 0 ? `
+      <div class="table-container" style="margin-top: 0;">
+        <table class="table-compact">
+          <thead>
+            <tr>
+              <th>Match</th>
+              <th>Selection</th>
+              <th style="text-align: right;">Best Odds</th>
+              <th style="text-align: right;">EV Edge</th>
+              <th>Bookmaker</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${recentValueAlerts.map((a) => `
+              <tr>
+                <td style="color: #e2e8f0;">${escapeText(a.homeTeam)} vs ${escapeText(a.awayTeam)}</td>
+                <td style="color: #38bdf8; font-weight: 600;">${escapeText(a.selection)}</td>
+                <td class="tabular" style="text-align: right; color: #10b981; font-weight: 700;">${a.bestOdds.toFixed(2)}</td>
+                <td class="tabular" style="text-align: right; color: #fbbf24;">+${(a.valueScore * 100).toFixed(1)}%</td>
+                <td style="color: #cbd5e1;">${escapeText(a.bookmaker)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>` : `<div style="font-size: 12px; color: #64748b; padding: 10px 12px; border: 1px dashed rgba(148,163,184,0.2); border-radius: 8px;">No value odds alerts triggered yet. Alerts fire automatically when +4.0% EV opportunities appear during scheduled scans.</div>`}
+    </section>
+      `;
+    })()}
 
     <!-- Main Chart Card (D3.js Visualization) -->
     <section class="card" id="section-trends">
@@ -1517,6 +1790,51 @@ Tap 'Start' below to begin now! 👇</div>
           }
         }
 
+        // 4. Update Odds Budget & Tips Performance metrics
+        if (data.oddsBudget) {
+          var ob = data.oddsBudget;
+          var obUsed = Number(ob.totalUsed || 0);
+          var obCap = Number(ob.totalBudget || 1000);
+          var obRem = Number(ob.remaining != null ? ob.remaining : Math.max(0, obCap - obUsed));
+          var obPct = Math.min(100, Math.round((obUsed / Math.max(1, obCap)) * 100));
+          var obColor = obUsed >= 950 ? "#f43f5e" : obUsed >= 800 ? "#f59e0b" : "#10b981";
+          var obUsedEl = document.getElementById("odds-budget-used");
+          var obRemEl = document.getElementById("odds-budget-remaining");
+          var obBarEl = document.getElementById("odds-budget-bar");
+          var obTierEl = document.getElementById("odds-budget-tier");
+          if (obUsedEl) { obUsedEl.textContent = obUsed.toLocaleString() + " / " + obCap.toLocaleString(); obUsedEl.style.color = obColor; }
+          if (obRemEl) obRemEl.textContent = obRem.toLocaleString() + " credits remaining (" + obPct + "% used)";
+          if (obBarEl) { obBarEl.style.width = obPct + "%"; obBarEl.style.background = obColor; }
+          if (obTierEl) obTierEl.textContent = ob.tier || "NORMAL";
+          ["tips", "scores", "odds_refresh", "on_demand"].forEach(function(bkKey) {
+            var bk = ob.buckets && ob.buckets[bkKey];
+            if (!bk) return;
+            var bkPct = Math.min(100, Math.round((Number(bk.used || 0) / Math.max(1, Number(bk.cap || 1))) * 100));
+            var valEl = document.getElementById("bucket-" + bkKey + "-val");
+            var barEl = document.getElementById("bucket-" + bkKey + "-bar");
+            var callsEl = document.getElementById("bucket-" + bkKey + "-calls");
+            if (valEl) valEl.textContent = bk.used + " / " + bk.cap;
+            if (barEl) barEl.style.width = bkPct + "%";
+            if (callsEl) callsEl.textContent = bk.calls + " API requests this month";
+          });
+        }
+
+        if (data.tipsPerformance && data.tipsPerformance.days7) {
+          var tp = data.tipsPerformance;
+          var pToday = document.getElementById("perf-today-winrate");
+          var p7d = document.getElementById("perf-7d-winrate");
+          var p7dRoi = document.getElementById("perf-7d-roi");
+          var p30d = document.getElementById("perf-30d-winrate");
+          if (pToday && tp.today) pToday.textContent = Number(tp.today.pickWinRatePct || 0).toFixed(1) + "%";
+          if (p7d) p7d.textContent = Number(tp.days7.pickWinRatePct || 0).toFixed(1) + "%";
+          if (p7dRoi) {
+            var uSign = tp.days7.netUnits >= 0 ? "+" : "";
+            var rSign = tp.days7.roiPct >= 0 ? "+" : "";
+            p7dRoi.textContent = tp.days7.wonPicks + "W - " + tp.days7.lostPicks + "L · ROI " + rSign + Number(tp.days7.roiPct || 0).toFixed(1) + "% (" + uSign + Number(tp.days7.netUnits || 0).toFixed(2) + "u)";
+          }
+          if (p30d && tp.days30) p30d.textContent = Number(tp.days30.pickWinRatePct || 0).toFixed(1) + "%";
+        }
+
         if (lastSyncText && data.r2) {
           lastSyncText.textContent = data.r2.scanComplete
             ? "Last synced: " + new Date().toLocaleTimeString()
@@ -1730,6 +2048,70 @@ Tap 'Start' below to begin now! 👇</div>
           .catch(function() {
             resetDescBtn.disabled = false;
             setDescStatus("Network error while resetting photo.", "#f87171");
+          });
+      });
+    }
+
+    // Admin write actions for Settlement & Controlled Odds Refresh (CSP-safe event listeners)
+    var settleBtn = document.getElementById("btn-settle-tips");
+    var refreshOddsBtn = document.getElementById("btn-refresh-odds");
+    var oddsActionStatus = document.getElementById("odds-action-status");
+
+    function setOddsActionStatus(msg, color) {
+      if (!oddsActionStatus) return;
+      oddsActionStatus.textContent = msg;
+      oddsActionStatus.style.color = color || "#94a3b8";
+    }
+
+    if (settleBtn) {
+      settleBtn.addEventListener("click", function() {
+        settleBtn.disabled = true;
+        setOddsActionStatus("Running pending tip settlement sweep...", "#38bdf8");
+        fetch("/api/tips/settle", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ maxPosts: 10 })
+        })
+          .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+          .then(function(res) {
+            settleBtn.disabled = false;
+            if (!res.ok || !res.data || !res.data.ok) {
+              setOddsActionStatus((res.data && res.data.error) || "Settlement sweep failed.", "#f87171");
+              return;
+            }
+            var s = res.data.summary || {};
+            setOddsActionStatus("Settled " + (s.settledPosts || 0) + " posts / " + (s.settledPicks || 0) + " picks.", "#10b981");
+            refreshR2Dashboard();
+          })
+          .catch(function() {
+            settleBtn.disabled = false;
+            setOddsActionStatus("Network error while settling tips.", "#f87171");
+          });
+      });
+    }
+
+    if (refreshOddsBtn) {
+      refreshOddsBtn.addEventListener("click", function() {
+        refreshOddsBtn.disabled = true;
+        setOddsActionStatus("Refreshing Best Odds snapshot (1 credit)...", "#38bdf8");
+        fetch("/api/admin/odds-refresh", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({})
+        })
+          .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, status: r.status, data: d }; }); })
+          .then(function(res) {
+            refreshOddsBtn.disabled = false;
+            if (!res.ok || !res.data || !res.data.ok) {
+              setOddsActionStatus((res.data && res.data.error) || ("Blocked (" + res.status + ")"), "#fbbf24");
+              return;
+            }
+            setOddsActionStatus("Refreshed " + (res.data.itemsCount || 0) + " match snapshots.", "#10b981");
+            refreshR2Dashboard();
+          })
+          .catch(function() {
+            refreshOddsBtn.disabled = false;
+            setOddsActionStatus("Network error while refreshing odds.", "#f87171");
           });
       });
     }

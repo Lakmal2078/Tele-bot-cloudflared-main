@@ -132,11 +132,41 @@ import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
 import { getObject, putObject, deleteObjects, isR2Configured } from "./storage";
 import { getR2StorageAnalytics, R2AnalyticsContinuationError } from "./r2";
 import { settlePendingTips, overrideTipSettlement, getTipsPerformanceStats } from "./tipsSettlement";
+import { getMonthlyCreditSummary, canMakeOddsRequest } from "./oddsCreditManager";
+import { refreshBestOddsOnDemand, getCachedBestOdds, getRecentValueAlerts } from "./bestOdds";
+import { upsertLiveScoreEvents, getCachedLiveScores } from "./liveScores";
+import { getDetailedPerformanceReport } from "./tipsPerformance";
 import { checkTelegramBotConnection } from "./telegramStatus";
 import { renderAdminPage, renderAdminLoginPage } from "./adminPage";
 import { renderPrivacyPage } from "./privacyPage";
 import { trustedPublicBaseUrl } from "./landingPage";
 import { buildSeoGuideSitemapEntries } from "./seoContentPages";
+
+export interface OddsMonitorSummary {
+  apiFailureSince: string | null;
+  apiFailureCount: number;
+  emptySince: string | null;
+  emptyCount: number;
+}
+
+async function safeOddsMonitorSummary(env: Env): Promise<OddsMonitorSummary> {
+  if (!env.DB || typeof env.DB.prepare !== "function") {
+    return { apiFailureSince: null, apiFailureCount: 0, emptySince: null, emptyCount: 0 };
+  }
+  try {
+    const row = await env.DB.prepare(
+      `SELECT api_failure_since, api_failure_count, empty_since, empty_count FROM odds_api_monitor_state WHERE id = 1`
+    ).first<Record<string, unknown>>();
+    return {
+      apiFailureSince: row?.api_failure_since ? String(row.api_failure_since) : null,
+      apiFailureCount: Number(row?.api_failure_count || 0) || 0,
+      emptySince: row?.empty_since ? String(row.empty_since) : null,
+      emptyCount: Number(row?.empty_count || 0) || 0,
+    };
+  } catch {
+    return { apiFailureSince: null, apiFailureCount: 0, emptySince: null, emptyCount: 0 };
+  }
+}
 
 /**
  * Header-only admin credential check.
@@ -1139,10 +1169,84 @@ ${guideEntries}
         bypassBackoff: body.historicalSweep === true,
         maxPosts: Math.max(1, Math.min(Number(body.maxPosts) || (body.historicalSweep ? 100 : 10), 100)),
       });
-      return json({ ok: true, summary });
+      if (summary.fetchedScoreEvents?.length) {
+        await upsertLiveScoreEvents(env, summary.fetchedScoreEvents).catch(() => 0);
+      }
+      const { fetchedScoreEvents: _evs, ...publicSummary } = summary;
+      return json({ ok: true, summary: publicSummary });
     } catch (error) {
       console.error("[Admin Settlement Sweep]", error);
       return json({ ok: false, error: "Settlement sweep failed" }, 500);
+    }
+  }
+
+  // Admin Odds API Monthly Credit Budget & Intelligence Overview
+  if (path === "/api/admin/odds-budget" && (method === "GET" || method === "HEAD")) {
+    const denied = await requireAdmin(request, env);
+    if (denied) return denied;
+    if (method === "HEAD") {
+      return new Response(null, {
+        status: 200,
+        headers: { "Cache-Control": "no-store", ...securityHeaders() },
+      });
+    }
+    try {
+      const [budget, performance, recentValueAlerts, bestOdds, liveScores, monitor] = await Promise.all([
+        getMonthlyCreditSummary(env),
+        getDetailedPerformanceReport(env).catch(() => undefined),
+        getRecentValueAlerts(env, 12).catch(() => []),
+        getCachedBestOdds(env, { limit: 15 }).catch(() => ({ items: [], latestFetchedAt: null })),
+        getCachedLiveScores(env, 15).catch(() => ({ items: [], latestFetchedAt: null })),
+        safeOddsMonitorSummary(env),
+      ]);
+      return json({
+        ok: true,
+        budget,
+        performance,
+        recentValueAlerts,
+        bestOddsCount: bestOdds.items.length,
+        liveScoresCount: liveScores.items.length,
+        monitor,
+      });
+    } catch (error) {
+      console.error("[Admin Odds Budget]", error);
+      return json({ ok: false, error: "Odds budget telemetry unavailable" }, 500);
+    }
+  }
+
+  // Admin controlled manual odds refresh (gated by monthly credit protection tiers)
+  if (path === "/api/admin/odds-refresh" && method === "POST") {
+    const denied = await requireAdmin(request, env);
+    if (denied) return denied;
+    try {
+      const body = await request.json().catch(() => ({})) as { sportKey?: string };
+      const gate = await canMakeOddsRequest(env, "odds_refresh", 1);
+      if (!gate.allowed) {
+        return json(
+          {
+            ok: false,
+            error: gate.reason || "Odds refresh blocked by monthly credit budget.",
+            budget: gate.summary,
+          },
+          429
+        );
+      }
+      const res = await refreshBestOddsOnDemand(env, {
+        sportKey: typeof body.sportKey === "string" && body.sportKey.trim() ? body.sportKey.trim() : undefined,
+        bucket: "odds_refresh",
+        maxAgeMinutes: 0,
+      });
+      const budget = await getMonthlyCreditSummary(env);
+      return json({
+        ok: true,
+        refreshed: res.refreshed,
+        itemsCount: res.items.length,
+        notice: res.notice,
+        budget,
+      });
+    } catch (error) {
+      console.error("[Admin Odds Refresh]", error);
+      return json({ ok: false, error: "Odds refresh failed" }, 500);
     }
   }
 
@@ -1292,12 +1396,14 @@ ${guideEntries}
         return json({ ok: false, error: "Invalid analytics continuation" }, 400);
       }
 
-      const [r2, stats, trends, dashboard, funnel] = await Promise.all([
+      const [r2, stats, trends, dashboard, funnel, oddsBudget, tipsPerformance] = await Promise.all([
         getR2StorageAnalytics(env, continuation),
         getStats(env.DB),
         getDailyFinancialTrends(env.DB, safeDays),
         getOperationsDashboard(env.DB).catch(() => null),
         getAttributionFunnelStats(env.DB, safeDays).catch(() => null),
+        getMonthlyCreditSummary(env).catch(() => undefined),
+        getDetailedPerformanceReport(env).catch(() => undefined),
       ]);
 
       const totalDepVol = trends.reduce((sum, d) => sum + d.depositVolume, 0);
@@ -1311,6 +1417,8 @@ ${guideEntries}
         stats,
         trends,
         funnel,
+        oddsBudget,
+        tipsPerformance,
         days: safeDays,
         metric,
         summary: {
@@ -1452,12 +1560,16 @@ ${guideEntries}
     const metricParam = url.searchParams.get("metric") === "count" ? "count" : "volume";
 
     try {
-      const [stats, trends, dashboard, r2Analytics, funnel] = await Promise.all([
+      const [stats, trends, dashboard, r2Analytics, funnel, oddsBudget, tipsPerformance, recentValueAlerts, oddsMonitor] = await Promise.all([
         getStats(env.DB),
         getDailyFinancialTrends(env.DB, safeDays),
         getOperationsDashboard(env.DB).catch(() => null),
         getR2StorageAnalytics(env).catch(() => undefined),
         getAttributionFunnelStats(env.DB, safeDays).catch(() => undefined),
+        getMonthlyCreditSummary(env).catch(() => undefined),
+        getDetailedPerformanceReport(env).catch(() => undefined),
+        getRecentValueAlerts(env, 10).catch(() => []),
+        safeOddsMonitorSummary(env),
       ]);
 
       const nonce = crypto.randomUUID().replace(/-/g, "");
@@ -1475,6 +1587,10 @@ ${guideEntries}
           alerts: dashboard?.alerts || [],
           tips: dashboard?.tips || [],
           funnel,
+          oddsBudget,
+          tipsPerformance,
+          recentValueAlerts,
+          oddsMonitor,
           paymentMethods: {
             bank: env.BANK_DETAILS || "Not Configured",
             ezcash: env.EZCASH_NUMBER || "Not Configured",

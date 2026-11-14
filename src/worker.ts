@@ -2,8 +2,10 @@ import { webhookCallback } from "grammy";
 import { createBot, executionContextStorage } from "./bot";
 import { logBotError } from "./logger";
 import { cleanupOldR2Logs } from "./logCleanup";
-import { runScheduledTip, runOddsApiHealthCheck, TIPS_CRONS } from "./tips";
+import { runScheduledTip, runOddsApiHealthCheck, runControlledOddsRefresh, TIPS_CRONS } from "./tips";
 import { settlePendingTips } from "./tipsSettlement";
+import { upsertLiveScoreEvents, updateLiveScoresForActiveTips } from "./liveScores";
+import { maybePostDailyPerformanceRecap } from "./tipsPerformance";
 import { getPublicTips, publicTipsClientScript } from "./publicTips";
 import { assertValidEnv, constantTimeEqual, validateEnv } from "./config";
 import { landingPageSecurityHeaders, securityHeaders, webhookRequestAllowed } from "./security";
@@ -29,7 +31,8 @@ let webhookHandler: ((request: Request) => Promise<Response>) | null = null;
 
 const publicCommands = [
   { command: "start", description: "Start the bot" }, { command: "menu", description: "Open the main menu" },
-  { command: "tips", description: "View latest free betting tips" }, { command: "deposit", description: "Start a cash deposit" },
+  { command: "tips", description: "View latest free betting tips" }, { command: "scores", description: "Live match scores & results" },
+  { command: "odds", description: "Best odds finder across bookmakers" }, { command: "deposit", description: "Start a cash deposit" },
   { command: "confirm_deposit", description: "Confirm a deposit" }, { command: "withdraw", description: "Start a cash withdrawal" },
   { command: "register", description: "Open 1xBet registration" }, { command: "referrals", description: "Open referral dashboard" },
   { command: "history", description: "View transaction history" }, { command: "dashboard", description: "Open your user dashboard" },
@@ -39,7 +42,8 @@ const publicCommands = [
 ];
 const sinhalaCommands = [
   { command: "start", description: "Bot එක ආරම්භ කරන්න" }, { command: "menu", description: "ප්‍රධාන මෙනුව විවෘත කරන්න" },
-  { command: "tips", description: "නවතම Free Betting Tips බලන්න" }, { command: "deposit", description: "මුදල් තැන්පතුවක් ආරම්භ කරන්න" },
+  { command: "tips", description: "නවතම Free Betting Tips බලන්න" }, { command: "scores", description: "සජීවී තරග ලකුණු (Live Scores) බලන්න" },
+  { command: "odds", description: "හොඳම Odds සසඳා බලන්න (Best Odds)" }, { command: "deposit", description: "මුදල් තැන්පතුවක් ආරම්භ කරන්න" },
   { command: "confirm_deposit", description: "තැන්පතුව තහවුරු කරන්න" }, { command: "withdraw", description: "මුදල් ලබාගැනීම ආරම්භ කරන්න" },
   { command: "register", description: "1xBet ලියාපදිංචිය විවෘත කරන්න" }, { command: "referrals", description: "Referral Dashboard විවෘත කරන්න" },
   { command: "history", description: "ගනුදෙනු ඉතිහාසය බලන්න" }, { command: "dashboard", description: "ඔබේ Dashboard එක බලන්න" },
@@ -49,7 +53,8 @@ const sinhalaCommands = [
 ];
 const tamilCommands = [
   { command: "start", description: "போட்டை தொடங்கவும்" }, { command: "menu", description: "முதன்மை மெனுவைத் திறக்கவும்" },
-  { command: "tips", description: "சமீபத்திய இலவச குறிப்புகளைப் பார்க்கவும்" }, { command: "deposit", description: "பண வைப்பு தொடங்கவும்" },
+  { command: "tips", description: "சமீபத்திய இலவச குறிப்புகளைப் பார்க்கவும்" }, { command: "scores", description: "நேரடி போட்டி முடிவுகள் (Live Scores)" },
+  { command: "odds", description: "சிறந்த Odds ஒப்பீடு (Best Odds)" }, { command: "deposit", description: "பண வைப்பு தொடங்கவும்" },
   { command: "confirm_deposit", description: "வைப்பை உறுதிப்படுத்தவும்" }, { command: "withdraw", description: "பணம் பெறும் செயல்முறையை தொடங்கவும்" },
   { command: "register", description: "1xBet பதிவு திறக்கவும்" }, { command: "referrals", description: "Referral Dashboard திறக்கவும்" },
   { command: "history", description: "பரிவர்த்தனை வரலாற்றைப் பார்க்கவும்" }, { command: "dashboard", description: "உங்கள் Dashboard பார்க்கவும்" },
@@ -353,9 +358,26 @@ ${guideEntries}
       // Run Odds API score settlement once per hour (:37) with a 95-minute kickoff maturity gate
       // so live matches aren't polled every 5 minutes and free-plan credits aren't burned.
       if (minute === 37) {
-        tasks.push(settlePendingTips(env, { minMatchAgeMinutes: 95, maxMatchAgeHours: 76 })
-          .then((summary) => console.log(`[Worker Cron] Tips settlement completed: posts=${summary.settledPosts}/${summary.checkedPosts}, won=${summary.wonPicks}, lost=${summary.lostPicks}, void=${summary.voidPicks}, tgUpdates=${summary.editedTelegramMessages}, retryQueued=${summary.requeuedBackoff}`))
-          .catch((err) => console.error("[Worker Cron] Tips settlement failed:", err)));
+        tasks.push(
+          settlePendingTips(env, { minMatchAgeMinutes: 95, maxMatchAgeHours: 76 })
+            .then(async (summary) => {
+              console.log(`[Worker Cron] Tips settlement completed: posts=${summary.settledPosts}/${summary.checkedPosts}, won=${summary.wonPicks}, lost=${summary.lostPicks}, void=${summary.voidPicks}, tgUpdates=${summary.editedTelegramMessages}, retryQueued=${summary.requeuedBackoff}`);
+              if (summary.fetchedScoreEvents && summary.fetchedScoreEvents.length > 0) {
+                await upsertLiveScoreEvents(env, summary.fetchedScoreEvents)
+                  .catch((err) => console.warn("[Worker Cron] Live scores cache upsert warning:", err));
+              }
+              await updateLiveScoresForActiveTips(env, new Set(summary.fetchedSports || []))
+                .then((res) => console.log(`[Worker Cron] Hourly live scores: tracked=${res.trackedMatches}, fetched=${res.sportsFetched}, channelUpdates=${res.channelNotifications}`))
+                .catch((err) => console.warn("[Worker Cron] Hourly live scores warning:", err));
+              await maybePostDailyPerformanceRecap(env)
+                .then((recap) => { if (recap.posted) console.log(`[Worker Cron] Nightly performance recap posted for ${recap.date}`); })
+                .catch((err) => console.warn("[Worker Cron] Daily performance recap warning:", err));
+              await runControlledOddsRefresh(env)
+                .then((ref) => { if (ref.refreshed) console.log(`[Worker Cron] Controlled odds refresh: snapshots=${ref.snapshotsSaved}, alerts=${ref.alertsSent}`); })
+                .catch((err) => console.warn("[Worker Cron] Controlled odds refresh warning:", err));
+            })
+            .catch((err) => console.error("[Worker Cron] Tips settlement failed:", err))
+        );
       }
 
       if ([7, 22, 37, 52].includes(minute)) {

@@ -53,6 +53,8 @@ export interface SettlementSummary {
   errors: string[];
   skippedCompletedPicks?: number;
   requeuedBackoff?: number;
+  fetchedSports?: string[];
+  fetchedScoreEvents?: OddsScoreEvent[];
 }
 
 /**
@@ -186,7 +188,8 @@ export function evaluatePickResult(
 export async function fetchScoresForSport(
   envOrApiKey: Partial<Env> | string,
   sportKey: string,
-  daysFrom = 3
+  daysFrom = 3,
+  isSettlementRetry = true
 ): Promise<OddsScoreEvent[]> {
   const { data } = await fetchOddsApiJson<OddsScoreEvent[]>(
     envOrApiKey,
@@ -197,7 +200,16 @@ export async function fetchScoresForSport(
       url.searchParams.set("dateFormat", "iso");
       return url;
     },
-    { timeoutMs: 9000, retries: 1 }
+    {
+      timeoutMs: 9000,
+      retries: 1,
+      creditContext: {
+        bucket: "scores",
+        estimatedCost: daysFrom > 0 ? 2 : 1,
+        endpoint: `/v4/sports/${sportKey}/scores`,
+        isSettlementRetry,
+      },
+    }
   );
   return data;
 }
@@ -410,15 +422,24 @@ export async function settlePendingTips(
     parsedByPost.set(Number(post.id), picks);
   }
 
+  const fetchedScoreEvents: OddsScoreEvent[] = [];
+  const fetchedSports: string[] = [];
   for (const sport of sportKeys) {
     try {
       const oldestAgeHours = sportMaxAgeHours.get(sport) ?? 24;
       const daysFrom = oldestAgeHours <= 20 ? 1 : 3;
-      for (const event of await fetchScoresForSport(env, sport, daysFrom)) scoresByEventId.set(event.id, event);
+      const events = await fetchScoresForSport(env, sport, daysFrom, true);
+      fetchedSports.push(sport);
+      for (const event of events) {
+        scoresByEventId.set(event.id, event);
+        fetchedScoreEvents.push(event);
+      }
     } catch (error) {
       summary.errors.push(`Scores fetch failed for ${sport}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
+  summary.fetchedSports = fetchedSports;
+  summary.fetchedScoreEvents = fetchedScoreEvents;
 
   // Prepare result upserts in memory and send them in bounded transactional batches.
   const resultWrites: Array<{ postId: number; statement: any }> = [];

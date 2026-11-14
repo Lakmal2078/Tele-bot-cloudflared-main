@@ -27,12 +27,16 @@ A production Telegram bot running on **Cloudflare Workers + TypeScript**. It pro
 
 - Telegram webhook bot built with [grammY](https://grammy.dev/).
 - Languages: **Sinhala (SI)**, **English (EN)**, and **Tamil (TA)** across both the Telegram bot and localized web pages (`/`, `/en/`, `/ta/`).
-- Public commands: `/start`, `/menu`, `/tips`, `/deposit`, `/confirm_deposit`, `/withdraw`, `/register`, `/referrals`, `/history`, `/dashboard`, `/ticket`, `/safety`, `/id`, `/language`, `/help`, `/cancel`.
+- Public commands: `/start`, `/menu`, `/tips`, `/scores`, `/odds`, `/roi`, `/deposit`, `/confirm_deposit`, `/withdraw`, `/register`, `/referrals`, `/history`, `/dashboard`, `/ticket`, `/safety`, `/id`, `/language`, `/help`, `/cancel`.
 - Free sports tips with configurable feeds, quality thresholds, freshness limits, publishing caps, and dynamic sport filter tabs.
+- **1,000-Credit Odds API Governance (`src/oddsCreditManager.ts`):** Tracks two 500-credit keys (`ODDS_API_KEY` + `ODDS_API_KEY_2`) together across feature buckets (`tips: 519`, `scores: 160`, `odds_refresh: 160`, `on_demand: 80`, `reserve: 81`) with automatic `800 / 900 / 950 / 1,000` protection tiers and one-time Admin Telegram alerts.
+- **Live Scores (`src/liveScores.ts`):** Hourly `:37` updates for active posted tip matches and cached `/scores` bot & web views (`live_score_cache`).
+- **Best Odds Finder & Value Alerts (`src/bestOdds.ts`):** Zero-credit extraction from `/odds` payloads into `odds_snapshots`, line-movement tracking, deduplicated `value_odds_alerts` to Telegram, `/odds` command, and public web comparison tab.
+- **Results & Performance Tracker (`src/tipsPerformance.ts`):** D1-only (0-credit) Win Rate, Net Units, and ROI tracker across Today / 7D / 30D / All Time + automated nightly 23:37 SL channel summary, `/roi` command, web tab, and Admin view.
 - Team & player icon resolution (`src/teamIcons.ts`) combining static crests/flags, D1 `team_icon_cache`, TheSportsDB lookup, and SVG fallback badges.
 - Automated tip settlement with **WON / LOST / VOID** outcomes, exponential backoff retries, and audited admin overrides.
 - Deposit and withdrawal workflows with magic-byte validated R2 receipt storage and authenticated admin receipt proxy.
-- Mobile-responsive protected admin dashboard (`/admin`) with D3/SVG trends, R2 analytics, attribution funnel, support tickets, and a **Telegram BotFather Setup Kit** supporting live **640×360 JPEG photo upload & reset** in R2.
+- Mobile-responsive protected admin dashboard (`/admin`) with D3/SVG trends, R2 analytics, attribution funnel, live Odds API credit budget monitor, ROI breakdown, support tickets, and a **Telegram BotFather Setup Kit** supporting live **640×360 JPEG photo upload & reset** in R2.
 - Security hardening: D1-backed failure-only admin brute-force protection, HMAC-signed `HttpOnly; SameSite=Strict` admin sessions, strict nonce CSP, `X-Frame-Options: DENY` + `frame-ancestors 'none'`, timing-safe credential checks, and parameterized D1 queries.
 - Vitest tests plus ESLint and TypeScript checks.
 
@@ -69,9 +73,13 @@ A production Telegram bot running on **Cloudflare Workers + TypeScript**. It pro
 │   ├── bot.ts               # Telegram bot setup and handlers
 │   ├── cashier.ts           # Deposit and withdrawal transaction processing
 │   ├── fraud.ts             # Rate limits and fraud rule evaluation
-│   ├── tips.ts              # Free-tip selection and publishing
+│   ├── tips.ts              # Free-tip selection, publishing, and controlled odds refresh
+│   ├── oddsCreditManager.ts # 1,000-credit monthly budget, bucket caps & 800/900/950/1000 guardrails
+│   ├── bestOdds.ts          # Zero-credit Best Odds Finder snapshots & deduplicated Value Odds Alerts
+│   ├── liveScores.ts        # Active-tip live score updater, Telegram notifications & /scores cache
+│   ├── tipsPerformance.ts   # D1-only Win Rate & ROI analytics and nightly Sri Lanka recap
 │   ├── tipsSettlement.ts    # Tip result evaluation and settlement
-│   ├── publicTips.ts        # Public tips feed, dynamic sport tabs, and landing-page tip cards
+│   ├── publicTips.ts        # Public tips, Best Odds, Live Scores & ROI landing-page feed
 │   ├── teamIcons.ts         # Team/player logo cache (D1 + TheSportsDB + SVG fallback)
 │   ├── apiRoutes.ts         # HTTP API routing, BotFather photo upload/reset, and admin endpoints
 │   ├── adminPage.ts         # Responsive Admin Dashboard HTML and client controls
@@ -211,10 +219,16 @@ Configured sports (`TIPS_SPORTS`):
 auto:soccer, auto:cricket, auto:basketball, auto:tennis, auto:mma, auto:icehockey
 ```
 
-**Quota estimate (2 × 500-credit keys = 1,000/month):**
-* **Tip fetching (`TIPS_MAX_FEEDS=3`):** Auto-discovers up to 4 active leagues per sport category, pre-checks upcoming fixtures via the **0-credit `/events` endpoint** so empty leagues are skipped without spending quota, and fetches up to 3 active feeds per slot — stopping early at 2 feeds once 3 diverse picks are found (`~220–279` credits/month across 3 daily slots).
-* **Settlement (`/scores?daysFrom=1|3`):** Runs once per hour at `:37` with a 95-minute post-kickoff maturity gate, exponential retry backoff, and a 76-hour cutoff (`~150–240` credits/month).
-* **Automatic failover:** Set both `ODDS_API_KEY` and `ODDS_API_KEY_2` (or comma-separated keys in `ODDS_API_KEY`) so when the first 500-credit key hits `0` remaining / HTTP `401`, requests seamlessly rotate to the second key. `/v4/sports`, `/v4/sports/{sport}/events`, and health checks remain 0 credits.
+**Quota budget & protection ladder (2 × 500-credit keys = 1,000/month, migration `0017_odds_credit_manager.sql`):**
+* **Feature bucket allocation:** Scheduled Tips `519` · Live Scores `160` · Extra Odds Refresh & Value Alerts `160` · On-Demand Commands (`/scores`, `/odds`) `80` · Safety Reserve `81`.
+* **Automatic protection tiers:**
+  - `800`: One-time monthly Admin Telegram warning (`WARN_800`).
+  - `900`: Pauses extra background `odds_refresh` & live-only score polling (`RESTRICT_900`).
+  - `950`: Pauses Value Odds Alerts and live `/scores` & `/odds` refreshes; serves D1 cache (`CRITICAL_950`).
+  - `1,000`: Hard-stops all paid Odds API calls until next UTC month (`HARD_STOP_1000`).
+* **Tip fetching (`TIPS_MAX_FEEDS=3`):** Auto-discovers up to 4 active leagues per sport category, pre-checks upcoming fixtures via the **0-credit `/events` endpoint**, and fetches up to 3 active feeds per slot with early-stop once 3 diverse picks are found.
+* **Hourly `:37` pipeline & nightly recap:** Runs tip settlement, caches score events into `live_score_cache`, checks active tip scores cleanly, runs a D1-only nightly Sri Lanka Win Rate & ROI summary (`23:37` SL, `0` credits), and performs controlled best-odds refreshes when quota permits.
+* **Automatic failover:** Set both `ODDS_API_KEY` and `ODDS_API_KEY_2` (or comma-separated keys in `ODDS_API_KEY`) so when the first 500-credit key hits `0` remaining / HTTP `401`, requests seamlessly rotate to the second key while `oddsCreditManager` tracks both accounts together (with automatic shared-pool detection if `used + remaining > 550`). `/v4/sports`, `/v4/sports/{sport}/events`, `/api/tips/preview`, and health checks remain 0 credits.
 
 Selection and publishing pipeline:
 
@@ -257,10 +271,12 @@ Further provider notes are in [`docs/free-tips.md`](./docs/free-tips.md).
 | POST | `/admin/login`, `/admin/logout` | Exchanges `ADMIN_API_SECRET` for signed `HttpOnly` session cookie / clears cookie |
 | GET, HEAD | `/admin`, `/panel` | Protected Admin UI (login form when unauthenticated; full dashboard after sign-in) |
 | POST | `/api/tips/settle` | Admin trigger for tip settlement |
+| GET | `/api/admin/odds-budget` | Monthly Odds API 1,000-credit budget, per-bucket usage, dual-key stats, and ROI summary |
+| POST | `/api/admin/odds-refresh` | Admin-triggered best-odds refresh governed by `canMakeOddsRequest` (returns `429` if quota-gated) |
 | POST | `/api/admin/tips/settlement/override` | Manual historical tip settlement override (requires an authenticated admin session or `ADMIN_API_SECRET` via `Authorization: Bearer` / `X-Admin-Secret`; audit actor is recorded as `shared-admin-secret`) |
 | POST, DELETE | `/api/admin/bot/description-photo` | Upload (auto-cropped 640×360 JPEG/PNG/WebP) or reset custom BotFather description photo in R2 |
 | GET, HEAD | `/api/admin/dashboard`, `/api/admin/status` | Admin operations dashboard & status |
-| GET, HEAD | `/api/admin/trends`, `/api/admin/r2-analytics` | Financial trends & R2 storage analytics |
+| GET, HEAD | `/api/admin/trends`, `/api/admin/r2-analytics` | Financial trends & R2 storage analytics (includes Odds API credit & ROI summaries) |
 | GET | `/api/admin/receipts` | Authenticated proxy for private R2 deposit receipts |
 | GET, POST | `/api/admin/tickets`, `/api/admin/schedule` | Support ticket management & scheduled post drafts |
 

@@ -10,6 +10,9 @@ import { cleanupOldR2Logs } from "./logCleanup";
 import * as fraud from "./fraud";
 import { RateLimiter, DEFAULT_TIPS_BLOCK_MESSAGE } from "./rateLimit";
 import { isUsableTrackingHost, normalizeChannelUrl } from "./tips";
+import { getLiveScoresOnDemand, type LiveScoreRecord } from "./liveScores";
+import { refreshBestOddsOnDemand, type BestOddsSnapshot } from "./bestOdds";
+import { getDetailedPerformanceReport } from "./tipsPerformance";
 import * as cashier from "./cashier";
 
 export const executionContextStorage = new AsyncLocalStorage<{
@@ -260,6 +263,21 @@ export function createBot(env: Env) {
         blockMessage: DEFAULT_TIPS_BLOCK_MESSAGE,
       },
       freetips: {
+        windowMs: 60_000,
+        maxPerUser: 5,
+        blockMessage: DEFAULT_TIPS_BLOCK_MESSAGE,
+      },
+      scores: {
+        windowMs: 60_000,
+        maxPerUser: 5,
+        blockMessage: DEFAULT_TIPS_BLOCK_MESSAGE,
+      },
+      odds: {
+        windowMs: 60_000,
+        maxPerUser: 5,
+        blockMessage: DEFAULT_TIPS_BLOCK_MESSAGE,
+      },
+      bestodds: {
         windowMs: 60_000,
         maxPerUser: 5,
         blockMessage: DEFAULT_TIPS_BLOCK_MESSAGE,
@@ -604,6 +622,11 @@ export function createBot(env: Env) {
           ? `🎯 *இலவச விளையாட்டு பந்தய குறிப்புகள்*\n━━━━━━━━━━━━━━━━━━━━━━━━━\n\nதினசரி தானியங்கி குறிப்புகள் ஒரு நாளைக்கு 3 முறை பகிரப்படும்:\n• 08:00 AM (இலங்கை)\n• 12:00 PM (இலங்கை)\n• 06:00 PM (இலங்கை)\n\nநேரடி அறிவிப்புகளைப் பெற எங்கள் சேனலில் சேருங்கள்!`
           : `🎯 *නොමිලේ ලබාදෙන ක්‍රීඩා Betting Tips*\n━━━━━━━━━━━━━━━━━━━━━━━━━\n\nදිනපතා ස්වයංක්‍රීයව විශ්ලේෂණය කළ Tips දිනකට 3 වරක් පළවේ:\n• උදෑසන 08:00 (ශ්‍රී ලංකා)\n• දහවල් 12:00 (ශ්‍රී ලංකා)\n• සවස 06:00 (ශ්‍රී ලංකා)\n\nනවතම Tips සජීවීව ලබාගැනීමට අපගේ නිල Tips Channel එකට සම්බන්ධ වන්න!`;
 
+      kb.text("📡 Live Scores", "view_live_scores")
+        .text("💹 Best Odds", "view_best_odds")
+        .row()
+        .text("📈 Win Rate & ROI", "view_tips_performance")
+        .row();
       kb.url("📢 Official Tips Channel", channelLink).row();
       if (xbetUrl) kb.url("🎲 1xBet හි ලියාපදිංචි වන්න", xbetUrl).row();
       kb.text(dict.btnBack, "back");
@@ -671,8 +694,275 @@ export function createBot(env: Env) {
       // Missing XBET_LINK previously caused Telegram to reject the whole Free Tips message.
       kb.url("🎲 Bet on 1xBet", xbetUrl).row();
     }
+    kb.text("📡 Live Scores", "view_live_scores")
+      .text("💹 Best Odds", "view_best_odds")
+      .row()
+      .text("📈 Win Rate & ROI", "view_tips_performance")
+      .row();
     kb.url("📢 Official Tips Channel", channelLink).row();
     kb.text(dict.btnBack, "back");
+
+    if (isEdit) {
+      try {
+        await ctx.editMessageText(text, {
+          parse_mode: "Markdown",
+          reply_markup: kb,
+          link_preview_options: { is_disabled: true },
+        });
+        return;
+      } catch {}
+    }
+    await ctx.reply(text, {
+      parse_mode: "Markdown",
+      reply_markup: kb,
+      link_preview_options: { is_disabled: true },
+    });
+  }
+
+  function formatShortTimeSl(iso: string | null | undefined): string {
+    if (!iso) return "—";
+    const normalized = iso.endsWith("Z") || iso.includes("+") ? iso : `${iso}Z`;
+    const d = new Date(normalized);
+    if (Number.isNaN(d.getTime())) return String(iso).slice(0, 16);
+    return d.toLocaleTimeString("en-GB", {
+      timeZone: "Asia/Colombo",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  }
+
+  // Helper: Show Live Scores View (/scores)
+  async function showLiveScoresView(ctx: MyContext, lang: Language, isEdit = false, forceLive = false) {
+    const dict = t(lang);
+    const res = await getLiveScoresOnDemand(ctx.env, { forceLive });
+    const items: LiveScoreRecord[] = res.items.slice(0, 8);
+
+    const header =
+      lang === "en"
+        ? "📡 *LIVE & RECENT SCORES*"
+        : lang === "ta"
+        ? "📡 *நேரடி & சமீபத்திய முடிவுகள்*"
+        : "📡 *LIVE & RECENT SCORES (සජීවී ලකුණු)*";
+
+    const lines = items.map((item) => {
+      const badge = item.completed ? "🏁 FT" : item.isLive ? "🔴 LIVE" : `🕒 ${formatShortTimeSl(item.commenceTime)}`;
+      const score =
+        item.scoreHome != null && item.scoreAway != null
+          ? `*${escapeMarkdown(item.scoreHome)} - ${escapeMarkdown(item.scoreAway)}*`
+          : "_vs_";
+      return (
+        `${badge} · _${escapeMarkdown(item.sportTitle || "Sports")}_\n` +
+        `*${escapeMarkdown(item.homeTeam)}* ${score} *${escapeMarkdown(item.awayTeam)}*`
+      );
+    });
+
+    const emptyNotice =
+      lang === "en"
+        ? "_No cached live or settled match scores yet. Scores update automatically every hour for active daily tips._"
+        : lang === "ta"
+        ? "_தற்போது நேரடி முடிவுகள் எதுவும் இல்லை. செயலில் உள்ள குறிப்புகளுக்கான முடிவுகள் மணிக்கு ஒருமுறை புதுப்பிக்கப்படும்._"
+        : "_දැනට වාර්තා වූ සජීවී හෝ අවසන් ලකුණු නොමැත. පළ කළ tips තරඟ සඳහා ලකුණු සෑම පැයකම ස්වයංක්‍රීයව යාවත්කාලීන වේ._";
+
+    const statusLine = res.notice
+      ? `\nℹ️ _${escapeMarkdown(res.notice.slice(0, 160))}_`
+      : res.refreshed
+      ? "\n🔄 _Refreshed live via Odds API_"
+      : items[0]?.fetchedAt
+      ? `\n🕒 _Cached SL Time: ${formatShortTimeSl(items[0].fetchedAt)}_`
+      : "";
+
+    const text = [
+      header,
+      "━━━━━━━━━━━━━━━━━━━━━━━━━",
+      lines.length > 0 ? lines.join("\n\n") : emptyNotice,
+      "━━━━━━━━━━━━━━━━━━━━━━━━━",
+      statusLine.trim(),
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const kb = new InlineKeyboard()
+      .text("🔄 Refresh Scores", "refresh_live_scores")
+      .text("💹 Best Odds", "view_best_odds")
+      .row()
+      .text("🎯 Free Tips", "view_free_tips")
+      .text(dict.btnBack, "back");
+
+    if (isEdit) {
+      try {
+        await ctx.editMessageText(text, {
+          parse_mode: "Markdown",
+          reply_markup: kb,
+          link_preview_options: { is_disabled: true },
+        });
+        return;
+      } catch {}
+    }
+    await ctx.reply(text, {
+      parse_mode: "Markdown",
+      reply_markup: kb,
+      link_preview_options: { is_disabled: true },
+    });
+  }
+
+  function oddsMovementArrow(current: number | null, prev: number | null): string {
+    if (current == null || prev == null || Math.abs(current - prev) < 0.01) return "";
+    return current > prev ? " ↑" : " ↓";
+  }
+
+  // Helper: Show Best Odds Finder View (/odds)
+  async function showBestOddsView(
+    ctx: MyContext,
+    lang: Language,
+    isEdit = false,
+    sportQuery = "",
+    forceRefresh = false
+  ) {
+    const dict = t(lang);
+    const res = await refreshBestOddsOnDemand(ctx.env, {
+      sportKey: sportQuery || undefined,
+      bucket: "on_demand",
+      maxAgeMinutes: forceRefresh ? 0 : 45,
+    });
+    const items: BestOddsSnapshot[] = res.items.slice(0, 5);
+
+    const header =
+      lang === "en"
+        ? "💹 *BEST ODDS FINDER*"
+        : lang === "ta"
+        ? "💹 *சிறந்த ODDS ஒப்பீடு*"
+        : "💹 *BEST ODDS FINDER (හොඳම Odds)*";
+
+    const lines = items.map((item, idx) => {
+      const homeArrow = oddsMovementArrow(item.bestHomeOdds, item.prevBestHomeOdds);
+      const awayArrow = oddsMovementArrow(item.bestAwayOdds, item.prevBestAwayOdds);
+      const hStr = item.bestHomeOdds != null
+        ? `${item.bestHomeOdds.toFixed(2)}${homeArrow} (${escapeMarkdown(item.bestHomeBookmaker || "Book")})`
+        : "—";
+      const dStr = item.bestDrawOdds != null
+        ? ` | Draw *${item.bestDrawOdds.toFixed(2)}*`
+        : "";
+      const aStr = item.bestAwayOdds != null
+        ? `${item.bestAwayOdds.toFixed(2)}${awayArrow} (${escapeMarkdown(item.bestAwayBookmaker || "Book")})`
+        : "—";
+      const edgeStr =
+        item.bestValueScore != null && item.bestValueScore > 0.005
+          ? `\n💎 Value: \`+${(item.bestValueScore * 100).toFixed(1)}%\` on *${escapeMarkdown(item.bestSelection || "")}*`
+          : "";
+      return (
+        `${idx + 1}. *${escapeMarkdown(item.homeTeam)}* vs *${escapeMarkdown(item.awayTeam)}*\n` +
+        `🏆 _${escapeMarkdown(item.sportTitle)}_ · 🕒 ${formatShortTimeSl(item.commenceTime)} SL\n` +
+        `🏠 *${hStr}*${dStr}\n` +
+        `✈️ *${aStr}*${edgeStr}`
+      );
+    });
+
+    const emptyNotice =
+      lang === "en"
+        ? "_No cached odds comparisons available yet. Snapshots update automatically with scheduled tip scans._"
+        : lang === "ta"
+        ? "_தற்போது odds ஒப்பீடுகள் எதுவும் இல்லை. திட்டமிட்ட tip ஸ்கேன்களின்போது இவை புதுப்பிக்கப்படும்._"
+        : "_දැනට odds සංසන්දන දත්ත නොමැත. නියමිත tips scan වාර සමඟ මෙය ස්වයංක්‍රීයව යාවත්කාලීන වේ._";
+
+    const statusLine = res.notice
+      ? `\nℹ️ _${escapeMarkdown(res.notice.slice(0, 160))}_`
+      : res.refreshed
+      ? "\n🔄 _Refreshed from Odds API_"
+      : items[0]?.fetchedAt
+      ? `\n🕒 _Cached SL Time: ${formatShortTimeSl(items[0].fetchedAt)}_`
+      : "";
+
+    const text = [
+      header,
+      "━━━━━━━━━━━━━━━━━━━━━━━━━",
+      lines.length > 0 ? lines.join("\n\n") : emptyNotice,
+      "━━━━━━━━━━━━━━━━━━━━━━━━━",
+      statusLine.trim(),
+      "⚠️ _18+ only · Compare odds responsibly._",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const xbetUrl = (ctx.env.XBET_LINK || "").trim();
+    const kb = new InlineKeyboard();
+    if (xbetUrl.startsWith("https://")) {
+      kb.url("🎲 Bet on 1xBet", xbetUrl).row();
+    }
+    kb.text("🔄 Refresh Odds", "refresh_best_odds")
+      .text("📡 Live Scores", "view_live_scores")
+      .row()
+      .text("📈 Win Rate & ROI", "view_tips_performance")
+      .text(dict.btnBack, "back");
+
+    if (isEdit) {
+      try {
+        await ctx.editMessageText(text, {
+          parse_mode: "Markdown",
+          reply_markup: kb,
+          link_preview_options: { is_disabled: true },
+        });
+        return;
+      } catch {}
+    }
+    await ctx.reply(text, {
+      parse_mode: "Markdown",
+      reply_markup: kb,
+      link_preview_options: { is_disabled: true },
+    });
+  }
+
+  // Helper: Show Win Rate & ROI Performance View (D1-only, 0 API credits)
+  async function showTipsPerformanceView(ctx: MyContext, lang: Language, isEdit = false) {
+    const dict = t(lang);
+    const report = await getDetailedPerformanceReport(ctx.env);
+
+    const fmtWindow = (title: string, w: typeof report.days7) => {
+      const unitsSign = w.netUnits >= 0 ? "+" : "";
+      const roiSign = w.roiPct >= 0 ? "+" : "";
+      return (
+        `*${escapeMarkdown(title)}:* ${w.wonPicks}W / ${w.lostPicks}L / ${w.voidPicks}V` +
+        ` · Win Rate *${w.pickWinRatePct.toFixed(1)}%*\n` +
+        `   └ Net: \`${unitsSign}${w.netUnits.toFixed(2)}u\` | ROI: \`${roiSign}${w.roiPct.toFixed(1)}%\``
+      );
+    };
+
+    const formStr =
+      report.recentForm.length > 0
+        ? report.recentForm.map((r) => (r === "W" ? "✅" : r === "L" ? "❌" : "⚪")).join(" ")
+        : "_No settled picks yet_";
+
+    const sportLines = report.bySport.slice(0, 4).map((s) => {
+      const roiSign = s.roiPct >= 0 ? "+" : "";
+      return `• ${escapeMarkdown(s.sportTitle)}: ${s.wonPicks}W-${s.lostPicks}L (${s.winRatePct.toFixed(0)}% | \`${roiSign}${s.roiPct.toFixed(1)}%\`)`;
+    });
+
+    const header =
+      lang === "en"
+        ? "📈 *TIPS RESULTS & ROI TRACKER*"
+        : lang === "ta"
+        ? "📈 *குறிப்புகள் & ROI செயல்திறன்*"
+        : "📈 *TIPS RESULTS & ROI TRACKER (සාර්ථකත්ව වාර්තාව)*";
+
+    const text = [
+      header,
+      "━━━━━━━━━━━━━━━━━━━━━━━━━",
+      fmtWindow("Today (SL)", report.today),
+      fmtWindow("Last 7 Days", report.days7),
+      fmtWindow("Last 30 Days", report.days30),
+      "",
+      `🔥 *Recent Form:* ${formStr}`,
+      ...(sportLines.length > 0 ? ["", "*Top Sports:*", ...sportLines] : []),
+      "━━━━━━━━━━━━━━━━━━━━━━━━━",
+      "🛡️ _100% verified from settled D1 records (0 API credits used)._",
+    ].join("\n");
+
+    const kb = new InlineKeyboard()
+      .text("🎯 Free Tips", "view_free_tips")
+      .text("💹 Best Odds", "view_best_odds")
+      .row()
+      .text("📡 Live Scores", "view_live_scores")
+      .text(dict.btnBack, "back");
 
     if (isEdit) {
       try {
@@ -698,6 +988,34 @@ export function createBot(env: Env) {
     await db.clearUserState(env.DB, user.id);
     const lang = await getUserLang(env.DB, user.id);
     await showFreeTipsView(ctx, lang, false);
+  });
+
+  // ========== /scores and /livescores commands ==========
+  bot.command(["scores", "livescores"], async (ctx) => {
+    const user = ctx.from;
+    if (!user) return;
+    await db.clearUserState(env.DB, user.id);
+    const lang = await getUserLang(env.DB, user.id);
+    await showLiveScoresView(ctx, lang, false, false);
+  });
+
+  // ========== /odds and /bestodds commands ==========
+  bot.command(["odds", "bestodds"], async (ctx) => {
+    const user = ctx.from;
+    if (!user) return;
+    await db.clearUserState(env.DB, user.id);
+    const lang = await getUserLang(env.DB, user.id);
+    const sportQuery = typeof ctx.match === "string" ? ctx.match.trim().slice(0, 60) : "";
+    await showBestOddsView(ctx, lang, false, sportQuery, false);
+  });
+
+  // ========== /roi and /results commands ==========
+  bot.command(["roi", "results"], async (ctx) => {
+    const user = ctx.from;
+    if (!user) return;
+    await db.clearUserState(env.DB, user.id);
+    const lang = await getUserLang(env.DB, user.id);
+    await showTipsPerformanceView(ctx, lang, false);
   });
 
   // Helper: Show Automated FAQ Menu
@@ -1558,6 +1876,65 @@ export function createBot(env: Env) {
             ctx.waitUntil
           );
         }
+      }
+      return;
+    }
+
+    // Live Scores View & Refresh
+    if (data === "view_live_scores" || data === "refresh_live_scores") {
+      const isForce = data === "refresh_live_scores";
+      if (isForce) {
+        const tipsScopeResult = rateLimiter.checkScope("tips", user.id, {
+          windowMs: 60_000,
+          maxPerUser: 5,
+          blockMessage: DEFAULT_TIPS_BLOCK_MESSAGE,
+        });
+        if (!tipsScopeResult.allowed) {
+          const secs = Math.max(1, Math.ceil((tipsScopeResult.retryAfterMs ?? 1000) / 1000));
+          await ctx.reply(`⏳ ${secs}s: Please wait before refreshing again.`).catch(() => {});
+          return;
+        }
+      }
+      try {
+        await showLiveScoresView(ctx, lang, true, isForce);
+      } catch (err) {
+        console.error("[LiveScores Bot] Callback error:", err);
+        await ctx.reply("⚠️ Live scores are temporarily unavailable.").catch(() => {});
+      }
+      return;
+    }
+
+    // Best Odds View & Refresh
+    if (data === "view_best_odds" || data === "refresh_best_odds") {
+      const isForce = data === "refresh_best_odds";
+      if (isForce) {
+        const tipsScopeResult = rateLimiter.checkScope("tips", user.id, {
+          windowMs: 60_000,
+          maxPerUser: 5,
+          blockMessage: DEFAULT_TIPS_BLOCK_MESSAGE,
+        });
+        if (!tipsScopeResult.allowed) {
+          const secs = Math.max(1, Math.ceil((tipsScopeResult.retryAfterMs ?? 1000) / 1000));
+          await ctx.reply(`⏳ ${secs}s: Please wait before refreshing odds again.`).catch(() => {});
+          return;
+        }
+      }
+      try {
+        await showBestOddsView(ctx, lang, true, "", isForce);
+      } catch (err) {
+        console.error("[BestOdds Bot] Callback error:", err);
+        await ctx.reply("⚠️ Best odds finder is temporarily unavailable.").catch(() => {});
+      }
+      return;
+    }
+
+    // Tips Results & ROI Performance View (D1-only, 0 API credits)
+    if (data === "view_tips_performance") {
+      try {
+        await showTipsPerformanceView(ctx, lang, true);
+      } catch (err) {
+        console.error("[TipsPerformance Bot] Callback error:", err);
+        await ctx.reply("⚠️ Performance report is temporarily unavailable.").catch(() => {});
       }
       return;
     }

@@ -197,7 +197,7 @@ describe("tip settlement", () => {
       expect(summary.checkedPosts).toBe(1);
       expect(summary.settledPosts).toBe(1);
       expect(summary.wonPicks).toBe(1);
-      expect(batchCalls).toEqual([1, 1]);
+      expect(batchCalls).toEqual([3, 1, 1]);
       expect(statements.some(({ sql }) => sql.includes("FROM tip_results WHERE tip_post_id IN"))).toBe(true);
       expect(statements.some(({ sql, values }) => sql.includes("INSERT INTO tip_results") && values.includes("WON"))).toBe(true);
       expect(statements.some(({ sql, values }) => sql.includes("UPDATE tip_posts") && values[0] === "WON")).toBe(true);
@@ -333,7 +333,7 @@ describe("tip settlement", () => {
             statements.push({ sql, values });
             return {
               all: async () => {
-                allCalls++;
+                if (!sql.includes("odds_credit_")) allCalls++;
                 if (sql.includes("SELECT id, scheduled_key")) return { results: [post] };
                 return { results: [] };
               },
@@ -364,7 +364,7 @@ describe("tip settlement", () => {
       expect(summary.evaluatedPicks).toBe(pickCount);
       expect(summary.wonPicks).toBe(pickCount);
       expect(summary.settledPosts).toBe(1);
-      expect(batchCalls).toEqual([50, 10, 1]);
+      expect(batchCalls).toEqual([3, 50, 10, 1]);
       expect(allCalls).toBe(3);
       expect(statements.filter(({ sql }) => sql.includes("INSERT INTO tip_results"))).toHaveLength(pickCount);
     } finally {

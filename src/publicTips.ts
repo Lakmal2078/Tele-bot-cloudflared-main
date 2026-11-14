@@ -1,6 +1,9 @@
 import type { Env } from "./types";
 import { getTipsPerformanceStats } from "./tipsSettlement";
 import { buildEntityCacheKey, resolveTipIconsBatch, type TipSportCategory } from "./teamIcons";
+import { getCachedBestOdds, getRecentValueAlerts, type BestOddsSnapshot, type ValueAlertRecord } from "./bestOdds";
+import { getCachedLiveScores, type LiveScoreRecord } from "./liveScores";
+import { getDetailedPerformanceReport, type DetailedPerformanceReport } from "./tipsPerformance";
 
 export type PublicTip = {
   id: number;
@@ -34,6 +37,10 @@ export type PublicTipsResponse = {
     winRate: number;
     weeklyRoi: string;
   };
+  bestOdds?: BestOddsSnapshot[];
+  valueAlerts?: ValueAlertRecord[];
+  liveScores?: LiveScoreRecord[];
+  performance?: DetailedPerformanceReport;
 };
 
 export function classifySport(sportKey: string | null, sportTitle: string | null): PublicTip["sport"] {
@@ -104,20 +111,37 @@ function parseTipsJson(raw: string | null, row: Record<string, unknown>, results
 export async function getPublicTips(env: Env, limit = 12): Promise<PublicTipsResponse> {
   const generatedAt = new Date().toISOString();
   const summary = await getTipsPerformanceStats(env, 7);
-  if (!env.DB) return { ok: true, generatedAt, tips: [], summary: { days: 7, ...summary } };
+  if (!env.DB) {
+    return {
+      ok: true,
+      generatedAt,
+      tips: [],
+      summary: { days: 7, ...summary },
+      bestOdds: [],
+      valueAlerts: [],
+      liveScores: [],
+    };
+  }
 
   try {
     const safeLimit = Math.max(1, Math.min(limit, 20));
-    const rows = (await env.DB.prepare(`
-      SELECT id, event_id, sport_key, sport_title, home_team, away_team, commence_time,
-             market, selection, odds, tips_json, result
-      FROM tip_posts
-      WHERE status = 'POSTED'
-        AND (posted_at >= datetime('now', '-7 days') OR created_at >= datetime('now', '-7 days'))
-      ORDER BY COALESCE(commence_time, posted_at, created_at) DESC, id DESC
-      LIMIT ?
-    `).bind(safeLimit).all<Record<string, unknown> | null>()).results;
+    const [tipQueryRes, bestOddsRes, valueAlertsRes, liveScoresRes, performanceRes] = await Promise.all([
+      env.DB.prepare(`
+        SELECT id, event_id, sport_key, sport_title, home_team, away_team, commence_time,
+               market, selection, odds, tips_json, result
+        FROM tip_posts
+        WHERE status = 'POSTED'
+          AND (posted_at >= datetime('now', '-7 days') OR created_at >= datetime('now', '-7 days'))
+        ORDER BY COALESCE(commence_time, posted_at, created_at) DESC, id DESC
+        LIMIT ?
+      `).bind(safeLimit).all<Record<string, unknown> | null>(),
+      getCachedBestOdds(env, { limit: 12 }).catch(() => ({ items: [], latestFetchedAt: null })),
+      getRecentValueAlerts(env, 8).catch(() => []),
+      getCachedLiveScores(env, 12).catch(() => ({ items: [], latestFetchedAt: null })),
+      getDetailedPerformanceReport(env).catch(() => undefined),
+    ]);
 
+    const rows = tipQueryRes.results || [];
     const postIds = rows.filter((row): row is Record<string, unknown> => Boolean(row)).map((row) => Number(row.id));
     const resultsByPost = new Map<number, Map<string, Record<string, unknown>>>();
     if (postIds.length > 0) {
@@ -165,10 +189,27 @@ export async function getPublicTips(env: Env, limit = 12): Promise<PublicTipsRes
       }
     }
 
-    return { ok: true, generatedAt, tips, summary: { days: 7, ...summary } };
+    return {
+      ok: true,
+      generatedAt,
+      tips,
+      summary: { days: 7, ...summary },
+      bestOdds: bestOddsRes.items,
+      valueAlerts: valueAlertsRes,
+      liveScores: liveScoresRes.items,
+      performance: performanceRes,
+    };
   } catch {
     // Graceful public fallback when D1/schema is unavailable.
-    return { ok: true, generatedAt, tips: [], summary: { days: 7, ...summary } };
+    return {
+      ok: true,
+      generatedAt,
+      tips: [],
+      summary: { days: 7, ...summary },
+      bestOdds: [],
+      valueAlerts: [],
+      liveScores: [],
+    };
   }
 }
 
@@ -267,22 +308,150 @@ export function publicTipsClientScript(nonce?: string): string {
     if (r === "PARTIAL") return '<span class="tipStatus partial">PARTIAL</span>';
     return '<span class="tipStatus pending">PENDING</span>';
   };
-  var render = function(data){
+  var latestData = null;
+  var activeMode = root.getAttribute("data-mode") || "tips";
+  var modeButtons = root.querySelectorAll(".tipModeTab");
+
+  var deltaTag = function(cur, prev){
+    if (cur == null || prev == null || Math.abs(cur - prev) < 0.01) return "";
+    if (cur > prev) return '<span class="oddsDeltaUp" title="Odds increased">↑</span>';
+    return '<span class="oddsDeltaDown" title="Odds dropped">↓</span>';
+  };
+
+  var renderMode = function(data){
+    if (!data) return;
+    latestData = data;
+    root.setAttribute("data-mode", activeMode);
     var tips = Array.isArray(data.tips) ? data.tips : [];
+    var bestOdds = Array.isArray(data.bestOdds) ? data.bestOdds : [];
+    var valueAlerts = Array.isArray(data.valueAlerts) ? data.valueAlerts : [];
+    var liveScores = Array.isArray(data.liveScores) ? data.liveScores : [];
+    var perf = data.performance || null;
     var summary = data.summary || {};
+
     var labels = {
-      si: { all: "සියල්ල", football: "පාපන්දු", cricket: "ක්‍රිකට්", tennis: "ටෙනිස්", basketball: "පැසිපන්දු", table_tennis: "මේස පන්දු", esports: "ඊ-ක්‍රීඩා", mma: "MMA", other: "වෙනත්", tips: "ඉඟි", none: "දැනට ඉඟි නැහැ", noSettled: "පසුගිය දින 7 තුළ තීරණය කළ ඉඟි නැහැ", settled: "පසුගිය දින 7 තීරණය කළ ඉඟි", rate: "සාර්ථකත්වය", won: "ජයග්‍රහණ", roi: "සතිපතා ROI" },
-      en: { all: "All", football: "Football", cricket: "Cricket", tennis: "Tennis", basketball: "Basketball", table_tennis: "Table Tennis", esports: "Esports", mma: "MMA", other: "Other", tips: "Tips", none: "No tips available", noSettled: "No settled tip results are available for the last 7 days.", settled: "7-day settled tips", rate: "Strike rate", won: "Won", roi: "Weekly ROI" },
-      ta: { all: "அனைத்தும்", football: "கால்பந்து", cricket: "கிரிக்கெட்", tennis: "டென்னிஸ்", basketball: "கூடைப்பந்து", table_tennis: "டேபிள் டென்னிஸ்", esports: "இ-ஸ்போர்ட்ஸ்", mma: "MMA", other: "மற்றவை", tips: "குறிப்புகள்", none: "குறிப்புகள் இப்போது இல்லை", noSettled: "கடந்த 7 நாட்களில் முடிவுகள் இல்லை", settled: "கடந்த 7 நாட்களின் முடிவுகள்", rate: "வெற்றி விகிதம்", won: "வென்றவை", roi: "வார ROI" }
+      si: { all: "සියල්ල", football: "පාපන්දු", cricket: "ක්‍රිකට්", tennis: "ටෙනිස්", basketball: "පැසිපන්දු", table_tennis: "මේස පන්දු", esports: "ඊ-ක්‍රීඩා", mma: "MMA", other: "වෙනත්", tips: "ඉඟි", none: "දැනට ඉඟි නැහැ", noSettled: "පසුගිය දින 7 තුළ තීරණය කළ ඉඟි නැහැ", settled: "පසුගිය දින 7 තීරණය කළ ඉඟි", rate: "සාර්ථකත්වය", won: "ජයග්‍රහණ", roi: "සතිපතා ROI", emptyOdds: "හොඳම Odds සංසන්දන දත්ත මීළඟ scan වාරයෙන් පසු මෙහි දිස්වේ.", emptyScores: "සජීවී හෝ අවසන් කළ තරඟ ලකුණු තවම වාර්තා වී නැත." },
+      en: { all: "All", football: "Football", cricket: "Cricket", tennis: "Tennis", basketball: "Basketball", table_tennis: "Table Tennis", esports: "Esports", mma: "MMA", other: "Other", tips: "Tips", none: "No tips available", noSettled: "No settled tip results are available for the last 7 days.", settled: "7-day settled tips", rate: "Strike rate", won: "Won", roi: "Weekly ROI", emptyOdds: "Best Odds snapshots populate automatically after the next scheduled scan.", emptyScores: "No live or recent match scores cached yet." },
+      ta: { all: "அனைத்தும்", football: "கால்பந்து", cricket: "கிரிக்கெட்", tennis: "டென்னிஸ்", basketball: "கூடைப்பந்து", table_tennis: "டேபிள் டென்னிஸ்", esports: "இ-ஸ்போர்ட்ஸ்", mma: "MMA", other: "மற்றவை", tips: "குறிப்புகள்", none: "குறிப்புகள் இப்போது இல்லை", noSettled: "கடந்த 7 நாட்களில் முடிவுகள் இல்லை", settled: "கடந்த 7 நாட்களின் முடிவுகள்", rate: "வெற்றி விகிதம்", won: "வென்றவை", roi: "வார ROI", emptyOdds: "அடுத்த ஸ்கேனுக்குப் பிறகு சிறந்த Odds விவரங்கள் இங்கே தோன்றும்.", emptyScores: "நேரடி அல்லது சமீபத்திய முடிவுகள் இன்னும் இல்லை." }
     }[document.documentElement.lang] || {
-      all: "All", football: "Football", cricket: "Cricket", tennis: "Tennis", basketball: "Basketball", table_tennis: "Table Tennis", esports: "Esports", mma: "MMA", other: "Other", tips: "Tips", none: "No tips available", noSettled: "No settled tip results are available for the last 7 days.", settled: "7-day settled tips", rate: "Strike rate", won: "Won", roi: "Weekly ROI"
+      all: "All", football: "Football", cricket: "Cricket", tennis: "Tennis", basketball: "Basketball", table_tennis: "Table Tennis", esports: "Esports", mma: "MMA", other: "Other", tips: "Tips", none: "No tips available", noSettled: "No settled tip results are available for the last 7 days.", settled: "7-day settled tips", rate: "Strike rate", won: "Won", roi: "Weekly ROI", emptyOdds: "Best Odds snapshots populate automatically after the next scheduled scan.", emptyScores: "No live or recent match scores cached yet."
     };
+
     var badge = document.getElementById("tipsLiveBadge");
     var summaryEl = document.getElementById("tipLiveSummary");
     var emptyState = document.getElementById("tipEmptyState");
     var tipGrid = document.getElementById("tipCardGrid");
     var tabsHost = document.querySelector("#tips-preview .tipTabs");
 
+    if (tabsHost) tabsHost.style.display = activeMode === "tips" ? "flex" : "none";
+
+    if (activeMode === "odds") {
+      if (badge) badge.textContent = "Best Odds (" + bestOdds.length + ")";
+      if (summaryEl) {
+        summaryEl.style.display = "flex";
+        summaryEl.innerHTML = '<span>💹 <b>' + esc(bestOdds.length) + '</b> Tracked Matches</span>' +
+          '<span>💎 <b>' + esc(valueAlerts.length) + '</b> Value Alerts (+4% EV)</span>' +
+          '<span>🛡️ Bookmaker Best Price Comparison</span>';
+      }
+      if (emptyState) {
+        emptyState.textContent = labels.emptyOdds;
+        emptyState.hidden = bestOdds.length > 0;
+      }
+      if (tipGrid) {
+        tipGrid.innerHTML = bestOdds.map(function(o){
+          var edgeBadge = (o.bestValueScore != null && o.bestValueScore > 0.005)
+            ? '<span class="valueBadge">+' + (o.bestValueScore * 100).toFixed(1) + '% EV</span>'
+            : '<span class="tipStatus pending">' + (Array.isArray(o.bookmakers) ? o.bookmakers.length : 0) + ' Books</span>';
+          var homeVal = o.bestHomeOdds != null ? Number(o.bestHomeOdds).toFixed(2) + deltaTag(o.bestHomeOdds, o.prevBestHomeOdds) : "—";
+          var drawVal = o.bestDrawOdds != null ? Number(o.bestDrawOdds).toFixed(2) : "—";
+          var awayVal = o.bestAwayOdds != null ? Number(o.bestAwayOdds).toFixed(2) + deltaTag(o.bestAwayOdds, o.prevBestAwayOdds) : "—";
+          return '<article class="tipCard" data-sport="all">' +
+            '<div class="tipCardTop"><span class="tipLeague">' + esc(o.sportTitle || "Sports") + '</span>' + edgeBadge + '</div>' +
+            '<div style="font-size:.82rem;font-weight:800;color:#f8fafc;">' + esc(o.homeTeam) + ' <span class="tipVs">vs</span> ' + esc(o.awayTeam) + '</div>' +
+            '<div class="tipWhen">' + esc(fmtWhen(o.commenceTime)) + '</div>' +
+            '<div class="oddsTable">' +
+              '<div class="oddsRow"><span>1 · Home</span><span class="oddsBook">' + esc(o.bestHomeBookmaker || "Best") + '</span><b class="tipOdds">' + homeVal + '</b></div>' +
+              (o.bestDrawOdds != null ? '<div class="oddsRow"><span>X · Draw</span><span class="oddsBook">' + esc(o.bestDrawBookmaker || "Best") + '</span><b class="tipOdds">' + drawVal + '</b></div>' : '') +
+              '<div class="oddsRow"><span>2 · Away</span><span class="oddsBook">' + esc(o.bestAwayBookmaker || "Best") + '</span><b class="tipOdds">' + awayVal + '</b></div>' +
+            '</div>' +
+            '<div class="tipFoot">⚡ Best Selection: ' + esc(o.bestSelection || o.homeTeam) + ' · Telegram /odds</div>' +
+          '</article>';
+        }).join("");
+      }
+      return;
+    }
+
+    if (activeMode === "scores") {
+      var liveCount = liveScores.filter(function(s){ return s.isLive; }).length;
+      if (badge) badge.textContent = liveCount > 0 ? ("🔴 Live (" + liveCount + ")") : ("Scores (" + liveScores.length + ")");
+      if (summaryEl) {
+        summaryEl.style.display = "flex";
+        summaryEl.innerHTML = '<span>🔴 <b>' + esc(liveCount) + '</b> Live Now</span>' +
+          '<span>🏁 <b>' + esc(liveScores.length - liveCount) + '</b> Recent / Completed</span>' +
+          '<span>⏱️ Hourly Auto-Sync + /scores</span>';
+      }
+      if (emptyState) {
+        emptyState.textContent = labels.emptyScores;
+        emptyState.hidden = liveScores.length > 0;
+      }
+      if (tipGrid) {
+        tipGrid.innerHTML = liveScores.map(function(s){
+          var stClass = s.isLive ? "liveBadge" : (s.completed ? "tipStatus won" : "tipStatus pending");
+          var stLabel = s.isLive ? "🔴 LIVE" : (s.completed ? "🏁 FT" : esc(s.statusText || "UPCOMING"));
+          var scoreText = (s.scoreHome != null && s.scoreAway != null) ? (esc(s.scoreHome) + " – " + esc(s.scoreAway)) : "vs";
+          return '<article class="tipCard" data-sport="all">' +
+            '<div class="tipCardTop"><span class="tipLeague">' + esc(s.sportTitle || "Sports") + '</span><span class="' + stClass + '">' + stLabel + '</span></div>' +
+            '<div class="scoreBoardRow"><b>' + esc(s.homeTeam) + '</b><span class="scoreBoardScore">' + scoreText + '</span><b>' + esc(s.awayTeam) + '</b></div>' +
+            '<div class="tipWhen">' + esc(fmtWhen(s.commenceTime)) + '</div>' +
+            '<div class="tipFoot">📡 Tracked on Telegram · Use /scores in bot</div>' +
+          '</article>';
+        }).join("");
+      }
+      return;
+    }
+
+    if (activeMode === "roi") {
+      var d7 = perf && perf.days7 ? perf.days7 : { picks: 0, wonPicks: 0, lostPicks: 0, voidPicks: 0, pickWinRatePct: Number(summary.winRate) || 0, netUnits: 0, roiPct: 0 };
+      var d30 = perf && perf.days30 ? perf.days30 : d7;
+      var todayW = perf && perf.today ? perf.today : d7;
+      var formArr = perf && Array.isArray(perf.recentForm) ? perf.recentForm : [];
+      var sportsArr = perf && Array.isArray(perf.bySport) ? perf.bySport : [];
+
+      if (badge) badge.textContent = "ROI Tracker (" + Math.round(d7.pickWinRatePct || 0) + "% WR)";
+      if (summaryEl) {
+        var r7Sign = d7.roiPct >= 0 ? "+" : "";
+        summaryEl.style.display = "flex";
+        summaryEl.innerHTML = '<span>🎯 7D Win Rate: <b>' + esc(Number(d7.pickWinRatePct || 0).toFixed(1)) + '%</b></span>' +
+          '<span>📈 7D ROI: <b>' + r7Sign + esc(Number(d7.roiPct || 0).toFixed(1)) + '%</b></span>' +
+          '<span>🛡️ Verified D1 Ledger (0 API Credits)</span>';
+      }
+      if (emptyState) emptyState.hidden = true;
+      var renderWindowCard = function(title, w){
+        var uSign = w.netUnits >= 0 ? "+" : "";
+        var rSign = w.roiPct >= 0 ? "+" : "";
+        return '<article class="tipCard roiCard" data-sport="all">' +
+          '<div class="tipCardTop"><span class="tipLeague">' + esc(title) + '</span><span class="tipStatus ' + (w.roiPct >= 0 ? "won" : "lost") + '">' + rSign + Number(w.roiPct || 0).toFixed(1) + '% ROI</span></div>' +
+          '<div class="roiBigNum">' + Number(w.pickWinRatePct || 0).toFixed(1) + '% <small>Win Rate</small></div>' +
+          '<div class="roiMetricRow"><span>Picks: <b>' + esc(w.wonPicks) + 'W - ' + esc(w.lostPicks) + 'L - ' + esc(w.voidPicks) + 'V</b></span><span>Net: <b>' + uSign + Number(w.netUnits || 0).toFixed(2) + 'u</b></span></div>' +
+          '<div class="tipFoot">Avg Odds: ' + (w.avgOdds ? Number(w.avgOdds).toFixed(2) : "—") + ' · Verified D1 Results</div>' +
+        '</article>';
+      };
+      var formHtml = '<article class="tipCard roiCard" data-sport="all">' +
+        '<div class="tipCardTop"><span class="tipLeague">Recent Form &amp; Top Sports</span><span class="tipStatus pending">' + esc(formArr.length) + ' Picks</span></div>' +
+        '<div class="roiFormDots">' + (formArr.length ? formArr.map(function(f){ return '<span class="roiDot ' + (f === "W" ? "won" : (f === "L" ? "lost" : "void")) + '">' + esc(f) + '</span>'; }).join("") : '<span style="color:#94a3b8;font-size:.74rem;">No settled picks yet</span>') + '</div>' +
+        '<div class="oddsTable">' + (sportsArr.length ? sportsArr.slice(0, 3).map(function(sp){
+          var sSign = sp.roiPct >= 0 ? "+" : "";
+          return '<div class="oddsRow"><span>' + esc(sp.sportTitle) + '</span><span class="oddsBook">' + esc(sp.wonPicks) + 'W-' + esc(sp.lostPicks) + 'L</span><b class="tipOdds">' + sSign + Number(sp.roiPct || 0).toFixed(1) + '%</b></div>';
+        }).join("") : '<div class="oddsRow"><span>Waiting for first settled matches</span><b>—</b></div>') + '</div>' +
+        '<div class="tipFoot">Daily automated channel recap at 23:00 SLT</div>' +
+      '</article>';
+      if (tipGrid) {
+        tipGrid.innerHTML = renderWindowCard("Today (Sri Lanka)", todayW) + renderWindowCard("Last 7 Days", d7) + renderWindowCard("Last 30 Days", d30) + formHtml;
+      }
+      return;
+    }
+
+    // Default: Daily Tips Mode
     if (badge) badge.textContent = tips.length ? labels.tips + " (" + tips.length + ")" : labels.none;
 
     var sportOrder = ["football", "cricket", "tennis", "basketball", "table_tennis", "esports", "mma", "other"];
@@ -361,6 +530,19 @@ export function publicTipsClientScript(nonce?: string): string {
     }
   };
 
+  modeButtons.forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var mode = btn.getAttribute("data-mode") || "tips";
+      activeMode = mode;
+      modeButtons.forEach(function(b){
+        var on = b === btn;
+        b.classList.toggle("active", on);
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+      if (latestData) renderMode(latestData);
+    });
+  });
+
   var refreshing = false;
   var refresh = function(){
     if (refreshing || document.visibilityState === "hidden") return;
@@ -371,7 +553,7 @@ export function publicTipsClientScript(nonce?: string): string {
     })
       .then(function(r){ if (!r.ok) throw new Error("preview unavailable"); return r.json(); })
       .then(function(data){
-        if (data && data.ok === true && Array.isArray(data.tips)) render(data);
+        if (data && data.ok === true && Array.isArray(data.tips)) renderMode(data);
       })
       .catch(function(){ /* Keep the last server-rendered or successfully fetched data. */ })
       .finally(function(){ refreshing = false; });

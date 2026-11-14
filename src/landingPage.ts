@@ -899,6 +899,30 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
 .tipPickName{flex:1;color:#e2e8f0;font-size:.68rem;font-weight:700}
 .tipOdds{color:#4ade80;font:900 .85rem ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
 .tipFoot{color:#7b8ba3;font-size:.58rem;text-align:left}
+.tipModeTabs{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px 0;border-bottom:1px solid #ffffff0c;padding-bottom:12px}
+.tipModeTab{appearance:none;display:inline-flex;align-items:center;gap:6px;min-height:40px;white-space:nowrap;border:1px solid var(--border);background:#0c1523;color:var(--muted);border-radius:10px;padding:7px 14px;font-size:.7rem;font-weight:800;cursor:pointer;transition:border-color .15s,background .15s,color .15s}
+.tipModeTab:hover{border-color:#67e8f966;color:#f8fafc}
+.tipModeTab.active{border-color:#10b981;background:#10b9811c;color:#6ee7b7}
+.oddsTable{display:flex;flex-direction:column;gap:6px;padding:8px 10px;border-radius:12px;background:#09101a;border:1px solid #1e293b}
+.oddsRow{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;font-size:.68rem;color:#cbd5e1;font-variant-numeric:tabular-nums}
+.oddsBook{color:#94a3b8;font-size:.63rem;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.oddsDeltaUp{color:#4ade80;margin-left:3px;font-weight:900}
+.oddsDeltaDown{color:#fb7185;margin-left:3px;font-weight:900}
+.valueBadge{padding:4px 9px;border-radius:999px;font-size:.58rem;font-weight:800;background:#10b98122;border:1px solid #10b98155;color:#6ee7b7;font-variant-numeric:tabular-nums}
+.liveBadge{padding:4px 9px;border-radius:999px;font-size:.58rem;font-weight:800;background:#ef444422;border:1px solid #ef444455;color:#fca5a5}
+.scoreBoardRow{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;text-align:center;padding:12px 10px;border-radius:12px;background:#0a111b;border:1px solid #1e293b}
+.scoreBoardRow b{font-size:.74rem;color:#f8fafc;line-height:1.25}
+.scoreBoardScore{font:900 1.05rem ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums;color:#6ee7b7;padding:4px 10px;border-radius:8px;background:#10b98115;border:1px solid #10b98133}
+.roiBigNum{font:900 1.55rem ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums;color:#f8fafc}
+.roiBigNum small{font-size:.68rem;font-weight:600;color:#94a3b8;font-family:inherit}
+.roiMetricRow{display:flex;justify-content:space-between;gap:8px;font-size:.69rem;color:#cbd5e1;font-variant-numeric:tabular-nums}
+.roiMetricRow b{color:#6ee7b7}
+.roiFormDots{display:flex;flex-wrap:wrap;gap:6px}
+.roiDot{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:6px;font-size:.64rem;font-weight:900}
+.roiDot.won{background:#22c55e22;border:1px solid #22c55e55;color:#86efac}
+.roiDot.lost{background:#ef444422;border:1px solid #ef444455;color:#fca5a5}
+.roiDot.void{background:#f59e0b22;border:1px solid #f59e0b55;color:#fcd34d}
+.tipEmpty{margin:12px 16px;padding:18px;border:1px dashed #334155;border-radius:14px;background:#09111d;color:#94a3b8;font-size:.78rem;text-align:center}
 .disclaimer{padding:13px 20px;background:#ff477e07;color:var(--muted);font-size:.65rem}
 
 /* Steps */
@@ -1543,6 +1567,12 @@ body::before{
       <b>${esc(c.tips.featuredHeading)}</b>
       <span id="tipsLiveBadge" class="previewBadge">${esc(c.tips.badge)}</span>
     </div>
+    <div class="tipModeTabs" role="group" aria-label="Intelligence views">
+      <button type="button" class="tipModeTab active" data-mode="tips" aria-pressed="true">${lang === "si" ? "🎯 දෛනික Tips" : lang === "ta" ? "🎯 தினசரி Tips" : "🎯 Daily Tips"}</button>
+      <button type="button" class="tipModeTab" data-mode="odds" aria-pressed="false">${lang === "si" ? "💹 හොඳම Odds" : lang === "ta" ? "💹 சிறந்த Odds" : "💹 Best Odds"}</button>
+      <button type="button" class="tipModeTab" data-mode="scores" aria-pressed="false">${lang === "si" ? "📡 සජීවී ලකුණු" : lang === "ta" ? "📡 நேரடி முடிவுகள்" : "📡 Live Scores"}</button>
+      <button type="button" class="tipModeTab" data-mode="roi" aria-pressed="false">${lang === "si" ? "📈 Win Rate & ROI" : lang === "ta" ? "📈 வெற்றி & ROI" : "📈 Win Rate & ROI"}</button>
+    </div>
     <div class="tipTabs" id="tipTabs" role="group" aria-label="Filter tips by sport">
       <button type="button" data-sport="all" class="tipTab active" aria-pressed="true">All</button>
       <button type="button" data-sport="football" class="tipTab" aria-pressed="false">Football</button>
@@ -1588,6 +1618,7 @@ body::before{
         <div class="tipFoot">${esc(c.tips.verifiedBadge)}</div>
       </article>
     </div>
+    <div id="tipEmptyState" class="tipEmpty" hidden></div>
     <div class="actions" style="margin-top:20px;justify-content:center">
       <a class="btn primary" href="${ebTips}" data-track-cta="tips_section_bot">✈ ${esc(c.tips.cta)}</a>
     </div>
@@ -2076,6 +2107,10 @@ ${renderFinalCtaBanner(c, lang, eb)}
     fetch("/api/tips/preview", { headers: { Accept: "application/json" }, cache: "no-store" })
       .then(function(r){ return r.ok ? r.json() : null; })
       .then(function(data){
+        var tipsRoot = document.querySelector("#tips-preview .tips");
+        if (tipsRoot && tipsRoot.getAttribute("data-mode") && tipsRoot.getAttribute("data-mode") !== "tips") {
+          return;
+        }
         if (!data || !Array.isArray(data.tips) || data.tips.length === 0) {
           if (liveBadge) {
             liveBadge.textContent = "Sample preview";

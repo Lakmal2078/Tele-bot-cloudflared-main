@@ -1,10 +1,17 @@
 import type { Env } from "./types";
+import {
+  canMakeOddsRequest,
+  OddsCreditBudgetError,
+  recordOddsApiCall,
+  type CreditBucket,
+} from "./oddsCreditManager";
 
 export interface OddsQuotaInfo {
   keyIndex: number;
   totalKeys: number;
   remaining: number | null;
   used: number | null;
+  lastCost: number | null;
 }
 
 export interface OddsApiFetchResult<T> {
@@ -13,7 +20,17 @@ export interface OddsApiFetchResult<T> {
   totalKeys: number;
   remaining: number | null;
   used: number | null;
+  lastCost: number | null;
 }
+
+export interface OddsCreditContext {
+  bucket: CreditBucket;
+  estimatedCost: number;
+  endpoint?: string;
+  isSettlementRetry?: boolean;
+}
+
+export { OddsCreditBudgetError };
 
 const keyCooldownUntilMs = new Map<string, number>();
 
@@ -90,11 +107,34 @@ export async function fetchOddsApiJson<T>(
     retries?: number;
     retryDelayFn?: (attempt: number, retryAfter: string | null) => number;
     onQuotaHeaders?: (info: OddsQuotaInfo) => void;
+    creditContext?: OddsCreditContext;
   }
 ): Promise<OddsApiFetchResult<T>> {
   const keys = resolveOddsApiKeys(env);
   if (keys.length === 0) {
     throw new Error("ODDS_API_KEY is not configured");
+  }
+
+  const envObj: Partial<Env> | undefined = typeof env === "string" ? undefined : env;
+  const creditCtx = options?.creditContext;
+  if (envObj?.DB && creditCtx && creditCtx.estimatedCost > 0) {
+    const gate = await canMakeOddsRequest(
+      envObj,
+      creditCtx.bucket,
+      creditCtx.estimatedCost,
+      { isSettlementRetry: creditCtx.isSettlementRetry }
+    );
+    if (!gate.allowed) {
+      throw new OddsCreditBudgetError(
+        gate.reason || `Odds API budget limit reached (${gate.summary.totalUsed}/${gate.summary.totalBudget})`,
+        {
+          tier: gate.summary.tier,
+          bucket: creditCtx.bucket,
+          totalUsed: gate.summary.totalUsed,
+          totalBudget: gate.summary.totalBudget,
+        }
+      );
+    }
   }
 
   const nowMs = Date.now();
@@ -132,14 +172,30 @@ export async function fetchOddsApiJson<T>(
         });
         const remaining = parseHeaderNumber(response.headers.get("x-requests-remaining"));
         const used = parseHeaderNumber(response.headers.get("x-requests-used"));
+        const lastCost = parseHeaderNumber(response.headers.get("x-requests-last"));
         options?.onQuotaHeaders?.({
           keyIndex,
           totalKeys: keys.length,
           remaining,
           used,
+          lastCost,
         });
 
         const text = await response.text();
+        if (envObj?.DB && creditCtx) {
+          await recordOddsApiCall(envObj, {
+            keySlot: keyIndex,
+            bucket: creditCtx.bucket,
+            endpoint: creditCtx.endpoint || url.pathname,
+            estimatedCost: creditCtx.estimatedCost,
+            actualCostHeader: lastCost,
+            remainingHeader: remaining,
+            usedHeader: used,
+            status: response.status,
+            error: response.ok ? null : text.slice(0, 200),
+          }).catch(() => {});
+        }
+
         if (response.ok) {
           if (remaining !== null && remaining <= 0) {
             keyCooldownUntilMs.set(key, nextUtcMonthStartMs());
@@ -156,6 +212,7 @@ export async function fetchOddsApiJson<T>(
             totalKeys: keys.length,
             remaining,
             used,
+            lastCost,
           };
         }
 
@@ -181,6 +238,16 @@ export async function fetchOddsApiJson<T>(
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         if (attempt === retries) {
+          if (envObj?.DB && creditCtx) {
+            await recordOddsApiCall(envObj, {
+              keySlot: keyIndex,
+              bucket: creditCtx.bucket,
+              endpoint: creditCtx.endpoint || url.pathname,
+              estimatedCost: 0,
+              status: 0,
+              error: message,
+            }).catch(() => {});
+          }
           errors.push(`Key #${keyIndex + 1}: ${message}`);
           break;
         }

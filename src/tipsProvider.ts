@@ -74,7 +74,11 @@ async function fetchSports(env: Env): Promise<OddsSport[]> {
       url.searchParams.set("apiKey", apiKey);
       return url;
     },
-    { timeoutMs: REQUEST_TIMEOUT_MS, retries: 1 }
+    {
+      timeoutMs: REQUEST_TIMEOUT_MS,
+      retries: 1,
+      creditContext: { bucket: "other", estimatedCost: 0, endpoint: "/v4/sports" },
+    }
   );
   if (!Array.isArray(data)) throw new Error("Unexpected /sports response format");
   return data;

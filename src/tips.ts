@@ -1,6 +1,8 @@
 import type { Env } from "./types";
 import { getTipQualityConfig, type TipQualityConfig } from "./config";
 import { fetchOddsApiJson, hasOddsApiKeys } from "./oddsKeys";
+import { processOddsIntelligence } from "./bestOdds";
+import { canMakeOddsRequest, OddsCreditBudgetError, type CreditBucket } from "./oddsCreditManager";
 import { escapeMarkdown } from "./utils";
 
 const ODDS_API_BASE = "https://api.the-odds-api.com/v4";
@@ -350,13 +352,20 @@ async function getJson<T>(
   buildUrl: (apiKey: string) => URL,
   timeoutMs: number,
   guard?: OddsCreditGuard,
-  countAsPaidRequest = false
+  countAsPaidRequest = false,
+  bucket?: CreditBucket,
+  endpoint?: string
 ): Promise<T> {
   if (guard && countAsPaidRequest) guard.beforePaidRequest();
   const result = await fetchOddsApiJson<T>(env, buildUrl, {
     timeoutMs,
     retries: ODDS_API_RETRIES,
     onQuotaHeaders: guard ? (info) => guard.update(info) : undefined,
+    creditContext: {
+      bucket: countAsPaidRequest ? (bucket ?? "tips") : "other",
+      estimatedCost: countAsPaidRequest ? 1 : 0,
+      endpoint: endpoint || (countAsPaidRequest ? "/v4/odds" : "/v4/free"),
+    },
   });
   return result.data;
 }
@@ -395,7 +404,9 @@ export async function discoverSpecialSports(
     },
     8000,
     guard,
-    false
+    false,
+    "other",
+    "/v4/sports"
   );
   const activeSports = new Set<string>();
   for (const sport of sports) {
@@ -553,7 +564,9 @@ async function checkFeedUpcomingEvents(
       },
       6000,
       guard,
-      false // 0-credit endpoint on The Odds API v4
+      false, // 0-credit endpoint on The Odds API v4
+      "other",
+      `/v4/sports/${sport}/events`
     );
     if (!Array.isArray(events)) {
       return { status: "error", count: 0, error: `Invalid /events response for ${sport}` };
@@ -702,7 +715,9 @@ async function fetchCandidates(env: Env): Promise<{ candidates: TipCandidate[]; 
       },
       8000,
       guard,
-      true
+      true,
+      "tips",
+      `/v4/sports/${sport}/odds`
     );
     const now = Date.now();
     return events.filter((event) => {
@@ -733,6 +748,7 @@ async function fetchCandidates(env: Env): Promise<{ candidates: TipCandidate[]; 
   const queriedSports = new Set<string>();
   const feedErrors: string[] = [];
   let succeededFeeds = 0;
+  let budgetExhausted = false;
 
   // Phase 1: Query up to the first 2 diverse feeds in parallel.
   const initialBatch = sports.slice(0, Math.min(2, sports.length));
@@ -749,6 +765,7 @@ async function fetchCandidates(env: Env): Promise<{ candidates: TipCandidate[]; 
       allEvents.push(...res.value.filtered);
       console.log(`[Tips] ${res.value.sport}: ${res.value.filtered.length} upcoming event(s)`);
     } else {
+      if (res.reason instanceof OddsCreditBudgetError) budgetExhausted = true;
       const message = res.reason instanceof Error ? res.reason.message : String(res.reason);
       feedErrors.push(message);
       console.warn(`[Tips] Sport feed failed:`, message);
@@ -758,7 +775,7 @@ async function fetchCandidates(env: Env): Promise<{ candidates: TipCandidate[]; 
   // Phase 2: Credit-saver early-stop — only query remaining feeds (one at a time)
   // if we don't yet have enough diverse qualifying tips.
   let selected = evaluateCollected();
-  if (!hasEnoughDiversePicks(selected)) {
+  if (!hasEnoughDiversePicks(selected) && !budgetExhausted) {
     for (const sport of sports.slice(initialBatch.length)) {
       if (guard.snapshot().paidRequestAttempts >= maxFeeds) break;
       try {
@@ -770,16 +787,17 @@ async function fetchCandidates(env: Env): Promise<{ candidates: TipCandidate[]; 
         selected = evaluateCollected();
         if (hasEnoughDiversePicks(selected)) break;
       } catch (error) {
+        if (error instanceof OddsCreditBudgetError) budgetExhausted = true;
         const message = error instanceof Error ? error.message : String(error);
         feedErrors.push(message);
         console.warn(`[Tips] Sport feed failed for ${sport}:`, message);
-        if (message.includes("credit guard")) break;
+        if (budgetExhausted || message.includes("credit guard")) break;
       }
     }
   }
 
   // Phase 3: If we still have fewer than targetCount events and spare feed budget, try remaining unprobed active feeds (verified via 0-credit /events first).
-  if (allEvents.length < targetCount && guard.snapshot().paidRequestAttempts < maxFeeds) {
+  if (!budgetExhausted && allEvents.length < targetCount && guard.snapshot().paidRequestAttempts < maxFeeds) {
     try {
       const unqueriedDiscovered = candidateQueue.filter((s) => !queriedSports.has(s) && !knownEmptyFeeds.has(s) && !sports.includes(s));
       const fallbackSports = unqueriedDiscovered.length > 0
@@ -811,10 +829,11 @@ async function fetchCandidates(env: Env): Promise<{ candidates: TipCandidate[]; 
           selected = evaluateCollected();
           if (hasEnoughDiversePicks(selected) || allEvents.length >= targetCount * 2) break;
         } catch (error) {
+          if (error instanceof OddsCreditBudgetError) budgetExhausted = true;
           const message = error instanceof Error ? error.message : String(error);
           feedErrors.push(message);
           console.warn(`[Tips] Backfill sport feed failed for ${sport}:`, message);
-          if (message.includes("credit guard")) break;
+          if (budgetExhausted || message.includes("credit guard")) break;
         }
       }
     } catch (error) {
@@ -828,6 +847,13 @@ async function fetchCandidates(env: Env): Promise<{ candidates: TipCandidate[]; 
   }
   const uniqueEvents = [...eventMap.values()];
   selected = evaluateCollected();
+
+  // Zero-credit reuse: extract Best Odds comparison snapshots & dispatch Value Alerts
+  if (uniqueEvents.length > 0) {
+    await processOddsIntelligence(env, uniqueEvents, { dispatchValueAlerts: true }).catch((intelErr) =>
+      console.warn("[BestOdds] Zero-credit odds intelligence skipped:", intelErr instanceof Error ? intelErr.message : intelErr)
+    );
+  }
 
   const usage = guard.snapshot();
   console.log(`[Tips] Credit guard: key=#${usage.activeKeyIndex + 1}, paid_requests=${usage.paidRequestAttempts}/${maxFeeds}, skipped_empty=${knownEmptyFeeds.size}, remaining=${usage.remaining ?? "unknown"}, used=${usage.usedFromHeader ?? "unknown"}, selected=${selected.length} tip(s)`);
@@ -1571,7 +1597,11 @@ export async function runOddsApiHealthCheck(env: Env): Promise<void> {
         url.searchParams.set("apiKey", apiKey);
         return url;
       },
-      { timeoutMs: 8_000, retries: 1 }
+      {
+        timeoutMs: 8_000,
+        retries: 1,
+        creditContext: { bucket: "other", estimatedCost: 0, endpoint: "/v4/sports" },
+      }
     );
     if (!Array.isArray(payload) || payload.length === 0) {
       throw new Error("The Odds API returned an empty or invalid sports list");
@@ -1581,5 +1611,76 @@ export async function runOddsApiHealthCheck(env: Env): Promise<void> {
     const message = error instanceof Error ? error.message : String(error);
     console.warn("[Odds API Monitor] Health check failed:", message);
     await recordOddsApiConnectivity(env, message);
+  }
+}
+
+/**
+ * Controlled background Best Odds & Value Alerts refresh (max 1 credit, >4h interval,
+ * automatically paused when budget >= 900 or odds_refresh bucket reaches 160).
+ */
+export async function runControlledOddsRefresh(
+  env: Env
+): Promise<{ refreshed: boolean; reason?: string; snapshotsSaved?: number; alertsSent?: number }> {
+  if (!env.DB || typeof env.DB.prepare !== "function" || !hasOddsApiKeys(env)) {
+    return { refreshed: false, reason: "not_configured" };
+  }
+
+  try {
+    const latest = await env.DB.prepare(`SELECT MAX(fetched_at) AS latest FROM odds_snapshots`).first<{ latest?: string | null }>();
+    if (latest?.latest) {
+      const ts = Date.parse(latest.latest.endsWith("Z") ? latest.latest : `${latest.latest}Z`);
+      if (Number.isFinite(ts) && (Date.now() - ts) < 4 * 3600_000) {
+        return { refreshed: false, reason: "fresh" };
+      }
+    }
+  } catch {
+    return { refreshed: false, reason: "db_unavailable" };
+  }
+
+  const gate = await canMakeOddsRequest(env, "odds_refresh", 1);
+  if (!gate.allowed) {
+    return { refreshed: false, reason: gate.reason || "budget_restricted" };
+  }
+
+  const guard = new OddsCreditGuard(1);
+  const requested = csv(env.TIPS_SPORTS, "auto:soccer,auto:cricket,auto:basketball");
+  const explicitSports = requested.filter((s) => !s.startsWith("auto:"));
+  let targetSport = explicitSports[0] || "soccer_epl";
+
+  try {
+    const discovery = await discoverSpecialSports(env, requested, guard);
+    const candidates = selectPaidFeeds(explicitSports, discovery.discovered, 6, discovery.activeSports);
+    for (const candidate of candidates) {
+      const probe = await checkFeedUpcomingEvents(env, candidate, 48, guard);
+      if (probe.status === "has_events") {
+        targetSport = candidate;
+        break;
+      }
+    }
+  } catch {}
+
+  const regions = (env.TIPS_ODDS_REGIONS || "eu").split(",")[0]?.trim() || "eu";
+  try {
+    const events = await getJson<OddsEvent[]>(
+      env,
+      (apiKey) => {
+        const url = new URL(`${ODDS_API_BASE}/sports/${encodeURIComponent(targetSport)}/odds`);
+        url.searchParams.set("apiKey", apiKey);
+        url.searchParams.set("regions", regions);
+        url.searchParams.set("markets", "h2h");
+        url.searchParams.set("oddsFormat", "decimal");
+        url.searchParams.set("dateFormat", "iso");
+        return url;
+      },
+      8000,
+      guard,
+      true,
+      "odds_refresh",
+      `/v4/sports/${targetSport}/odds`
+    );
+    const res = await processOddsIntelligence(env, Array.isArray(events) ? events : [], { dispatchValueAlerts: true });
+    return { refreshed: true, snapshotsSaved: res.snapshotsSaved, alertsSent: res.alertsSent };
+  } catch (err) {
+    return { refreshed: false, reason: err instanceof Error ? err.message : String(err) };
   }
 }
