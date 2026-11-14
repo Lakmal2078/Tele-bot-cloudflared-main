@@ -234,6 +234,7 @@ Sitemap: ${baseUrl}/sitemap.xml
         ].join("\n    ");
         const homeEntries = homeUrls.map(({ url }) => `  <url>
     <loc>${url}</loc>
+    <lastmod>2026-11-15</lastmod>
     ${alternates}
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
@@ -244,6 +245,7 @@ Sitemap: ${baseUrl}/sitemap.xml
 ${homeEntries}
   <url>
     <loc>${baseUrl}/privacy</loc>
+    <lastmod>2026-11-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>

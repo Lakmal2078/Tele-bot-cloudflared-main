@@ -316,7 +316,7 @@ describe("Landing Page Render & SEO", () => {
 
     // 2. SEO keywords
     expect(html).not.toContain('name="keywords"');
-    expect(html).toContain("<title>Fast xBet Cash 🇱🇰 — 1xBet Sri Lanka Telegram Bot &amp; නොමිලේ ක්‍රීඩා උපදෙස්</title>");
+    expect(html).toContain("<title>Fast xBet Cash 🇱🇰 — නොමිලේ ක්‍රීඩා උපදෙස් | Telegram Bot</title>");
 
     // 3. Winning tips ticker (Recent wins)
     expect(html).toContain('class="tickerBar"');
