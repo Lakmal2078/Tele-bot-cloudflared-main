@@ -71,8 +71,12 @@ export interface Env {
   TIPS_CHANNEL_ID?: string;
   /** Public channel URL shown on tip posts and join buttons. */
   TIPS_CHANNEL_URL?: string;
-  /** The Odds API secret; set with `wrangler secret put ODDS_API_KEY`. */
+  /** The Odds API secret (supports single key or comma-separated keys); set with `wrangler secret put ODDS_API_KEY`. */
   ODDS_API_KEY?: string;
+  /** Optional secondary The Odds API secret for automatic monthly failover; set with `wrangler secret put ODDS_API_KEY_2`. */
+  ODDS_API_KEY_2?: string;
+  /** Optional comma-separated pool of The Odds API keys. */
+  ODDS_API_KEYS?: string;
   /** Comma-separated The Odds API sport keys, tried in parallel. */
   TIPS_SPORTS?: string;
   /** Number of best qualifying picks to publish per scheduled slot. */

@@ -48,19 +48,19 @@ USE_POLLING = "false"
 
 # Automated Free Tips — Sri Lanka time (UTC+05:30)
 # 08:00 = 02:30 UTC, 12:00 = 06:30 UTC, 18:00 = 12:30 UTC.
-# Free-plan (500 credits/mo) budget:
-#   3 feeds x 3 slots/day = max 9 paid odds requests/day (~270/month).
-#   /sports discovery + /scores settlement are quota-free on free plans.
+# Free-plan budget (supports 2 x 500-credit keys via ODDS_API_KEY + ODDS_API_KEY_2):
+#   Max 3 feeds/slot (early-stops at 2 when 3 diverse picks are found) = ~220-279/mo.
+#   /sports discovery is 0 credits; hourly settlement (:37, 95m kickoff gate) = ~150-240/mo.
 #   1 market (h2h) x 1 region (eu) = 1 credit per sport feed.
 TIPS_CHANNEL_ID = ""
 TIPS_CHANNEL_URL = "https://t.me/fast_xbet_official_tips"
 TIPS_PER_SLOT = "3"
-TIPS_SPORTS = "auto:soccer,auto:cricket,auto:basketball,auto:tennis,auto:table_tennis,auto:esports,soccer_epl,cricket_international_t20"
+TIPS_SPORTS = "auto:soccer,auto:cricket,auto:basketball,auto:tennis,auto:mma,auto:icehockey"
 TIPS_ODDS_REGIONS = "eu"
 TIPS_MIN_ODDS = "1.30"
 TIPS_MAX_ODDS = "3.00"
 TIPS_HOURS_AHEAD = "72"
-TIPS_MAX_FEEDS = "5"
+TIPS_MAX_FEEDS = "3"
 TIPS_MIN_CONSENSUS = "0.45"
 TIPS_MIN_VALUE = "0.001"
 TIPS_MIN_BOOKMAKERS = "1"

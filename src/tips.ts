@@ -1,5 +1,6 @@
 import type { Env } from "./types";
 import { getTipQualityConfig, type TipQualityConfig } from "./config";
+import { fetchOddsApiJson, hasOddsApiKeys } from "./oddsKeys";
 import { escapeMarkdown } from "./utils";
 
 const ODDS_API_BASE = "https://api.the-odds-api.com/v4";
@@ -18,8 +19,7 @@ export const SLOT_CRONS: ReadonlySet<string> = new Set<string>([
 const TIP_LEASE_MINUTES = 15;
 const ODDS_API_RETRIES = 2;
 const DEFAULT_TIPS_PER_SLOT = 3;
-const MAX_ODDS_FEEDS_PER_SLOT = 6;
-const MIN_REMAINING_CREDITS = 5; // free-plan friendly: allow tips until nearly exhausted
+const MAX_ODDS_FEEDS_PER_SLOT = 5;
 const MAX_DISCOVERED_SPORTS_PER_GROUP = 1;
 
 const MAJOR_SPORTS_PRIORITY: readonly string[] = [
@@ -38,8 +38,8 @@ const MAJOR_SPORTS_PRIORITY: readonly string[] = [
   "mma_mixed_martial_arts",
 ];
 
-function _sportPriority(key: string): number {
-  const idx = MAJOR_SPORTS_PRIORITY.findIndex((p) => key.includes(p));
+function sportPriority(key: string): number {
+  const idx = MAJOR_SPORTS_PRIORITY.findIndex((p) => key === p || key.includes(p));
   return idx === -1 ? 999 : idx;
 }
 
@@ -309,60 +309,54 @@ export function chooseCandidates(
 }
 
 export function chooseCandidate(events: OddsEvent[], minOdds: number, maxOdds: number, excludeEventIds?: ReadonlySet<string>): TipCandidate | null { return chooseCandidates(events, minOdds, maxOdds, 1, 2, excludeEventIds)[0] || null; }
-function retryDelayMs(attempt: number, retryAfter: string | null): number { const retrySeconds = retryAfter ? Number(retryAfter) : NaN; if (Number.isFinite(retrySeconds) && retrySeconds >= 0) return Math.min(retrySeconds * 1000, 5000); return Math.min(500 * 2 ** attempt, 4000); }
-
 class OddsCreditGuard {
   private paidRequestAttempts = 0;
   private remaining: number | null = null;
   private usedFromHeader: number | null = null;
+  private activeKeyIndex = 0;
   private readonly maxPaidRequests: number;
-  private readonly minRemaining: number;
 
-  constructor(maxPaidRequests: number, minRemaining: number) {
+  constructor(maxPaidRequests: number) {
     this.maxPaidRequests = maxPaidRequests;
-    this.minRemaining = minRemaining;
   }
 
-  update(response: Response): void {
-    const remaining = Number(response.headers.get("x-requests-remaining"));
-    if (Number.isFinite(remaining)) this.remaining = remaining;
-    const used = Number(response.headers.get("x-requests-used"));
-    if (Number.isFinite(used)) this.usedFromHeader = used;
+  update(info: { keyIndex: number; remaining: number | null; used: number | null }): void {
+    this.activeKeyIndex = info.keyIndex;
+    if (info.remaining !== null && Number.isFinite(info.remaining)) this.remaining = info.remaining;
+    if (info.used !== null && Number.isFinite(info.used)) this.usedFromHeader = info.used;
   }
 
   beforePaidRequest(): void {
     if (this.paidRequestAttempts >= this.maxPaidRequests) {
       throw new Error(`Odds API credit guard stopped further paid requests after ${this.maxPaidRequests} request(s)`);
     }
-    if (this.remaining !== null && this.remaining <= this.minRemaining) {
-      throw new Error(`Odds API credit guard stopped paid requests: ${this.remaining} credit(s) remaining (minimum ${this.minRemaining})`);
-    }
     this.paidRequestAttempts += 1;
   }
 
-  snapshot(): { paidRequestAttempts: number; remaining: number | null; usedFromHeader: number | null } {
-    return { paidRequestAttempts: this.paidRequestAttempts, remaining: this.remaining, usedFromHeader: this.usedFromHeader };
+  snapshot(): { paidRequestAttempts: number; remaining: number | null; usedFromHeader: number | null; activeKeyIndex: number } {
+    return {
+      paidRequestAttempts: this.paidRequestAttempts,
+      remaining: this.remaining,
+      usedFromHeader: this.usedFromHeader,
+      activeKeyIndex: this.activeKeyIndex,
+    };
   }
 }
 
-async function getJson<T>(url: URL, timeoutMs: number, guard?: OddsCreditGuard, countAsPaidRequest = false): Promise<T> {
-  for (let attempt = 0; attempt <= ODDS_API_RETRIES; attempt += 1) {
-    if (guard && countAsPaidRequest) guard.beforePaidRequest();
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const response = await fetch(url, { method: "GET", headers: { Accept: "application/json" }, signal: controller.signal });
-      if (guard) guard.update(response);
-      const text = await response.text();
-      if (response.ok) return JSON.parse(text) as T;
-      const retryable = response.status === 429 || response.status >= 500;
-      if (!retryable || attempt === ODDS_API_RETRIES) throw new Error(`Odds API ${response.status}: ${text.slice(0, 300)}`);
-      await new Promise((resolve) => setTimeout(resolve, retryDelayMs(attempt, response.headers.get("Retry-After"))));
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-  throw new Error("Odds API request failed after retries");
+async function getJson<T>(
+  env: Env,
+  buildUrl: (apiKey: string) => URL,
+  timeoutMs: number,
+  guard?: OddsCreditGuard,
+  countAsPaidRequest = false
+): Promise<T> {
+  if (guard && countAsPaidRequest) guard.beforePaidRequest();
+  const result = await fetchOddsApiJson<T>(env, buildUrl, {
+    timeoutMs,
+    retries: ODDS_API_RETRIES,
+    onQuotaHeaders: guard ? (info) => guard.update(info) : undefined,
+  });
+  return result.data;
 }
 
 export function slotForCron(cron: string): "08:00" | "12:00" | "18:00" | null { if (cron === "30 2 * * *") return "08:00"; if (cron === "30 6 * * *") return "12:00"; if (cron === "30 12 * * *") return "18:00"; return null; }
@@ -370,7 +364,8 @@ export function sriLankaDate(date = new Date()): string { const parts = new Intl
 function tipCount(env: Env): number { const parsed = Number(env.TIPS_PER_SLOT || DEFAULT_TIPS_PER_SLOT); return Number.isInteger(parsed) && parsed >= 1 && parsed <= 5 ? parsed : DEFAULT_TIPS_PER_SLOT; }
 function sportMatchesGroup(sport: OddsSport, group: string): boolean {
   const haystack = `${sport.key} ${sport.group || ""} ${sport.title || ""} ${sport.description || ""}`.toLowerCase();
-  if (group === "soccer" || group === "football") return haystack.includes("soccer") || haystack.includes("football");
+  if (group === "soccer") return haystack.includes("soccer");
+  if (group === "football") return haystack.includes("soccer") || haystack.includes("football");
   if (group === "basketball") return haystack.includes("basketball");
   if (group === "tennis") return haystack.includes("tennis") && !haystack.includes("table tennis");
   if (group === "cricket") return haystack.includes("cricket");
@@ -384,13 +379,22 @@ function sportMatchesGroup(sport: OddsSport, group: string): boolean {
 }
 
 export async function discoverSpecialSports(
-  apiKey: string,
+  envOrApiKey: Env | string,
   requested: string[],
   guard: OddsCreditGuard
 ): Promise<{ discovered: string[]; activeSports: Set<string> }> {
-  const url = new URL(`${ODDS_API_BASE}/sports`);
-  url.searchParams.set("apiKey", apiKey);
-  const sports = await getJson<OddsSport[]>(url, 8000, guard, false);
+  const envObj: Env = typeof envOrApiKey === "string" ? ({ ODDS_API_KEY: envOrApiKey } as Env) : envOrApiKey;
+  const sports = await getJson<OddsSport[]>(
+    envObj,
+    (apiKey) => {
+      const url = new URL(`${ODDS_API_BASE}/sports`);
+      url.searchParams.set("apiKey", apiKey);
+      return url;
+    },
+    8000,
+    guard,
+    false
+  );
   const activeSports = new Set<string>();
   for (const sport of sports) {
     if (sport.key && sport.active !== false) {
@@ -402,13 +406,15 @@ export async function discoverSpecialSports(
   // If user did not provide auto groups, include standard categories so active fixtures can always be found
   const groupsToDiscover = autoGroups.length > 0
     ? autoGroups
-    : ["soccer", "cricket", "basketball", "tennis", "table_tennis", "esports"];
+    : ["soccer", "cricket", "basketball", "tennis", "mma", "icehockey"];
 
   const discovered: string[] = [];
   for (const group of groupsToDiscover) {
+    const matching = sports
+      .filter((sport) => sport.key && sport.active !== false && sportMatchesGroup(sport, group))
+      .sort((a, b) => sportPriority(a.key) - sportPriority(b.key));
     let added = 0;
-    for (const sport of sports) {
-      if (!sport.key || sport.active === false || !sportMatchesGroup(sport, group)) continue;
+    for (const sport of matching) {
       if (!discovered.includes(sport.key)) discovered.push(sport.key);
       added += 1;
       if (added >= MAX_DISCOVERED_SPORTS_PER_GROUP) break;
@@ -520,11 +526,11 @@ export async function getTodayPostedEventIds(env: Env): Promise<Set<string>> {
 export const getTodaysPostedEventIds = getTodayPostedEventIds;
 
 async function fetchCandidates(env: Env): Promise<{ candidates: TipCandidate[]; stats: FallbackTipStats }> {
-  if (!env.ODDS_API_KEY) throw new Error("ODDS_API_KEY is not configured");
+  if (!hasOddsApiKeys(env)) throw new Error("ODDS_API_KEY is not configured");
 
   // Prefer active auto-discovered feeds so seasonal league keys cannot silently
   // leave every scheduled slot empty when competitions are inactive or renamed.
-  const defaultSports = "auto:soccer,auto:cricket,auto:basketball,auto:tennis,auto:table_tennis,auto:esports,auto:mma,auto:baseball,auto:icehockey";
+  const defaultSports = "auto:soccer,auto:cricket,auto:basketball,auto:tennis,auto:mma,auto:icehockey";
   const requested = csv(env.TIPS_SPORTS, defaultSports);
   const explicitSports = requested.filter((sport) => !sport.startsWith("auto:"));
   // Free-plan safe: honour TIPS_MAX_FEEDS (default 3). Cap at MAX_ODDS_FEEDS_PER_SLOT.
@@ -533,20 +539,24 @@ async function fetchCandidates(env: Env): Promise<{ candidates: TipCandidate[]; 
     MAX_ODDS_FEEDS_PER_SLOT,
     Math.max(1, Number.isFinite(parsedMaxFeeds) ? Math.floor(parsedMaxFeeds) : 3),
   );
-  const guard = new OddsCreditGuard(maxFeeds, MIN_REMAINING_CREDITS);
+  const guard = new OddsCreditGuard(maxFeeds);
 
   let discovered: string[] = [];
   let activeSports: Set<string> | undefined;
+  let discoveryError: string | null = null;
   try {
-    const discovery = await discoverSpecialSports(env.ODDS_API_KEY, requested, guard);
+    const discovery = await discoverSpecialSports(env, requested, guard);
     discovered = discovery.discovered;
     activeSports = discovery.activeSports;
   } catch (error) {
-    console.warn("[Tips] Special-sport discovery failed:", error instanceof Error ? error.message : error);
+    discoveryError = error instanceof Error ? error.message : String(error);
+    console.warn("[Tips] Special-sport discovery failed:", discoveryError);
   }
 
-  let sports = selectPaidFeeds(explicitSports, discovered, maxFeeds, activeSports);
-  if (sports.length === 0) throw new Error("No configured or discovered sport feeds are available");
+  const sports = selectPaidFeeds(explicitSports, discovered, maxFeeds, activeSports);
+  if (sports.length === 0) {
+    throw new Error(discoveryError ? `Odds API discovery failed: ${discoveryError}` : "No configured or discovered sport feeds are available");
+  }
 
   const regions = (env.TIPS_ODDS_REGIONS || "eu").split(",").map((value) => value.trim()).filter(Boolean).slice(0, 1).join(",") || "eu";
   const minOdds = Number(env.TIPS_MIN_ODDS || "1.40");
@@ -555,16 +565,26 @@ async function fetchCandidates(env: Env): Promise<{ candidates: TipCandidate[]; 
   const quality = getTipQualityConfig(env);
   const targetCount = Math.max(1, tipCount(env));
 
+  // Exclude events already posted earlier today to prevent duplicate tips across 08:00, 12:00, and 18:00 slots
+  const todayPostedIds = await getTodayPostedEventIds(env);
   const allEvents: OddsEvent[] = [];
 
   const fetchSportEvents = async (sport: string): Promise<OddsEvent[]> => {
-    const url = new URL(`${ODDS_API_BASE}/sports/${encodeURIComponent(sport)}/odds`);
-    url.searchParams.set("apiKey", env.ODDS_API_KEY!);
-    url.searchParams.set("regions", regions);
-    url.searchParams.set("markets", "h2h");
-    url.searchParams.set("oddsFormat", "decimal");
-    url.searchParams.set("dateFormat", "iso");
-    const events = await getJson<OddsEvent[]>(url, 8000, guard, true);
+    const events = await getJson<OddsEvent[]>(
+      env,
+      (apiKey) => {
+        const url = new URL(`${ODDS_API_BASE}/sports/${encodeURIComponent(sport)}/odds`);
+        url.searchParams.set("apiKey", apiKey);
+        url.searchParams.set("regions", regions);
+        url.searchParams.set("markets", "h2h");
+        url.searchParams.set("oddsFormat", "decimal");
+        url.searchParams.set("dateFormat", "iso");
+        return url;
+      },
+      8000,
+      guard,
+      true
+    );
     const now = Date.now();
     return events.filter((event) => {
       const kickoff = new Date(event.commence_time).getTime();
@@ -572,52 +592,99 @@ async function fetchCandidates(env: Env): Promise<{ candidates: TipCandidate[]; 
     });
   };
 
-  const CONCURRENCY = 2;
-  const queriedSports = new Set<string>();
-
-  for (let i = 0; i < sports.length; i += CONCURRENCY) {
-    const batch = sports.slice(i, i + CONCURRENCY);
-    for (const s of batch) queriedSports.add(s);
-    const results = await Promise.allSettled(
-      batch.map(async (sport) => {
-        const filtered = await fetchSportEvents(sport);
-        return { sport, filtered };
-      })
-    );
-    let creditExhausted = false;
-    for (const res of results) {
-      if (res.status === "fulfilled") {
-        allEvents.push(...res.value.filtered);
-        console.log(`[Tips] ${res.value.sport}: ${res.value.filtered.length} upcoming event(s)`);
-      } else {
-        const error = res.reason;
-        console.warn(`[Tips] Sport feed failed:`, error instanceof Error ? error.message : error);
-        if (String(error).includes("credit guard")) creditExhausted = true;
-      }
+  const evaluateCollected = (): TipCandidate[] => {
+    const eventMap = new Map<string, OddsEvent>();
+    for (const ev of allEvents) {
+      if (!eventMap.has(ev.id)) eventMap.set(ev.id, ev);
     }
-    if (creditExhausted) break;
+    const now = Date.now();
+    const primaryEvents = [...eventMap.values()].filter((ev) => {
+      const start = new Date(ev.commence_time).getTime();
+      return start <= now + hoursAhead * 60 * 60 * 1000;
+    });
+    return chooseCandidates(primaryEvents, minOdds, maxOdds, targetCount, quality.minBookmakers, todayPostedIds, quality, hoursAhead);
+  };
+
+  const hasEnoughDiversePicks = (picks: TipCandidate[]): boolean => {
+    if (picks.length < targetCount) return false;
+    const minGroups = Math.min(2, targetCount, sports.length);
+    return new Set(picks.map((p) => p.sportGroup)).size >= minGroups;
+  };
+
+  const queriedSports = new Set<string>();
+  const feedErrors: string[] = [];
+  let succeededFeeds = 0;
+
+  // Phase 1: Query up to the first 2 diverse feeds in parallel.
+  const initialBatch = sports.slice(0, Math.min(2, sports.length));
+  for (const s of initialBatch) queriedSports.add(s);
+  const initialResults = await Promise.allSettled(
+    initialBatch.map(async (sport) => {
+      const filtered = await fetchSportEvents(sport);
+      return { sport, filtered };
+    })
+  );
+  for (const res of initialResults) {
+    if (res.status === "fulfilled") {
+      succeededFeeds += 1;
+      allEvents.push(...res.value.filtered);
+      console.log(`[Tips] ${res.value.sport}: ${res.value.filtered.length} upcoming event(s)`);
+    } else {
+      const message = res.reason instanceof Error ? res.reason.message : String(res.reason);
+      feedErrors.push(message);
+      console.warn(`[Tips] Sport feed failed:`, message);
+    }
   }
 
-  // If initial queries produced fewer than targetCount events, backfill with remaining active feeds
+  // Phase 2: Credit-saver early-stop — only query remaining feeds (one at a time)
+  // if we don't yet have enough diverse qualifying tips.
+  let selected = evaluateCollected();
+  if (!hasEnoughDiversePicks(selected)) {
+    for (const sport of sports.slice(initialBatch.length)) {
+      if (guard.snapshot().paidRequestAttempts >= maxFeeds) break;
+      try {
+        queriedSports.add(sport);
+        const filtered = await fetchSportEvents(sport);
+        succeededFeeds += 1;
+        allEvents.push(...filtered);
+        console.log(`[Tips] ${sport}: ${filtered.length} upcoming event(s)`);
+        selected = evaluateCollected();
+        if (hasEnoughDiversePicks(selected)) break;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        feedErrors.push(message);
+        console.warn(`[Tips] Sport feed failed for ${sport}:`, message);
+        if (message.includes("credit guard")) break;
+      }
+    }
+  }
+
+  // Phase 3: If we still have fewer than targetCount events and spare feed budget, try unqueried discovered sports.
   if (allEvents.length < targetCount && guard.snapshot().paidRequestAttempts < maxFeeds) {
     try {
       const unqueriedDiscovered = discovered.filter((s) => !queriedSports.has(s));
       const fallbackSports = unqueriedDiscovered.length > 0
         ? unqueriedDiscovered
-        : (await discoverSpecialSports(env.ODDS_API_KEY, ["auto:table_tennis", "auto:esports", "auto:tennis", "auto:cricket"], guard)).discovered.filter((s) => !queriedSports.has(s));
+        : (await discoverSpecialSports(env, ["auto:soccer", "auto:basketball", "auto:tennis", "auto:cricket", "auto:mma", "auto:icehockey"], guard)).discovered.filter((s) => !queriedSports.has(s));
 
-      console.log(`[Tips] Need more events (${allEvents.length}/${targetCount}); trying ${fallbackSports.length} remaining active feed(s)`);
+      if (fallbackSports.length > 0) {
+        console.log(`[Tips] Need more events (${allEvents.length}/${targetCount}); trying ${fallbackSports.length} remaining active feed(s)`);
+      }
       for (const sport of fallbackSports) {
         if (guard.snapshot().paidRequestAttempts >= maxFeeds) break;
         try {
           queriedSports.add(sport);
           const filtered = await fetchSportEvents(sport);
+          succeededFeeds += 1;
           allEvents.push(...filtered);
           console.log(`[Tips] Backfill ${sport}: ${filtered.length} upcoming event(s)`);
-          if (allEvents.length >= targetCount * 2) break;
+          selected = evaluateCollected();
+          if (hasEnoughDiversePicks(selected) || allEvents.length >= targetCount * 2) break;
         } catch (error) {
-          console.warn(`[Tips] Backfill sport feed failed for ${sport}:`, error instanceof Error ? error.message : error);
-          if (String(error).includes("credit guard")) break;
+          const message = error instanceof Error ? error.message : String(error);
+          feedErrors.push(message);
+          console.warn(`[Tips] Backfill sport feed failed for ${sport}:`, message);
+          if (message.includes("credit guard")) break;
         }
       }
     } catch (error) {
@@ -630,26 +697,22 @@ async function fetchCandidates(env: Env): Promise<{ candidates: TipCandidate[]; 
     if (!eventMap.has(ev.id)) eventMap.set(ev.id, ev);
   }
   const uniqueEvents = [...eventMap.values()];
-
-  // Exclude events already posted earlier today to prevent duplicate tips across 08:00, 12:00, and 18:00 slots
-  const todayPostedIds = await getTodayPostedEventIds(env);
-
-  const now = Date.now();
-  const primaryEvents = uniqueEvents.filter((ev) => {
-    const start = new Date(ev.commence_time).getTime();
-    return start <= now + hoursAhead * 60 * 60 * 1000;
-  });
-
-  const selected = chooseCandidates(primaryEvents, minOdds, maxOdds, targetCount, quality.minBookmakers, todayPostedIds, quality, hoursAhead);
+  selected = evaluateCollected();
 
   const usage = guard.snapshot();
-  console.log(`[Tips] Credit guard: paid_requests=${usage.paidRequestAttempts}/${maxFeeds}, remaining=${usage.remaining ?? "unknown"}, used=${usage.usedFromHeader ?? "unknown"}, selected=${selected.length} tip(s)`);
+  console.log(`[Tips] Credit guard: key=#${usage.activeKeyIndex + 1}, paid_requests=${usage.paidRequestAttempts}/${maxFeeds}, remaining=${usage.remaining ?? "unknown"}, used=${usage.usedFromHeader ?? "unknown"}, selected=${selected.length} tip(s)`);
+
+  // Never mask a total API/quota outage as "Matches Scanned: 0".
+  if (uniqueEvents.length === 0 && succeededFeeds === 0 && feedErrors.length > 0) {
+    throw new Error(`All ${queriedSports.size || sports.length} Odds API feed(s) failed: ${feedErrors[0]}`);
+  }
+
   return {
     candidates: selected,
     stats: {
       scannedMatches: uniqueEvents.length,
       passedMatches: selected.length,
-      sportsScanned: sports.length,
+      sportsScanned: queriedSports.size || sports.length,
     },
   };
 }
@@ -1067,9 +1130,11 @@ async function markTipPosted(
   id: number,
   candidates: TipCandidate[],
   telegramMessageId: number | null,
-  leaseToken: string
+  leaseToken: string,
+  fallbackReason?: string | null
 ): Promise<void> {
   const first = candidates[0];
+  const isFallback = candidates.length === 0;
   const payload = JSON.stringify(candidates.map(toPostedSummary));
 
   const result = await env.DB.prepare(`
@@ -1086,8 +1151,11 @@ async function markTipPosted(
         odds=?,
         message_id=?,
         tips_json=?,
+        result=?,
+        settled_at=?,
+        telegram_edited_at=?,
         posted_at=datetime('now'),
-        error=NULL,
+        error=?,
         lease_token=NULL,
         lease_expires_at=NULL,
         updated_at=datetime('now')
@@ -1101,11 +1169,15 @@ async function markTipPosted(
     first?.event.home_team ?? null,
     first?.event.away_team ?? null,
     first?.event.commence_time ?? null,
-    first?.market ?? null,
+    isFallback ? "fallback" : (first?.market ?? null),
     first?.selection ?? null,
     first ? (first.bestPrice ?? first.averageOdds ?? null) : null,
     telegramMessageId,
     payload,
+    isFallback ? "VOID" : "PENDING",
+    isFallback ? new Date().toISOString() : null,
+    isFallback ? "SKIP" : null,
+    isFallback && fallbackReason ? fallbackReason.slice(0, 300) : null,
     id,
     leaseToken
   ).run();
@@ -1218,6 +1290,7 @@ export async function runScheduledTip(
     let candidates: TipCandidate[] = [];
     let keyboard: TelegramInlineKeyboardMarkup;
     let fallbackStats: FallbackTipStats = { scannedMatches: 0, passedMatches: 0 };
+    let fallbackReason: string | null = null;
 
     try {
       const fetched = await fetchCandidates(env);
@@ -1228,19 +1301,24 @@ export async function runScheduledTip(
       message = formatTipMessage(candidates, slot, joinUrl);
       keyboard = buildTipsInlineKeyboard(candidates, xbetLink, joinUrl, trackingBase, claim.id);
     } catch (fetchError) {
+      const fetchMsg = fetchError instanceof Error ? fetchError.message : String(fetchError);
+      fallbackReason = fetchMsg;
       await recordOddsApiDataResult(env, 0).catch((monitorError) =>
         console.warn("[Odds API Monitor] Could not persist empty/failed feed result:", monitorError)
       );
-      console.warn(
-        `[Tips] fetchCandidates failed for ${scheduledKey}:`,
-        fetchError instanceof Error ? fetchError.message : fetchError
-      );
+      console.warn(`[Tips] fetchCandidates failed for ${scheduledKey}:`, fetchMsg);
+      if (!fetchMsg.includes("No qualifying candidates were found")) {
+        await sendAdminAlert(
+          env,
+          `⚠️ *[TIPS FEED ALERT]*\n⏰ *Slot:* ${slot} Sri Lanka\n⚠️ *Reason:* ${escapeMarkdown(fetchMsg.slice(0, 300))}\n\n_Posted fallback notice to channel. Check ODDS\\_API\\_KEY / ODDS\\_API\\_KEY\\_2 credits if quota reached._`
+        ).catch(() => {});
+      }
       message = formatFallbackTip(slot, joinUrl, fallbackStats);
       keyboard = buildFallbackInlineKeyboard(xbetLink, joinUrl);
     }
 
     const telegramMessageId = await postTelegramMessage(env, message, "Markdown", keyboard);
-    await markTipPosted(env, claim.id, candidates, telegramMessageId, claim.leaseToken);
+    await markTipPosted(env, claim.id, candidates, telegramMessageId, claim.leaseToken, fallbackReason);
 
     console.log(
       `[Tips] Posted ${candidates.length} tip(s) with match buttons for ${scheduledKey} (msg ${telegramMessageId})`
@@ -1353,24 +1431,18 @@ async function recordOddsApiDataResult(env: Env, scannedMatches: number): Promis
 
 /** Lightweight quota-free provider health check; empty odds feeds are tracked on scheduled odds pulls. */
 export async function runOddsApiHealthCheck(env: Env): Promise<void> {
-  if (!env.ODDS_API_KEY) return;
-
-  const url = new URL(`${ODDS_API_BASE}/sports`);
-  url.searchParams.set("apiKey", env.ODDS_API_KEY);
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8_000);
+  if (!hasOddsApiKeys(env)) return;
 
   try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      signal: controller.signal,
-    });
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`HTTP ${response.status}: ${body.slice(0, 180)}`);
-    }
-    const payload: unknown = await response.json();
+    const { data: payload } = await fetchOddsApiJson<unknown>(
+      env,
+      (apiKey) => {
+        const url = new URL(`${ODDS_API_BASE}/sports`);
+        url.searchParams.set("apiKey", apiKey);
+        return url;
+      },
+      { timeoutMs: 8_000, retries: 1 }
+    );
     if (!Array.isArray(payload) || payload.length === 0) {
       throw new Error("The Odds API returned an empty or invalid sports list");
     }
@@ -1379,7 +1451,5 @@ export async function runOddsApiHealthCheck(env: Env): Promise<void> {
     const message = error instanceof Error ? error.message : String(error);
     console.warn("[Odds API Monitor] Health check failed:", message);
     await recordOddsApiConnectivity(env, message);
-  } finally {
-    clearTimeout(timeout);
   }
 }

@@ -68,8 +68,9 @@ else
 fi
 
 echo ""
-echo "6. The Odds API Key (optional, for live sports odds)"
-set_secret "ODDS_API_KEY" "The-Odds-API key (leave empty if none)" false
+echo "6. The Odds API Keys (optional, for live sports odds + automatic failover)"
+set_secret "ODDS_API_KEY" "Primary The-Odds-API key (leave empty if none)" false
+set_secret "ODDS_API_KEY_2" "Backup The-Odds-API key for monthly 500-credit failover (optional)" false
 
 echo ""
 echo "7. Withdrawal Security Code Pepper (required for withdrawal security codes)"

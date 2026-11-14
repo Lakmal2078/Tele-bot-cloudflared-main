@@ -1,3 +1,4 @@
+import { fetchOddsApiJson, hasOddsApiKeys } from "./oddsKeys";
 import type { Env } from "./types";
 import { escapeMarkdown } from "./utils";
 
@@ -180,34 +181,25 @@ export function evaluatePickResult(
 
 /**
  * Fetches completed match scores from The Odds API scores endpoint.
- * Note: /v4/sports/{sport}/scores/?daysFrom=1..3 does NOT count against paid request quota on free plans.
+ * Note: /v4/sports/{sport}/scores/?daysFrom=1..3 costs 2 credits per request on The Odds API v4.
  */
 export async function fetchScoresForSport(
-  apiKey: string,
+  envOrApiKey: Partial<Env> | string,
   sportKey: string,
   daysFrom = 3
 ): Promise<OddsScoreEvent[]> {
-  const url = new URL(`${ODDS_API_BASE}/sports/${encodeURIComponent(sportKey)}/scores`);
-  url.searchParams.set("apiKey", apiKey);
-  url.searchParams.set("daysFrom", String(daysFrom));
-  url.searchParams.set("dateFormat", "iso");
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 9000);
-  try {
-    const response = await fetch(url.toString(), {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      signal: controller.signal,
-    });
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Scores API ${response.status}: ${errText.slice(0, 200)}`);
-    }
-    return (await response.json()) as OddsScoreEvent[];
-  } finally {
-    clearTimeout(timeout);
-  }
+  const { data } = await fetchOddsApiJson<OddsScoreEvent[]>(
+    envOrApiKey,
+    (apiKey) => {
+      const url = new URL(`${ODDS_API_BASE}/sports/${encodeURIComponent(sportKey)}/scores`);
+      url.searchParams.set("apiKey", apiKey);
+      url.searchParams.set("daysFrom", String(daysFrom));
+      url.searchParams.set("dateFormat", "iso");
+      return url;
+    },
+    { timeoutMs: 9000, retries: 1 }
+  );
+  return data;
 }
 
 /**
@@ -309,7 +301,7 @@ async function editTelegramOnce(
  */
 export async function settlePendingTips(
   env: Env,
-  options?: { maxPosts?: number; sendTelegramUpdate?: boolean; bypassBackoff?: boolean }
+  options?: { maxPosts?: number; sendTelegramUpdate?: boolean; bypassBackoff?: boolean; minMatchAgeMinutes?: number; maxMatchAgeHours?: number }
 ): Promise<SettlementSummary> {
   const summary: SettlementSummary = {
     checkedPosts: 0, evaluatedPicks: 0, wonPicks: 0, lostPicks: 0,
@@ -317,7 +309,9 @@ export async function settlePendingTips(
     skippedCompletedPicks: 0, requeuedBackoff: 0, errors: [],
   };
   if (!env.DB) { summary.errors.push("Database binding is not available"); return summary; }
-  if (!env.ODDS_API_KEY) { summary.errors.push("ODDS_API_KEY is not configured"); return summary; }
+  if (!hasOddsApiKeys(env)) { summary.errors.push("ODDS_API_KEY is not configured"); return summary; }
+  const minMatchAgeMinutes = options?.bypassBackoff ? 0 : Math.max(0, options?.minMatchAgeMinutes ?? 0);
+  const maxMatchAgeHours = options?.bypassBackoff ? Infinity : (options?.maxMatchAgeHours ?? Infinity);
 
   const limit = Math.max(1, Math.min(options?.maxPosts ?? 10, 100));
   const now = new Date();
@@ -372,6 +366,8 @@ export async function settlePendingTips(
     }
   }
 
+  const sportMaxAgeHours = new Map<string, number>();
+
   for (const post of rows) {
     const picks: PickResultRecord[] = [];
     for (const item of rawPicksByPost.get(Number(post.id)) || []) {
@@ -398,14 +394,27 @@ export async function settlePendingTips(
         odds: Number(item.odds || post.odds || 1.5), result: "PENDING", completed: 0,
       };
       picks.push(pick);
-      if (pick.sport_key) sportKeys.add(pick.sport_key);
+      if (pick.sport_key) {
+        const kickoffMs = pick.commence_time ? Date.parse(pick.commence_time) : NaN;
+        const ageMinutes = Number.isFinite(kickoffMs) ? (now.getTime() - kickoffMs) / 60_000 : Infinity;
+        const isEligibleForScoreCheck = Number.isFinite(kickoffMs)
+          ? ageMinutes >= minMatchAgeMinutes && (ageMinutes / 60) < maxMatchAgeHours
+          : minMatchAgeMinutes === 0;
+        if (isEligibleForScoreCheck) {
+          sportKeys.add(pick.sport_key);
+          const ageHours = Number.isFinite(kickoffMs) ? Math.max(0, ageMinutes / 60) : 24;
+          sportMaxAgeHours.set(pick.sport_key, Math.max(sportMaxAgeHours.get(pick.sport_key) ?? 0, ageHours));
+        }
+      }
     }
     parsedByPost.set(Number(post.id), picks);
   }
 
   for (const sport of sportKeys) {
     try {
-      for (const event of await fetchScoresForSport(env.ODDS_API_KEY, sport, 3)) scoresByEventId.set(event.id, event);
+      const oldestAgeHours = sportMaxAgeHours.get(sport) ?? 24;
+      const daysFrom = oldestAgeHours <= 20 ? 1 : 3;
+      for (const event of await fetchScoresForSport(env, sport, daysFrom)) scoresByEventId.set(event.id, event);
     } catch (error) {
       summary.errors.push(`Scores fetch failed for ${sport}: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -471,7 +480,15 @@ export async function settlePendingTips(
   for (const post of rows) {
     const picks = parsedByPost.get(Number(post.id)) || [];
     const allTerminal = picks.length > 0 && picks.every(p => p.completed === 1 && ["WON","LOST","VOID"].includes(p.result));
-    if (allTerminal && !failedWritePosts.has(Number(post.id))) {
+    if (picks.length === 0) {
+      const statement = env.DB.prepare(`
+        UPDATE tip_posts SET result='VOID', settled_at=COALESCE(settled_at,datetime('now')),
+          last_checked_at=?, next_retry_at=NULL, telegram_edited_at=COALESCE(telegram_edited_at,'SKIP'),
+          settlement_note='No valid picks found for settlement', updated_at=datetime('now')
+        WHERE id=? AND (result IS NULL OR result='PENDING')
+      `).bind(nowIso, post.id);
+      postUpdates.push({ postId: Number(post.id), kind: "settled", statement, picks, overall: "VOID" });
+    } else if (allTerminal && !failedWritePosts.has(Number(post.id))) {
       const anyLost = picks.some(p => p.result === "LOST");
       const anyWon = picks.some(p => p.result === "WON");
       const overall = anyLost && anyWon ? "PARTIAL" : anyLost ? "LOST" : anyWon ? "WON" : "VOID";
@@ -485,15 +502,38 @@ export async function settlePendingTips(
         messageId: post.message_id ? Number(post.message_id) : undefined,
       });
     } else {
-      const kickoff = post.commence_time ? new Date(post.commence_time).getTime() : now.getTime();
-      const ageHours = Math.max(0, (now.getTime() - kickoff) / 3600000);
-      const retryMinutes = ageHours < 6 ? 5 : ageHours < 24 ? 15 : ageHours < 72 ? 30 : 120;
+      const pendingKickoffs = picks
+        .filter((p) => p.completed !== 1 && p.commence_time)
+        .map((p) => Date.parse(p.commence_time!))
+        .filter(Number.isFinite);
+      const earliestPendingKickoff = pendingKickoffs.length > 0
+        ? Math.min(...pendingKickoffs)
+        : (post.commence_time ? new Date(post.commence_time).getTime() : now.getTime());
+      const ageMinutes = (now.getTime() - earliestPendingKickoff) / 60_000;
+      const ageHours = ageMinutes / 60;
+      let retryMinutes: number;
+      let note = "Scores missing, incomplete, or team names did not match; retained as PENDING";
+      if (minMatchAgeMinutes > 0 && ageMinutes < minMatchAgeMinutes) {
+        retryMinutes = Math.max(15, Math.min(720, Math.ceil(minMatchAgeMinutes - ageMinutes) + 5));
+        note = "Waiting for match completion window before querying provider scores";
+      } else if (ageHours < 3) {
+        retryMinutes = 60;
+      } else if (ageHours < 12) {
+        retryMinutes = 120;
+      } else if (ageHours < 36) {
+        retryMinutes = 240;
+      } else if (ageHours < 76) {
+        retryMinutes = 360;
+      } else {
+        retryMinutes = 43200; // 30 days: stop automatic /scores polling after 72h provider window
+        note = "Provider 72h scores window expired; awaiting manual override";
+      }
       const statement = env.DB.prepare(`
         UPDATE tip_posts SET settlement_attempts=COALESCE(settlement_attempts,0)+1,
           last_checked_at=?, next_retry_at=datetime('now', ?),
           settlement_note=?, updated_at=datetime('now')
         WHERE id=? AND (result IS NULL OR result='PENDING')
-      `).bind(nowIso, `+${retryMinutes} minutes`, picks.length ? "Scores missing, incomplete, or team names did not match; retained as PENDING" : "No valid picks found for settlement", post.id);
+      `).bind(nowIso, `+${retryMinutes} minutes`, note, post.id);
       postUpdates.push({ postId: Number(post.id), kind: "retry", statement, picks });
     }
   }

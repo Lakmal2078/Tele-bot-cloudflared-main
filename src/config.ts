@@ -1,4 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
+import { hasOddsApiKeys } from "./oddsKeys";
 import type { Env } from "./types";
 
 const MIN_SECRET_LENGTH = 16;
@@ -87,7 +88,7 @@ export function validateEnv(env: Partial<Env>): string[] {
     errors.push("MIN_TRANSACTION_LKR must not exceed MAX_TRANSACTION_LKR");
   }
 
-  const tipsAutomated = nonEmpty(env.TIPS_CHANNEL_ID) && nonEmpty(env.ODDS_API_KEY);
+  const tipsAutomated = nonEmpty(env.TIPS_CHANNEL_ID) && hasOddsApiKeys(env);
   if (tipsAutomated) {
     for (const name of ["TIPS_SPORTS", "TIPS_ODDS_REGIONS"] as const) {
       if (!nonEmpty(env[name])) errors.push(`${name} is required when automated tips are enabled`);

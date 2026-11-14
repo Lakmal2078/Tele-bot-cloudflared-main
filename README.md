@@ -134,7 +134,7 @@ Do not commit `.env`. It is listed in `.gitignore`.
 | `TIPS_MIN_ODDS` / `TIPS_MAX_ODDS` | Odds window | `1.30` / `3.00` |
 | `TIPS_HOURS_AHEAD` | Look-ahead window for events | `72` |
 | `TIPS_PER_SLOT` | Tips published per slot | `3` |
-| `TIPS_MAX_FEEDS` | Maximum paid feed requests per run | `5` |
+| `TIPS_MAX_FEEDS` | Maximum paid feed requests per run | `3` |
 | `TIPS_MIN_CONSENSUS` | Minimum no-vig consensus probability | `0.45` |
 | `TIPS_MIN_VALUE` | Minimum positive expected value | `0.001` |
 | `TIPS_MIN_BOOKMAKERS` | Minimum bookmakers for Tier 1 | `1` |
@@ -153,7 +153,8 @@ Set sensitive values with `wrangler secret put` or `npm run secrets:cf` (non-ech
 | `ADMIN_IDS` | Comma-separated numeric Telegram user IDs with admin access |
 | `ADMIN_API_SECRET` | Protects `/admin` login and admin API routes (min 24 chars) |
 | `ADMIN_CHANNEL_ID` | Channel for admin notifications |
-| `ODDS_API_KEY` | The Odds API key |
+| `ODDS_API_KEY` | Primary The Odds API key (or comma-separated key list) |
+| `ODDS_API_KEY_2` | Optional backup The Odds API key for automatic monthly quota failover |
 | `SECURITY_CODE_PEPPER` | HMAC pepper for withdrawal security codes (min 16 chars; required for withdrawals) |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_PUBLIC_DOMAIN` | R2 access (Node preview and media delivery) |
 | `TIPS_CHANNEL_ID` | Channel ID for free tips publishing |
@@ -207,23 +208,26 @@ The Worker publishes free tips to the channel three times a day at **08:00, 12:0
 Configured sports (`TIPS_SPORTS`):
 
 ```text
-auto:soccer, auto:cricket, auto:basketball, auto:tennis, auto:table_tennis, auto:esports, soccer_epl, cricket_international_t20
+auto:soccer, auto:cricket, auto:basketball, auto:tennis, auto:mma, auto:icehockey
 ```
 
-**Quota estimate:** With `TIPS_MAX_FEEDS=5` and 3 slots per day, the maximum is about 15 paid odds requests per day, or about 450 per month. The free plan of The Odds API allows 500 requests per month. Zero-credit calls (`/v4/sports` discovery and `/v4/sports/.../scores` settlement checks) do not count toward this limit.
+**Quota estimate (2 × 500-credit keys = 1,000/month):**
+* **Tip fetching (`TIPS_MAX_FEEDS=3`):** Fetches up to 3 active feeds per slot and stops early at 2 feeds once 3 diverse picks are found (`~220–279` credits/month across 3 daily slots).
+* **Settlement (`/scores?daysFrom=1|3`):** Runs once per hour at `:37` with a 95-minute post-kickoff maturity gate, exponential retry backoff, and a 76-hour cutoff (`~150–240` credits/month).
+* **Automatic failover:** Set both `ODDS_API_KEY` and `ODDS_API_KEY_2` (or comma-separated keys in `ODDS_API_KEY`) so when the first 500-credit key hits `0` remaining / HTTP `401`, requests seamlessly rotate to the second key. `/v4/sports` discovery and health checks remain 0 credits.
 
 Selection and publishing pipeline:
 
-1. **Sport discovery:** Validates active sports using the zero-credit `/v4/sports` endpoint. Sports are interleaved by category (soccer, cricket, basketball, tennis, table tennis, esports) so one sport does not use all feed slots.
-2. **Odds collection:** Collects head-to-head decimal odds from the configured regions.
+1. **Sport discovery:** Validates active sports using the zero-credit `/v4/sports` endpoint, sorting active leagues by major-league priority and excluding American/Australian football from `auto:soccer`.
+2. **Odds collection:** Collects head-to-head decimal odds from the configured regions with early-stop once 3 diverse picks are found.
 3. **Consensus and value:** Removes bookmaker margin (no-vig) to estimate consensus probability and computes expected value against the best available price.
 4. **Candidate selection in tiers:**
    - **Tier 1 (strict):** Requires minimum consensus, minimum value, odds in the configured window, and data no older than `TIPS_MAX_STALE_HOURS`.
    - **Tier 2 (quality fallback):** Accepts any single verified bookmaker price with positive value.
    - **Tier 3 (wider odds):** Widens the odds window to capture high-probability favourites.
    - **Tier 4 (deduplication fallback):** Selects the best upcoming candidate even if it was scheduled before, so the channel stays active.
-5. **Delivery:** Posts formatted tips in Sinhala and English to `TIPS_CHANNEL_ID`, falling back to `CHANNEL_USERNAME` if the ID is not set. If no event passes any tier, the bot posts a notice with a scan summary.
-6. **Settlement:** Stores tip records and slot keys in D1. The maintenance cron checks match results every five minutes, updates D1, and edits channel posts with the final WIN, LOSS, or VOID outcome.
+5. **Delivery:** Posts formatted tips in Sinhala and English to `TIPS_CHANNEL_ID`, falling back to `CHANNEL_USERNAME` if the ID is not set. If all Odds API feeds fail, an immediate admin alert is dispatched and the error is recorded.
+6. **Settlement:** Stores tip records and slot keys in D1. The maintenance cron runs score settlement hourly (`:37`) after matches pass a 95-minute kickoff maturity window, updates D1, and edits channel posts with the final WIN, LOSS, or VOID outcome.
 
 Further provider notes are in [`docs/free-tips.md`](./docs/free-tips.md).
 

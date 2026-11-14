@@ -69,8 +69,9 @@ echo "4. Admin API Secret (minimum 24 characters)"
 set_secret "ADMIN_API_SECRET" "Min 24 chars admin API secret" false true
 
 echo ""
-echo "5. The Odds API Key (optional, for live sports odds)"
-set_secret "ODDS_API_KEY" "The-Odds-API key (leave empty if none)" false false
+echo "5. The Odds API Keys (optional, for live sports odds + automatic failover)"
+set_secret "ODDS_API_KEY" "Primary The-Odds-API key (leave empty if none)" false false
+set_secret "ODDS_API_KEY_2" "Backup The-Odds-API key for monthly 500-credit failover (optional)" false false
 
 echo ""
 echo "6. Withdrawal Security Code Pepper (required for withdrawal security codes)"

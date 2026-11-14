@@ -1,3 +1,4 @@
+import { fetchOddsApiJson, hasOddsApiKeys } from "./oddsKeys";
 import type { Env } from "./types";
 
 const ODDS_API_BASE = "https://api.the-odds-api.com/v4";
@@ -65,27 +66,18 @@ export function classifySpecialSport(sport: OddsSport): TipsProviderGroup | null
   return null;
 }
 
-async function fetchSports(apiKey: string): Promise<OddsSport[]> {
-  const url = new URL(`${ODDS_API_BASE}/sports`);
-  url.searchParams.set("apiKey", apiKey);
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      signal: controller.signal,
-    });
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`HTTP ${response.status}: ${body.slice(0, 180)}`);
-    }
-    const payload = await response.json() as unknown;
-    if (!Array.isArray(payload)) throw new Error("Unexpected /sports response format");
-    return payload as OddsSport[];
-  } finally {
-    clearTimeout(timeout);
-  }
+async function fetchSports(env: Env): Promise<OddsSport[]> {
+  const { data } = await fetchOddsApiJson<OddsSport[]>(
+    env,
+    (apiKey) => {
+      const url = new URL(`${ODDS_API_BASE}/sports`);
+      url.searchParams.set("apiKey", apiKey);
+      return url;
+    },
+    { timeoutMs: REQUEST_TIMEOUT_MS, retries: 1 }
+  );
+  if (!Array.isArray(data)) throw new Error("Unexpected /sports response format");
+  return data;
 }
 
 export async function checkTipsProvider(env: Env): Promise<TipsProviderStatus> {
@@ -100,7 +92,7 @@ export async function checkTipsProvider(env: Env): Promise<TipsProviderStatus> {
     rugby: { discovered: 0, feeds: [] as TipsProviderFeed[] },
   };
 
-  if (!env.ODDS_API_KEY) {
+  if (!hasOddsApiKeys(env)) {
     return {
       provider: "the-odds-api",
       configured: false,
@@ -112,7 +104,7 @@ export async function checkTipsProvider(env: Env): Promise<TipsProviderStatus> {
   }
 
   try {
-    const sports = await fetchSports(env.ODDS_API_KEY);
+    const sports = await fetchSports(env);
     for (const sport of sports) {
       if (!sport.key || sport.active === false) continue;
       const group = classifySpecialSport(sport);

@@ -349,11 +349,15 @@ ${guideEntries}
         .then((result) => console.log(`[Worker Cron] Free tip ${result.status} for ${result.slot} Sri Lanka time`))
         .catch((err) => console.error("[Worker Cron] Free tip publishing failed:", err)));
     } else if (cron === WORKER_CRONS.MAINTENANCE) {
-      tasks.push(settlePendingTips(env)
-        .then((summary) => console.log(`[Worker Cron] Tips settlement completed: posts=${summary.settledPosts}/${summary.checkedPosts}, won=${summary.wonPicks}, lost=${summary.lostPicks}, void=${summary.voidPicks}, tgUpdates=${summary.editedTelegramMessages}, retryQueued=${summary.requeuedBackoff}`))
-        .catch((err) => console.error("[Worker Cron] Tips settlement failed:", err)));
-
       const minute = new Date(event.scheduledTime).getUTCMinutes();
+      // Run Odds API score settlement once per hour (:37) with a 95-minute kickoff maturity gate
+      // so live matches aren't polled every 5 minutes and free-plan credits aren't burned.
+      if (minute === 37) {
+        tasks.push(settlePendingTips(env, { minMatchAgeMinutes: 95, maxMatchAgeHours: 76 })
+          .then((summary) => console.log(`[Worker Cron] Tips settlement completed: posts=${summary.settledPosts}/${summary.checkedPosts}, won=${summary.wonPicks}, lost=${summary.lostPicks}, void=${summary.voidPicks}, tgUpdates=${summary.editedTelegramMessages}, retryQueued=${summary.requeuedBackoff}`))
+          .catch((err) => console.error("[Worker Cron] Tips settlement failed:", err)));
+      }
+
       if ([7, 22, 37, 52].includes(minute)) {
         tasks.push(runOddsApiHealthCheck(env)
           .then(() => console.log("[Worker Cron] Odds API health check completed"))

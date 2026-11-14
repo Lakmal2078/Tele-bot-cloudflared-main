@@ -217,7 +217,13 @@ export const KEY_DEFINITIONS = [
     key: "ODDS_API_KEY",
     category: "Sports Betting Tips",
     mandatory: false,
-    description: "The Odds API key for live real-time bookmaker odds (the-odds-api.com)",
+    description: "Primary The Odds API key (or comma-separated keys) for live bookmaker odds",
+  },
+  {
+    key: "ODDS_API_KEY_2",
+    category: "Sports Betting Tips",
+    mandatory: false,
+    description: "Optional backup The Odds API key for automatic monthly quota failover",
   },
   {
     key: "TIPS_CHANNEL_ID",
