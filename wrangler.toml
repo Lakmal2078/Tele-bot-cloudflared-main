@@ -40,11 +40,11 @@ USE_POLLING = "false"
 # Affiliate / payment contact values are environment-specific operational data.
 # Prefer setting them via `wrangler secret put` or per-environment [vars] rather
 # than committing live phone numbers and affiliate tags to public source.
-EZCASH_NUMBER = ""
-MCASH_NUMBER = ""
-FRIMI_NUMBER = ""
-IPAY_NUMBER = ""
-WHATSAPP_NUMBER = ""
+#EZCASH_NUMBER = ""
+#MCASH_NUMBER = ""
+#FRIMI_NUMBER = ""
+#IPAY_NUMBER = ""
+#WHATSAPP_NUMBER = ""
 
 # Automated Free Tips — Sri Lanka time (UTC+05:30)
 # 08:00 = 02:30 UTC, 12:00 = 06:30 UTC, 18:00 = 12:30 UTC.
