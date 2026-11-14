@@ -1,0 +1,13 @@
+name: Delete Workflow Runs
+on: workflow_dispatch
+permissions:
+  actions: write
+jobs:
+  delete-runs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete all runs
+        run: |
+          gh api repos/${{ github.repository }}/actions/runs --paginate -q '.workflow_runs[].id' | xargs -I {} gh api -X DELETE repos/${{ github.repository }}/actions/runs/{}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
