@@ -385,10 +385,8 @@ function renderHeroEyebrow(c: (typeof T)[Lang], lang: Lang): string {
 
 function renderHeroHeading(lang: Lang): string {
   if (lang === "si") {
-    return `<h1 class="heroHeading">
-      <span class="hero-line">ඔබේ සේවාවන්ට <span class="hl-gradient hl-tips">එක්</span></span>
-      <br class="hero-br">
-      <span class="hero-line"><span class="hl-gradient hl-cash">Telegram</span> මධ්‍යස්ථානයක්.</span>
+    return `<h1 class="heroHeading heroHeading--si">
+      <span class="hero-line">ඔබේ සේවාවන්ට <span class="hl-gradient hl-tips">එක්</span> <span class="hl-gradient hl-cash">Telegram</span> මධ්‍යස්ථානයක්.</span>
     </h1>`;
   }
   if (lang === "ta") {
@@ -767,11 +765,12 @@ ${cfAnalyticsScript}
     }
     .tickerItems {
       display: flex;
-      gap: 28px;
+      width: max-content;
       white-space: nowrap;
-      animation: ticker-scroll 46s linear infinite;
+      animation: ticker-scroll 24s linear infinite;
       will-change: transform;
     }
+    .tickerGroup { display: flex; flex: 0 0 auto; gap: 28px; padding-right: 28px; }
     .tickerItem { font-size: 13px; color: var(--muted); font-family: var(--num); }
     .tickerItem .wonTag { color: var(--win); font-weight: 700; }
     .tickerBar.paused .tickerItems,
@@ -784,6 +783,10 @@ ${cfAnalyticsScript}
       background: transparent; color: var(--muted); cursor: pointer;
     }
     @keyframes ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+    @media (prefers-reduced-motion: reduce) {
+      .tickerItems { animation: none; transform: none; }
+      .tickerPause { display: none; }
+    }
     .tickerDisclaimer {
       margin: 0 auto; padding: 6px 16px 0; max-width: var(--max);
       font-size: 12px; color: var(--faint); text-align: center; line-height: 1.5;
@@ -880,6 +883,7 @@ ${cfAnalyticsScript}
     }
     .heroHeading { font-size: clamp(34px, 5.2vw, 60px); line-height: 1.12; margin-bottom: 18px; }
     .hero-line { display: block; }
+    .heroHeading--si .hero-line { display: inline; }
     .hl-gradient { color: var(--gold); }
     .hl-cash { color: var(--gold); }
     .heroSubtitle, .hero p { font-size: 17px; color: var(--muted); margin-bottom: 18px; }
@@ -1137,11 +1141,13 @@ ${cfAnalyticsScript}
       border-top: 1px solid var(--line); padding: 36px 0 44px; background: var(--surface-2);
       color: var(--faint); font-size: 14px;
     }
-    .footerLinks { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-bottom: 14px; }
+    .footerLinks { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; margin-bottom: 14px; }
     .footer a, .foot a { color: var(--muted); }
     .footerLinkBtn {
-      background: none; border: 0; color: var(--muted); padding: 6px 0; min-height: 40px;
-      text-decoration: underline; text-underline-offset: 3px;
+      display: inline-flex; align-items: center; margin: 0; padding: 6px 0; min-height: 40px;
+      border: 0; border-radius: 0; background: none; color: var(--muted);
+      font: inherit; line-height: inherit; text-align: left; text-decoration: underline;
+      text-underline-offset: 3px; cursor: pointer;
     }
 
     /* ---------- Modals ---------- */
@@ -1269,10 +1275,18 @@ ${cfAnalyticsScript}
     <button type="button" class="tickerPause" aria-pressed="false" aria-label="Pause ticker animation">Pause</button>
     <div class="tickerScroll">
       <div class="tickerItems">
-        <span class="tickerItem">📲 Open the bot for live odds</span>
-        <span class="tickerItem">🎯 Free daily tips in the bot and channel</span>
-        <span class="tickerItem">🌐 Sinhala · English · Tamil</span>
-        <span class="tickerItem">🔞 18+ · Gamble responsibly</span>
+        <div class="tickerGroup">
+          <span class="tickerItem">📲 Open the bot for live odds</span>
+          <span class="tickerItem">🎯 Free daily tips in the bot and channel</span>
+          <span class="tickerItem">🌐 Sinhala · English · Tamil</span>
+          <span class="tickerItem">🔞 18+ · Gamble responsibly</span>
+        </div>
+        <div class="tickerGroup" aria-hidden="true">
+          <span class="tickerItem">📲 Open the bot for live odds</span>
+          <span class="tickerItem">🎯 Free daily tips in the bot and channel</span>
+          <span class="tickerItem">🌐 Sinhala · English · Tamil</span>
+          <span class="tickerItem">🔞 18+ · Gamble responsibly</span>
+        </div>
       </div>
     </div>
   </div>

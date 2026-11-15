@@ -44,6 +44,27 @@ describe("landing page accessibility markup", () => {
     expect(html).toContain(".tickerBar.paused .tickerItems");
   });
 
+  it("ticker uses a seamless, faster loop and respects reduced-motion preferences", () => {
+    const html = renderHtml();
+    expect(html).toContain("animation: ticker-scroll 24s linear infinite;");
+    expect(html).toContain('<div class="tickerGroup" aria-hidden="true">');
+    expect(html).toContain("@media (prefers-reduced-motion: reduce)");
+    expect(html).toContain(".tickerItems { animation: none; transform: none; }");
+  });
+
+  it("Sinhala hero heading reads as one continuous phrase without a forced line break", () => {
+    const html = renderLandingPage(env, new Request("https://fast-xbet.lk/?lang=si"), "testnonce");
+    expect(html).toContain('class="heroHeading heroHeading--si"');
+    expect(html).toContain("ඔබේ සේවාවන්ට <span class=\"hl-gradient hl-tips\">එක්</span> <span class=\"hl-gradient hl-cash\">Telegram</span> මධ්‍යස්ථානයක්.");
+    expect(html).toContain(".heroHeading--si .hero-line { display: inline; }");
+  });
+
+  it("footer legal controls share the same inline link alignment", () => {
+    const html = renderHtml();
+    expect(html).toContain(".footerLinks { display: flex; flex-wrap: wrap; align-items: center;");
+    expect(html).toContain(".footerLinkBtn {\n      display: inline-flex; align-items: center;");
+  });
+
   it("team crest images no longer carry abbreviation alt text", () => {
     const html = renderHtml();
     expect(html).not.toMatch(/crests\.football-data\.org\/\d+\.png" alt="[A-Z]{2}"/);
