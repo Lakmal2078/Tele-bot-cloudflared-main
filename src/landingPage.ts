@@ -1172,10 +1172,13 @@ ${cfAnalyticsScript}
     .mobileStickyBar { display: none; }
     .stickyContent {
       display: flex; align-items: center; justify-content: space-between; gap: 12px;
-      background: var(--surface); border-top: 1px solid var(--border); padding: 10px 16px;
+      background: var(--surface); border-top: 1px solid var(--border); padding: 8px 12px;
+      flex-wrap: nowrap;
     }
-    .stickyInfo { font-size: 13px; color: var(--muted); }
-    .stickyBtn { min-height: 44px; }
+    .stickyInfo { font-size: 13px; color: var(--muted); min-width: 0; flex: 1 1 auto; overflow: hidden; }
+    .stickyInfo b, .stickyInfo span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stickyInfo span { font-size: 12px; }
+    .stickyBtn { min-height: 44px; flex: 0 0 auto; white-space: nowrap; padding: 10px 16px; font-size: 14px; }
     .promoBar, .promoCodeWrap { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
     .promoTag { font-size: 12px; font-weight: 700; color: var(--gold); }
     .promoCopyBtn {
@@ -1206,7 +1209,7 @@ ${cfAnalyticsScript}
         display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
         padding-bottom: env(safe-area-inset-bottom, 0px);
       }
-      body { padding-bottom: 76px; }
+      body { padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
       .calcPresets { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
     /* SEO audit: minimum 44px touch targets */
