@@ -26,7 +26,7 @@ describe("landing page accessibility markup", () => {
   it("sport filter uses aria-pressed toggle buttons instead of an invalid tablist", () => {
     const html = renderHtml();
     expect(html).not.toContain('role="tablist"');
-    expect(html).toContain('role="group" aria-label="Filter tips by sport"');
+    expect(html).toContain('role="group" aria-label="ක්‍රීඩාව අනුව Tips පෙරහන් කරන්න"');
     expect(html).toContain('data-sport="all" class="tipTab active" aria-pressed="true"');
     expect(html).toContain('data-sport="football" class="tipTab" aria-pressed="false"');
   });
@@ -39,7 +39,7 @@ describe("landing page accessibility markup", () => {
 
   it("ticker is a labelled region with a pause control", () => {
     const html = renderHtml();
-    expect(html).toContain('role="region" aria-label="Bot updates');
+    expect(html).toContain('role="region" aria-label="Bot යාවත්කාලීන');
     expect(html).toContain('class="tickerPause" aria-pressed="false"');
     expect(html).toContain(".tickerBar.paused .tickerItems");
   });
@@ -71,7 +71,7 @@ describe("landing page accessibility markup", () => {
   });
 
   it("chat mockup container is a region landmark", () => {
-    expect(renderHtml()).toContain('<div class="phone" role="region" aria-label="Telegram bot chat preview">');
+    expect(renderHtml()).toContain('<div class="phone" role="region" aria-label="Telegram bot සංවාද පෙරදසුන">');
   });
 
   it("secondary text colour is raised to meet 4.5:1 contrast on the card surface", () => {
