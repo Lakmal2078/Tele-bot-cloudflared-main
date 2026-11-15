@@ -70,6 +70,28 @@ describe("Landing Page Render & SEO", () => {
     expect(html).toContain('<html lang="ta">');
   });
 
+  it("localizes content throughout the page for Sinhala, English, and Tamil", () => {
+    const si = renderLandingPage(mockEnv, new Request("https://fast-xbet.lk/"));
+    const en = renderLandingPage(mockEnv, new Request("https://fast-xbet.lk/en/"));
+    const ta = renderLandingPage(mockEnv, new Request("https://fast-xbet.lk/ta/"));
+
+    expect(si).toContain("තැන්පතු සහ Bonus ගණකය");
+    expect(si).toContain("නිතර අසන ප්‍රශ්න");
+    expect(si).toContain("රහස්‍යතා ප්‍රතිපත්තිය");
+    expect(si).toContain("වගකීමෙන් ක්‍රීඩා කරන්න");
+    expect(si).not.toContain("Frequently Asked Questions");
+    expect(si).not.toContain("Deposit &amp; Bonus Calculator");
+
+    expect(en).toContain("Frequently Asked Questions");
+    expect(en).toContain("Deposit &amp; Bonus Calculator");
+    expect(ta).toContain("அடிக்கடி கேட்கப்படும் கேள்விகள்");
+    expect(ta).toContain("தனியுரிமைக் கொள்கை");
+    expect(ta).toContain("வங்கி பரிமாற்றம்");
+    expect(ta).toContain('var pageLang = "ta";');
+    expect(si).toContain('var pageLang = "si";');
+    expect(ta).not.toContain("Frequently Asked Questions");
+  });
+
   it("includes OpenGraph and Twitter card meta tags with WhatsApp optimizations", () => {
     const req = new Request("https://fast-xbet.lk/");
     const html = renderLandingPage(mockEnv, req);
@@ -175,7 +197,7 @@ describe("Landing Page Render & SEO", () => {
     const req = new Request("https://fast-xbet.lk/");
     const html = renderLandingPage(mockEnv, req);
     expect(html).toContain("18+");
-    expect(html).toContain("Responsible");
+    expect(html).toContain("වගකීමෙන් ක්‍රීඩා කරන්න");
   });
 
   it("renders deep-linked Telegram bot CTAs", () => {
@@ -246,8 +268,8 @@ describe("Landing Page Render & SEO", () => {
 
     // 3. Local payment rails with badges (soft metrics — no hard SLA claims)
     expect(html).toContain("payBadge");
-    expect(html).toContain("⚡ After verify");
-    expect(html).toContain("No service fee");
+    expect(html).toContain("⚡ තහවුරු කිරීමෙන් පසු");
+    expect(html).toContain("සේවා ගාස්තුවක් නැත");
     expect(html).toContain("eZ Cash");
     expect(html).toContain("mCash");
     expect(html).toContain("FriMi");
@@ -328,7 +350,7 @@ describe("Landing Page Render & SEO", () => {
     expect(html).toContain("/assets/telegram/04-telegram-bot-ui.jpg");
     expect(html).toContain("/og-image.jpg");
     expect(html).toContain("/assets/telegram/06-security-support.jpg");
-    expect(html).toContain("Past performance does not predict future outcomes");
+    expect(html).toContain("අතීත ප්‍රතිඵල අනාගතය සහතික නොකරයි");
     expect(html).not.toContain("Arsenal Win @");
 
     // 4. Tips countdown timer
@@ -346,7 +368,7 @@ describe("Landing Page Render & SEO", () => {
     // 6. Mobile sticky bottom CTA bar
     expect(html).toContain('id="mobileStickyBar"');
     expect(html).toContain("stickyBtn");
-    expect(html).toContain('aria-label="Quick Telegram Access"');
+    expect(html).toContain('aria-label="Telegram වෙත ඉක්මන් පිවිසුම"');
 
     // 7. Data protection & Cloudflare Edge / D1 / R2 trust section
     expect(html).toContain('id="security"');
@@ -472,7 +494,7 @@ describe("Landing Page Render & SEO", () => {
     expect(html).toContain("1926");
     expect(html).toContain("1333");
     expect(html).toContain("BeGambleAware.org");
-    expect(html).toContain("T&amp;Cs apply");
-    expect(html).toContain("SSL Secured");
+    expect(html).toContain("18+ නියමයන් අදාළ වේ");
+    expect(html).toContain("SSL ආරක්ෂාව");
   });
 });
