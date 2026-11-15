@@ -164,7 +164,7 @@ const T: Record<Lang, {
     },
     legal: {
       privacy: "අපගේ සේවාව පරිශීලක රහස්‍යතාව උපරිමයෙන් සුරකියි. කිසිදු සංවේදී බැංකු PIN හෝ කාඩ්පත් දත්ත වෙබ් අඩවියේ ගබඩා නොකෙරේ. දත්ත ආරක්ෂාව Cloudflare Edge, D1 සහ R2 යටිතල පහසුකම් මගින් සහතික කෙරේ. සේවාව 18+ පරිශීලකයින් සඳහා පමණි.",
-      terms: "මෙම සේවාව නිල ක්‍රීඩා තොරතුරු සහ Telegram පාදක සහායක පද්ධතියකි. කිසිදු ක්‍රීඩා ප්‍රතිඵලයක් හෝ මූල්‍ය ලාභයක් සහතික නොකෙරේ. වගකීමෙන් යුතුව ක්‍රීඩා කරන්න. 18+ නීතිමය සීමාවන්ට යටත් වේ."
+      terms: "මෙම සේවාව ස්වාධීන Telegram පාදක සහායක පද්ධතියකි. 1xBet හි නිල හවුල්කරුවෙකු නොවේ. කිසිදු ක්‍රීඩා ප්‍රතිඵලයක් හෝ මූල්‍ය ලාභයක් සහතික නොකෙරේ. වගකීමෙන් යුතුව ක්‍රීඩා කරන්න. 18+ නීතිමය සීමාවන්ට යටත් වේ."
     }
   },
   en: {
@@ -206,7 +206,7 @@ const T: Record<Lang, {
     ],
     security: [
       "Security & Data Protection",
-      "Cloudflare D1 & R2 Enterprise Infrastructure",
+      "Cloudflare D1 & R2 Infrastructure",
       "Protected by Cloudflare Global Edge Network with SSL/TLS and DDoS mitigation.",
       "Data encrypted in transit and securely partitioned in Cloudflare D1 and R2 storage.",
       "No bank PINs, passwords, or card credentials are ever requested or stored on the web. Direct verification inside Telegram."
@@ -249,7 +249,7 @@ const T: Record<Lang, {
     },
     legal: {
       privacy: "Your privacy is strictly safeguarded. Sensitive financial credentials (passwords, PINs, card CVVs) are never collected or stored on this website. Operations are secured through Cloudflare edge infrastructure, D1, and encrypted R2 storage. Restricted to users 18+.",
-      terms: "This website serves as the official portal and Telegram assistant. We make no guaranteed returns or betting outcomes. Gamble responsibly and within your personal means. Strictly 18+."
+      terms: "This website is an independent Telegram assistant and is not an official 1xBet partner. We make no guaranteed returns or betting outcomes. Gamble responsibly and within your personal means. Strictly 18+."
     }
   },
   ta: {
@@ -334,7 +334,7 @@ const T: Record<Lang, {
     },
     legal: {
       privacy: "பயனர் ரகசியத்தன்மை முழுமையாகப் பாதுகாக்கப்படுகிறது. வங்கி PIN அல்லது கார்டு விவரங்கள் தளத்தில் சேமிக்கப்படாது. Cloudflare Edge, D1 மற்றும் R2 மூலம் பாதுகாக்கப்படுகிறது. 18+ பயனர்களுக்கு மட்டுமே.",
-      terms: "இந்த தளம் அதிகாரப்பூர்வ விளையாட்டு தகவல் மற்றும் Telegram உதவி அமைப்பாகும். முடிவுகள் அல்லது லாபம் உத்தரவாதமில்லை. பொறுப்புடன் விளையாடுங்கள். 18+ வயது வரம்பு பொருந்தும்."
+      terms: "இந்த தளம் சுதந்திரமான Telegram உதவி அமைப்பாகும். 1xBet அதிகாரப்பூர்வ கூட்டாளி அல்ல. முடிவுகள் அல்லது லாபம் உத்தரவாதமில்லை. பொறுப்புடன் விளையாடுங்கள். 18+ வயது வரம்பு பொருந்தும்."
     }
   }
 };
@@ -419,8 +419,8 @@ function renderHeroTrustRibbon(lang: Lang): string {
   const t = lang === "si" ? {
     payouts: "Timing varies",
     payoutsLbl: "ගනුදෙනු කාලය වෙනස් විය හැක",
-    fee: "0% ගාස්තු*",
-    feeLbl: "සැඟවුණු ගාස්තු නෑ",
+    fee: "ගාස්තු bot හි",
+    feeLbl: "බලපාන ගාස්තු පෙන්වයි",
     tips: "Daily VIP",
     tipsLbl: "නොමිලේ Tips",
     secure: "SSL Secured",
@@ -428,8 +428,8 @@ function renderHeroTrustRibbon(lang: Lang): string {
   } : lang === "ta" ? {
     payouts: "Timing varies",
     payoutsLbl: "Processing time may vary",
-    fee: "0% கட்டணம்*",
-    feeLbl: "மறைக்கப்பட்ட கட்டணம் இல்லை",
+    fee: "bot-இல் கட்டணம்",
+    feeLbl: "பணம் செலுத்தும் முன் காட்டப்படும்",
     tips: "Daily VIP",
     tipsLbl: "இலவச Tips",
     secure: "SSL Secured",
@@ -437,8 +437,8 @@ function renderHeroTrustRibbon(lang: Lang): string {
   } : {
     payouts: "Timing varies",
     payoutsLbl: "Processing time may vary",
-    fee: "0% Extra*",
-    feeLbl: "Zero Hidden Fees",
+    fee: "Fees in bot",
+    feeLbl: "Shown before you pay",
     tips: "Daily VIP",
     tipsLbl: "Free Tips Drop",
     secure: "SSL Secured",
@@ -472,17 +472,17 @@ function renderFinalCtaBanner(c: (typeof T)[Lang], lang: Lang, eb: string): stri
 
   const ribbon = lang === "si" ? {
     f1: "⚡ Processing times vary",
-    f2: "💳 0% සැඟවුණු අමතර ගාස්තු",
+    f2: "💳 ගාස්තු bot හි පෙන්වයි",
     f3: "🔒 Password අවශ්‍ය නෑ",
     f4: "🇱🇰 24/7 පාරිභෝගික සහාය"
   } : lang === "ta" ? {
     f1: "⚡ Processing times vary",
-    f2: "💳 0% மறைக்கப்பட்ட கூடுதல் கட்டணம்",
+    f2: "💳 கட்டணங்கள் bot-இல்",
     f3: "🔒 Password தேவையில்லை",
     f4: "🇱🇰 24/7 வாடிக்கையாளர் ஆதரவு"
   } : {
     f1: "⚡ Typical processing times vary",
-    f2: "💳 Zero Hidden Platform Fees",
+    f2: "💳 Fees shown in the bot",
     f3: "🔒 No Passwords Requested",
     f4: "🇱🇰 24/7 Telegram Support"
   };
@@ -522,6 +522,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
   const channel = env.CHANNEL_URL?.trim() || CHANNEL_FALLBACK;
   const botName = env.BOT_USERNAME?.trim().replace(/^@/, "") || BOT_FALLBACK;
   const bot = `https://t.me/${botName}?start=landing`;
+  const botStart = (p: string): string => esc(`https://t.me/${botName}?start=${p}`);
   const min = Number.parseInt(env.MIN_TRANSACTION_LKR || "1000", 10) || 1000;
   const max = Number.parseInt(env.MAX_TRANSACTION_LKR || "500000", 10) || 500000;
 
@@ -566,7 +567,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
         "@id": `${siteUrl}#organization`,
         name: "Fast xBet Cash",
         url: siteUrl,
-        logo: `${trustedOrigin}/logo.png`,
+        logo: `${trustedOrigin}/favicon.png`,
         image: `${trustedOrigin}${TELEGRAM_GRAPHICS.og}`,
         sameAs: [channel, `https://t.me/${botName}`],
         areaServed: "LK",
@@ -596,7 +597,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
       </div>
       <b>${esc(p)}</b>
       <div class="payBottom">
-        <span class="payFee">No service fee</span>
+        <span class="payFee">Fees shown in bot</span>
         <span>${paymentConfigured(env, p) ? "Available" : "via Telegram"}</span>
       </div>
     </article>`
@@ -942,6 +943,7 @@ ${cfAnalyticsScript}
     .botStatusDot, .botStatusPing { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--win); }
     .botStatusDot.checking, .checking { background: var(--gold); }
     .botStatusDot.offline { background: var(--loss); }
+    .botStatusDot.unconfigured { background: #f59e0b; }
     .botStatusPing { display: none; }
     .botStatusLabel { white-space: nowrap; }
     .previewBadge {
@@ -1257,31 +1259,6 @@ ${cfAnalyticsScript}
   </div>
 </header>
 
-<!-- Winning Tips Ticker Bar -->
-<div class="tickerBar" role="region" aria-label="Recent Winning Tips (illustrative sample results, past performance is not a guarantee)">
-  <div class="wrap tickerInner">
-    <span class="tickerBadge">🔥 ${esc(c.ticker)}</span>
-    <button type="button" class="tickerPause" aria-pressed="false" aria-label="Pause ticker animation">Pause</button>
-    <div class="tickerScroll">
-      <div class="tickerItems">
-        <span class="tickerItem">⚽ Arsenal Win @ <b>1.94</b> <i class="wonTag">SAMPLE</i></span>
-        <span class="tickerItem">🎾 Alcaraz Win @ <b>1.75</b> <i class="wonTag">SAMPLE</i></span>
-        <span class="tickerItem">⚽ Real Madrid Win @ <b>1.82</b> <i class="wonTag">SAMPLE</i></span>
-        <span class="tickerItem">🏀 Celtics -4.5 @ <b>1.90</b> <i class="wonTag">SAMPLE</i></span>
-        <span class="tickerItem">🏏 SL vs IND Over 310.5 @ <b>1.88</b> <i class="wonTag">SAMPLE</i></span>
-        <span class="tickerItem">⚽ Man City Over 2.5 @ <b>1.85</b> <i class="wonTag">SAMPLE</i></span>
-        <span class="tickerItem">⚽ Arsenal Win @ <b>1.94</b> <i class="wonTag">SAMPLE</i></span>
-        <span class="tickerItem">🎾 Alcaraz Win @ <b>1.75</b> <i class="wonTag">SAMPLE</i></span>
-        <span class="tickerItem">⚽ Real Madrid Win @ <b>1.82</b> <i class="wonTag">SAMPLE</i></span>
-        <span class="tickerItem">🏀 Celtics -4.5 @ <b>1.90</b> <i class="wonTag">SAMPLE</i></span>
-        <span class="tickerItem">🏏 SL vs IND Over 310.5 @ <b>1.88</b> <i class="wonTag">SAMPLE</i></span>
-        <span class="tickerItem">⚽ Man City Over 2.5 @ <b>1.85</b> <i class="wonTag">SAMPLE</i></span>
-      </div>
-    </div>
-  </div>
-</div>
-<p class="tickerDisclaimer" style="margin:0;padding:4px 16px 0;text-align:center;font-size:.62rem;color:var(--faint);max-width:1100px;margin-left:auto;margin-right:auto;">Sample / historical results for illustration only. Illustrative/sample data only; past performance does not predict future outcomes. 18+ Gamble responsibly.</p>
-
 <main id="main">
 <section class="hero" id="home">
   <picture><source type="image/webp" srcset="${TELEGRAM_GRAPHICS.hero.replace(/\.jpg$/, ".webp")}"><img class="heroGraphicBg" src="${TELEGRAM_GRAPHICS.hero}" alt="" width="1600" height="900" loading="eager" decoding="async" aria-hidden="true"></picture>
@@ -1305,7 +1282,7 @@ ${cfAnalyticsScript}
         <button type="button" class="subLinkBtn qrTriggerBtn" id="qrOpenBtn" aria-label="Scan QR Code to open Telegram on mobile">📱 Scan QR</button>
       </div>
 
-      <div class="promoBar">
+      ${promo ? `<div class="promoBar">
         <span class="promoTag">1XBET PROMO</span>
         <div class="promoCodeWrap">
           <strong id="promoCodeVal">${promo}</strong>
@@ -1313,8 +1290,8 @@ ${cfAnalyticsScript}
             <span id="promoCopyIcon">📋</span> <span id="promoCopyLabel">Copy Code</span>
           </button>
         </div>
-        <span class="promoNote">+100% First Deposit Bonus (up to LKR 35,000) · <small style="font-size:0.72rem;opacity:0.9;">Wagering &amp; 18+ T&amp;Cs apply · Not affiliated with 1xBet as an official partner</small></span>
-      </div>
+        <span class="promoNote">Bonus terms are shown in the Telegram bot. Wagering &amp; 18+ T&amp;Cs apply. Independent assistant, not an official 1xBet partner.</span>
+      </div>` : ""}
 
       <div class="pills">
         <span class="pill" id="heroBotStatusPill"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#00e676;margin-right:4px;"></span> ⚡ Bot Online</span>
@@ -1413,39 +1390,6 @@ ${cfAnalyticsScript}
       <span>🔒 <b>18+ Only</b> Play Responsibly</span>
     </div>
     <div class="tipCardGrid" id="tipCardGrid" aria-live="polite">
-      <article class="tipCard" data-sport="football">
-        <div class="tipCardTop"><span class="tipLeague">Premier League</span><span class="tipStatus pending">Today</span></div>
-        <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/57.png" alt="Arsenal logo" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>Arsenal</b></div>
-          <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/61.png" alt="Chelsea logo" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>Chelsea</b></div>
-        </div>
-        <div class="tipWhen">Today, 17:30</div>
-        <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Arsenal Win</span><b class="tipOdds">1.94</b></div>
-        <div class="tipFoot">${esc(c.tips.verifiedBadge)}</div>
-      </article>
-      <article class="tipCard" data-sport="football">
-        <div class="tipCardTop"><span class="tipLeague">La Liga</span><span class="tipStatus pending">Today</span></div>
-        <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/86.png" alt="Real Madrid logo" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>Real Madrid</b></div>
-          <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/78.png" alt="Atletico Madrid logo" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>Atletico Madrid</b></div>
-        </div>
-        <div class="tipWhen">Today, 20:00</div>
-        <div class="tipPickRow"><span class="tipMarketTag">1X2</span><span class="tipPickName">Real Madrid Win</span><b class="tipOdds">1.78</b></div>
-        <div class="tipFoot">${esc(c.tips.verifiedBadge)}</div>
-      </article>
-      <article class="tipCard" data-sport="football">
-        <div class="tipCardTop"><span class="tipLeague">Bundesliga</span><span class="tipStatus pending">Today</span></div>
-        <div class="tipTeams">
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/5.png" alt="Bayern Munich logo" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>Bayern Munich</b></div>
-          <div class="tipVs">VS</div>
-          <div class="tipTeam"><span class="tipAvatar hasLogo"><img src="https://crests.football-data.org/524.png" alt="PSG logo" loading="lazy" decoding="async" referrerpolicy="no-referrer"/></span><b>PSG</b></div>
-        </div>
-        <div class="tipWhen">Today, 22:00</div>
-        <div class="tipPickRow"><span class="tipMarketTag">O/U</span><span class="tipPickName">Over 2.5 Goals</span><b class="tipOdds">1.85</b></div>
-        <div class="tipFoot">${esc(c.tips.verifiedBadge)}</div>
-      </article>
     </div>
     <div id="tipEmptyState" class="tipEmpty" hidden></div>
     <div class="actions" style="margin-top:20px;justify-content:center">
@@ -1496,7 +1440,7 @@ ${cfAnalyticsScript}
       <div class="calcIcon">🧮</div>
       <div>
         <h3 style="margin:0;font-size:1.05rem;color:var(--fg)">Deposit &amp; Bonus Calculator (LKR)</h3>
-        <p style="margin:3px 0 0;font-size:.72rem;color:var(--muted)">Instant bonus estimate with promo code ${promo}</p>
+        <p style="margin:3px 0 0;font-size:.72rem;color:var(--muted)">Deposit estimate (bonus terms are shown in the Telegram bot)</p>
       </div>
     </div>
     <div class="calcBody">
@@ -1516,18 +1460,18 @@ ${cfAnalyticsScript}
       </div>
       <div class="calcRight">
         <div class="calcStat"><span>Your Deposit:</span><b id="summaryDeposit">LKR 5,000</b></div>
-        <div class="calcStat bonusStat"><span>Bonus (${promo}):</span><b id="summaryBonus">+ LKR 5,000 (100%)</b></div>
-        <div class="calcStat totalStat"><span>Playable Balance:</span><b id="summaryTotal" aria-live="polite">LKR 10,000</b></div>
+        <div class="calcStat bonusStat"><span>Bonus:</span><b id="summaryBonus">Shown in Telegram bot</b></div>
+        <div class="calcStat totalStat"><span>Total deposit:</span><b id="summaryTotal" aria-live="polite">LKR 5,000</b></div>
         <div class="calcMeta">
           <span>⚡ After verification</span>
           <span>🛡️ No service fee</span>
           <span>💳 Local rails</span>
         </div>
-        <a class="btn primary calcBtn" id="calcCtaBtn" href="${eb}&start=deposit" data-track-cta="calc_deposit">✈ Deposit LKR 5,000 via Telegram</a>
+        <a class="btn primary calcBtn" id="calcCtaBtn" href="${botStart("deposit")}" data-track-cta="calc_deposit">✈ Deposit LKR 5,000 via Telegram</a>
       </div>
     </div>
     <div style="margin-top:14px;padding:8px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;font-size:0.72rem;color:var(--muted);text-align:center;">
-      *100% First Deposit Bonus up to LKR 35,000. 18+ only. Wagering requirements &amp; terms apply. Play responsibly.
+      Bonus offers, if any, are shown in the Telegram bot. 18+ only. Wagering requirements &amp; terms apply. Play responsibly.
     </div>
   </div>
 
@@ -1599,10 +1543,10 @@ ${renderFinalCtaBanner(c, lang, eb)}
     </div>
     <p class="qrModalDesc">Scan with your phone camera to start the Telegram bot:</p>
     <div class="qrBox">
-      ${qrCodeSvg(eb + "&start=landing_qr")}
+      ${qrCodeSvg(`https://t.me/${botName}?start=landing_qr`)}
     </div>
     <div class="qrModalBot">@${esc(botName)}</div>
-    <a class="btn primary" href="${eb}&start=landing_qr" target="_blank" rel="noopener" data-track-cta="qr_modal_btn">✈ Open in Telegram</a>
+    <a class="btn primary" href="${botStart("landing_qr")}" target="_blank" rel="noopener" data-track-cta="qr_modal_btn">✈ Open in Telegram</a>
   </div>
 </div>
 
@@ -1641,7 +1585,7 @@ ${renderFinalCtaBanner(c, lang, eb)}
       <b>Fast xBet Cash 🇱🇰</b>
       <span>Free Tips &amp; Cash Desk</span>
     </div>
-    <a class="btn primary stickyBtn" href="${eb}&start=landing_sticky" data-track-cta="mobile_sticky">✈ Open Telegram</a>
+    <a class="btn primary stickyBtn" href="${botStart("landing_sticky")}" data-track-cta="mobile_sticky">✈ Open Telegram</a>
   </div>
 </aside>
 </main>
@@ -1652,7 +1596,7 @@ ${renderFinalCtaBanner(c, lang, eb)}
       <img src="/favicon.png" alt="Fast xBet Cash" width="36" height="36" decoding="async">
       Fast <span>xBet</span> Cash 🇱🇰
     </a>
-    <p>Telegram-first service for public sports previews, guided support and multilingual assistance.</p>
+    <p>Telegram-first service for public sports previews, guided support and multilingual assistance. Independent assistant, not an official 1xBet partner.</p>
     <b>18+ only · Gamble responsibly</b>
   </div>
   <div>
@@ -1796,11 +1740,9 @@ ${renderFinalCtaBanner(c, lang, eb)}
       if (calcDisp) calcDisp.textContent = formatted;
       if (sumDep) sumDep.textContent = formatted;
 
-      var bonus = Math.min(val, 35000);
-      var bonusFormatted = "+ LKR " + bonus.toLocaleString("en-LK") + " (100%)";
-      if (sumBonus) sumBonus.textContent = bonusFormatted;
+      if (sumBonus) sumBonus.textContent = "Shown in Telegram bot";
 
-      var total = val + bonus;
+      var total = val;
       if (sumTotal) sumTotal.textContent = "LKR " + total.toLocaleString("en-LK");
 
       if (calcCta) {
@@ -1814,6 +1756,7 @@ ${renderFinalCtaBanner(c, lang, eb)}
         updateCalc(Number(this.value));
       });
     }
+    if (calcRange) updateCalc(Number(calcRange.value));
     presetBtns.forEach(function(btn){
       btn.addEventListener("click", function(){
         var pVal = Number(btn.getAttribute("data-val"));
@@ -1830,7 +1773,7 @@ ${renderFinalCtaBanner(c, lang, eb)}
     if (chat && chips.length) {
       var scenarios = {
         profile: [
-          { role: "bot", text: "<div style='font-size:0.68rem;font-weight:700;color:#67e8f9;margin-bottom:4px;'>What can this bot do?</div><img src='/bot-description-640x360.jpg' alt='Fast xBet Cash Bot Description' style='width:100%;border-radius:10px;border:1px solid #67e8f944;margin-bottom:6px;display:block;' /><div style='font-size:0.68rem;line-height:1.3;'>⚡ <b>Fast xBet Cash 🇱🇰</b><br>Official 1xBet Sri Lanka Cash Desk.<br>💳 0% fee local deposits &amp; fast withdrawals.<br>⚽ Daily winning betting tips!</div>" },
+          { role: "bot", text: "<div style='font-size:0.68rem;font-weight:700;color:#67e8f9;margin-bottom:4px;'>What can this bot do?</div><img src='/bot-description-640x360.jpg' alt='Fast xBet Cash Bot Description' style='width:100%;border-radius:10px;border:1px solid #67e8f944;margin-bottom:6px;display:block;' /><div style='font-size:0.68rem;line-height:1.3;'>⚡ <b>Fast xBet Cash 🇱🇰</b><br>Independent Telegram assistant for 1xBet Sri Lanka (not an official partner).<br>💳 Fees &amp; timings are shown in the bot.<br>⚽ Free daily sports analysis (18+).</div>" },
           { role: "user", text: "Start Bot /start" },
           { role: "bot", text: "Welcome! Tap below to explore deposit &amp; withdrawal services." }
         ],
@@ -1842,25 +1785,25 @@ ${renderFinalCtaBanner(c, lang, eb)}
           { role: "bot", text: "Limits LKR ${min.toLocaleString("en-LK")}–${max.toLocaleString("en-LK")}. Processed after receipt verification (times vary)." }
         ],
         tips: [
-          { role: "bot", text: "🎯 Today's Selected Free Tips (Combined Odds: 3.45)" },
+          { role: "bot", text: "🎯 Free tips format preview (live picks are in the bot)" },
           { role: "user", text: "Free Tips Preview" },
-          { role: "bot", text: "⚽ Arsenal vs Chelsea — Arsenal Win @ 1.94<br>⚽ Real Madrid vs Atletico — Real Win @ 1.78" },
+          { role: "bot", text: "⚽ Team A vs Team B — Pick @ odds<br>⚽ Live picks and odds are posted in the Telegram bot" },
           { role: "user", text: "Where are new tips posted?" },
-          { role: "bot", text: "Free analysis is published 3x daily in our official Telegram channel!" }
+          { role: "bot", text: "Free analysis is posted in our Telegram channel. Open the bot for live odds." }
         ],
         withdraw: [
           { role: "bot", text: "↗ Fast Cash Withdrawal Assistance" },
           { role: "user", text: "Withdraw to FriMi" },
-          { role: "bot", text: "Enter your 1xBet Account ID & withdrawal code to confirm." },
+          { role: "bot", text: "Enter your 1xBet Account ID to continue." },
           { role: "user", text: "ID 88410231 · Code 7819" },
-          { role: "bot", text: "🔒 Request logged. Verified and transferred in 5–15 minutes." }
+          { role: "bot", text: "🔒 Request logged. Processing time varies; follow the bot's instructions." }
         ],
         support: [
           { role: "bot", text: "🌐 භාෂාව තෝරන්න / Select Language / மொழியைத் தேர்ந்தெடுக்கவும்" },
           { role: "user", text: "සිංහල (Sinhala)" },
           { role: "bot", text: "✅ භාෂාව සාර්ථකව යාවත්කාලීන විය! 24/7 සහය සඳහා අප සූදානම්." },
           { role: "user", text: "eZ Cash සහය අවශ්‍යයි" },
-          { role: "bot", text: "ඔබගේ eZ Cash wallet එකෙන් ක්ෂණිකව ගෙවීම් සිදු කළ හැක. 0% ගාස්තු." }
+          { role: "bot", text: "ඔබගේ eZ Cash wallet එකෙන් ගෙවීම් සිදු කළ හැක. ගාස්තු bot හි පෙන්වයි." }
         ]
       };
 
@@ -1899,6 +1842,19 @@ ${renderFinalCtaBanner(c, lang, eb)}
       ta: { all: "அனைத்தும்", football: "கால்பந்து", cricket: "கிரிக்கெட்", tennis: "டென்னிஸ்", basketball: "கூடைப்பந்து", table_tennis: "டேபிள் டென்னிஸ்", esports: "இ-ஸ்போர்ட்ஸ்", mma: "MMA", other: "மற்றவை" }
     };
     var tabLabels = SPORT_TAB_LABELS[pageLang] || SPORT_TAB_LABELS.en;
+    var NO_LIVE_MSG = {
+      si: "දැනට live tips නොමැත. Telegram Bot එකෙන් නවතම tips ලබාගන්න.",
+      en: "No live tips right now. Get the latest tips from the Telegram bot.",
+      ta: "இப்போது நேரடி tips இல்லை. Telegram Bot-இல் சமீபத்திய tips பெறுங்கள்."
+    };
+    function showNoLive() {
+      if (liveBadge) liveBadge.style.display = "none";
+      if (liveSummary) liveSummary.style.display = "none";
+      if (tipTabsHost) tipTabsHost.style.display = "none";
+      if (tipGrid) { tipGrid.innerHTML = ""; tipGrid.style.minHeight = ""; }
+      var emp = document.getElementById("tipEmptyState");
+      if (emp) { emp.textContent = NO_LIVE_MSG[pageLang] || NO_LIVE_MSG.en; emp.hidden = false; }
+    }
 
     function escHtml(v) {
       return String(v == null ? "" : v)
@@ -1941,14 +1897,7 @@ ${renderFinalCtaBanner(c, lang, eb)}
           return;
         }
         if (!data || !Array.isArray(data.tips) || data.tips.length === 0) {
-          if (liveBadge) {
-            liveBadge.textContent = "Sample preview";
-          }
-          if (liveSummary) {
-            liveSummary.style.display = "flex";
-            liveSummary.innerHTML = "<span>🎯 <b>84%</b> ${esc(c.tips.stats.winRate)}</span><span>📈 <b>+24.8%</b> ${esc(c.tips.stats.roi)}</span><span>✅ <b>23+</b> ${esc(c.tips.stats.slipsWon)}</span><span>⚡ <b>1.88</b> ${esc(c.tips.stats.avgOdds)}</span>";
-          }
-          if (tipGrid) tipGrid.style.minHeight = "";
+          showNoLive();
           return;
         }
         if (liveBadge) {
@@ -2117,16 +2066,7 @@ ${renderFinalCtaBanner(c, lang, eb)}
           if (activeTab) applySportFilter(activeTab.getAttribute("data-sport") || "all");
         }
       })
-      .catch(function(){
-        if (liveBadge) {
-          liveBadge.textContent = "Preview only";
-        }
-        if (liveSummary) {
-          liveSummary.style.display = "flex";
-          liveSummary.innerHTML = "<span>🎯 <b>84%</b> ${esc(c.tips.stats.winRate)}</span><span>📈 <b>+24.8%</b> ${esc(c.tips.stats.roi)}</span><span>✅ <b>23+</b> ${esc(c.tips.stats.slipsWon)}</span><span>⚡ <b>1.88</b> ${esc(c.tips.stats.avgOdds)}</span>";
-        }
-        if (tipGrid) tipGrid.style.minHeight = "";
-      });
+      .catch(function(){ showNoLive(); });
   } catch(e){}
 
   // 8. Desktop QR Code Modal Toggle
