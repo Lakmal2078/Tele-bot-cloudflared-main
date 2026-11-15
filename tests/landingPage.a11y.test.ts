@@ -39,7 +39,7 @@ describe("landing page accessibility markup", () => {
 
   it("ticker is a labelled region with a pause control", () => {
     const html = renderHtml();
-    expect(html).toContain('role="region" aria-label="Recent Winning Tips');
+    expect(html).toContain('role="region" aria-label="Bot updates');
     expect(html).toContain('class="tickerPause" aria-pressed="false"');
     expect(html).toContain(".tickerBar.paused .tickerItems");
   });

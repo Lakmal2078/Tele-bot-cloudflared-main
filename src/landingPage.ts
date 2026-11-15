@@ -95,7 +95,7 @@ const T: Record<Lang, {
       "දැන් තැන්පතු කරන්න",
       "📱 Scan QR"
     ],
-    ticker: "සජීවී ජයග්‍රහණ (ILLUSTRATIVE TIP RESULTS)",
+    ticker: "සජීවී යාවත්කාලීන",
     countdown: "මීළඟ Tips නිකුතුව (SL Time):",
     services: [
       "One Telegram flow",
@@ -180,7 +180,7 @@ const T: Record<Lang, {
       "Deposit Now",
       "📱 Scan QR"
     ],
-    ticker: "ILLUSTRATIVE TIP RESULTS",
+    ticker: "LIVE UPDATES",
     countdown: "Next Tips Drop (SL Time):",
     services: [
       "One Telegram flow",
@@ -265,7 +265,7 @@ const T: Record<Lang, {
       "இப்போதே Deposit செய்க",
       "📱 QR ஸ்கேன்"
     ],
-    ticker: "சமீபத்திய வெற்றிகள் (ILLUSTRATIVE TIP RESULTS)",
+    ticker: "நேரடி அறிவிப்புகள்",
     countdown: "அடுத்த Tips நேரம் (SL Time):",
     services: [
       "One Telegram flow",
@@ -1259,6 +1259,22 @@ ${cfAnalyticsScript}
   </div>
 </header>
 
+<!-- Winning Tips Ticker Bar -->
+<div class="tickerBar" role="region" aria-label="Bot updates">
+  <div class="wrap tickerInner">
+    <span class="tickerBadge">🔥 ${esc(c.ticker)}</span>
+    <button type="button" class="tickerPause" aria-pressed="false" aria-label="Pause ticker animation">Pause</button>
+    <div class="tickerScroll">
+      <div class="tickerItems">
+        <span class="tickerItem">📲 Open the bot for live odds</span>
+        <span class="tickerItem">🎯 Free daily tips in the bot and channel</span>
+        <span class="tickerItem">🌐 Sinhala · English · Tamil</span>
+        <span class="tickerItem">🔞 18+ · Gamble responsibly</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 <main id="main">
 <section class="hero" id="home">
   <picture><source type="image/webp" srcset="${TELEGRAM_GRAPHICS.hero.replace(/\.jpg$/, ".webp")}"><img class="heroGraphicBg" src="${TELEGRAM_GRAPHICS.hero}" alt="" width="1600" height="900" loading="eager" decoding="async" aria-hidden="true"></picture>
@@ -1373,6 +1389,7 @@ ${cfAnalyticsScript}
       <b>${esc(c.tips.featuredHeading)}</b>
       <span id="tipsLiveBadge" class="previewBadge">${esc(c.tips.badge)}</span>
     </div>
+    <p class="tickerDisclaimer" style="margin:0 0 14px;font-size:12px;color:var(--faint);">Tips are for information only. Past performance does not predict future outcomes. 18+ Gamble responsibly.</p>
     <div class="tipModeTabs" role="group" aria-label="Intelligence views">
       <button type="button" class="tipModeTab active" data-mode="tips" aria-pressed="true">${lang === "si" ? "🎯 දෛනික Tips" : lang === "ta" ? "🎯 தினசரி Tips" : "🎯 Daily Tips"}</button>
       <button type="button" class="tipModeTab" data-mode="odds" aria-pressed="false">${lang === "si" ? "💹 හොඳම Odds" : lang === "ta" ? "💹 சிறந்த Odds" : "💹 Best Odds"}</button>
