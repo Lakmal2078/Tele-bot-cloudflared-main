@@ -843,7 +843,10 @@ export function renderAdminPage(
           <h2 style="font-size:18px; font-weight:700; color:#34d399; margin:0 0 4px;">📈 Telegram Channel Growth</h2>
           <p style="font-size:12px; color:#94a3b8; margin:0;">Verified join/leave events and tracked invite-link campaign attribution · Last ${channelGrowth?.days || days} days</p>
         </div>
-        <button type="button" id="channel-growth-refresh" class="btn-secondary" style="padding:8px 12px;">↻ Refresh</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button type="button" id="channel-webhook-enable" class="btn-secondary" style="padding:8px 12px;">⚙ Enable Join/Leave Tracking</button>
+          <button type="button" id="channel-growth-refresh" class="btn-secondary" style="padding:8px 12px;">↻ Refresh</button>
+        </div>
       </div>
       <div class="r2-grid" style="margin-top:12px;">
         <div class="r2-stat-card"><div class="kpi-label" style="color:#34d399;">Current Tracked Members</div><div class="kpi-value" id="channel-members" style="color:#34d399; font-size:24px;">${(channelGrowth?.trackedMembers || 0).toLocaleString()}</div><div class="kpi-sub">Telegram live count loads on refresh</div></div>
@@ -872,6 +875,19 @@ export function renderAdminPage(
     </section>
     <script${nonceAttr}>
       (function () {
+        var webhookButton = document.getElementById('channel-webhook-enable');
+        if (webhookButton) webhookButton.addEventListener('click', async function () {
+          var status = document.getElementById('channel-webhook-status');
+          webhookButton.disabled = true;
+          status.textContent = 'Registering Telegram webhook updates…';
+          try {
+            var response = await fetch('/api/setup-webhook', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+            var result = await response.json();
+            if (!response.ok || !result.ok || !result.telegramOk) throw new Error(result.error || 'Telegram webhook registration failed');
+            status.textContent = '✓ Webhook registered. Join/Leave updates are enabled. Ensure the bot is an administrator of the official channel.';
+          } catch (error) { status.textContent = error.message || 'Could not register webhook'; }
+          finally { webhookButton.disabled = false; }
+        });
         var refresh = document.getElementById('channel-growth-refresh');
         if (refresh) refresh.addEventListener('click', async function () {
           refresh.disabled = true;
