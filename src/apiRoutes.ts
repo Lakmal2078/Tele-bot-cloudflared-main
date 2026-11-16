@@ -127,7 +127,7 @@ import {
   createAdminSessionToken,
   hasValidAdminSession,
 } from "./adminSession";
-import { getStats, getOperationsDashboard, getDailyFinancialTrends, getSupportTickets, updateSupportTicket, createScheduledChannelPost, recordAnalyticsEvent, getAttributionFunnelStats, consumeRateLimitBuckets, getRateLimitBucket, recordRateLimitFailure, clearRateLimitBucket } from "./db";
+import { getStats, getOperationsDashboard, getDailyFinancialTrends, getSupportTickets, updateSupportTicket, createScheduledChannelPost, recordAnalyticsEvent, getAttributionFunnelStats, getChannelGrowthAnalytics, saveTrackedChannelInvite, consumeRateLimitBuckets, getRateLimitBucket, recordRateLimitFailure, clearRateLimitBucket } from "./db";
 import { cleanupOldR2Logs, getLastCleanupResult } from "./logCleanup";
 import { getObject, putObject, deleteObjects, isR2Configured } from "./storage";
 import { getR2StorageAnalytics, R2AnalyticsContinuationError } from "./r2";
@@ -512,7 +512,7 @@ export async function handleApiRequest(
             url: configuredBase,
             secret_token: webhookSecret,
             drop_pending_updates: false,
-            allowed_updates: ["message", "callback_query"],
+            allowed_updates: ["message", "callback_query", "chat_member"],
           }),
         });
         const tgData = (await tgRes.json()) as { ok?: boolean; description?: string };
@@ -1350,6 +1350,55 @@ ${guideEntries}
     });
   }
 
+  // Telegram channel growth analytics and campaign invite-link management.
+  if (path === "/api/admin/channel-growth" && (method === "GET" || method === "HEAD")) {
+    const denied = await requireAdmin(request, env);
+    if (denied) return denied;
+    if (method === "HEAD") return new Response(null, { status: 200, headers: { "Cache-Control": "no-store", ...securityHeaders() } });
+    try {
+      const days = Math.max(1, Math.min(parseInt(url.searchParams.get("days") || "30", 10) || 30, 90));
+      const analytics = await getChannelGrowthAnalytics(env.DB, days);
+      const channel = (env.CHANNEL_USERNAME || env.TIPS_CHANNEL_ID || "").trim();
+      let telegramMemberCount: number | null = null;
+      if (channel && env.BOT_TOKEN) {
+        const response = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/getChatMemberCount?chat_id=${encodeURIComponent(channel)}`);
+        const result = await response.json() as { ok?: boolean; result?: number };
+        if (result.ok && Number.isFinite(result.result)) telegramMemberCount = Number(result.result);
+      }
+      return json({ ok: true, analytics, telegramMemberCount, channelConfigured: Boolean(channel) });
+    } catch (error) {
+      console.error("[Channel Growth] analytics failed", error);
+      return json({ ok: false, error: "Channel analytics unavailable" }, 503);
+    }
+  }
+
+  if (path === "/api/admin/channel-invites" && method === "POST") {
+    const denied = await requireAdmin(request, env);
+    if (denied) return denied;
+    const channel = (env.CHANNEL_USERNAME || env.TIPS_CHANNEL_ID || "").trim();
+    if (!channel) return json({ ok: false, error: "TIPS_CHANNEL_ID or CHANNEL_USERNAME is required" }, 400);
+    try {
+      const body = await request.json() as { title?: string; source?: string; campaign?: string };
+      const title = String(body.title || "").trim().slice(0, 32);
+      const source = String(body.source || "").trim().slice(0, 80);
+      const campaign = String(body.campaign || "").trim().slice(0, 100);
+      if (!title || !source) return json({ ok: false, error: "title and source are required" }, 400);
+      const tgResponse = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/createChatInviteLink`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: channel, name: title, creates_join_request: false }),
+      });
+      const tgResult = await tgResponse.json() as { ok?: boolean; result?: { invite_link?: string }; description?: string };
+      if (!tgResult.ok || !tgResult.result?.invite_link) {
+        return json({ ok: false, error: "Telegram could not create an invite link. Check bot admin permissions." }, 502);
+      }
+      await saveTrackedChannelInvite(env.DB, { chatId: channel, inviteLink: tgResult.result.invite_link, title, source, campaign });
+      return json({ ok: true, inviteLink: tgResult.result.invite_link });
+    } catch (error) {
+      console.error("[Channel Growth] invite creation failed", error);
+      return json({ ok: false, error: "Could not create tracked invite link" }, 500);
+    }
+  }
+
   // Admin dashboard
   if (path === "/api/admin/dashboard" && (method === "GET" || method === "HEAD")) {
     {
@@ -1560,7 +1609,7 @@ ${guideEntries}
     const metricParam = url.searchParams.get("metric") === "count" ? "count" : "volume";
 
     try {
-      const [stats, trends, dashboard, r2Analytics, funnel, oddsBudget, tipsPerformance, recentValueAlerts, oddsMonitor] = await Promise.all([
+      const [stats, trends, dashboard, r2Analytics, funnel, oddsBudget, tipsPerformance, recentValueAlerts, oddsMonitor, channelGrowth] = await Promise.all([
         getStats(env.DB),
         getDailyFinancialTrends(env.DB, safeDays),
         getOperationsDashboard(env.DB).catch(() => null),
@@ -1570,6 +1619,7 @@ ${guideEntries}
         getDetailedPerformanceReport(env).catch(() => undefined),
         getRecentValueAlerts(env, 10).catch(() => []),
         safeOddsMonitorSummary(env),
+        getChannelGrowthAnalytics(env.DB, safeDays).catch(() => undefined),
       ]);
 
       const nonce = crypto.randomUUID().replace(/-/g, "");
@@ -1591,6 +1641,7 @@ ${guideEntries}
           tipsPerformance,
           recentValueAlerts,
           oddsMonitor,
+          channelGrowth,
           paymentMethods: {
             bank: env.BANK_DETAILS || "Not Configured",
             ezcash: env.EZCASH_NUMBER || "Not Configured",

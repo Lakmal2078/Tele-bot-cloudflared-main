@@ -29,6 +29,11 @@ export interface AdminPageData {
   alerts?: any[];
   tips?: any[];
   funnel?: AttributionFunnelStats;
+  channelGrowth?: {
+    trackedMembers: number; joins: number; leaves: number; netGrowth: number; days: number;
+    bySource: Array<{ source: string; campaign: string; joins: number; leaves: number }>;
+    invites: Array<{ id: number; title: string; source: string; campaign?: string | null; invite_link: string; created_at: string }>;
+  };
   oddsBudget?: MonthlyCreditSummary;
   tipsPerformance?: DetailedPerformanceReport;
   recentValueAlerts?: ValueAlertRecord[];
@@ -123,7 +128,7 @@ export function renderAdminPage(
   nonce?: string
 ): string {
   const nonceAttr = nonce ? ` nonce="${escapeAttribute(nonce)}"` : "";
-  const { stats, trends, days, metric, isAuthorized, tickets = [], alerts = [], r2Analytics, funnel, oddsBudget, tipsPerformance, recentValueAlerts = [], oddsMonitor } = data;
+  const { stats, trends, days, metric, isAuthorized, tickets = [], alerts = [], r2Analytics, funnel, oddsBudget, tipsPerformance, recentValueAlerts = [], oddsMonitor, channelGrowth } = data;
   const r2 = r2Analytics || {
     configured: false,
     bucket: "chat-media",
@@ -830,6 +835,70 @@ export function renderAdminPage(
       </div>
       ` : ""}
     </section>
+
+    <!-- Telegram Channel Growth Analytics -->
+    <section class="card" id="section-channel-growth" style="margin-bottom:24px; border:1px solid rgba(16,185,129,.25); background:linear-gradient(145deg,#0b1b19,#07110f);">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
+        <div>
+          <h2 style="font-size:18px; font-weight:700; color:#34d399; margin:0 0 4px;">📈 Telegram Channel Growth</h2>
+          <p style="font-size:12px; color:#94a3b8; margin:0;">Verified join/leave events and tracked invite-link campaign attribution · Last ${channelGrowth?.days || days} days</p>
+        </div>
+        <button type="button" id="channel-growth-refresh" class="btn-secondary" style="padding:8px 12px;">↻ Refresh</button>
+      </div>
+      <div class="r2-grid" style="margin-top:12px;">
+        <div class="r2-stat-card"><div class="kpi-label" style="color:#34d399;">Current Tracked Members</div><div class="kpi-value" id="channel-members" style="color:#34d399; font-size:24px;">${(channelGrowth?.trackedMembers || 0).toLocaleString()}</div><div class="kpi-sub">Telegram live count loads on refresh</div></div>
+        <div class="r2-stat-card"><div class="kpi-label" style="color:#38bdf8;">New Joins</div><div class="kpi-value" style="color:#38bdf8; font-size:24px;">${(channelGrowth?.joins || 0).toLocaleString()}</div><div class="kpi-sub">Last ${channelGrowth?.days || days} days</div></div>
+        <div class="r2-stat-card"><div class="kpi-label" style="color:#fb7185;">Leaves</div><div class="kpi-value" style="color:#fb7185; font-size:24px;">${(channelGrowth?.leaves || 0).toLocaleString()}</div><div class="kpi-sub">Last ${channelGrowth?.days || days} days</div></div>
+        <div class="r2-stat-card"><div class="kpi-label" style="color:#fbbf24;">Net Growth</div><div class="kpi-value" style="color:#fbbf24; font-size:24px;">${(channelGrowth?.netGrowth || 0) >= 0 ? '+' : ''}${(channelGrowth?.netGrowth || 0).toLocaleString()}</div><div class="kpi-sub">Joins minus leaves</div></div>
+      </div>
+      <h3 style="font-size:13px; font-weight:700; color:#cbd5e1; margin:18px 0 8px;">🏷️ Joins by Campaign / Source</h3>
+      <div class="table-container"><table class="table-compact"><thead><tr><th>Source</th><th>Campaign</th><th style="text-align:right;">Joins</th><th style="text-align:right;">Leaves</th></tr></thead><tbody>
+        ${(channelGrowth?.bySource || []).map(item => `<tr><td>${escapeText(String(item.source || "direct"))}</td><td>${escapeText(String(item.campaign || '—'))}</td><td style="text-align:right;color:#34d399;">${item.joins}</td><td style="text-align:right;color:#fb7185;">${item.leaves}</td></tr>`).join('') || '<tr><td colspan="4" style="color:#94a3b8;">No channel membership events recorded yet.</td></tr>'}
+      </tbody></table></div>
+      <div style="border-top:1px solid rgba(148,163,184,.16); margin-top:18px; padding-top:16px;">
+        <h3 style="font-size:13px; font-weight:700; color:#cbd5e1; margin:0 0 10px;">🔗 Create Tracked Invite Link</h3>
+        <form id="channel-invite-form" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px;">
+          <input name="title" maxlength="32" required placeholder="Link title (max 32)" class="auth-input" style="min-height:40px;">
+          <input name="source" maxlength="80" required placeholder="Source (e.g. WhatsApp)" class="auth-input" style="min-height:40px;">
+          <input name="campaign" maxlength="100" placeholder="Campaign (optional)" class="auth-input" style="min-height:40px;">
+          <button type="submit" class="btn-primary" style="padding:8px 12px;">Create invite link</button>
+        </form>
+        <p id="channel-invite-status" role="status" style="font-size:12px;color:#94a3b8;margin:8px 0;"></p>
+        <div id="channel-invite-result" style="font-size:12px;word-break:break-all;"></div>
+        <div style="margin-top:10px;display:grid;gap:6px;">
+          ${(channelGrowth?.invites || []).map(item => `<div style="font-size:12px;padding:8px 10px;background:rgba(15,23,42,.55);border-radius:6px;"><strong>${escapeText(String(item.title || "Tracked link"))}</strong> · ${escapeText(String(item.source || "direct"))}${item.campaign ? ' / ' + escapeText(item.campaign) : ''}<br><a href="${escapeAttribute(String(item.invite_link || ""))}" target="_blank" rel="noopener noreferrer" style="color:#38bdf8;">${escapeText(String(item.invite_link || ""))}</a></div>`).join('') || '<p style="font-size:12px;color:#94a3b8;">No tracked invite links created yet.</p>'}
+        </div>
+      </div>
+    </section>
+    <script${nonceAttr}>
+      (function () {
+        var refresh = document.getElementById('channel-growth-refresh');
+        if (refresh) refresh.addEventListener('click', async function () {
+          refresh.disabled = true;
+          try {
+            var response = await fetch('/api/admin/channel-growth?days=${channelGrowth?.days || days}', { credentials: 'same-origin', cache: 'no-store' });
+            var result = await response.json();
+            if (result.ok && result.telegramMemberCount !== null) document.getElementById('channel-members').textContent = Number(result.telegramMemberCount).toLocaleString();
+          } catch (_) {} finally { refresh.disabled = false; }
+        });
+        var form = document.getElementById('channel-invite-form');
+        if (form) form.addEventListener('submit', async function (event) {
+          event.preventDefault();
+          var status = document.getElementById('channel-invite-status');
+          var resultBox = document.getElementById('channel-invite-result');
+          var values = Object.fromEntries(new FormData(form).entries());
+          status.textContent = 'Creating invite link…';
+          try {
+            var response = await fetch('/api/admin/channel-invites', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) });
+            var result = await response.json();
+            if (!response.ok || !result.ok) throw new Error(result.error || 'Request failed');
+            resultBox.textContent = result.inviteLink;
+            status.textContent = 'Invite link created and attribution tracking enabled. Reload the dashboard to see it in the saved list.';
+            form.reset();
+          } catch (error) { status.textContent = error.message || 'Could not create invite link'; }
+        });
+      })();
+    </script>
 
     ${(() => {
       const b = oddsBudget;

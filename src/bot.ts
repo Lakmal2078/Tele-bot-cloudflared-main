@@ -234,6 +234,34 @@ export function getPaymentMethodInstructions(method: PaymentMethod, env: Env, la
 export function createBot(env: Env) {
   const bot = new Bot<MyContext>(env.BOT_TOKEN);
   const adminIds = parseAdminIds(env.ADMIN_IDS || "");
+
+  // Membership updates are delivered only when the bot is an administrator
+  // of the tracked channel and the webhook subscribes to chat_member.
+  bot.on("chat_member", async (ctx) => {
+    const update = ctx.chatMember;
+    const trackedChat = String(env.CHANNEL_USERNAME || env.TIPS_CHANNEL_ID || "").trim();
+    if (!trackedChat) return;
+    const expectedChat = trackedChat.replace(/^@/, "");
+    const actualChat = String(update.chat.id);
+    if (actualChat !== expectedChat && update.chat.username?.toLowerCase() !== expectedChat.toLowerCase()) return;
+
+    const isMember = (member: typeof update.new_chat_member) =>
+      ["creator", "administrator", "member"].includes(member.status) ||
+      (member.status === "restricted" && Boolean(member.is_member));
+    const wasMember = isMember(update.old_chat_member);
+    const nowMember = isMember(update.new_chat_member);
+    if (wasMember === nowMember) return;
+
+    await db.recordChannelMemberUpdate(env.DB, {
+      updateId: ctx.update.update_id,
+      chatId: actualChat,
+      userId: update.new_chat_member.user.id,
+      username: update.new_chat_member.user.username,
+      isMember: nowMember,
+      inviteLink: update.invite_link?.invite_link,
+      occurredAt: update.date,
+    });
+  });
   mainMenuChannelUrl = normalizeChannelUrl(env.CHANNEL_URL, env.CHANNEL_USERNAME) || "";
 
 

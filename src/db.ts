@@ -1160,3 +1160,82 @@ export async function getAttributionFunnelStats(
     bySource: sourceRes?.results || [],
   };
 }
+
+
+/* ============================================================
+ * Telegram channel membership analytics
+ * ============================================================ */
+
+export async function recordChannelMemberUpdate(
+  database: D1Database,
+  input: {
+    updateId: number; chatId: string; userId: number; username?: string | null;
+    isMember: boolean; inviteLink?: string | null; occurredAt?: number;
+  }
+): Promise<boolean> {
+  const invite = input.inviteLink
+    ? await database.prepare("SELECT source, campaign FROM tracked_channel_invites WHERE invite_link = ?").bind(input.inviteLink).first<{ source: string; campaign: string | null }>()
+    : null;
+  const eventType = input.isMember ? "join" : "leave";
+  const occurredAt = new Date((input.occurredAt || Math.floor(Date.now() / 1000)) * 1000).toISOString().replace("T", " ").slice(0, 19);
+  const inserted = await database.prepare(
+    `INSERT OR IGNORE INTO channel_member_events
+      (update_id, chat_id, user_id, username, event_type, source, campaign, invite_link, occurred_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(input.updateId, input.chatId, input.userId, input.username || null, eventType,
+    invite?.source || (input.inviteLink ? "untracked_invite" : "direct"),
+    invite?.campaign || null, input.inviteLink || null, occurredAt).run();
+  if (Number(inserted?.meta?.changes || 0) === 0) return false;
+
+  await database.prepare(
+    `INSERT INTO channel_member_state (chat_id, user_id, username, is_member, joined_at, left_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+     ON CONFLICT(chat_id, user_id) DO UPDATE SET
+       username = excluded.username,
+       is_member = excluded.is_member,
+       joined_at = CASE WHEN excluded.is_member = 1 THEN excluded.joined_at ELSE channel_member_state.joined_at END,
+       left_at = CASE WHEN excluded.is_member = 0 THEN excluded.left_at ELSE channel_member_state.left_at END,
+       updated_at = datetime('now')`
+  ).bind(input.chatId, input.userId, input.username || null, input.isMember ? 1 : 0,
+    input.isMember ? occurredAt : null, input.isMember ? null : occurredAt).run();
+  return true;
+}
+
+export async function getChannelGrowthAnalytics(database: D1Database, days = 30) {
+  const safeDays = Math.max(1, Math.min(Math.floor(days), 90));
+  const [members, joins, leaves, daily, sources, invites] = await Promise.all([
+    database.prepare("SELECT COUNT(*) AS count FROM channel_member_state WHERE is_member = 1").first<{ count: number }>(),
+    database.prepare("SELECT COUNT(*) AS count FROM channel_member_events WHERE event_type = 'join' AND occurred_at >= datetime('now', '-' || ? || ' days')").bind(safeDays).first<{ count: number }>(),
+    database.prepare("SELECT COUNT(*) AS count FROM channel_member_events WHERE event_type = 'leave' AND occurred_at >= datetime('now', '-' || ? || ' days')").bind(safeDays).first<{ count: number }>(),
+    database.prepare(`SELECT date(occurred_at) AS date,
+      SUM(CASE WHEN event_type = 'join' THEN 1 ELSE 0 END) AS joins,
+      SUM(CASE WHEN event_type = 'leave' THEN 1 ELSE 0 END) AS leaves
+      FROM channel_member_events WHERE occurred_at >= datetime('now', '-' || ? || ' days')
+      GROUP BY date(occurred_at) ORDER BY date ASC`).bind(safeDays).all<{ date: string; joins: number; leaves: number }>(),
+    database.prepare(`SELECT COALESCE(source, 'direct') AS source, COALESCE(campaign, '') AS campaign,
+      SUM(CASE WHEN event_type = 'join' THEN 1 ELSE 0 END) AS joins,
+      SUM(CASE WHEN event_type = 'leave' THEN 1 ELSE 0 END) AS leaves
+      FROM channel_member_events WHERE occurred_at >= datetime('now', '-' || ? || ' days')
+      GROUP BY source, campaign ORDER BY joins DESC LIMIT 20`).bind(safeDays).all<{ source: string; campaign: string; joins: number; leaves: number }>(),
+    database.prepare("SELECT id, title, source, campaign, invite_link, created_at FROM tracked_channel_invites ORDER BY id DESC LIMIT 20").all<any>(),
+  ]);
+  return {
+    trackedMembers: Number(members?.count) || 0,
+    joins: Number(joins?.count) || 0,
+    leaves: Number(leaves?.count) || 0,
+    netGrowth: (Number(joins?.count) || 0) - (Number(leaves?.count) || 0),
+    daily: daily.results || [],
+    bySource: sources.results || [],
+    invites: invites.results || [],
+    days: safeDays,
+  };
+}
+
+export async function saveTrackedChannelInvite(
+  database: D1Database,
+  input: { chatId: string; inviteLink: string; title: string; source: string; campaign?: string | null }
+) {
+  await database.prepare(
+    "INSERT INTO tracked_channel_invites (chat_id, invite_link, title, source, campaign) VALUES (?, ?, ?, ?, ?)"
+  ).bind(input.chatId, input.inviteLink, input.title, input.source, input.campaign || null).run();
+}
