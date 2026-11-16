@@ -3,6 +3,7 @@ import { generateQrSvg } from "./qrSvg";
 
 const BOT_FALLBACK = "fast_1xbetcash_bot";
 const CHANNEL_FALLBACK = "https://t.me/fast_xbet_official_tips";
+const WHATSAPP_COMMUNITY_URL = "https://chat.whatsapp.com/KmB4wCtkl32AzlYFS55V9c";
 
 const TELEGRAM_GRAPHICS = {
   hero: "/assets/telegram/01-hero-telegram-bot.jpg",
@@ -454,7 +455,16 @@ function renderHeroTrustRibbon(lang: Lang): string {
   </div>`;
 }
 
-function renderFinalCtaBanner(c: (typeof T)[Lang], lang: Lang, eb: string): string {
+function communityCtaLabel(lang: Lang): string {
+  return lang === "si"
+    ? "WhatsApp Community එකට එක්වන්න"
+    : lang === "ta"
+      ? "WhatsApp சமூகத்தில் இணையுங்கள்"
+      : "Join WhatsApp Community";
+}
+
+function renderFinalCtaBanner(c: (typeof T)[Lang], lang: Lang, eb: string, ew: string): string {
+  const communityLabel = communityCtaLabel(lang);
   const badgeText = lang === "si" 
     ? "ක්ෂණික ආරම්භය • 1XBET TELEGRAM CASH DESK" 
     : lang === "ta" 
@@ -509,6 +519,7 @@ function renderFinalCtaBanner(c: (typeof T)[Lang], lang: Lang, eb: string): stri
         <div class="actions heroActions" style="justify-content:center; margin-top:24px;">
           <a class="btn primary heroPrimaryBtn" href="${eb}" data-track-cta="final_bot">✈ ${esc(c.hero[3])}</a>
           <a class="btn secondary" href="#tips-preview" style="padding:15px 28px; border-radius:14px; font-weight:700;">🎯 ${esc(c.hero[4])}</a>
+          <a class="btn whatsapp" href="${ew}" target="_blank" rel="noopener noreferrer" data-track-cta="final_whatsapp">💬 ${esc(communityLabel)}</a>
         </div>
       </div>
     </div>
@@ -607,6 +618,7 @@ export function renderLandingPage(env: Env, request: Request, nonce?: string): s
   if (hasExplicitLang && lang !== "si" && localeUrls) canonicalUrl = localeUrls[lang];
   const c = T[lang];
   const eb = esc(bot);
+  const ew = esc(WHATSAPP_COMMUNITY_URL);
   const ebTips = esc(`https://t.me/${botName}?start=tips`);
   const ec = esc(channel);
   const promo = esc(env.XBET_PROMO_CODE?.trim() || "");
@@ -912,6 +924,8 @@ ${cfAnalyticsScript}
       background: var(--gold); border-color: var(--gold); color: var(--gold-ink);
     }
     .btn.primary:hover, .primary:hover { background: var(--gold-hi); border-color: var(--gold-hi); color: var(--gold-ink); }
+    .btn.whatsapp { background: #25D366; border-color: #25D366; color: #062311; }
+    .btn.whatsapp:hover { background: #20BD5A; border-color: #20BD5A; color: #041A0C; }
     .actions { display: flex; flex-wrap: wrap; gap: 10px; }
     .heroPrimaryBtn { min-width: min(100%, 280px); }
     .subLink {
@@ -1365,6 +1379,7 @@ ${cfAnalyticsScript}
       <!-- Clear Above-The-Fold Primary CTA (Focused Conversion Goal) -->
       <div class="actions heroActions">
         <a class="btn primary heroPrimaryBtn" href="${eb}" data-track-cta="hero_bot">✈ ${esc(c.hero[3])}</a>
+        <a class="btn whatsapp" href="${ew}" target="_blank" rel="noopener noreferrer" data-track-cta="hero_whatsapp">💬 ${esc(communityCtaLabel(lang))}</a>
       </div>
       <div class="heroSubActions" aria-label="Alternative quick actions">
         <a class="subLink" href="#tips-preview" data-track-cta="hero_tips">🎯 ${esc(c.hero[4])}</a>
@@ -1607,7 +1622,7 @@ ${cfAnalyticsScript}
   <div class="faqs">${faqHtml}</div>
 </div></section>
 
-${renderFinalCtaBanner(c, lang, eb)}
+${renderFinalCtaBanner(c, lang, eb, ew)}
 
 <!-- 18+ Responsible Gaming & Regulatory Notice (Footer Level) -->
 <section class="section" id="responsible-gaming" style="padding:28px 0 10px"><div class="wrap"><div class="responsible-gaming-box">

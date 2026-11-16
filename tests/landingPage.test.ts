@@ -207,6 +207,22 @@ describe("Landing Page Render & SEO", () => {
     expect(html).toContain("start=landing");
   });
 
+  it("renders the WhatsApp Community join CTA in the hero and final banner for all locales", () => {
+    const communityUrl = "https://chat.whatsapp.com/KmB4wCtkl32AzlYFS55V9c";
+    const si = renderLandingPage(mockEnv, new Request("https://fast-xbet.lk/"));
+    const en = renderLandingPage(mockEnv, new Request("https://fast-xbet.lk/en/"));
+    const ta = renderLandingPage(mockEnv, new Request("https://fast-xbet.lk/ta/"));
+
+    expect(si.match(/https:\/\/chat\.whatsapp\.com\/KmB4wCtkl32AzlYFS55V9c/g)).toHaveLength(2);
+    expect(si).toContain('data-track-cta="hero_whatsapp"');
+    expect(si).toContain('data-track-cta="final_whatsapp"');
+    expect(si).toContain('target="_blank" rel="noopener noreferrer"');
+    expect(si).toContain("WhatsApp Community එකට එක්වන්න");
+    expect(en).toContain("Join WhatsApp Community");
+    expect(ta).toContain("WhatsApp சமூகத்தில் இணையுங்கள்");
+    expect(si).toContain(communityUrl);
+  });
+
   it("renders Trust signals strip and supported payment rails", () => {
     const req = new Request("https://fast-xbet.lk/");
     const html = renderLandingPage(mockEnv, req);
